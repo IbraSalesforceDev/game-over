@@ -4,7 +4,9 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["vite/client"],
+    // "node" es solo para las utilidades de tests (el volcado del mapa a PNG);
+    // el juego no toca ninguna API de Node.
+    "types": ["vite/client", "node"],
 
     "strict": true,
     "noUncheckedIndexedAccess": true,

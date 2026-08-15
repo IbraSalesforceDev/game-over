@@ -13,13 +13,26 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 0** — Andamiaje y despliegue
 - ✅ **Fase 1** — Laboratorio de físicas
 - ✅ **Fase 2** — Minar y construir
-- ⬜ **Fase 3** — Generación de mundo
+- ✅ **Fase 3** — Generación de mundo
+- ⬜ **Fase 4** — Guardado y carga
 
-Ahora mismo el escenario es un banco de pruebas: un nivel hecho a mano con diez
-tramos, cada uno para verificar una regla concreta de la física (escalones,
-techos bajos, un pozo para alcanzar la velocidad terminal, plataformas de una
-dirección, pasillos justos de alto...), y encima ya se puede excavar y
-construir sobre las dos capas, bloques y paredes.
+Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
+fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
+salas grandes y galerías, cuatro minerales repartidos por profundidad y bosques
+con claros en la superficie. Un mundo de 1400×450 tarda unos 140 ms en
+generarse.
+
+### Parámetros de URL
+
+| Parámetro | Efecto |
+|---|---|
+| `?semilla=LOQUESEA` | Genera siempre el mismo mundo |
+| `?tam=mediano` | Mundo de 2100×600 en vez de 1400×450 |
+| `?lab=1` | Abre el laboratorio de físicas de la fase 1 en vez de un mundo |
+
+El laboratorio sigue ahí a propósito: es donde se afinan las constantes de
+movimiento con `F4`, y es más rápido comprobar una regla de la física en un
+tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 
 ## Controles
 
@@ -51,8 +64,15 @@ todo lo demás; el botón **Copiar** vuelca el ajuste para pegarlo en
 ```bash
 npm install
 npm run dev      # servidor de desarrollo
-npm test         # tests de físicas, cámara y mundo
+npm test         # tests de físicas, cámara, mundo, edición y generación
 npm run build    # comprobación de tipos + build de producción a dist/
+```
+
+Para mirar un mundo entero de un vistazo (relieve, cuevas, vetas y punto de
+aparición) hay un volcado a PNG:
+
+```bash
+MAPA_SALIDA=/tmp/mapa.png MAPA_SEMILLA=LOQUESEA npx vitest run tests/_mapa.test.ts
 ```
 
 ## Stack

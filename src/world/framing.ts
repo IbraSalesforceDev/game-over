@@ -24,7 +24,10 @@ export const MASCARAS = 16;
  */
 export function conecta(a: number, b: number): boolean {
   if (a === AIRE || b === AIRE) return false;
-  if (esPlataforma(a) || esPlataforma(b)) return esPlataforma(a) && esPlataforma(b);
+  // Un tile siempre conecta consigo mismo: es lo que hace que una copa de hojas
+  // o una veta de mineral se vean como una pieza y no como un mosaico.
+  if (a === b) return true;
+  if (esPlataforma(a) || esPlataforma(b)) return false;
   return esSolido(a) && esSolido(b);
 }
 

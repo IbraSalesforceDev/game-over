@@ -15,7 +15,7 @@ import {
   reiniciarPicado,
   type Capa,
 } from './world/edit';
-import { crearNivelPruebas } from './world/testLevel';
+import { leerOpciones, prepararEscenario, type Escenario } from './world/escenario';
 import { crearHud, PALETA } from './ui/hud';
 import { crearTuner } from './ui/tuner';
 
@@ -38,25 +38,52 @@ function progreso(pct: number, texto: string): void {
   if (label) label.textContent = texto;
 }
 
-function arrancar(): void {
+/** Cede el hilo para que el navegador pueda repintar la barra de carga. */
+function siguienteFrame(): Promise<void> {
+  return new Promise((r) => requestAnimationFrame(() => r()));
+}
+
+/**
+ * Ejecuta la generación cediendo el control entre pasos. Sin esto la pantalla
+ * de carga se queda congelada al 0 % y luego aparece el mundo de golpe: la
+ * barra existiría solo de adorno.
+ */
+async function construirEscenario(): Promise<Escenario> {
+  const op = leerOpciones(window.location.search);
+  const it = prepararEscenario(op);
+  let paso = it.next();
+  while (!paso.done) {
+    progreso(paso.value.pct, paso.value.texto);
+    await siguienteFrame();
+    paso = it.next();
+  }
+  return paso.value;
+}
+
+async function arrancar(): Promise<void> {
   const lienzo = document.getElementById('lienzo');
   if (!(lienzo instanceof HTMLCanvasElement)) throw new Error('Falta el canvas #lienzo');
   const capaUI = document.getElementById('capa-ui');
   if (!capaUI) throw new Error('Falta la capa de interfaz #capa-ui');
 
-  progreso(20, 'Levantando el terreno…');
-  const nivel = crearNivelPruebas();
+  const t0 = performance.now();
+  const nivel = await construirEscenario();
   const mundo = nivel.mundo;
+  console.info(
+    `Mundo ${mundo.ancho}x${mundo.alto} · semilla ${nivel.semilla} · ` +
+      `${Math.round(performance.now() - t0)} ms`,
+  );
 
-  progreso(55, 'Pintando los tiles…');
+  progreso(96, 'Pintando los tiles…');
   const renderer = new Renderer(lienzo);
 
-  progreso(80, 'Despertando al personaje…');
+  progreso(98, 'Despertando al personaje…');
   const jugador = crearJugador(nivel.spawnTx, nivel.spawnTy);
   renderer.camara.centrar(jugador.caja.x, jugador.caja.y, mundo.ancho, mundo.alto);
 
   const ajustes: Ajustes = { ...AJUSTES_POR_DEFECTO };
   const debug = crearEstadoDebug();
+  debug.semilla = nivel.semilla;
   const tuner = crearTuner(capaUI, ajustes);
   const hud = crearHud(capaUI);
   const entrada = crearEntrada();
@@ -166,11 +193,7 @@ function arrancar(): void {
   setTimeout(() => document.getElementById('cargador')?.classList.add('oculto'), 250);
 }
 
-try {
-  arrancar();
-} catch (e) {
-  mostrarError(e);
-}
+arrancar().catch(mostrarError);
 
 window.addEventListener('error', (e) => mostrarError(e.error ?? e.message));
 window.addEventListener('unhandledrejection', (e) => mostrarError(e.reason));

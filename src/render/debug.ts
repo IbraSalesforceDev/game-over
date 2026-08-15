@@ -20,6 +20,8 @@ export interface EstadoDebug {
   /** Tile al que apunta el ratón. */
   ratonTx: number;
   ratonTy: number;
+  /** Semilla del mundo, para poder repetir la partida. */
+  semilla: string;
 }
 
 export function crearEstadoDebug(): EstadoDebug {
@@ -32,6 +34,7 @@ export function crearEstadoDebug(): EstadoDebug {
     chunksVivos: 0,
     ratonTx: 0,
     ratonTy: 0,
+    semilla: '',
   };
 }
 
@@ -116,6 +119,7 @@ export function dibujarDebug(
     `coyote ${c.ticksCoyote} · buffer ${c.ticksBuffer} · salto ${c.ticksSalto}`,
     `última caída ${c.ultimaCaida.toFixed(1)} tiles`,
     `ratón ${est.ratonTx}, ${est.ratonTy} · chunks ${est.chunksVivos}`,
+    `semilla ${est.semilla}`,
     `F3 overlay · F4 constantes · F5 chunks · R reaparecer`,
   ];
 

@@ -9,6 +9,15 @@ export const HIERBA = 2;
 export const PIEDRA = 3;
 export const MADERA = 4;
 export const PLATAFORMA = 5;
+export const COBRE = 6;
+export const HIERRO = 7;
+export const PLATA = 8;
+export const ORO = 9;
+export const TRONCO = 10;
+export const HOJAS = 11;
+
+/** Minerales, de menos a más profundo. */
+export const MINERALES = [COBRE, HIERRO, PLATA, ORO] as const;
 
 export interface DefTile {
   readonly nombre: string;
@@ -29,6 +38,14 @@ export const TILES: readonly DefTile[] = [
   { nombre: 'piedra', solido: true, plataforma: false, dureza: 45, color: '#6e6e78' },
   { nombre: 'madera', solido: true, plataforma: false, dureza: 30, color: '#8a5f33' },
   { nombre: 'plataforma', solido: false, plataforma: true, dureza: 15, color: '#a07545' },
+  { nombre: 'cobre', solido: true, plataforma: false, dureza: 55, color: '#b06a3b' },
+  { nombre: 'hierro', solido: true, plataforma: false, dureza: 70, color: '#a3968a' },
+  { nombre: 'plata', solido: true, plataforma: false, dureza: 85, color: '#c2ccd6' },
+  { nombre: 'oro', solido: true, plataforma: false, dureza: 100, color: '#dcb13a' },
+  // Los árboles no frenan: en Terraria se atraviesan, y así no hay que
+  // resolver colisiones absurdas contra una rama.
+  { nombre: 'tronco', solido: false, plataforma: false, dureza: 25, color: '#5a4028' },
+  { nombre: 'hojas', solido: false, plataforma: false, dureza: 8, color: '#3f7a35' },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
