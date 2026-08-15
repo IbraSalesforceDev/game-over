@@ -1,0 +1,19 @@
+{
+  "name": "game-over",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Juego sandbox 2D de tiles inspirado en Terraria",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.0.0"
+  }
+}
