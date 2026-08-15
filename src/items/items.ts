@@ -1,10 +1,13 @@
 import {
   ANTORCHA,
   COBRE,
+  COFRE,
   HIERBA,
   HIERRO,
   HOJAS,
+  HORNO,
   MADERA,
+  MESA,
   ORO,
   PIEDRA,
   PLATA,
@@ -12,26 +15,47 @@ import {
   TIERRA,
   TILES,
   TRONCO,
+  YUNQUE,
 } from '../world/tiles';
 
 /**
  * Catálogo de objetos.
  *
- * Los identificadores de los objetos que son bloques coinciden a propósito con
- * los de sus tiles: así colocar es `mundo.setTile(tx, ty, objeto)` sin tabla de
- * traducción de por medio. Las herramientas viven a partir del último tile.
+ * Los objetos que son bloques comparten identificador con su tile, así colocar
+ * es `mundo.setTile(tx, ty, objeto)` sin tabla de traducción. Los que no son
+ * bloques empiezan en 64, bien lejos del rango de tiles: los ids acaban dentro
+ * de partidas guardadas, y si dependieran de cuántos tiles existan, añadir un
+ * mueble convertiría los picos de todo el mundo en otra cosa. Ya pasó al llegar
+ * la fase 7, y por eso el formato de guardado sube de versión y remapea.
  *
- * Lo que suelta un tile al romperse sí es una tabla aparte, porque no es
- * uno a uno: la hierba suelta tierra, el tronco suelta madera y las hojas no
- * sueltan nada.
+ * Lo que suelta un tile al romperse sí es una tabla aparte, porque no es uno a
+ * uno: la hierba suelta tierra, el tronco madera y las hojas nada.
  */
 
 export const NADA = 0;
 
-/** Primer id de objeto que no es un tile. */
-export const PICO_MADERA = TILES.length; // 13
-export const PICO_COBRE = TILES.length + 1;
-export const PICO_HIERRO = TILES.length + 2;
+/** Primer id que no corresponde a un tile. */
+export const BASE_NO_TILE = 64;
+
+export const LINGOTE_COBRE = 64;
+export const LINGOTE_HIERRO = 65;
+export const LINGOTE_PLATA = 66;
+export const LINGOTE_ORO = 67;
+export const PICO_MADERA = 68;
+export const PICO_COBRE = 69;
+export const PICO_HIERRO = 70;
+export const PICO_PLATA = 71;
+export const PICO_ORO = 72;
+
+/**
+ * Identificadores que tenían las herramientas antes de moverse al rango 64+.
+ * Se conserva para poder abrir partidas del formato 3.
+ */
+export const IDS_ANTIGUOS: Readonly<Record<number, number>> = {
+  13: PICO_MADERA,
+  14: PICO_COBRE,
+  15: PICO_HIERRO,
+};
 
 export type TipoObjeto = 'bloque' | 'herramienta' | 'material';
 
@@ -48,27 +72,36 @@ export interface DefObjeto {
 
 const PILA = 999;
 
-function deTile(id: number, tipo: TipoObjeto = 'bloque'): DefObjeto {
+function deTile(id: number, tipo: TipoObjeto = 'bloque'): [number, DefObjeto] {
   const t = TILES[id]!;
-  return {
-    nombre: t.nombre,
-    tipo,
-    color: t.color,
-    maxPila: PILA,
-    tile: tipo === 'bloque' ? id : undefined,
-  };
+  return [
+    id,
+    {
+      nombre: t.nombre,
+      tipo,
+      color: t.color,
+      maxPila: PILA,
+      tile: tipo === 'bloque' ? id : undefined,
+    },
+  ];
 }
 
-export const OBJETOS: readonly DefObjeto[] = [
-  { nombre: 'nada', tipo: 'material', color: '#000000', maxPila: 0 },
+function lingote(id: number, nombre: string, color: string): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'material', color, maxPila: PILA }];
+}
+
+function pico(id: number, nombre: string, color: string, potencia: number): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'herramienta', color, maxPila: 1, potencia }];
+}
+
+const ENTRADAS: [number, DefObjeto][] = [
+  [NADA, { nombre: 'nada', tipo: 'material', color: '#000000', maxPila: 0 }],
   deTile(TIERRA),
   deTile(HIERBA),
   deTile(PIEDRA),
   deTile(MADERA),
   deTile(PLATAFORMA),
-  // Los minerales en bruto no se colocan: son material para la fase de
-  // crafteo. Que un lingote sin fundir no sea un bloque es lo que hace que
-  // minar tenga sentido más allá de decorar.
+  // Los minerales en bruto no se colocan: hay que fundirlos.
   deTile(COBRE, 'material'),
   deTile(HIERRO, 'material'),
   deTile(PLATA, 'material'),
@@ -76,31 +109,31 @@ export const OBJETOS: readonly DefObjeto[] = [
   deTile(TRONCO),
   deTile(HOJAS),
   deTile(ANTORCHA),
-  {
-    nombre: 'pico de madera',
-    tipo: 'herramienta',
-    color: '#8a5f33',
-    maxPila: 1,
-    potencia: 60,
-  },
-  {
-    nombre: 'pico de cobre',
-    tipo: 'herramienta',
-    color: '#b06a3b',
-    maxPila: 1,
-    potencia: 100,
-  },
-  {
-    nombre: 'pico de hierro',
-    tipo: 'herramienta',
-    color: '#a3968a',
-    maxPila: 1,
-    potencia: 160,
-  },
+  deTile(MESA),
+  deTile(HORNO),
+  deTile(YUNQUE),
+  deTile(COFRE),
+  lingote(LINGOTE_COBRE, 'lingote de cobre', '#c98352'),
+  lingote(LINGOTE_HIERRO, 'lingote de hierro', '#b6aca0'),
+  lingote(LINGOTE_PLATA, 'lingote de plata', '#d6dee8'),
+  lingote(LINGOTE_ORO, 'lingote de oro', '#eec84a'),
+  pico(PICO_MADERA, 'pico de madera', '#8a5f33', 60),
+  pico(PICO_COBRE, 'pico de cobre', '#b06a3b', 100),
+  pico(PICO_HIERRO, 'pico de hierro', '#a3968a', 160),
+  pico(PICO_PLATA, 'pico de plata', '#c2ccd6', 220),
+  pico(PICO_ORO, 'pico de oro', '#dcb13a', 300),
 ];
 
+/** Array disperso: hay hueco entre el último tile y el 64, y no pasa nada. */
+const MAPA: DefObjeto[] = [];
+for (const [id, def] of ENTRADAS) MAPA[id] = def;
+
+export const OBJETOS: readonly DefObjeto[] = MAPA;
+/** Todos los ids existentes, para recorrer el catálogo sin tropezar con huecos. */
+export const IDS_OBJETO: readonly number[] = ENTRADAS.map(([id]) => id);
+
 export function defObjeto(id: number): DefObjeto {
-  return OBJETOS[id] ?? OBJETOS[NADA]!;
+  return MAPA[id] ?? MAPA[NADA]!;
 }
 
 export function esColocable(id: number): boolean {
@@ -113,6 +146,11 @@ export function esHerramienta(id: number): boolean {
 
 export function maxPila(id: number): number {
   return defObjeto(id).maxPila;
+}
+
+/** Traduce un id guardado por una versión anterior del formato. */
+export function migrarId(id: number): number {
+  return IDS_ANTIGUOS[id] ?? id;
 }
 
 /** Qué suelta un tile al romperse. NADA si no suelta nada. */

@@ -26,6 +26,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
       [3, 120],
       [12, 8],
     ],
+    cofres: [],
     ...parcial,
   };
 }
@@ -112,17 +113,22 @@ describe('empaquetado', () => {
    * final el mismo bloque RLE. Se calcula por tamaños en vez de a ojo para que
    * no haya que retocarlo cada vez que el formato crece.
    */
-  function cuerpoAntiguo(m: Mundo, e: EstadoPartida, version: 1 | 2): Uint8Array {
+  function cuerpoAntiguo(m: Mundo, e: EstadoPartida, version: 1 | 2 | 3): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
     const campoMinutos = 2;
     const campoInventario = 2 + 4 * e.inventario.length;
+    // Solo se construyen cuerpos antiguos sin cofres, que es el caso real.
+    const campoCofres = 2;
 
     const actual = serializar(m, e);
-    const inicioRle = comun + campoMinutos + campoInventario;
+    const inicioRle = comun + campoMinutos + campoInventario + campoCofres;
     const rle = actual.subarray(inicioRle);
 
-    const extra = version === 2 ? campoMinutos : 0;
+    let extra = 0;
+    if (version >= 2) extra += campoMinutos;
+    if (version >= 3) extra += campoInventario;
+
     const salida = new Uint8Array(comun + extra + rle.length);
     salida.set(actual.subarray(0, comun + extra), 0);
     salida.set(rle, comun + extra);

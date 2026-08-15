@@ -1,17 +1,17 @@
 import { ANTORCHA } from '../world/tiles';
 import { Inventario } from './inventory';
-import { defObjeto, esHerramienta, OBJETOS } from './items';
+import { defObjeto, esHerramienta, PICO_COBRE } from './items';
 
 /**
  * Equipo con el que empieza una partida y consultas sobre herramientas.
  *
  * El pico inicial no es un regalo: sin herramienta no se puede minar nada, y
- * empezar sin poder cavar sería empezar sin juego. Las antorchas están por lo
- * mismo — hasta que haya crafteo (fase 7) no habría forma de fabricarlas, y una
- * cueva sin luz no se explora.
+ * empezar sin poder cavar sería empezar sin juego. Las antorchas ya se pueden
+ * fabricar con madera, pero se dan unas cuantas para que la primera cueva no
+ * dependa de haber talado un árbol antes.
  */
 
-export const PICO_INICIAL = OBJETOS.findIndex((o) => o.nombre === 'pico de cobre');
+export const PICO_INICIAL = PICO_COBRE;
 export const ANTORCHA_INICIAL = 20;
 
 export function equipoInicial(): Inventario {

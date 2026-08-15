@@ -26,6 +26,9 @@ import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
 import { equipoInicial, mejorPico } from './items/equipo';
 import { defObjeto, dropDePared, dropDeTile } from './items/items';
+import { estacionesCerca } from './items/recipes';
+import { Contenedores } from './world/contenedores';
+import { COFRE } from './world/tiles';
 import {
   actualizarDrop,
   fusionarDrops,
@@ -134,6 +137,7 @@ function partidaNueva(
       capaPared: false,
       minutos,
       inventario: equipoInicial().aDatos(),
+      cofres: [],
     },
   };
 }
@@ -221,6 +225,7 @@ async function arrancar(): Promise<void> {
       ? Inventario.desdeDatos(partida.estado.inventario)
       : equipoInicial();
   const drops: Drop[] = [];
+  const cofres = Contenedores.desdeDatos(mundo.ancho, partida.estado.cofres);
   const aviso = crearAviso(capaUI);
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
@@ -229,7 +234,10 @@ async function arrancar(): Promise<void> {
   const picado = crearPicado();
   let capa: Capa = partida.estado.capaPared ? 'pared' : 'bloque';
   const objetivo: Objetivo = { tx: 0, ty: 0, valido: false, visible: false, capa };
-  const barra = crearBarra(capaUI, inventario, () => reiniciarPicado(picado));
+  const barra = crearBarra(capaUI, inventario, {
+    alCambiar: () => reiniciarPicado(picado),
+    estaciones: () => estacionesCerca(mundo, jugador.caja),
+  });
   barra.seleccionar(partida.estado.material);
   barra.refrescar(capa);
 
@@ -252,6 +260,8 @@ async function arrancar(): Promise<void> {
       partida.estado.jugado = jugadoPrevio + (Date.now() - inicioSesion);
       partida.estado.material = barra.seleccion;
       partida.estado.inventario = inventario.aDatos();
+      cofres.limpiar();
+      partida.estado.cofres = cofres.aDatos();
       partida.estado.capaPared = capa === 'pared';
       partida.estado.minutos = reloj.minutos;
 
@@ -298,6 +308,7 @@ async function arrancar(): Promise<void> {
     barra.refrescar(capa);
   });
   entrada.alPulsar('KeyE', () => barra.alternarInventario());
+  entrada.alPulsar('Escape', () => barra.cerrar());
   for (let i = 0; i < 10; i++) {
     entrada.alPulsar(`Digit${(i + 1) % 10}`, () => barra.seleccionar(i));
   }
@@ -330,6 +341,9 @@ async function arrancar(): Promise<void> {
     }
     if (recogidoAlgo) barra.refrescar(capa);
   }
+
+  /** Estado del botón derecho en el tick anterior, para detectar el flanco. */
+  let derAnterior = false;
 
   /** Un tick de edición: apuntar, picar y colocar. */
   function editar(): void {
@@ -368,6 +382,18 @@ async function arrancar(): Promise<void> {
     }
     objetivo.valido = previo.ok;
 
+    // Romper un cofre lleno haría desaparecer lo que guarda. Se vacía primero.
+    if (
+      puntero.izq &&
+      capa === 'bloque' &&
+      mundo.getTile(tx, ty) === COFRE &&
+      !cofres.vacio(tx, ty)
+    ) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      return;
+    }
+
     if (puntero.izq) {
       if (previo.ok) {
         // Lo que suelta el tile se calcula antes de romperlo: después ya es aire.
@@ -379,6 +405,9 @@ async function arrancar(): Promise<void> {
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
           soltar(drops, soltado, tx, ty);
+          if (soltado === COFRE) cofres.borrar(tx, ty);
+          const abierto = barra.cofreAbierto;
+          if (abierto && abierto.tx === tx && abierto.ty === ty) barra.cerrar();
         }
       } else {
         reiniciarPicado(picado);
@@ -386,6 +415,17 @@ async function arrancar(): Promise<void> {
     } else if (picado.progreso > 0) {
       reiniciarPicado(picado);
     }
+
+    // Un cofre se abre con el clic derecho: es la acción que espera cualquiera
+    // que se ponga delante de uno, y coloca por encima de construir.
+    if (puntero.der && !derAnterior && mundo.getTile(tx, ty) === COFRE) {
+      const abierto = barra.cofreAbierto;
+      if (abierto && abierto.tx === tx && abierto.ty === ty) barra.cerrar();
+      else barra.abrirCofre(cofres.obtener(tx, ty), tx, ty);
+      derAnterior = puntero.der;
+      return;
+    }
+    derAnterior = puntero.der;
 
     if (puntero.der && previo.ok && tileEnMano !== undefined) {
       // Colocar gasta: el inventario es la razón de ser de esta fase.

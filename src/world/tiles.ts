@@ -16,6 +16,13 @@ export const ORO = 9;
 export const TRONCO = 10;
 export const HOJAS = 11;
 export const ANTORCHA = 12;
+export const MESA = 13;
+export const HORNO = 14;
+export const YUNQUE = 15;
+export const COFRE = 16;
+
+/** Tiles que habilitan recetas cuando el jugador está cerca. */
+export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
 
 /** Minerales, de menos a más profundo. */
 export const MINERALES = [COBRE, HIERRO, PLATA, ORO] as const;
@@ -57,6 +64,12 @@ export const TILES: readonly DefTile[] = [
     color: '#ffb347',
     luz: 235,
   },
+  // Los muebles no son macizos: se atraviesan, como en Terraria, para poder
+  // ponerlos en un pasillo estrecho sin quedarte encerrado.
+  { nombre: 'mesa de trabajo', solido: false, plataforma: true, dureza: 18, color: '#a3743c' },
+  { nombre: 'horno', solido: false, plataforma: false, dureza: 30, color: '#7a6a5c', luz: 120 },
+  { nombre: 'yunque', solido: false, plataforma: true, dureza: 40, color: '#4a4a52' },
+  { nombre: 'cofre', solido: false, plataforma: false, dureza: 22, color: '#a37b3c' },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -73,6 +86,11 @@ export function esSolido(id: number): boolean {
 
 export function esPlataforma(id: number): boolean {
   return defTile(id).plataforma;
+}
+
+/** ¿Es una estación de crafteo? */
+export function esEstacion(id: number): boolean {
+  return (ESTACIONES as readonly number[]).includes(id);
 }
 
 /** Luz que emite el tile, 0 si no ilumina. */

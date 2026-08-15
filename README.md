@@ -17,7 +17,8 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 4** — Guardado y carga
 - ✅ **Fase 5** — Iluminación y ciclo día-noche
 - ✅ **Fase 6** — Inventario, objetos y hotbar
-- ⬜ **Fase 7** — Crafteo y contenedores
+- ✅ **Fase 7** — Crafteo y contenedores
+- ⬜ **Fase 8** — Vida, combate y enemigos
 
 Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
 fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
@@ -64,7 +65,9 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | Clic izquierdo | Minar (mantener; la dureza marca lo que tarda) |
 | Clic derecho | Colocar lo que lleves en la mano |
 | `1`–`0` o rueda | Elegir ranura de la barra |
-| `E` | Abrir el inventario |
+| `E` | Abrir inventario y panel de fabricación |
+| Clic derecho en un cofre | Abrirlo |
+| `Esc` | Cerrar los paneles |
 | `Tab` | Alternar capa bloque / pared |
 | `R` | Volver al punto de aparición |
 | `F2` | Guardar ahora |
@@ -86,7 +89,14 @@ para no tener que cambiar de ranura entre picar y construir.
 
 Con el inventario abierto se coge una pila con un clic, va pegada al puntero y
 se suelta con otro clic. La barra rápida son las diez primeras ranuras del
-inventario, no un contenedor aparte.
+inventario, no un contenedor aparte, y el cofre abierto usa el mismo gesto.
+
+Fabricar necesita estar cerca de la estación: con las manos solo salen
+antorchas y la mesa de trabajo; la mesa desbloquea cofres, hornos y yunques; el
+horno funde mineral en lingotes y el yunque los convierte en picos mejores. El
+panel enseña también lo que todavía no puedes pagar, en gris — saber que existe
+un pico de oro es lo que empuja a bajar a buscarlo. Un cofre no se puede romper
+si tiene cosas dentro.
 
 El panel `F4` permite tocar en caliente la gravedad, el salto, la fricción y
 todo lo demás; el botón **Copiar** vuelca el ajuste para pegarlo en

@@ -1,3 +1,5 @@
+import { migrarId } from '../items/items';
+import type { DatosCofre } from './contenedores';
 import { Mundo } from './world';
 
 /**
@@ -21,8 +23,12 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       abren igual y amanecen a las 8:00.
  *   3 — se añade el inventario (fase 6). Los mundos anteriores se abren con
  *       el equipo inicial.
+ *   4 — se añaden los cofres (fase 7) y las herramientas se mudan al rango de
+ *       ids 64+. Los inventarios del formato 3 se remapean al leerlos: sin
+ *       eso, el pico de cobre de una partida antigua se convertiría en un
+ *       horno al añadirse los muebles nuevos.
  */
-export const VERSION_FORMATO = 3;
+export const VERSION_FORMATO = 4;
 
 export interface EstadoJugador {
   x: number;
@@ -45,6 +51,8 @@ export interface EstadoPartida {
   minutos: number;
   /** Ranuras del inventario como pares (objeto, cantidad); formato 3. */
   inventario: readonly (readonly [number, number])[];
+  /** Contenido de los cofres del mundo; formato 4. */
+  cofres: readonly DatosCofre[];
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -222,6 +230,17 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
     e.u16(objeto);
     e.u16(Math.min(65535, cantidad));
   }
+  // Formato 4: los cofres. Son pocos y dispersos, así que van como lista.
+  e.u16(estado.cofres.length);
+  for (const cofre of estado.cofres) {
+    e.u32(cofre.tx);
+    e.u32(cofre.ty);
+    e.u16(cofre.ranuras.length);
+    for (const [objeto, cantidad] of cofre.ranuras) {
+      e.u16(objeto);
+      e.u16(Math.min(65535, cantidad));
+    }
+  }
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   return e.terminar();
@@ -234,7 +253,9 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   if (ancho <= 0 || alto <= 0 || ancho > 20000 || alto > 20000) {
     throw new Error(`Dimensiones de mundo imposibles: ${ancho}x${alto}`);
   }
-  const estado: EstadoPartida & { inventario: readonly (readonly [number, number])[] } = {
+  const estado: {
+    -readonly [K in keyof EstadoPartida]: EstadoPartida[K];
+  } = {
     semilla: l.texto(),
     creado: l.f64(),
     jugado: l.f64(),
@@ -244,12 +265,31 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     // El campo de la hora no existe en el formato 1: esos mundos amanecen.
     minutos: version >= 2 ? l.u16() : HORA_POR_DEFECTO,
     inventario: [],
+    cofres: [],
   };
   if (version >= 3) {
     const n = l.u16();
     const ranuras: [number, number][] = [];
-    for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
+    // Antes del formato 4 las herramientas ocupaban ids del rango de tiles.
+    const traducir = version < 4;
+    for (let i = 0; i < n; i++) {
+      const objeto = l.u16();
+      ranuras.push([traducir ? migrarId(objeto) : objeto, l.u16()]);
+    }
     estado.inventario = ranuras;
+  }
+  if (version >= 4) {
+    const cuantos = l.u16();
+    const cofres: DatosCofre[] = [];
+    for (let c = 0; c < cuantos; c++) {
+      const tx = l.u32();
+      const ty = l.u32();
+      const n = l.u16();
+      const ranuras: [number, number][] = [];
+      for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
+      cofres.push({ tx, ty, ranuras });
+    }
+    estado.cofres = cofres;
   }
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
