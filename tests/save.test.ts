@@ -22,6 +22,10 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     material: 2,
     capaPared: true,
     minutos: 13 * 60 + 37,
+    inventario: [
+      [3, 120],
+      [12, 8],
+    ],
     ...parcial,
   };
 }
@@ -102,26 +106,50 @@ describe('empaquetado', () => {
     await expect(desempaquetar(new Uint8Array(3))).rejects.toThrow(/truncado|vac/i);
   });
 
-  it('abre un mundo del formato 1, que no guardaba la hora', () => {
-    // Cuerpo de la versión 1: igual que el actual pero sin el campo de minutos.
+  /**
+   * Reconstruye el cuerpo tal y como lo escribía una versión anterior:
+   * la cabecera común, después los campos que existieran en esa versión, y al
+   * final el mismo bloque RLE. Se calcula por tamaños en vez de a ojo para que
+   * no haya que retocarlo cada vez que el formato crece.
+   */
+  function cuerpoAntiguo(m: Mundo, e: EstadoPartida, version: 1 | 2): Uint8Array {
+    const bytesSemilla = new TextEncoder().encode(e.semilla).length;
+    const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
+    const campoMinutos = 2;
+    const campoInventario = 2 + 4 * e.inventario.length;
+
+    const actual = serializar(m, e);
+    const inicioRle = comun + campoMinutos + campoInventario;
+    const rle = actual.subarray(inicioRle);
+
+    const extra = version === 2 ? campoMinutos : 0;
+    const salida = new Uint8Array(comun + extra + rle.length);
+    salida.set(actual.subarray(0, comun + extra), 0);
+    salida.set(rle, comun + extra);
+    return salida;
+  }
+
+  it('abre un mundo del formato 1, que no guardaba ni la hora ni el inventario', () => {
     const m = new Mundo(4, 4);
     m.rellenar(0, 2, 3, 3, PIEDRA);
     const e = estado();
-    const completo = serializar(m, e);
-    // El campo de la hora son los 2 bytes justo antes del RLE de tiles.
-    const corte = completo.length - (m.tileId.length * 0 + 0);
-    void corte;
 
-    // Reconstruimos a mano un cuerpo de versión 1 quitando esos 2 bytes.
-    const cabecera = 4 + 4 + 2 + e.semilla.length + 8 * 6 + 1 + 1;
-    const v1 = new Uint8Array(completo.length - 2);
-    v1.set(completo.subarray(0, cabecera), 0);
-    v1.set(completo.subarray(cabecera + 2), cabecera);
-
-    const { estado: leido } = deserializar(v1, 1);
+    const { estado: leido, mundo } = deserializar(cuerpoAntiguo(m, e, 1), 1);
     expect(leido.minutos).toBe(HORA_POR_DEFECTO);
+    expect(leido.inventario).toEqual([]);
     expect(leido.semilla).toBe(e.semilla);
-    expect(leido.material).toBe(e.material);
+    expect(mundo.tileId).toEqual(m.tileId);
+  });
+
+  it('abre un mundo del formato 2, que guardaba la hora pero no el inventario', () => {
+    const m = new Mundo(4, 4);
+    m.rellenar(0, 2, 3, 3, PIEDRA);
+    const e = estado();
+
+    const { estado: leido, mundo } = deserializar(cuerpoAntiguo(m, e, 2), 2);
+    expect(leido.minutos).toBe(e.minutos);
+    expect(leido.inventario).toEqual([]);
+    expect(mundo.tileId).toEqual(m.tileId);
   });
 
   it('rechaza un mundo de una versión futura', async () => {

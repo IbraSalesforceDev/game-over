@@ -2,6 +2,8 @@ import { TILE } from '../core/constants';
 import { css, type Reloj } from '../engine/time';
 import type { Jugador } from '../entities/player';
 import type { MotorLuz } from '../world/lighting';
+import { TAMANO_DROP, type Drop } from '../entities/drop';
+import { defObjeto } from '../items/items';
 import type { Capa, Picado } from '../world/edit';
 import { durezaObjetivo, etapaGrieta } from '../world/edit';
 import type { Mundo } from '../world/world';
@@ -261,6 +263,29 @@ export class Renderer {
     }
   }
 
+  /** Objetos por el suelo: un cuadradito del color del objeto, balanceándose. */
+  private drops(lista: readonly Drop[], ox: number, oy: number): void {
+    if (lista.length === 0) return;
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    const lado = TAMANO_DROP * z;
+    for (const d of lista) {
+      if (!d.vivo) continue;
+      // El balanceo es puramente visual y va con la edad, así que cada objeto
+      // sube y baja con su propia fase.
+      const bob = Math.sin(d.edad / 12) * 1.5;
+      const sx = ox + Math.round(d.x * z);
+      const sy = oy + Math.round((d.y + bob) * z);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(sx + z, sy + z, lado, lado);
+      ctx.fillStyle = defObjeto(d.objeto).color;
+      ctx.fillRect(sx, sy, lado, lado);
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = Math.max(1, z / 2);
+      ctx.strokeRect(sx + 0.5, sy + 0.5, lado - 1, lado - 1);
+    }
+  }
+
   /**
    * Rótulos de las zonas del laboratorio, anclados en X al mundo pero fijos en
    * la parte baja de la pantalla: así se leen sin importar a qué altura esté la
@@ -293,6 +318,7 @@ export class Renderer {
     objetivo: Objetivo,
     motorLuz: MotorLuz,
     reloj: Reloj,
+    drops: readonly Drop[],
   ): void {
     const ox = this.camara.origenX();
     const oy = this.camara.origenY();
@@ -302,6 +328,7 @@ export class Renderer {
     this.cielo(reloj);
     this.chunks(mundo, ox, oy);
     this.picado(mundo, picado, ox, oy);
+    this.drops(drops, ox, oy);
     this.jugador(j, alpha, ox, oy);
     // La luz va después del mundo y del personaje, pero antes de la interfaz:
     // el recuadro del puntero tiene que verse igual dentro de una cueva.

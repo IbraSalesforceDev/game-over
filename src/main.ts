@@ -8,7 +8,7 @@ import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
 import { Renderer, type Objetivo } from './render/renderer';
 import { crearAviso } from './ui/aviso';
-import { crearHud, PALETA } from './ui/hud';
+import { crearBarra } from './ui/hotbar';
 import { mostrarMenu, type Eleccion } from './ui/menu';
 import { crearTuner } from './ui/tuner';
 import { crearAlmacen, nuevoId, type MetaMundo, type SaveAdapter } from './world/almacen';
@@ -23,6 +23,15 @@ import {
 } from './world/edit';
 import { leerOpciones, prepararEscenario } from './world/escenario';
 import { MotorLuz } from './world/lighting';
+import { Inventario } from './items/inventory';
+import { equipoInicial, mejorPico } from './items/equipo';
+import { defObjeto, dropDePared, dropDeTile } from './items/items';
+import {
+  actualizarDrop,
+  fusionarDrops,
+  soltar,
+  type Drop,
+} from './entities/drop';
 import {
   desempaquetar,
   empaquetar,
@@ -124,6 +133,7 @@ function partidaNueva(
       material: 0,
       capaPared: false,
       minutos,
+      inventario: equipoInicial().aDatos(),
     },
   };
 }
@@ -206,17 +216,22 @@ async function arrancar(): Promise<void> {
   const debug = crearEstadoDebug();
   debug.semilla = partida.estado.semilla;
   const tuner = crearTuner(capaUI, ajustes);
-  const hud = crearHud(capaUI);
+  const inventario =
+    partida.estado.inventario.length > 0
+      ? Inventario.desdeDatos(partida.estado.inventario)
+      : equipoInicial();
+  const drops: Drop[] = [];
   const aviso = crearAviso(capaUI);
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
 
   // --- Estado de construcción ---
   const picado = crearPicado();
-  let material = partida.estado.material % PALETA.length;
   let capa: Capa = partida.estado.capaPared ? 'pared' : 'bloque';
   const objetivo: Objetivo = { tx: 0, ty: 0, valido: false, visible: false, capa };
-  hud.refrescar(material, capa);
+  const barra = crearBarra(capaUI, inventario, () => reiniciarPicado(picado));
+  barra.seleccionar(partida.estado.material);
+  barra.refrescar(capa);
 
   // --- Guardado ---
   const inicioSesion = Date.now();
@@ -235,7 +250,8 @@ async function arrancar(): Promise<void> {
         spawnY: jugador.spawnY,
       };
       partida.estado.jugado = jugadoPrevio + (Date.now() - inicioSesion);
-      partida.estado.material = material;
+      partida.estado.material = barra.seleccion;
+      partida.estado.inventario = inventario.aDatos();
       partida.estado.capaPared = capa === 'pared';
       partida.estado.minutos = reloj.minutos;
 
@@ -272,11 +288,6 @@ async function arrancar(): Promise<void> {
     });
   }
 
-  function seleccionar(i: number): void {
-    material = ((i % PALETA.length) + PALETA.length) % PALETA.length;
-    hud.refrescar(material, capa);
-  }
-
   entrada.alPulsar('F3', () => (debug.activo = !debug.activo));
   entrada.alPulsar('F4', () => tuner.alternar());
   entrada.alPulsar('F5', () => (debug.chunks = !debug.chunks));
@@ -284,9 +295,12 @@ async function arrancar(): Promise<void> {
   entrada.alPulsar('Tab', () => {
     capa = capa === 'bloque' ? 'pared' : 'bloque';
     reiniciarPicado(picado);
-    hud.refrescar(material, capa);
+    barra.refrescar(capa);
   });
-  PALETA.forEach((_, i) => entrada.alPulsar(`Digit${i + 1}`, () => seleccionar(i)));
+  entrada.alPulsar('KeyE', () => barra.alternarInventario());
+  for (let i = 0; i < 10; i++) {
+    entrada.alPulsar(`Digit${(i + 1) % 10}`, () => barra.seleccionar(i));
+  }
   entrada.alPulsar('KeyR', () => {
     reaparecer(jugador);
     renderer.camara.centrar(jugador.caja.x, jugador.caja.y, mundo.ancho, mundo.alto);
@@ -294,10 +308,33 @@ async function arrancar(): Promise<void> {
 
   window.addEventListener('resize', () => renderer.redimensionar());
 
+  /** Mueve los objetos del suelo, los recoge y limpia los que ya no están. */
+  function actualizarDrops(): void {
+    if (drops.length === 0) return;
+    const centro = {
+      x: jugador.caja.x + jugador.caja.ancho / 2,
+      y: jugador.caja.y + jugador.caja.alto / 2,
+    };
+    let recogidoAlgo = false;
+    for (const d of drops) {
+      if (!d.vivo) continue;
+      if (actualizarDrop(mundo, d, centro, inventario)) recogidoAlgo = true;
+    }
+    fusionarDrops(drops);
+    // Compactar el array solo cuando haga falta: el caso normal es que no
+    // muera ninguno y no queremos recrearlo sesenta veces por segundo.
+    if (drops.some((d) => !d.vivo)) {
+      const vivos = drops.filter((d) => d.vivo);
+      drops.length = 0;
+      drops.push(...vivos);
+    }
+    if (recogidoAlgo) barra.refrescar(capa);
+  }
+
   /** Un tick de edición: apuntar, picar y colocar. */
   function editar(): void {
     const rueda = puntero.consumirRueda();
-    if (rueda !== 0) seleccionar(material + rueda);
+    if (rueda !== 0) barra.desplazar(rueda);
 
     const wx = renderer.camara.aMundoX(puntero.sx);
     const wy = renderer.camara.aMundoY(puntero.sy);
@@ -310,21 +347,38 @@ async function arrancar(): Promise<void> {
     debug.ratonTx = tx;
     debug.ratonTy = ty;
 
-    const id = PALETA[material]!;
+    const enMano = barra.objetoActivo();
+    const tileEnMano = defObjeto(enMano).tile;
+    const potencia = mejorPico(inventario);
+
     // El recuadro anticipa la acción que hará el botón que tengas pulsado; sin
     // pulsar nada, enseña si ahí se puede construir.
-    const previo = puntero.izq
-      ? puedeMinar(mundo, jugador.caja, tx, ty, capa)
-      : capa === 'bloque'
-        ? puedeColocarBloque(mundo, jugador.caja, tx, ty, id)
-        : puedeColocarPared(mundo, jugador.caja, tx, ty);
+    let previo;
+    if (puntero.izq) {
+      previo = potencia > 0
+        ? puedeMinar(mundo, jugador.caja, tx, ty, capa)
+        : { ok: false as const };
+    } else if (tileEnMano === undefined) {
+      previo = { ok: false as const };
+    } else {
+      previo =
+        capa === 'bloque'
+          ? puedeColocarBloque(mundo, jugador.caja, tx, ty, tileEnMano)
+          : puedeColocarPared(mundo, jugador.caja, tx, ty);
+    }
     objetivo.valido = previo.ok;
 
     if (puntero.izq) {
       if (previo.ok) {
-        if (avanzarPicado(mundo, picado, tx, ty, capa)) {
+        // Lo que suelta el tile se calcula antes de romperlo: después ya es aire.
+        const soltado =
+          capa === 'bloque'
+            ? dropDeTile(mundo.getTile(tx, ty))
+            : dropDePared(mundo.getPared(tx, ty));
+        if (avanzarPicado(mundo, picado, tx, ty, capa, potencia)) {
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
+          soltar(drops, soltado, tx, ty);
         }
       } else {
         reiniciarPicado(picado);
@@ -333,11 +387,15 @@ async function arrancar(): Promise<void> {
       reiniciarPicado(picado);
     }
 
-    if (puntero.der && previo.ok) {
-      if (capa === 'bloque') mundo.setTile(tx, ty, id);
-      else mundo.setPared(tx, ty, id);
-      renderer.cache.invalidar(tx, ty);
-      motorLuz.invalidar(tx);
+    if (puntero.der && previo.ok && tileEnMano !== undefined) {
+      // Colocar gasta: el inventario es la razón de ser de esta fase.
+      if (inventario.sacarDe(barra.seleccion, 1) > 0) {
+        if (capa === 'bloque') mundo.setTile(tx, ty, tileEnMano);
+        else mundo.setPared(tx, ty, tileEnMano);
+        renderer.cache.invalidar(tx, ty);
+        motorLuz.invalidar(tx);
+        barra.refrescar(capa);
+      }
     }
   }
 
@@ -346,6 +404,7 @@ async function arrancar(): Promise<void> {
       reloj.avanzar(TICK);
       editar();
       actualizarJugador(mundo, jugador, entrada.estado(), ajustes);
+      actualizarDrops();
       entrada.finTick();
       // Red de seguridad: si algo lo saca del mundo, vuelve al spawn.
       if (jugador.caja.y > mundo.alto * TILE + 200) reaparecer(jugador);
@@ -357,13 +416,24 @@ async function arrancar(): Promise<void> {
         mundo.ancho,
         mundo.alto,
       );
-      renderer.dibujar(mundo, jugador, alpha, partida.zonas, picado, objetivo, motorLuz, reloj);
+      renderer.dibujar(
+        mundo,
+        jugador,
+        alpha,
+        partida.zonas,
+        picado,
+        objetivo,
+        motorLuz,
+        reloj,
+        drops,
+      );
 
       debug.fps = bucle.fps;
       debug.msFrame = bucle.msFrame;
       debug.chunksVivos = renderer.cache.tamano;
       debug.hora = reloj.hora;
       debug.luzRaton = motorLuz.nivel(debug.ratonTx, debug.ratonTy);
+      debug.drops = drops.length;
       debug.segundosDesdeGuardado = partida.guardable
         ? Math.round((Date.now() - ultimoGuardado) / 1000)
         : -1;

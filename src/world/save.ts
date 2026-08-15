@@ -19,8 +19,10 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *   1 — mundo, paredes y estado del jugador.
  *   2 — se añade la hora del mundo (fase 5). Los mundos de la versión 1 se
  *       abren igual y amanecen a las 8:00.
+ *   3 — se añade el inventario (fase 6). Los mundos anteriores se abren con
+ *       el equipo inicial.
  */
-export const VERSION_FORMATO = 2;
+export const VERSION_FORMATO = 3;
 
 export interface EstadoJugador {
   x: number;
@@ -41,6 +43,8 @@ export interface EstadoPartida {
   capaPared: boolean;
   /** Minuto del día en el que se dejó el mundo (formato 2 en adelante). */
   minutos: number;
+  /** Ranuras del inventario como pares (objeto, cantidad); formato 3. */
+  inventario: readonly (readonly [number, number])[];
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -211,6 +215,13 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   e.u8(estado.material);
   e.u8(estado.capaPared ? 1 : 0);
   e.u16(Math.round(estado.minutos) % 1440); // formato 2
+  // Formato 3: el inventario. Va antes del RLE para que leerlo no obligue a
+  // recorrer el mundo entero.
+  e.u16(estado.inventario.length);
+  for (const [objeto, cantidad] of estado.inventario) {
+    e.u16(objeto);
+    e.u16(Math.min(65535, cantidad));
+  }
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   return e.terminar();
@@ -223,7 +234,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   if (ancho <= 0 || alto <= 0 || ancho > 20000 || alto > 20000) {
     throw new Error(`Dimensiones de mundo imposibles: ${ancho}x${alto}`);
   }
-  const estado: EstadoPartida = {
+  const estado: EstadoPartida & { inventario: readonly (readonly [number, number])[] } = {
     semilla: l.texto(),
     creado: l.f64(),
     jugado: l.f64(),
@@ -232,7 +243,14 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     capaPared: l.u8() === 1,
     // El campo de la hora no existe en el formato 1: esos mundos amanecen.
     minutos: version >= 2 ? l.u16() : HORA_POR_DEFECTO,
+    inventario: [],
   };
+  if (version >= 3) {
+    const n = l.u16();
+    const ranuras: [number, number][] = [];
+    for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
+    estado.inventario = ranuras;
+  }
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

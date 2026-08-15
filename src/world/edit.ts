@@ -13,7 +13,11 @@ import type { Mundo } from './world';
 /** Alcance del jugador, en tiles, medido de centro a centro. */
 export const ALCANCE = 5.5;
 
-/** Potencia del pico. La dureza de un tile son ticks a potencia 100. */
+/**
+ * Potencia de referencia: la dureza de un tile son los ticks que tarda en
+ * romperse con un pico de potencia 100. La potencia real la pone la
+ * herramienta que lleve el jugador.
+ */
 export const POTENCIA_PICO = 100;
 
 export type Capa = 'bloque' | 'pared';

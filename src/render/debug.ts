@@ -28,6 +28,8 @@ export interface EstadoDebug {
   hora: string;
   /** Nivel de luz bajo el puntero, 0-255. */
   luzRaton: number;
+  /** Objetos sueltos por el suelo. */
+  drops: number;
 }
 
 export function crearEstadoDebug(): EstadoDebug {
@@ -44,6 +46,7 @@ export function crearEstadoDebug(): EstadoDebug {
     segundosDesdeGuardado: -1,
     hora: '',
     luzRaton: 0,
+    drops: 0,
   };
 }
 
@@ -129,7 +132,7 @@ export function dibujarDebug(
     `última caída ${c.ultimaCaida.toFixed(1)} tiles`,
     `ratón ${est.ratonTx}, ${est.ratonTy} · chunks ${est.chunksVivos}`,
     `semilla ${est.semilla} · ${est.hora}`,
-    `luz bajo el puntero ${est.luzRaton}`,
+    `luz bajo el puntero ${est.luzRaton} · drops ${est.drops}`,
     est.segundosDesdeGuardado < 0
       ? 'sin guardado'
       : `guardado hace ${est.segundosDesdeGuardado} s`,

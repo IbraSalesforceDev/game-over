@@ -16,7 +16,8 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 3** — Generación de mundo
 - ✅ **Fase 4** — Guardado y carga
 - ✅ **Fase 5** — Iluminación y ciclo día-noche
-- ⬜ **Fase 6** — Inventario, objetos y hotbar
+- ✅ **Fase 6** — Inventario, objetos y hotbar
+- ⬜ **Fase 7** — Crafteo y contenedores
 
 Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
 fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
@@ -61,8 +62,9 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | `W`, `↑` o `Espacio` | Saltar (mantener = salto más alto) |
 | `S` o `↓` + salto | Bajar por una plataforma |
 | Clic izquierdo | Minar (mantener; la dureza marca lo que tarda) |
-| Clic derecho | Colocar el material seleccionado |
-| `1`–`6` o rueda | Elegir material (la 6 es la antorcha) |
+| Clic derecho | Colocar lo que lleves en la mano |
+| `1`–`0` o rueda | Elegir ranura de la barra |
+| `E` | Abrir el inventario |
 | `Tab` | Alternar capa bloque / pared |
 | `R` | Volver al punto de aparición |
 | `F2` | Guardar ahora |
@@ -74,6 +76,17 @@ Construir tiene reglas: un bloque necesita apoyo (un vecino o una pared detrás)
 no se puede colocar un macizo dentro del propio jugador, y todo ocurre dentro
 de un alcance de 5,5 tiles. El recuadro del puntero se pone rojo cuando la
 acción no es posible.
+
+Los bloques ya no son infinitos: lo que minas cae al suelo, un imán lo acerca
+cuando pasas cerca y se apila en el inventario; colocar gasta lo que llevas. La
+hierba suelta tierra, los árboles sueltan madera y los minerales en bruto no se
+pueden colocar — son material para la fase de crafteo. Sin pico no se puede
+minar, y uno mejor pica más rápido: se usa siempre el mejor que lleves encima,
+para no tener que cambiar de ranura entre picar y construir.
+
+Con el inventario abierto se coge una pila con un clic, va pegada al puntero y
+se suelta con otro clic. La barra rápida son las diez primeras ranuras del
+inventario, no un contenedor aparte.
 
 El panel `F4` permite tocar en caliente la gravedad, el salto, la fricción y
 todo lo demás; el botón **Copiar** vuelca el ajuste para pegarlo en
