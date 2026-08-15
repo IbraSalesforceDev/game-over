@@ -23,12 +23,14 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       abren igual y amanecen a las 8:00.
  *   3 — se añade el inventario (fase 6). Los mundos anteriores se abren con
  *       el equipo inicial.
+ *   5 — se añade la vida del jugador (fase 8). Los mundos anteriores se
+ *       abren con la vida al máximo.
  *   4 — se añaden los cofres (fase 7) y las herramientas se mudan al rango de
  *       ids 64+. Los inventarios del formato 3 se remapean al leerlos: sin
  *       eso, el pico de cobre de una partida antigua se convertiría en un
  *       horno al añadirse los muebles nuevos.
  */
-export const VERSION_FORMATO = 4;
+export const VERSION_FORMATO = 5;
 
 export interface EstadoJugador {
   x: number;
@@ -53,6 +55,8 @@ export interface EstadoPartida {
   inventario: readonly (readonly [number, number])[];
   /** Contenido de los cofres del mundo; formato 4. */
   cofres: readonly DatosCofre[];
+  /** Vida del jugador; formato 5. 0 significa "al máximo". */
+  vida: number;
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -241,6 +245,7 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
       e.u16(Math.min(65535, cantidad));
     }
   }
+  e.u16(Math.max(0, Math.round(estado.vida))); // formato 5
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   return e.terminar();
@@ -266,6 +271,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     minutos: version >= 2 ? l.u16() : HORA_POR_DEFECTO,
     inventario: [],
     cofres: [],
+    vida: 0,
   };
   if (version >= 3) {
     const n = l.u16();
@@ -291,6 +297,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     }
     estado.cofres = cofres;
   }
+  if (version >= 5) estado.vida = l.u16();
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

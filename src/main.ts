@@ -31,10 +31,17 @@ import { Contenedores } from './world/contenedores';
 import { COFRE } from './world/tiles';
 import {
   actualizarDrop,
+  crearDrop,
   fusionarDrops,
   soltar,
   type Drop,
 } from './entities/drop';
+import { actualizarEnemigos, botinDe, type Enemigo } from './entities/enemies';
+import { crearGolpe, lanzarGolpe, resolverGolpe, tickGolpe } from './entities/combat';
+import { crearSalud, golpear, revivir, tickSalud, VIDA_MAXIMA } from './entities/salud';
+import { intentarAparicion, INTERVALO_INTENTO, limpiarEnemigos } from './entities/spawner';
+import { crearPanelVida } from './ui/vida';
+import { esArma } from './items/items';
 import {
   desempaquetar,
   empaquetar,
@@ -138,6 +145,7 @@ function partidaNueva(
       minutos,
       inventario: equipoInicial().aDatos(),
       cofres: [],
+      vida: VIDA_MAXIMA,
     },
   };
 }
@@ -225,7 +233,13 @@ async function arrancar(): Promise<void> {
       ? Inventario.desdeDatos(partida.estado.inventario)
       : equipoInicial();
   const drops: Drop[] = [];
+  const enemigos: Enemigo[] = [];
   const cofres = Contenedores.desdeDatos(mundo.ancho, partida.estado.cofres);
+  const salud = crearSalud(VIDA_MAXIMA);
+  if (partida.estado.vida > 0) salud.vida = Math.min(VIDA_MAXIMA, partida.estado.vida);
+  const golpe = crearGolpe();
+  const panelVida = crearPanelVida(capaUI);
+  panelVida.refrescar(salud);
   const aviso = crearAviso(capaUI);
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
@@ -262,6 +276,7 @@ async function arrancar(): Promise<void> {
       partida.estado.inventario = inventario.aDatos();
       cofres.limpiar();
       partida.estado.cofres = cofres.aDatos();
+      partida.estado.vida = salud.vida;
       partida.estado.capaPared = capa === 'pared';
       partida.estado.minutos = reloj.minutos;
 
@@ -344,6 +359,66 @@ async function arrancar(): Promise<void> {
 
   /** Estado del botón derecho en el tick anterior, para detectar el flanco. */
   let derAnterior = false;
+  /** Ticks hasta el próximo intento de aparición de enemigos. */
+  let relojAparicion = 0;
+
+  /** Enemigos, golpes y vida: todo lo que puede matar o morir en un tick. */
+  function actualizarCombate(): void {
+    tickSalud(salud);
+    tickGolpe(golpe);
+
+    // El golpe activo alcanza a quien toque, una vez por mandoble.
+    const r = resolverGolpe(golpe, jugador.caja, enemigos);
+    for (const muerto of r.muertos) {
+      const b = botinDe(muerto.especie);
+      const tx = Math.floor((muerto.caja.x + muerto.caja.ancho / 2) / TILE);
+      const ty = Math.floor((muerto.caja.y + muerto.caja.alto / 2) / TILE);
+      drops.push(crearDrop(b.objeto, b.cantidad, tx, ty));
+    }
+
+    const res = actualizarEnemigos(mundo, enemigos, jugador.caja, salud);
+    if (res.danoAlJugador > 0) {
+      // El empujón sale del enemigo más cercano, para que aparte en la
+      // dirección correcta.
+      let fuenteX = jugador.caja.x;
+      let mejor = Infinity;
+      for (const e of enemigos) {
+        if (!e.vivo) continue;
+        const d = Math.abs(e.caja.x - jugador.caja.x);
+        if (d < mejor) {
+          mejor = d;
+          fuenteX = e.caja.x + e.caja.ancho / 2;
+        }
+      }
+      if (golpear(salud, jugador.caja, res.danoAlJugador, fuenteX)) {
+        panelVida.refrescar(salud);
+      }
+    }
+    for (const m of res.muertos) {
+      const b = botinDe(m.especie);
+      drops.push(crearDrop(b.objeto, b.cantidad, m.tx, m.ty));
+    }
+
+    if (salud.muerto) {
+      reaparecer(jugador);
+      revivir(salud);
+      panelVida.mostrarMuerte(true, 'Vuelves al punto de aparición.');
+      window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
+    }
+
+    limpiarEnemigos(enemigos);
+
+    if (--relojAparicion <= 0) {
+      relojAparicion = INTERVALO_INTENTO;
+      const txJugador = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
+      intentarAparicion(mundo, enemigos, jugador.caja, {
+        esNoche: reloj.esNoche,
+        superficieTy: motorLuz.alturaCielo[txJugador] ?? 0,
+      });
+    }
+
+    if (salud.invulnerable > 0 || salud.desdeGolpe < 3) panelVida.refrescar(salud);
+  }
 
   /** Un tick de edición: apuntar, picar y colocar. */
   function editar(): void {
@@ -364,6 +439,16 @@ async function arrancar(): Promise<void> {
     const enMano = barra.objetoActivo();
     const tileEnMano = defObjeto(enMano).tile;
     const potencia = mejorPico(inventario);
+
+    // Con un arma en la mano el clic izquierdo golpea; con cualquier otra cosa,
+    // pica. Es lo que hace que elegir el arma signifique algo.
+    if (puntero.izq && esArma(enMano)) {
+      lanzarGolpe(golpe, enMano, jugador.caja.mirando);
+      reiniciarPicado(picado);
+      objetivo.valido = false;
+      derAnterior = puntero.der;
+      return;
+    }
 
     // El recuadro anticipa la acción que hará el botón que tengas pulsado; sin
     // pulsar nada, enseña si ahí se puede construir.
@@ -445,6 +530,7 @@ async function arrancar(): Promise<void> {
       editar();
       actualizarJugador(mundo, jugador, entrada.estado(), ajustes);
       actualizarDrops();
+      actualizarCombate();
       entrada.finTick();
       // Red de seguridad: si algo lo saca del mundo, vuelve al spawn.
       if (jugador.caja.y > mundo.alto * TILE + 200) reaparecer(jugador);
@@ -466,6 +552,8 @@ async function arrancar(): Promise<void> {
         motorLuz,
         reloj,
         drops,
+        enemigos,
+        golpe,
       );
 
       debug.fps = bucle.fps;
@@ -474,6 +562,7 @@ async function arrancar(): Promise<void> {
       debug.hora = reloj.hora;
       debug.luzRaton = motorLuz.nivel(debug.ratonTx, debug.ratonTy);
       debug.drops = drops.length;
+      debug.enemigos = enemigos.length;
       debug.segundosDesdeGuardado = partida.guardable
         ? Math.round((Date.now() - ultimoGuardado) / 1000)
         : -1;

@@ -27,6 +27,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
       [12, 8],
     ],
     cofres: [],
+    vida: 80,
     ...parcial,
   };
 }
@@ -120,9 +121,10 @@ describe('empaquetado', () => {
     const campoInventario = 2 + 4 * e.inventario.length;
     // Solo se construyen cuerpos antiguos sin cofres, que es el caso real.
     const campoCofres = 2;
+    const campoVida = 2;
 
     const actual = serializar(m, e);
-    const inicioRle = comun + campoMinutos + campoInventario + campoCofres;
+    const inicioRle = comun + campoMinutos + campoInventario + campoCofres + campoVida;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;

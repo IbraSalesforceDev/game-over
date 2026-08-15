@@ -46,6 +46,11 @@ export const PICO_COBRE = 69;
 export const PICO_HIERRO = 70;
 export const PICO_PLATA = 71;
 export const PICO_ORO = 72;
+export const GEL = 73;
+export const HUESO = 74;
+export const ESPADA_MADERA = 75;
+export const ESPADA_COBRE = 76;
+export const ESPADA_HIERRO = 77;
 
 /**
  * Identificadores que tenían las herramientas antes de moverse al rango 64+.
@@ -57,7 +62,7 @@ export const IDS_ANTIGUOS: Readonly<Record<number, number>> = {
   15: PICO_HIERRO,
 };
 
-export type TipoObjeto = 'bloque' | 'herramienta' | 'material';
+export type TipoObjeto = 'bloque' | 'herramienta' | 'arma' | 'material';
 
 export interface DefObjeto {
   readonly nombre: string;
@@ -68,6 +73,12 @@ export interface DefObjeto {
   readonly tile?: number;
   /** Potencia de picado, si es un pico. */
   readonly potencia?: number;
+  /** Daño por golpe, si es un arma. */
+  readonly dano?: number;
+  /** Ticks entre golpes, si es un arma. */
+  readonly cadencia?: number;
+  /** Alcance del golpe en píxeles, si es un arma. */
+  readonly alcance?: number;
 }
 
 const PILA = 999;
@@ -92,6 +103,17 @@ function lingote(id: number, nombre: string, color: string): [number, DefObjeto]
 
 function pico(id: number, nombre: string, color: string, potencia: number): [number, DefObjeto] {
   return [id, { nombre, tipo: 'herramienta', color, maxPila: 1, potencia }];
+}
+
+function espada(
+  id: number,
+  nombre: string,
+  color: string,
+  dano: number,
+  cadencia: number,
+  alcance: number,
+): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'arma', color, maxPila: 1, dano, cadencia, alcance }];
 }
 
 const ENTRADAS: [number, DefObjeto][] = [
@@ -122,6 +144,13 @@ const ENTRADAS: [number, DefObjeto][] = [
   pico(PICO_HIERRO, 'pico de hierro', '#a3968a', 160),
   pico(PICO_PLATA, 'pico de plata', '#c2ccd6', 220),
   pico(PICO_ORO, 'pico de oro', '#dcb13a', 300),
+  lingote(GEL, 'gel', '#79c8e0'),
+  lingote(HUESO, 'hueso', '#e2ddcb'),
+  // Más daño cuesta más lentitud: una espada de hierro pega fuerte pero se
+  // recupera despacio, y eso obliga a medir cuándo entrar.
+  espada(ESPADA_MADERA, 'espada de madera', '#8a5f33', 12, 26, 34),
+  espada(ESPADA_COBRE, 'espada de cobre', '#b06a3b', 18, 28, 38),
+  espada(ESPADA_HIERRO, 'espada de hierro', '#a3968a', 26, 32, 42),
 ];
 
 /** Array disperso: hay hueco entre el último tile y el 64, y no pasa nada. */
@@ -142,6 +171,10 @@ export function esColocable(id: number): boolean {
 
 export function esHerramienta(id: number): boolean {
   return defObjeto(id).tipo === 'herramienta';
+}
+
+export function esArma(id: number): boolean {
+  return defObjeto(id).tipo === 'arma';
 }
 
 export function maxPila(id: number): number {

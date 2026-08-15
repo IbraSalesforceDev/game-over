@@ -3,6 +3,8 @@ import { css, type Reloj } from '../engine/time';
 import type { Jugador } from '../entities/player';
 import type { MotorLuz } from '../world/lighting';
 import { TAMANO_DROP, type Drop } from '../entities/drop';
+import { ENEMIGOS, type Enemigo } from '../entities/enemies';
+import { cajaGolpe, type Golpe } from '../entities/combat';
 import { defObjeto } from '../items/items';
 import type { Capa, Picado } from '../world/edit';
 import { durezaObjetivo, etapaGrieta } from '../world/edit';
@@ -263,6 +265,67 @@ export class Renderer {
     }
   }
 
+  /** Enemigos. Parpadean en blanco el instante que siguen a un golpe. */
+  private enemigos(lista: readonly Enemigo[], ox: number, oy: number): void {
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    for (const e of lista) {
+      if (!e.vivo) continue;
+      const def = ENEMIGOS[e.especie];
+      const c = e.caja;
+      const sx = ox + Math.round(c.x * z);
+      const sy = oy + Math.round(c.y * z);
+      const w = c.ancho * z;
+      const h = c.alto * z;
+
+      const tocado = e.salud.desdeGolpe < 6;
+      ctx.fillStyle = tocado ? '#ffffff' : def.color;
+      ctx.fillRect(sx, sy, w, h);
+      if (!tocado) {
+        ctx.fillStyle = def.colorOscuro;
+        ctx.fillRect(sx, sy + h * 0.62, w, h * 0.38);
+        // Dos ojos mirando hacia donde se mueve.
+        ctx.fillStyle = '#0d1117';
+        const ojo = Math.max(2, z);
+        const base = c.mirando > 0 ? sx + w * 0.45 : sx + w * 0.2;
+        ctx.fillRect(base, sy + h * 0.25, ojo, ojo);
+        ctx.fillRect(base + ojo * 2.2, sy + h * 0.25, ojo, ojo);
+      }
+
+      // Barra de vida solo cuando está herido: llenar la pantalla de barras
+      // llenas no informa de nada.
+      if (e.salud.vida < e.salud.vidaMax) {
+        const pct = e.salud.vida / e.salud.vidaMax;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(sx, sy - 6 * z, w, 3 * z);
+        ctx.fillStyle = '#e05a5a';
+        ctx.fillRect(sx, sy - 6 * z, w * pct, 3 * z);
+      }
+    }
+  }
+
+  /** Arco del arma mientras dura el mandoble. */
+  private golpe(g: Golpe, jugador: Jugador, ox: number, oy: number): void {
+    const caja = cajaGolpe(g, jugador.caja);
+    if (!caja) return;
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    const avance = 1 - g.restante / 8;
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.4 * (1 - avance);
+    ctx.fillStyle = defObjeto(g.arma).color;
+    // El arco se abre a medida que avanza el golpe: da sensación de barrido
+    // sin necesidad de sprites de animación.
+    const alto = caja.alto * (0.35 + 0.65 * avance);
+    ctx.fillRect(
+      ox + Math.round(caja.x * z),
+      oy + Math.round((caja.y + (caja.alto - alto) / 2) * z),
+      caja.ancho * z,
+      alto * z,
+    );
+    ctx.restore();
+  }
+
   /** Objetos por el suelo: un cuadradito del color del objeto, balanceándose. */
   private drops(lista: readonly Drop[], ox: number, oy: number): void {
     if (lista.length === 0) return;
@@ -319,6 +382,8 @@ export class Renderer {
     motorLuz: MotorLuz,
     reloj: Reloj,
     drops: readonly Drop[],
+    enemigos: readonly Enemigo[],
+    golpe: Golpe,
   ): void {
     const ox = this.camara.origenX();
     const oy = this.camara.origenY();
@@ -329,7 +394,9 @@ export class Renderer {
     this.chunks(mundo, ox, oy);
     this.picado(mundo, picado, ox, oy);
     this.drops(drops, ox, oy);
+    this.enemigos(enemigos, ox, oy);
     this.jugador(j, alpha, ox, oy);
+    this.golpe(golpe, j, ox, oy);
     // La luz va después del mundo y del personaje, pero antes de la interfaz:
     // el recuadro del puntero tiene que verse igual dentro de una cueva.
     this.luz(motorLuz, reloj, recalculada, ox, oy);

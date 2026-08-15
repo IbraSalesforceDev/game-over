@@ -18,7 +18,8 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 5** — Iluminación y ciclo día-noche
 - ✅ **Fase 6** — Inventario, objetos y hotbar
 - ✅ **Fase 7** — Crafteo y contenedores
-- ⬜ **Fase 8** — Vida, combate y enemigos
+- ✅ **Fase 8** — Vida, combate y enemigos
+- ⬜ **Fase 9** — Líquidos y biomas
 
 Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
 fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
@@ -62,7 +63,7 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | `A` `D` o `←` `→` | Moverse |
 | `W`, `↑` o `Espacio` | Saltar (mantener = salto más alto) |
 | `S` o `↓` + salto | Bajar por una plataforma |
-| Clic izquierdo | Minar (mantener; la dureza marca lo que tarda) |
+| Clic izquierdo | Minar, o golpear si llevas un arma en la mano |
 | Clic derecho | Colocar lo que lleves en la mano |
 | `1`–`0` o rueda | Elegir ranura de la barra |
 | `E` | Abrir inventario y panel de fabricación |
@@ -90,6 +91,15 @@ para no tener que cambiar de ranura entre picar y construir.
 Con el inventario abierto se coge una pila con un clic, va pegada al puntero y
 se suelta con otro clic. La barra rápida son las diez primeras ranuras del
 inventario, no un contenedor aparte, y el cofre abierto usa el mismo gesto.
+
+De noche salen zombis y slimes a la superficie, y bajo tierra hay peligro a
+cualquier hora. Los golpes hacen daño por contacto y dan unos fotogramas de
+invulnerabilidad: sin ellos, quedarse pegado a un enemigo mata al instante. Al
+morir se reaparece en el punto de origen con la vida llena.
+
+Se empieza con pico, espada de madera y antorchas. Los enemigos sueltan gel y
+huesos, y el gel hace que las antorchas cundan mucho más. Una espada mejor pega
+más fuerte pero se recupera más despacio.
 
 Fabricar necesita estar cerca de la estación: con las manos solo salen
 antorchas y la mesa de trabajo; la mesa desbloquea cofres, hornos y yunques; el

@@ -1,22 +1,26 @@
 import { ANTORCHA } from '../world/tiles';
 import { Inventario } from './inventory';
-import { defObjeto, esHerramienta, PICO_COBRE } from './items';
+import { defObjeto, esHerramienta, ESPADA_MADERA, PICO_COBRE } from './items';
 
 /**
  * Equipo con el que empieza una partida y consultas sobre herramientas.
  *
  * El pico inicial no es un regalo: sin herramienta no se puede minar nada, y
- * empezar sin poder cavar sería empezar sin juego. Las antorchas ya se pueden
- * fabricar con madera, pero se dan unas cuantas para que la primera cueva no
- * dependa de haber talado un árbol antes.
+ * empezar sin poder cavar sería empezar sin juego. Lo mismo con la espada desde
+ * que hay enemigos: la primera noche cae a los pocos minutos de empezar, y
+ * llegar a ella sin nada con lo que defenderse no es dificultad, es una trampa.
+ * Las antorchas ya se pueden fabricar, pero se dan unas cuantas para que la
+ * primera cueva no dependa de haber talado un árbol antes.
  */
 
 export const PICO_INICIAL = PICO_COBRE;
+export const ESPADA_INICIAL = ESPADA_MADERA;
 export const ANTORCHA_INICIAL = 20;
 
 export function equipoInicial(): Inventario {
   const inv = new Inventario();
   inv.anadir(PICO_INICIAL, 1);
+  inv.anadir(ESPADA_INICIAL, 1);
   inv.anadir(ANTORCHA, ANTORCHA_INICIAL);
   return inv;
 }

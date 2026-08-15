@@ -4,6 +4,10 @@ import { ANTORCHA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, 
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
+  ESPADA_COBRE,
+  ESPADA_HIERRO,
+  ESPADA_MADERA,
+  GEL,
   LINGOTE_COBRE,
   LINGOTE_HIERRO,
   LINGOTE_ORO,
@@ -51,6 +55,19 @@ export const RECETAS: readonly Receta[] = [
     estacion: null,
   },
 
+  // El gel que sueltan los slimes hace que las antorchas cundan mucho más:
+  // es lo que convierte matar bichos en algo útil y no solo en sobrevivir.
+  {
+    id: 'antorchas-gel',
+    ingredientes: [
+      [MADERA, 1],
+      [GEL, 1],
+    ],
+    resultado: ANTORCHA,
+    cantidad: 8,
+    estacion: null,
+  },
+
   // --- Mesa de trabajo ---
   {
     id: 'plataformas',
@@ -70,6 +87,13 @@ export const RECETAS: readonly Receta[] = [
     id: 'horno',
     ingredientes: [[PIEDRA, 20]],
     resultado: HORNO,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'espada-madera',
+    ingredientes: [[MADERA, 7]],
+    resultado: ESPADA_MADERA,
     cantidad: 1,
     estacion: MESA,
   },
@@ -119,6 +143,26 @@ export const RECETAS: readonly Receta[] = [
       [MADERA, 4],
     ],
     resultado: PICO_HIERRO,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  {
+    id: 'espada-cobre',
+    ingredientes: [
+      [LINGOTE_COBRE, 8],
+      [MADERA, 3],
+    ],
+    resultado: ESPADA_COBRE,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  {
+    id: 'espada-hierro',
+    ingredientes: [
+      [LINGOTE_HIERRO, 10],
+      [MADERA, 3],
+    ],
+    resultado: ESPADA_HIERRO,
     cantidad: 1,
     estacion: YUNQUE,
   },
