@@ -1,0 +1,288 @@
+import { Mundo } from './world';
+
+/**
+ * Serialización del mundo.
+ *
+ * El formato lleva número de versión desde el primer día: en cuanto una fase
+ * futura añada una capa (líquidos, luz, cofres), los mundos guardados con la
+ * versión anterior tienen que seguir abriéndose o cargárselos en cada
+ * despliegue. `VERSION_FORMATO` sube y `deserializar` decide qué hacer.
+ *
+ * Las capas se guardan con RLE. Un mundo es enormemente repetitivo —miles de
+ * tiles de piedra seguidos— así que el RLE lo deja en una fracción, y el
+ * deflate posterior remata el trabajo.
+ */
+
+export const MAGIA = 0x474f5652; // 'GOVR'
+export const VERSION_FORMATO = 1;
+
+export interface EstadoJugador {
+  x: number;
+  y: number;
+  spawnX: number;
+  spawnY: number;
+}
+
+export interface EstadoPartida {
+  semilla: string;
+  jugador: EstadoJugador;
+  /** Marca de tiempo de creación del mundo. */
+  creado: number;
+  /** Milisegundos jugados en total. */
+  jugado: number;
+  /** Material y capa seleccionados, para no perder el contexto al volver. */
+  material: number;
+  capaPared: boolean;
+}
+
+export interface Partida {
+  mundo: Mundo;
+  estado: EstadoPartida;
+}
+
+// --- Escritura y lectura de bytes --------------------------------------------
+
+class Escritor {
+  private buf = new Uint8Array(1 << 16);
+  private vista = new DataView(this.buf.buffer);
+  private pos = 0;
+
+  private asegurar(bytes: number): void {
+    if (this.pos + bytes <= this.buf.length) return;
+    let nuevo = this.buf.length * 2;
+    while (nuevo < this.pos + bytes) nuevo *= 2;
+    const copia = new Uint8Array(nuevo);
+    copia.set(this.buf);
+    this.buf = copia;
+    this.vista = new DataView(this.buf.buffer);
+  }
+
+  u8(v: number): void {
+    this.asegurar(1);
+    this.vista.setUint8(this.pos, v);
+    this.pos += 1;
+  }
+
+  u16(v: number): void {
+    this.asegurar(2);
+    this.vista.setUint16(this.pos, v);
+    this.pos += 2;
+  }
+
+  u32(v: number): void {
+    this.asegurar(4);
+    this.vista.setUint32(this.pos, v);
+    this.pos += 4;
+  }
+
+  f64(v: number): void {
+    this.asegurar(8);
+    this.vista.setFloat64(this.pos, v);
+    this.pos += 8;
+  }
+
+  texto(v: string): void {
+    const bytes = new TextEncoder().encode(v);
+    this.u16(bytes.length);
+    this.asegurar(bytes.length);
+    this.buf.set(bytes, this.pos);
+    this.pos += bytes.length;
+  }
+
+  terminar(): Uint8Array {
+    return this.buf.slice(0, this.pos);
+  }
+}
+
+class Lector {
+  private vista: DataView;
+  private pos = 0;
+
+  constructor(private readonly buf: Uint8Array) {
+    this.vista = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  }
+
+  u8(): number {
+    return this.vista.getUint8(this.pos++);
+  }
+
+  u16(): number {
+    const v = this.vista.getUint16(this.pos);
+    this.pos += 2;
+    return v;
+  }
+
+  u32(): number {
+    const v = this.vista.getUint32(this.pos);
+    this.pos += 4;
+    return v;
+  }
+
+  f64(): number {
+    const v = this.vista.getFloat64(this.pos);
+    this.pos += 8;
+    return v;
+  }
+
+  texto(): string {
+    const n = this.u16();
+    const bytes = this.buf.subarray(this.pos, this.pos + n);
+    this.pos += n;
+    return new TextDecoder().decode(bytes);
+  }
+
+  get agotado(): boolean {
+    return this.pos >= this.buf.length;
+  }
+}
+
+// --- RLE ---------------------------------------------------------------------
+
+/** Escribe una capa como pares (valor, repeticiones). */
+function escribirRle(e: Escritor, capa: Uint16Array): void {
+  // Reservamos el hueco del contador y lo rellenamos al final: no sabemos
+  // cuántas tiradas habrá hasta haberlas escrito.
+  const tiradas: number[] = [];
+  let valor = capa[0] ?? 0;
+  let largo = 0;
+  for (let i = 0; i < capa.length; i++) {
+    const v = capa[i]!;
+    if (v === valor && largo < 0xffffffff) {
+      largo++;
+    } else {
+      tiradas.push(valor, largo);
+      valor = v;
+      largo = 1;
+    }
+  }
+  if (largo > 0) tiradas.push(valor, largo);
+
+  e.u32(tiradas.length / 2);
+  for (let i = 0; i < tiradas.length; i += 2) {
+    e.u16(tiradas[i]!);
+    e.u32(tiradas[i + 1]!);
+  }
+}
+
+function leerRle(l: Lector, capa: Uint16Array): void {
+  const tiradas = l.u32();
+  let pos = 0;
+  for (let i = 0; i < tiradas; i++) {
+    const valor = l.u16();
+    const largo = l.u32();
+    if (pos + largo > capa.length) {
+      throw new Error('Datos de mundo corruptos: una tirada se sale de la capa');
+    }
+    capa.fill(valor, pos, pos + largo);
+    pos += largo;
+  }
+  if (pos !== capa.length) {
+    throw new Error(
+      `Datos de mundo corruptos: se esperaban ${capa.length} tiles y hay ${pos}`,
+    );
+  }
+}
+
+// --- Cuerpo ------------------------------------------------------------------
+
+/** Serializa mundo y estado sin comprimir. */
+export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
+  const e = new Escritor();
+  e.u32(mundo.ancho);
+  e.u32(mundo.alto);
+  e.texto(estado.semilla);
+  e.f64(estado.creado);
+  e.f64(estado.jugado);
+  e.f64(estado.jugador.x);
+  e.f64(estado.jugador.y);
+  e.f64(estado.jugador.spawnX);
+  e.f64(estado.jugador.spawnY);
+  e.u8(estado.material);
+  e.u8(estado.capaPared ? 1 : 0);
+  escribirRle(e, mundo.tileId);
+  escribirRle(e, mundo.wallId);
+  return e.terminar();
+}
+
+export function deserializar(datos: Uint8Array): Partida {
+  const l = new Lector(datos);
+  const ancho = l.u32();
+  const alto = l.u32();
+  if (ancho <= 0 || alto <= 0 || ancho > 20000 || alto > 20000) {
+    throw new Error(`Dimensiones de mundo imposibles: ${ancho}x${alto}`);
+  }
+  const estado: EstadoPartida = {
+    semilla: l.texto(),
+    creado: l.f64(),
+    jugado: l.f64(),
+    jugador: { x: l.f64(), y: l.f64(), spawnX: l.f64(), spawnY: l.f64() },
+    material: l.u8(),
+    capaPared: l.u8() === 1,
+  };
+  const mundo = new Mundo(ancho, alto);
+  leerRle(l, mundo.tileId);
+  leerRle(l, mundo.wallId);
+  return { mundo, estado };
+}
+
+// --- Empaquetado (cabecera + compresión) -------------------------------------
+
+const CRUDO = 0;
+const DEFLATE = 1;
+
+function hayCompresion(): boolean {
+  return typeof CompressionStream !== 'undefined';
+}
+
+async function comprimir(datos: Uint8Array): Promise<Uint8Array> {
+  const cs = new CompressionStream('deflate-raw');
+  const flujo = new Blob([datos as BlobPart]).stream().pipeThrough(cs);
+  return new Uint8Array(await new Response(flujo).arrayBuffer());
+}
+
+async function descomprimir(datos: Uint8Array): Promise<Uint8Array> {
+  const ds = new DecompressionStream('deflate-raw');
+  const flujo = new Blob([datos as BlobPart]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(flujo).arrayBuffer());
+}
+
+/**
+ * Cabecera + cuerpo comprimido. La cabecera va siempre en claro para poder
+ * comprobar la magia y la versión sin descomprimir nada.
+ */
+export async function empaquetar(
+  mundo: Mundo,
+  estado: EstadoPartida,
+): Promise<Uint8Array> {
+  const cuerpo = serializar(mundo, estado);
+  const comprime = hayCompresion();
+  const carga = comprime ? await comprimir(cuerpo) : cuerpo;
+
+  const salida = new Uint8Array(8 + carga.length);
+  const vista = new DataView(salida.buffer);
+  vista.setUint32(0, MAGIA);
+  vista.setUint16(4, VERSION_FORMATO);
+  vista.setUint8(6, comprime ? DEFLATE : CRUDO);
+  vista.setUint8(7, 0);
+  salida.set(carga, 8);
+  return salida;
+}
+
+export async function desempaquetar(datos: Uint8Array): Promise<Partida> {
+  if (datos.length < 8) throw new Error('Fichero de partida vacío o truncado');
+  const vista = new DataView(datos.buffer, datos.byteOffset, datos.byteLength);
+  if (vista.getUint32(0) !== MAGIA) {
+    throw new Error('Esto no es un mundo de Game Over');
+  }
+  const version = vista.getUint16(4);
+  if (version > VERSION_FORMATO) {
+    throw new Error(
+      `El mundo es de una versión más nueva (${version}) que este juego (${VERSION_FORMATO})`,
+    );
+  }
+  const compresion = vista.getUint8(6);
+  const carga = datos.subarray(8);
+  const cuerpo =
+    compresion === DEFLATE ? await descomprimir(carga) : carga.slice();
+  return deserializar(cuerpo);
+}

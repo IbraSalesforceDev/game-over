@@ -1,3 +1,4 @@
+import { TILE } from './core/constants';
 import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
 import { crearPuntero } from './engine/mouse';
@@ -5,7 +6,11 @@ import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
 import { Renderer, type Objetivo } from './render/renderer';
-import { TILE } from './core/constants';
+import { crearAviso } from './ui/aviso';
+import { crearHud, PALETA } from './ui/hud';
+import { mostrarMenu, type Eleccion } from './ui/menu';
+import { crearTuner } from './ui/tuner';
+import { crearAlmacen, nuevoId, type MetaMundo, type SaveAdapter } from './world/almacen';
 import {
   avanzarPicado,
   crearPicado,
@@ -15,9 +20,13 @@ import {
   reiniciarPicado,
   type Capa,
 } from './world/edit';
-import { leerOpciones, prepararEscenario, type Escenario } from './world/escenario';
-import { crearHud, PALETA } from './ui/hud';
-import { crearTuner } from './ui/tuner';
+import { leerOpciones, prepararEscenario } from './world/escenario';
+import { desempaquetar, empaquetar, VERSION_FORMATO, type EstadoPartida } from './world/save';
+import type { Zona } from './world/testLevel';
+import type { Mundo } from './world/world';
+
+/** Cada cuántos milisegundos se guarda solo. */
+const INTERVALO_AUTOGUARDADO = 30_000;
 
 /** Muestra el panel de error con el detalle, en vez de dejar la pantalla negra. */
 function mostrarError(e: unknown): void {
@@ -38,19 +47,41 @@ function progreso(pct: number, texto: string): void {
   if (label) label.textContent = texto;
 }
 
+function ocultarCargador(): void {
+  document.getElementById('cargador')?.classList.add('oculto');
+}
+
+function mostrarCargador(): void {
+  document.getElementById('cargador')?.classList.remove('oculto');
+}
+
 /** Cede el hilo para que el navegador pueda repintar la barra de carga. */
 function siguienteFrame(): Promise<void> {
   return new Promise((r) => requestAnimationFrame(() => r()));
 }
 
+/** Lo que necesita el bucle para empezar, venga de generación o de disco. */
+interface Partida {
+  mundo: Mundo;
+  estado: EstadoPartida;
+  zonas: Zona[];
+  id: string;
+  nombre: string;
+  /** El laboratorio de físicas no se guarda: es una herramienta, no una partida. */
+  guardable: boolean;
+}
+
 /**
- * Ejecuta la generación cediendo el control entre pasos. Sin esto la pantalla
- * de carga se queda congelada al 0 % y luego aparece el mundo de golpe: la
- * barra existiría solo de adorno.
+ * Genera un mundo cediendo el control entre pasos. Sin esto la pantalla de
+ * carga se queda congelada y luego aparece el mundo de golpe: la barra
+ * existiría solo de adorno.
  */
-async function construirEscenario(): Promise<Escenario> {
-  const op = leerOpciones(window.location.search);
-  const it = prepararEscenario(op);
+async function generar(
+  semilla: string,
+  tamano: 'pequeno' | 'mediano',
+  lab: boolean,
+): Promise<{ mundo: Mundo; spawnTx: number; spawnTy: number; zonas: Zona[]; semilla: string }> {
+  const it = prepararEscenario({ lab, semilla, tamano });
   let paso = it.next();
   while (!paso.done) {
     progreso(paso.value.pct, paso.value.texto);
@@ -60,41 +91,166 @@ async function construirEscenario(): Promise<Escenario> {
   return paso.value;
 }
 
+function partidaNueva(
+  gen: Awaited<ReturnType<typeof generar>>,
+  nombre: string,
+  guardable: boolean,
+): Partida {
+  return {
+    mundo: gen.mundo,
+    zonas: gen.zonas,
+    id: nuevoId(),
+    nombre,
+    guardable,
+    estado: {
+      semilla: gen.semilla,
+      jugador: {
+        x: gen.spawnTx * TILE,
+        y: gen.spawnTy * TILE,
+        spawnX: gen.spawnTx * TILE,
+        spawnY: gen.spawnTy * TILE,
+      },
+      creado: Date.now(),
+      jugado: 0,
+      material: 0,
+      capaPared: false,
+    },
+  };
+}
+
+/** Decide con qué partida se arranca: URL directa, menú, o carga de disco. */
+async function elegirPartida(
+  capaUI: HTMLElement,
+  almacen: SaveAdapter,
+  persistente: boolean,
+): Promise<Partida> {
+  const op = leerOpciones(window.location.search);
+  const params = new URLSearchParams(window.location.search);
+
+  // Con ?lab=1 o ?semilla= se entra directo: son enlaces para probar y para
+  // compartir un mundo concreto, y pasar por el menú solo estorbaría.
+  if (op.lab || params.has('semilla')) {
+    const gen = await generar(op.semilla, op.tamano, op.lab);
+    return partidaNueva(gen, op.lab ? 'Laboratorio' : `Semilla ${op.semilla}`, !op.lab);
+  }
+
+  ocultarCargador();
+  const eleccion: Eleccion = await mostrarMenu(capaUI, almacen, persistente);
+  mostrarCargador();
+  await siguienteFrame();
+
+  if (eleccion.tipo === 'nuevo') {
+    const gen = await generar(eleccion.semilla, eleccion.tamano, false);
+    return partidaNueva(gen, eleccion.nombre, true);
+  }
+
+  progreso(30, 'Abriendo el mundo…');
+  await siguienteFrame();
+  const bytes = await almacen.cargar(eleccion.meta.id);
+  progreso(70, 'Descomprimiendo…');
+  await siguienteFrame();
+  const { mundo, estado } = await desempaquetar(bytes);
+  return {
+    mundo,
+    estado,
+    zonas: [],
+    id: eleccion.meta.id,
+    nombre: eleccion.meta.nombre,
+    guardable: true,
+  };
+}
+
 async function arrancar(): Promise<void> {
   const lienzo = document.getElementById('lienzo');
   if (!(lienzo instanceof HTMLCanvasElement)) throw new Error('Falta el canvas #lienzo');
   const capaUI = document.getElementById('capa-ui');
   if (!capaUI) throw new Error('Falta la capa de interfaz #capa-ui');
 
-  const t0 = performance.now();
-  const nivel = await construirEscenario();
-  const mundo = nivel.mundo;
-  console.info(
-    `Mundo ${mundo.ancho}x${mundo.alto} · semilla ${nivel.semilla} · ` +
-      `${Math.round(performance.now() - t0)} ms`,
-  );
+  const { almacen, persistente } = await crearAlmacen();
+  const partida = await elegirPartida(capaUI, almacen, persistente);
+  const mundo = partida.mundo;
 
   progreso(96, 'Pintando los tiles…');
   const renderer = new Renderer(lienzo);
 
   progreso(98, 'Despertando al personaje…');
-  const jugador = crearJugador(nivel.spawnTx, nivel.spawnTy);
+  const jugador = crearJugador(0, 0);
+  jugador.caja.x = partida.estado.jugador.x;
+  jugador.caja.y = partida.estado.jugador.y;
+  jugador.xPrev = jugador.caja.x;
+  jugador.yPrev = jugador.caja.y;
+  jugador.spawnX = partida.estado.jugador.spawnX;
+  jugador.spawnY = partida.estado.jugador.spawnY;
   renderer.camara.centrar(jugador.caja.x, jugador.caja.y, mundo.ancho, mundo.alto);
 
   const ajustes: Ajustes = { ...AJUSTES_POR_DEFECTO };
   const debug = crearEstadoDebug();
-  debug.semilla = nivel.semilla;
+  debug.semilla = partida.estado.semilla;
   const tuner = crearTuner(capaUI, ajustes);
   const hud = crearHud(capaUI);
+  const aviso = crearAviso(capaUI);
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
 
   // --- Estado de construcción ---
   const picado = crearPicado();
-  let material = 0;
-  let capa: Capa = 'bloque';
+  let material = partida.estado.material % PALETA.length;
+  let capa: Capa = partida.estado.capaPared ? 'pared' : 'bloque';
   const objetivo: Objetivo = { tx: 0, ty: 0, valido: false, visible: false, capa };
   hud.refrescar(material, capa);
+
+  // --- Guardado ---
+  const inicioSesion = Date.now();
+  const jugadoPrevio = partida.estado.jugado;
+  let guardando = false;
+  let ultimoGuardado = Date.now();
+
+  async function guardar(motivo: 'auto' | 'manual'): Promise<void> {
+    if (!partida.guardable || guardando) return;
+    guardando = true;
+    try {
+      partida.estado.jugador = {
+        x: jugador.caja.x,
+        y: jugador.caja.y,
+        spawnX: jugador.spawnX,
+        spawnY: jugador.spawnY,
+      };
+      partida.estado.jugado = jugadoPrevio + (Date.now() - inicioSesion);
+      partida.estado.material = material;
+      partida.estado.capaPared = capa === 'pared';
+
+      const bytes = await empaquetar(mundo, partida.estado);
+      const meta: MetaMundo = {
+        id: partida.id,
+        nombre: partida.nombre,
+        semilla: partida.estado.semilla,
+        ancho: mundo.ancho,
+        alto: mundo.alto,
+        creado: partida.estado.creado,
+        modificado: Date.now(),
+        jugado: partida.estado.jugado,
+        bytes: bytes.length,
+        version: VERSION_FORMATO,
+      };
+      await almacen.guardar(partida.id, meta, bytes);
+      ultimoGuardado = Date.now();
+      if (motivo === 'manual') aviso.mostrar(`Guardado · ${Math.round(bytes.length / 1024)} KB`);
+    } catch (e) {
+      console.error('Error al guardar:', e);
+      aviso.mostrar('No se ha podido guardar', true);
+    } finally {
+      guardando = false;
+    }
+  }
+
+  if (partida.guardable && persistente) {
+    window.setInterval(() => void guardar('auto'), INTERVALO_AUTOGUARDADO);
+    // Al ocultarse la pestaña, que es lo más cerca de "el jugador se va" que
+    // el navegador nos deja detectar de forma fiable.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') void guardar('auto');
+    });
+  }
 
   function seleccionar(i: number): void {
     material = ((i % PALETA.length) + PALETA.length) % PALETA.length;
@@ -104,6 +260,7 @@ async function arrancar(): Promise<void> {
   entrada.alPulsar('F3', () => (debug.activo = !debug.activo));
   entrada.alPulsar('F4', () => tuner.alternar());
   entrada.alPulsar('F5', () => (debug.chunks = !debug.chunks));
+  entrada.alPulsar('F2', () => void guardar('manual'));
   entrada.alPulsar('Tab', () => {
     capa = capa === 'bloque' ? 'pared' : 'bloque';
     reiniciarPicado(picado);
@@ -115,11 +272,7 @@ async function arrancar(): Promise<void> {
     renderer.camara.centrar(jugador.caja.x, jugador.caja.y, mundo.ancho, mundo.alto);
   });
 
-  window.addEventListener('resize', () => {
-    renderer.redimensionar();
-    // El zoom puede haber cambiado, pero los lienzos de chunk son de resolución
-    // fija: no hace falta repintarlos.
-  });
+  window.addEventListener('resize', () => renderer.redimensionar());
 
   /** Un tick de edición: apuntar, picar y colocar. */
   function editar(): void {
@@ -179,18 +332,21 @@ async function arrancar(): Promise<void> {
         mundo.ancho,
         mundo.alto,
       );
-      renderer.dibujar(mundo, jugador, alpha, nivel.zonas, picado, objetivo);
+      renderer.dibujar(mundo, jugador, alpha, partida.zonas, picado, objetivo);
 
       debug.fps = bucle.fps;
       debug.msFrame = bucle.msFrame;
       debug.chunksVivos = renderer.cache.tamano;
+      debug.segundosDesdeGuardado = partida.guardable
+        ? Math.round((Date.now() - ultimoGuardado) / 1000)
+        : -1;
       dibujarDebug(renderer.ctx, renderer.camara, jugador, debug, renderer.escala);
     },
   );
 
   progreso(100, 'Listo');
   bucle.arrancar();
-  setTimeout(() => document.getElementById('cargador')?.classList.add('oculto'), 250);
+  setTimeout(ocultarCargador, 250);
 }
 
 arrancar().catch(mostrarError);

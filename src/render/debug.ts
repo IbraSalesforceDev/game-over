@@ -22,6 +22,8 @@ export interface EstadoDebug {
   ratonTy: number;
   /** Semilla del mundo, para poder repetir la partida. */
   semilla: string;
+  /** Segundos desde el último guardado; -1 si la partida no se guarda. */
+  segundosDesdeGuardado: number;
 }
 
 export function crearEstadoDebug(): EstadoDebug {
@@ -35,6 +37,7 @@ export function crearEstadoDebug(): EstadoDebug {
     ratonTx: 0,
     ratonTy: 0,
     semilla: '',
+    segundosDesdeGuardado: -1,
   };
 }
 
@@ -120,7 +123,10 @@ export function dibujarDebug(
     `última caída ${c.ultimaCaida.toFixed(1)} tiles`,
     `ratón ${est.ratonTx}, ${est.ratonTy} · chunks ${est.chunksVivos}`,
     `semilla ${est.semilla}`,
-    `F3 overlay · F4 constantes · F5 chunks · R reaparecer`,
+    est.segundosDesdeGuardado < 0
+      ? 'sin guardado'
+      : `guardado hace ${est.segundosDesdeGuardado} s`,
+    `F2 guardar · F3 overlay · F4 constantes · F5 chunks · R reaparecer`,
   ];
 
   const escala = dpr;

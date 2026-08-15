@@ -14,13 +14,23 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 1** — Laboratorio de físicas
 - ✅ **Fase 2** — Minar y construir
 - ✅ **Fase 3** — Generación de mundo
-- ⬜ **Fase 4** — Guardado y carga
+- ✅ **Fase 4** — Guardado y carga
+- ⬜ **Fase 5** — Iluminación y ciclo día-noche
 
 Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
 fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
 salas grandes y galerías, cuatro minerales repartidos por profundidad y bosques
 con claros en la superficie. Un mundo de 1400×450 tarda unos 140 ms en
 generarse.
+
+Las partidas se guardan en el navegador (IndexedDB). El juego arranca en un
+menú donde se crean, cargan y borran mundos; guarda solo cada 30 segundos y al
+ocultarse la pestaña, y con `F2` a mano. Un mundo de 1400×450 ocupa unos 24 KB
+gracias al RLE más deflate.
+
+Todo el guardado pasa por la interfaz `SaveAdapter` (`src/world/almacen.ts`) y
+el mundo se serializa a un `Uint8Array` opaco. Ese es el punto: llevarse las
+partidas a la nube es escribir un adaptador nuevo, no tocar el motor.
 
 ### Parámetros de URL
 
@@ -46,6 +56,7 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | `1`–`5` o rueda | Elegir material |
 | `Tab` | Alternar capa bloque / pared |
 | `R` | Volver al punto de aparición |
+| `F2` | Guardar ahora |
 | `F3` | Overlay de diagnóstico |
 | `F4` | Panel de constantes de física |
 | `F5` | Rejilla de chunks |
