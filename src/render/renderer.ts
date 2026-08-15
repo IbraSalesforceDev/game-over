@@ -1,21 +1,26 @@
 import { TILE } from '../core/constants';
 import type { Jugador } from '../entities/player';
-import { AIRE, PLATAFORMA } from '../world/tiles';
+import type { Capa, Picado } from '../world/edit';
+import { durezaObjetivo, etapaGrieta } from '../world/edit';
 import type { Mundo } from '../world/world';
 import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
+import { CacheChunks, CHUNK_RENDER } from './chunkCache';
 import { crearTileset, type Tileset } from './tileset';
 
-/**
- * Render del laboratorio.
- *
- * De momento dibuja tile a tile los que caen dentro de la vista (unos 2000 en
- * pantalla completa, que Canvas2D despacha sin despeinarse). La caché por chunk
- * llega en la fase 2, cuando el mundo empiece a cambiar y el coste importe.
- */
+/** Lo que el render necesita saber del puntero de construcción. */
+export interface Objetivo {
+  tx: number;
+  ty: number;
+  valido: boolean;
+  visible: boolean;
+  capa: Capa;
+}
+
 export class Renderer {
   readonly ctx: CanvasRenderingContext2D;
   readonly camara = new Camara();
+  readonly cache: CacheChunks;
   private readonly tileset: Tileset;
   private dpr = 1;
 
@@ -24,6 +29,7 @@ export class Renderer {
     if (!ctx) throw new Error('Este navegador no soporta canvas 2D');
     this.ctx = ctx;
     this.tileset = crearTileset();
+    this.cache = new CacheChunks(this.tileset);
     this.redimensionar();
   }
 
@@ -52,6 +58,10 @@ export class Renderer {
     return this.lienzo.height;
   }
 
+  get escala(): number {
+    return this.dpr;
+  }
+
   private cielo(): void {
     const { ctx } = this;
     const g = ctx.createLinearGradient(0, 0, 0, this.altoCanvas);
@@ -62,47 +72,45 @@ export class Renderer {
     ctx.fillRect(0, 0, this.anchoCanvas, this.altoCanvas);
   }
 
-  private tiles(mundo: Mundo): void {
+  /** Vuelca los lienzos de los chunks visibles. Un drawImage por chunk. */
+  private chunks(mundo: Mundo, ox: number, oy: number): void {
     const { ctx, camara } = this;
-    const { tx0, ty0, tx1, ty1 } = camara.tilesVisibles();
-    const tam = TILE * camara.zoom;
-    const borde = Math.max(1, Math.round(camara.zoom));
+    const zoom = camara.zoom;
+    const ladoPx = CHUNK_RENDER * TILE;
+    const cx0 = Math.floor(camara.x / ladoPx);
+    const cy0 = Math.floor(camara.y / ladoPx);
+    const cx1 = Math.floor((camara.x + camara.ancho) / ladoPx);
+    const cy1 = Math.floor((camara.y + camara.alto) / ladoPx);
+    const anchoChunks = Math.ceil(mundo.ancho / CHUNK_RENDER);
+    const altoChunks = Math.ceil(mundo.alto / CHUNK_RENDER);
 
-    for (let ty = ty0; ty <= ty1; ty++) {
-      for (let tx = tx0; tx <= tx1; tx++) {
-        const id = mundo.getTile(tx, ty);
-        if (id === AIRE) continue;
-        // Redondeo a entero: si no, el pixel art tiembla al moverse la cámara.
-        const sx = Math.round(camara.aPantallaX(tx * TILE));
-        const sy = Math.round(camara.aPantallaY(ty * TILE));
-        this.tileset.dibujar(ctx, id, tx, ty, sx, sy, tam);
-
-        // El bisel solo se dibuja en los bordes expuestos. Ponerlo en todos los
-        // tiles convertía el subsuelo en un rayado horizontal.
-        if (id === PLATAFORMA) continue;
-        if (mundo.getTile(tx, ty - 1) === AIRE) {
-          ctx.fillStyle = 'rgba(255,255,255,0.16)';
-          ctx.fillRect(sx, sy, tam, borde);
-        }
-        if (mundo.getTile(tx, ty + 1) === AIRE) {
-          ctx.fillStyle = 'rgba(0,0,0,0.22)';
-          ctx.fillRect(sx, sy + tam - borde, tam, borde);
-        }
+    for (let cy = cy0; cy <= cy1; cy++) {
+      if (cy < 0 || cy >= altoChunks) continue;
+      for (let cx = cx0; cx <= cx1; cx++) {
+        if (cx < 0 || cx >= anchoChunks) continue;
+        const lienzo = this.cache.obtener(mundo, cx, cy);
+        ctx.drawImage(
+          lienzo,
+          ox + cx * ladoPx * zoom,
+          oy + cy * ladoPx * zoom,
+          ladoPx * zoom,
+          ladoPx * zoom,
+        );
       }
     }
   }
 
-  private jugador(j: Jugador, alpha: number): void {
+  private jugador(j: Jugador, alpha: number, ox: number, oy: number): void {
     const { ctx, camara } = this;
     // Interpolación entre el tick anterior y el actual: el movimiento se ve
     // fluido aunque la simulación vaya a 60 fijos.
     const wx = j.xPrev + (j.caja.x - j.xPrev) * alpha;
     const wy = j.yPrev + (j.caja.y - j.yPrev) * alpha;
-    const sx = Math.round(camara.aPantallaX(wx));
-    const sy = Math.round(camara.aPantallaY(wy));
-    const w = j.caja.ancho * camara.zoom;
-    const h = j.caja.alto * camara.zoom;
-    const u = camara.zoom; // un píxel de mundo
+    const u = camara.zoom;
+    const sx = ox + Math.round(wx * u);
+    const sy = oy + Math.round(wy * u);
+    const w = j.caja.ancho * u;
+    const h = j.caja.alto * u;
 
     ctx.fillStyle = '#2b3a4a';
     ctx.fillRect(sx, sy + h * 0.45, w, h * 0.55);
@@ -111,10 +119,53 @@ export class Renderer {
     ctx.fillStyle = '#e8c9a0';
     ctx.fillRect(sx + u * 2, sy, w - u * 4, h * 0.32);
 
-    // Ojo, para ver hacia dónde mira.
     ctx.fillStyle = '#1a2430';
     const ojoX = j.caja.mirando > 0 ? sx + w - u * 7 : sx + u * 4;
     ctx.fillRect(ojoX, sy + u * 6, u * 3, u * 3);
+  }
+
+  /** Grietas del bloque que se está picando ahora mismo. */
+  private picado(mundo: Mundo, p: Picado, ox: number, oy: number): void {
+    if (p.progreso <= 0 || p.tx < 0) return;
+    const u = this.camara.zoom;
+    const dureza = durezaObjetivo(mundo, p);
+    if (dureza <= 0) return;
+    this.tileset.dibujarGrieta(
+      this.ctx,
+      etapaGrieta(p, dureza),
+      ox + p.tx * TILE * u,
+      oy + p.ty * TILE * u,
+      TILE * u,
+    );
+  }
+
+  /** Recuadro del tile apuntado: verde si la acción es posible, rojo si no. */
+  private objetivo(o: Objetivo, ox: number, oy: number): void {
+    if (!o.visible) return;
+    const { ctx } = this;
+    const u = this.camara.zoom;
+    const sx = ox + o.tx * TILE * u;
+    const sy = oy + o.ty * TILE * u;
+    const lado = TILE * u;
+
+    ctx.fillStyle = o.valido
+      ? 'rgba(232, 182, 76, 0.18)'
+      : 'rgba(224, 90, 90, 0.16)';
+    ctx.fillRect(sx, sy, lado, lado);
+    ctx.strokeStyle = o.valido ? '#e8b64c' : '#e05a5a';
+    ctx.lineWidth = Math.max(1, Math.round(this.dpr));
+    ctx.strokeRect(sx + 0.5, sy + 0.5, lado - 1, lado - 1);
+
+    // En capa de pared, un aspa interior distingue de un vistazo en qué capa
+    // vas a actuar.
+    if (o.capa === 'pared') {
+      ctx.beginPath();
+      ctx.moveTo(sx + lado * 0.3, sy + lado * 0.3);
+      ctx.lineTo(sx + lado * 0.7, sy + lado * 0.7);
+      ctx.moveTo(sx + lado * 0.7, sy + lado * 0.3);
+      ctx.lineTo(sx + lado * 0.3, sy + lado * 0.7);
+      ctx.stroke();
+    }
   }
 
   /**
@@ -122,14 +173,15 @@ export class Renderer {
    * la parte baja de la pantalla: así se leen sin importar a qué altura esté la
    * cámara.
    */
-  private zonas(zonas: Zona[]): void {
+  private zonas(zonas: Zona[], ox: number): void {
     const { ctx, camara } = this;
     const escala = this.dpr;
     ctx.font = `${Math.round(11 * escala)}px ui-monospace, monospace`;
     ctx.textBaseline = 'bottom';
-    const sy = this.altoCanvas - 14 * escala;
+    // Por encima del HUD de construcción, que vive pegado al borde inferior.
+    const sy = this.altoCanvas - 106 * escala;
     for (const z of zonas) {
-      const sx = camara.aPantallaX(z.tx * TILE);
+      const sx = ox + z.tx * TILE * camara.zoom;
       if (sx < -260 * escala || sx > this.anchoCanvas) continue;
       const ancho = ctx.measureText(z.etiqueta).width + 10 * escala;
       ctx.fillStyle = 'rgba(13, 17, 23, 0.7)';
@@ -139,10 +191,21 @@ export class Renderer {
     }
   }
 
-  dibujar(mundo: Mundo, j: Jugador, alpha: number, zonas: Zona[]): void {
+  dibujar(
+    mundo: Mundo,
+    j: Jugador,
+    alpha: number,
+    zonas: Zona[],
+    picado: Picado,
+    objetivo: Objetivo,
+  ): void {
+    const ox = this.camara.origenX();
+    const oy = this.camara.origenY();
     this.cielo();
-    this.tiles(mundo);
-    this.jugador(j, alpha);
-    this.zonas(zonas);
+    this.chunks(mundo, ox, oy);
+    this.picado(mundo, picado, ox, oy);
+    this.objetivo(objetivo, ox, oy);
+    this.jugador(j, alpha, ox, oy);
+    this.zonas(zonas, ox);
   }
 }

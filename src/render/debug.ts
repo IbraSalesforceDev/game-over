@@ -15,10 +15,24 @@ export interface EstadoDebug {
   activo: boolean;
   hitbox: boolean;
   chunks: boolean;
+  /** Lienzos de chunk vivos en la caché. */
+  chunksVivos: number;
+  /** Tile al que apunta el ratón. */
+  ratonTx: number;
+  ratonTy: number;
 }
 
 export function crearEstadoDebug(): EstadoDebug {
-  return { fps: 0, msFrame: 0, activo: true, hitbox: true, chunks: false };
+  return {
+    fps: 0,
+    msFrame: 0,
+    activo: true,
+    hitbox: true,
+    chunks: false,
+    chunksVivos: 0,
+    ratonTx: 0,
+    ratonTy: 0,
+  };
 }
 
 export function dibujarDebug(
@@ -37,7 +51,7 @@ export function dibujarDebug(
     const paso = CHUNK * TILE;
     const desdeX = Math.floor(cam.x / paso) * paso;
     for (let wx = desdeX; wx < cam.x + cam.ancho + paso; wx += paso) {
-      const sx = Math.round(cam.aPantallaX(wx)) + 0.5;
+      const sx = Math.round(cam.pintarX(wx)) + 0.5;
       ctx.beginPath();
       ctx.moveTo(sx, 0);
       ctx.lineTo(sx, ctx.canvas.height);
@@ -45,7 +59,7 @@ export function dibujarDebug(
     }
     const desdeY = Math.floor(cam.y / paso) * paso;
     for (let wy = desdeY; wy < cam.y + cam.alto + paso; wy += paso) {
-      const sy = Math.round(cam.aPantallaY(wy)) + 0.5;
+      const sy = Math.round(cam.pintarY(wy)) + 0.5;
       ctx.beginPath();
       ctx.moveTo(0, sy);
       ctx.lineTo(ctx.canvas.width, sy);
@@ -56,16 +70,18 @@ export function dibujarDebug(
   if (est.hitbox) {
     // Tiles que la caja está tocando: son exactamente los que consulta la
     // colisión, así que si algo falla se ve aquí.
+    // Mismo epsilon que la física, para que el resaltado enseñe exactamente
+    // los tiles que consulta la colisión.
     const tx0 = Math.floor(c.x / TILE);
-    const tx1 = Math.floor((c.x + c.ancho - 1) / TILE);
+    const tx1 = Math.floor((c.x + c.ancho - 1e-6) / TILE);
     const ty0 = Math.floor(c.y / TILE);
-    const ty1 = Math.floor((c.y + c.alto - 1) / TILE);
+    const ty1 = Math.floor((c.y + c.alto - 1e-6) / TILE);
     ctx.fillStyle = 'rgba(232, 182, 76, 0.16)';
     for (let ty = ty0; ty <= ty1; ty++) {
       for (let tx = tx0; tx <= tx1; tx++) {
         ctx.fillRect(
-          Math.round(cam.aPantallaX(tx * TILE)),
-          Math.round(cam.aPantallaY(ty * TILE)),
+          Math.round(cam.pintarX(tx * TILE)),
+          Math.round(cam.pintarY(ty * TILE)),
           TILE * cam.zoom,
           TILE * cam.zoom,
         );
@@ -75,15 +91,15 @@ export function dibujarDebug(
     ctx.strokeStyle = c.enSuelo ? '#5fd68a' : '#e05a5a';
     ctx.lineWidth = Math.max(1, dpr);
     ctx.strokeRect(
-      Math.round(cam.aPantallaX(c.x)) + 0.5,
-      Math.round(cam.aPantallaY(c.y)) + 0.5,
+      Math.round(cam.pintarX(c.x)) + 0.5,
+      Math.round(cam.pintarY(c.y)) + 0.5,
       c.ancho * cam.zoom,
       c.alto * cam.zoom,
     );
 
     // Vector de velocidad, escalado para que se vea.
-    const cx = cam.aPantallaX(c.x + c.ancho / 2);
-    const cy = cam.aPantallaY(c.y + c.alto / 2);
+    const cx = cam.pintarX(c.x + c.ancho / 2);
+    const cy = cam.pintarY(c.y + c.alto / 2);
     ctx.strokeStyle = '#8fd6ff';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
@@ -99,6 +115,7 @@ export function dibujarDebug(
     `suelo ${c.enSuelo ? 'sí' : 'no'} · mirando ${c.mirando > 0 ? '→' : '←'}`,
     `coyote ${c.ticksCoyote} · buffer ${c.ticksBuffer} · salto ${c.ticksSalto}`,
     `última caída ${c.ultimaCaida.toFixed(1)} tiles`,
+    `ratón ${est.ratonTx}, ${est.ratonTy} · chunks ${est.chunksVivos}`,
     `F3 overlay · F4 constantes · F5 chunks · R reaparecer`,
   ];
 

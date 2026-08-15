@@ -38,6 +38,14 @@ export function crearNivelPruebas(): NivelPruebas {
   m.rellenar(0, 0, 1, ALTO_NIVEL - 1, PIEDRA);
   m.rellenar(ANCHO_NIVEL - 2, 0, ANCHO_NIVEL - 1, ALTO_NIVEL - 1, PIEDRA);
 
+  // Paredes de tierra bajo la superficie: son el fondo que queda a la vista al
+  // excavar, y lo que permite construir dentro de un túnel.
+  for (let ty = SUELO + 1; ty < ALTO_NIVEL; ty++) {
+    for (let tx = 2; tx < ANCHO_NIVEL - 2; tx++) {
+      m.setPared(tx, ty, ty < SUELO + 7 ? TIERRA : PIEDRA);
+    }
+  }
+
   // 1 · Recta larga: medir aceleración, velocidad punta y frenada.
   zonas.push({ tx: 8, etiqueta: '1 · carrera y frenada' });
 

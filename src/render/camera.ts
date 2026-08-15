@@ -49,6 +49,30 @@ export class Camara {
     this.y = maxY <= 0 ? maxY / 2 : Math.min(Math.max(this.y, 0), maxY);
   }
 
+  /**
+   * Origen de la vista redondeado a píxel entero de pantalla.
+   *
+   * Todo lo que se dibuja se coloca como `origen + round(w * zoom)`. Redondear
+   * cada elemento por separado deja costuras de un píxel entre los lienzos de
+   * los chunks; redondear el origen una vez, no.
+   */
+  origenX(): number {
+    return Math.round(-this.x * this.zoom);
+  }
+
+  origenY(): number {
+    return Math.round(-this.y * this.zoom);
+  }
+
+  /** Posición de pantalla alineada a píxel, coherente entre todas las capas. */
+  pintarX(wx: number): number {
+    return this.origenX() + Math.round(wx * this.zoom);
+  }
+
+  pintarY(wy: number): number {
+    return this.origenY() + Math.round(wy * this.zoom);
+  }
+
   aPantallaX(wx: number): number {
     return (wx - this.x) * this.zoom;
   }
