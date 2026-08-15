@@ -5,6 +5,7 @@ import {
   desempaquetar,
   deserializar,
   empaquetar,
+  HORA_POR_DEFECTO,
   serializar,
   VERSION_FORMATO,
   type EstadoPartida,
@@ -20,6 +21,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     jugado: 65000,
     material: 2,
     capaPared: true,
+    minutos: 13 * 60 + 37,
     ...parcial,
   };
 }
@@ -98,6 +100,28 @@ describe('empaquetado', () => {
 
   it('rechaza un fichero truncado', async () => {
     await expect(desempaquetar(new Uint8Array(3))).rejects.toThrow(/truncado|vac/i);
+  });
+
+  it('abre un mundo del formato 1, que no guardaba la hora', () => {
+    // Cuerpo de la versión 1: igual que el actual pero sin el campo de minutos.
+    const m = new Mundo(4, 4);
+    m.rellenar(0, 2, 3, 3, PIEDRA);
+    const e = estado();
+    const completo = serializar(m, e);
+    // El campo de la hora son los 2 bytes justo antes del RLE de tiles.
+    const corte = completo.length - (m.tileId.length * 0 + 0);
+    void corte;
+
+    // Reconstruimos a mano un cuerpo de versión 1 quitando esos 2 bytes.
+    const cabecera = 4 + 4 + 2 + e.semilla.length + 8 * 6 + 1 + 1;
+    const v1 = new Uint8Array(completo.length - 2);
+    v1.set(completo.subarray(0, cabecera), 0);
+    v1.set(completo.subarray(cabecera + 2), cabecera);
+
+    const { estado: leido } = deserializar(v1, 1);
+    expect(leido.minutos).toBe(HORA_POR_DEFECTO);
+    expect(leido.semilla).toBe(e.semilla);
+    expect(leido.material).toBe(e.material);
   });
 
   it('rechaza un mundo de una versión futura', async () => {

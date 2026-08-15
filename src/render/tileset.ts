@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants';
 import { ABAJO, ARRIBA, DERECHA, IZQUIERDA, MASCARAS } from '../world/framing';
-import { AIRE, PLATAFORMA, TILES } from '../world/tiles';
+import { AIRE, ANTORCHA, PLATAFORMA, TILES } from '../world/tiles';
 
 /**
  * Tileset procedural con auto-tiling.
@@ -165,27 +165,45 @@ function crearAtlas(escala: number, alfa: number): HTMLCanvasElement {
   return atlas;
 }
 
-/** Plataformas: solo la franja superior, para que se vea que se atraviesan. */
-function recortarPlataformas(atlas: HTMLCanvasElement): void {
+/**
+ * Tiles que no son bloques: se repintan a mano sobre el atlas porque un
+ * cuadrado de 16x16 con su color no los representaría en absoluto.
+ */
+function pintarEspeciales(atlas: HTMLCanvasElement): void {
   const ctx = atlas.getContext('2d');
   if (!ctx) return;
-  ctx.clearRect(
-    0,
-    PLATAFORMA * MASCARAS * TILE,
-    atlas.width,
-    MASCARAS * TILE,
-  );
-  const def = TILES[PLATAFORMA]!;
+
+  // Plataformas: solo la franja superior, para que se vea que se atraviesan.
+  ctx.clearRect(0, PLATAFORMA * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  const plat = TILES[PLATAFORMA]!;
   for (let m = 0; m < MASCARAS; m++) {
     const oy = (PLATAFORMA * MASCARAS + m) * TILE;
     for (let v = 0; v < VARIANTES; v++) {
       const ox = v * TILE;
-      ctx.fillStyle = def.color;
+      ctx.fillStyle = plat.color;
       ctx.fillRect(ox, oy, TILE, 5);
-      ctx.fillStyle = css(rgb(def.color, 28));
+      ctx.fillStyle = css(rgb(plat.color, 28));
       ctx.fillRect(ox, oy, TILE, 1);
-      ctx.fillStyle = css(rgb(def.color, -40));
+      ctx.fillStyle = css(rgb(plat.color, -40));
       ctx.fillRect(ox, oy + 4, TILE, 1);
+    }
+  }
+
+  // Antorcha: un palo y una llama, con la llama algo distinta en cada variante
+  // para que una pared de antorchas no se vea calcada.
+  ctx.clearRect(0, ANTORCHA * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (ANTORCHA * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      ctx.fillStyle = '#5a4028';
+      ctx.fillRect(ox + 7, oy + 7, 2, 8);
+      ctx.fillStyle = '#c8761f';
+      ctx.fillRect(ox + 6, oy + 3 + (v % 2), 4, 5);
+      ctx.fillStyle = '#ffd24a';
+      ctx.fillRect(ox + 7, oy + 4 + (v % 2), 2, 3);
+      ctx.fillStyle = '#fff2b0';
+      ctx.fillRect(ox + 7, oy + 5 + (v % 2), 1, 1);
     }
   }
 }
@@ -214,7 +232,7 @@ function crearGrietas(): HTMLCanvasElement {
 
 export function crearTileset(): Tileset {
   const bloques = crearAtlas(1, 1);
-  recortarPlataformas(bloques);
+  pintarEspeciales(bloques);
   // Las paredes son el mismo terreno al 45 % de luz: se leen como fondo sin
   // competir con los bloques del primer plano.
   const paredes = crearAtlas(0.45, 1);

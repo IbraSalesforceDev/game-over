@@ -14,7 +14,13 @@ import { Mundo } from './world';
  */
 
 export const MAGIA = 0x474f5652; // 'GOVR'
-export const VERSION_FORMATO = 1;
+/**
+ * Historial del formato:
+ *   1 — mundo, paredes y estado del jugador.
+ *   2 — se añade la hora del mundo (fase 5). Los mundos de la versión 1 se
+ *       abren igual y amanecen a las 8:00.
+ */
+export const VERSION_FORMATO = 2;
 
 export interface EstadoJugador {
   x: number;
@@ -33,7 +39,12 @@ export interface EstadoPartida {
   /** Material y capa seleccionados, para no perder el contexto al volver. */
   material: number;
   capaPared: boolean;
+  /** Minuto del día en el que se dejó el mundo (formato 2 en adelante). */
+  minutos: number;
 }
+
+/** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
+export const HORA_POR_DEFECTO = 8 * 60;
 
 export interface Partida {
   mundo: Mundo;
@@ -199,12 +210,13 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   e.f64(estado.jugador.spawnY);
   e.u8(estado.material);
   e.u8(estado.capaPared ? 1 : 0);
+  e.u16(Math.round(estado.minutos) % 1440); // formato 2
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   return e.terminar();
 }
 
-export function deserializar(datos: Uint8Array): Partida {
+export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Partida {
   const l = new Lector(datos);
   const ancho = l.u32();
   const alto = l.u32();
@@ -218,6 +230,8 @@ export function deserializar(datos: Uint8Array): Partida {
     jugador: { x: l.f64(), y: l.f64(), spawnX: l.f64(), spawnY: l.f64() },
     material: l.u8(),
     capaPared: l.u8() === 1,
+    // El campo de la hora no existe en el formato 1: esos mundos amanecen.
+    minutos: version >= 2 ? l.u16() : HORA_POR_DEFECTO,
   };
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
@@ -284,5 +298,5 @@ export async function desempaquetar(datos: Uint8Array): Promise<Partida> {
   const carga = datos.subarray(8);
   const cuerpo =
     compresion === DEFLATE ? await descomprimir(carga) : carga.slice();
-  return deserializar(cuerpo);
+  return deserializar(cuerpo, version);
 }

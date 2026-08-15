@@ -1,5 +1,7 @@
 import { TILE } from '../core/constants';
+import { css, type Reloj } from '../engine/time';
 import type { Jugador } from '../entities/player';
+import type { MotorLuz } from '../world/lighting';
 import type { Capa, Picado } from '../world/edit';
 import { durezaObjetivo, etapaGrieta } from '../world/edit';
 import type { Mundo } from '../world/world';
@@ -23,6 +25,10 @@ export class Renderer {
   readonly cache: CacheChunks;
   private readonly tileset: Tileset;
   private dpr = 1;
+  private lienzoLuz: HTMLCanvasElement | null = null;
+  private ctxLuz: CanvasRenderingContext2D | null = null;
+  private imgLuz: ImageData | null = null;
+  private tinteAnterior = '';
 
   constructor(private readonly lienzo: HTMLCanvasElement) {
     const ctx = lienzo.getContext('2d', { alpha: false });
@@ -62,14 +68,101 @@ export class Renderer {
     return this.dpr;
   }
 
-  private cielo(): void {
+  private cielo(reloj: Reloj): void {
     const { ctx } = this;
+    const [alto, medio, bajo] = reloj.colorCielo;
     const g = ctx.createLinearGradient(0, 0, 0, this.altoCanvas);
-    g.addColorStop(0, '#2f5d92');
-    g.addColorStop(0.55, '#6ba3d6');
-    g.addColorStop(1, '#a8cfe8');
+    g.addColorStop(0, css(alto));
+    g.addColorStop(0.55, css(medio));
+    g.addColorStop(1, css(bajo));
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.anchoCanvas, this.altoCanvas);
+    this.estrellas(reloj);
+  }
+
+  /**
+   * Estrellas de noche. Su posición depende solo del índice, así que no
+   * parpadean ni se mueven con la cámara: son el fondo del firmamento.
+   */
+  private estrellas(reloj: Reloj): void {
+    const opacidad = 1 - reloj.luzSolar / 255;
+    if (opacidad <= 0.05) return;
+    const { ctx } = this;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, opacidad * 1.2);
+    ctx.fillStyle = '#e8eef8';
+    const n = 90;
+    for (let i = 0; i < n; i++) {
+      // Dispersión determinista barata: dos irracionales distintos por eje.
+      const x = ((i * 0.7548776662) % 1) * this.anchoCanvas;
+      const y = ((i * 0.5698402909) % 1) * this.altoCanvas * 0.6;
+      const tam = i % 7 === 0 ? 2 : 1;
+      ctx.fillRect(Math.round(x), Math.round(y), tam * this.dpr, tam * this.dpr);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Vuelca la luz como una capa que multiplica la escena.
+   *
+   * El buffer tiene un píxel por tile y se estira con suavizado: es el truco
+   * de siempre y da degradados suaves casi gratis, en vez de un mosaico de
+   * cuadrados oscuros. Se repinta solo cuando la luz ha cambiado.
+   */
+  private luz(motor: MotorLuz, reloj: Reloj, recalculada: boolean, ox: number, oy: number): void {
+    const { tx0, ty0, ancho, alto } = motor.ventana;
+    if (ancho === 0 || alto === 0) return;
+
+    if (!this.lienzoLuz || this.lienzoLuz.width !== ancho || this.lienzoLuz.height !== alto) {
+      this.lienzoLuz = document.createElement('canvas');
+      this.lienzoLuz.width = ancho;
+      this.lienzoLuz.height = alto;
+      this.ctxLuz = this.lienzoLuz.getContext('2d');
+      this.imgLuz = this.ctxLuz?.createImageData(ancho, alto) ?? null;
+      recalculada = true;
+    }
+    if (!this.ctxLuz || !this.imgLuz) return;
+
+    const tinte = reloj.tinteLuz;
+    if (recalculada || this.tinteAnterior !== tinte.join()) {
+      this.tinteAnterior = tinte.join();
+      const datos = this.imgLuz.data;
+      const buf = motor.buffer;
+      // El tinte se normaliza a su canal más alto: si no, el azul de la noche
+      // multiplica encima del nivel de luz y oscurece dos veces, dejando el
+      // mundo nocturno casi negro. El tinte debe cambiar el color, no el brillo.
+      const k = 255 / Math.max(tinte[0], tinte[1], tinte[2], 1);
+      const r = tinte[0] * k;
+      const g = tinte[1] * k;
+      const b = tinte[2] * k;
+      for (let i = 0; i < buf.length; i++) {
+        const l = buf[i]! / 255;
+        const j = i * 4;
+        datos[j] = r * l;
+        datos[j + 1] = g * l;
+        datos[j + 2] = b * l;
+        datos[j + 3] = 255;
+      }
+      this.ctxLuz.putImageData(this.imgLuz, 0, 0);
+    }
+
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalCompositeOperation = 'multiply';
+    // Medio tile de desplazamiento: así el centro de cada píxel de luz cae en
+    // el centro de su tile y el degradado interpola entre centros, no entre
+    // esquinas.
+    ctx.drawImage(
+      this.lienzoLuz,
+      ox + Math.round((tx0 * TILE - TILE / 2) * z),
+      oy + Math.round((ty0 * TILE - TILE / 2) * z),
+      ancho * TILE * z,
+      alto * TILE * z,
+    );
+    ctx.restore();
+    ctx.imageSmoothingEnabled = false;
   }
 
   /** Vuelca los lienzos de los chunks visibles. Un drawImage por chunk. */
@@ -198,14 +291,22 @@ export class Renderer {
     zonas: Zona[],
     picado: Picado,
     objetivo: Objetivo,
+    motorLuz: MotorLuz,
+    reloj: Reloj,
   ): void {
     const ox = this.camara.origenX();
     const oy = this.camara.origenY();
-    this.cielo();
+    const { tx0, ty0, tx1, ty1 } = this.camara.tilesVisibles();
+    const recalculada = motorLuz.actualizar(tx0, ty0, tx1, ty1, reloj.luzSolar);
+
+    this.cielo(reloj);
     this.chunks(mundo, ox, oy);
     this.picado(mundo, picado, ox, oy);
-    this.objetivo(objetivo, ox, oy);
     this.jugador(j, alpha, ox, oy);
+    // La luz va después del mundo y del personaje, pero antes de la interfaz:
+    // el recuadro del puntero tiene que verse igual dentro de una cueva.
+    this.luz(motorLuz, reloj, recalculada, ox, oy);
+    this.objetivo(objetivo, ox, oy);
     this.zonas(zonas, ox);
   }
 }

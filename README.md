@@ -15,7 +15,8 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 2** — Minar y construir
 - ✅ **Fase 3** — Generación de mundo
 - ✅ **Fase 4** — Guardado y carga
-- ⬜ **Fase 5** — Iluminación y ciclo día-noche
+- ✅ **Fase 5** — Iluminación y ciclo día-noche
+- ⬜ **Fase 6** — Inventario, objetos y hotbar
 
 Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
 fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
@@ -32,6 +33,13 @@ Todo el guardado pasa por la interfaz `SaveAdapter` (`src/world/almacen.ts`) y
 el mundo se serializa a un `Uint8Array` opaco. Ese es el punto: llevarse las
 partidas a la nube es escribir un adaptador nuevo, no tocar el motor.
 
+La luz se propaga por inundación con caída por tile, más en la roca que en el
+aire. Se calcula solo para una ventana algo mayor que la pantalla y se rehace
+cuando la cámara se mueve, cambia un tile o sube el sol; recalcularla cuesta
+menos de un milisegundo. El buffer tiene un píxel por tile y se estira con
+suavizado sobre la escena en modo `multiply`, que es lo que da los degradados
+suaves. Un ciclo completo de día y noche dura 12 minutos reales.
+
 ### Parámetros de URL
 
 | Parámetro | Efecto |
@@ -39,6 +47,7 @@ partidas a la nube es escribir un adaptador nuevo, no tocar el motor.
 | `?semilla=LOQUESEA` | Genera siempre el mismo mundo |
 | `?tam=mediano` | Mundo de 2100×600 en vez de 1400×450 |
 | `?lab=1` | Abre el laboratorio de físicas de la fase 1 en vez de un mundo |
+| `?hora=22` o `?hora=5:40` | Empieza el mundo a esa hora (útil para ver la noche sin esperar) |
 
 El laboratorio sigue ahí a propósito: es donde se afinan las constantes de
 movimiento con `F4`, y es más rápido comprobar una regla de la física en un
@@ -53,7 +62,7 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | `S` o `↓` + salto | Bajar por una plataforma |
 | Clic izquierdo | Minar (mantener; la dureza marca lo que tarda) |
 | Clic derecho | Colocar el material seleccionado |
-| `1`–`5` o rueda | Elegir material |
+| `1`–`6` o rueda | Elegir material (la 6 es la antorcha) |
 | `Tab` | Alternar capa bloque / pared |
 | `R` | Volver al punto de aparición |
 | `F2` | Guardar ahora |

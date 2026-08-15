@@ -31,6 +31,19 @@ export interface OpcionesEscenario {
   lab: boolean;
   semilla: string;
   tamano: NombreTamano;
+  /** Minuto del día con el que empieza un mundo nuevo, o null para el normal. */
+  minutos: number | null;
+}
+
+/** Acepta "22" y "22:30". Devuelve null si no hay nada legible. */
+export function leerHora(texto: string | null): number | null {
+  if (!texto) return null;
+  const m = /^(\d{1,2})(?::(\d{1,2}))?$/.exec(texto.trim());
+  if (!m) return null;
+  const horas = Number(m[1]);
+  const minutos = Number(m[2] ?? 0);
+  if (horas > 23 || minutos > 59) return null;
+  return horas * 60 + minutos;
 }
 
 export function leerOpciones(busqueda: string): OpcionesEscenario {
@@ -40,6 +53,7 @@ export function leerOpciones(busqueda: string): OpcionesEscenario {
     lab: p.get('lab') === '1',
     semilla: p.get('semilla') || semillaAleatoria(),
     tamano: tam === 'mediano' || tam === 'pequeno' ? tam : 'pequeno',
+    minutos: leerHora(p.get('hora')),
   };
 }
 

@@ -15,6 +15,7 @@ export const PLATA = 8;
 export const ORO = 9;
 export const TRONCO = 10;
 export const HOJAS = 11;
+export const ANTORCHA = 12;
 
 /** Minerales, de menos a más profundo. */
 export const MINERALES = [COBRE, HIERRO, PLATA, ORO] as const;
@@ -29,6 +30,8 @@ export interface DefTile {
   readonly dureza: number;
   /** Color base; el tileset procedural genera variantes a partir de él. */
   readonly color: string;
+  /** Luz que emite el tile, en la escala 0-255. 0 = no ilumina. */
+  readonly luz?: number;
 }
 
 export const TILES: readonly DefTile[] = [
@@ -46,6 +49,14 @@ export const TILES: readonly DefTile[] = [
   // resolver colisiones absurdas contra una rama.
   { nombre: 'tronco', solido: false, plataforma: false, dureza: 25, color: '#5a4028' },
   { nombre: 'hojas', solido: false, plataforma: false, dureza: 8, color: '#3f7a35' },
+  {
+    nombre: 'antorcha',
+    solido: false,
+    plataforma: false,
+    dureza: 5,
+    color: '#ffb347',
+    luz: 235,
+  },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -62,4 +73,14 @@ export function esSolido(id: number): boolean {
 
 export function esPlataforma(id: number): boolean {
   return defTile(id).plataforma;
+}
+
+/** Luz que emite el tile, 0 si no ilumina. */
+export function emisionLuz(id: number): number {
+  return defTile(id).luz ?? 0;
+}
+
+/** ¿Este tile tapa el cielo? Un bloque macizo sí; una antorcha o una hoja, no. */
+export function tapaCielo(id: number): boolean {
+  return esSolido(id) || esPlataforma(id);
 }

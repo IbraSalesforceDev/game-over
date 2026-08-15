@@ -1,5 +1,5 @@
 import type { Capa } from '../world/edit';
-import { HIERBA, MADERA, PIEDRA, PLATAFORMA, TIERRA, TILES } from '../world/tiles';
+import { ANTORCHA, HIERBA, MADERA, PIEDRA, PLATAFORMA, TIERRA, TILES } from '../world/tiles';
 
 /**
  * HUD de construcción: qué material está seleccionado y sobre qué capa se
@@ -8,7 +8,7 @@ import { HIERBA, MADERA, PIEDRA, PLATAFORMA, TIERRA, TILES } from '../world/tile
  */
 
 /** Materiales que se pueden colocar, en orden de las teclas 1..6. */
-export const PALETA = [TIERRA, HIERBA, PIEDRA, MADERA, PLATAFORMA] as const;
+export const PALETA = [TIERRA, HIERBA, PIEDRA, MADERA, PLATAFORMA, ANTORCHA] as const;
 
 const ESTILO = `
 #hud {

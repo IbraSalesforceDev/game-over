@@ -1,6 +1,7 @@
-import { TILE } from './core/constants';
+import { TICK, TILE } from './core/constants';
 import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
+import { Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
@@ -21,7 +22,14 @@ import {
   type Capa,
 } from './world/edit';
 import { leerOpciones, prepararEscenario } from './world/escenario';
-import { desempaquetar, empaquetar, VERSION_FORMATO, type EstadoPartida } from './world/save';
+import { MotorLuz } from './world/lighting';
+import {
+  desempaquetar,
+  empaquetar,
+  HORA_POR_DEFECTO,
+  VERSION_FORMATO,
+  type EstadoPartida,
+} from './world/save';
 import type { Zona } from './world/testLevel';
 import type { Mundo } from './world/world';
 
@@ -81,7 +89,7 @@ async function generar(
   tamano: 'pequeno' | 'mediano',
   lab: boolean,
 ): Promise<{ mundo: Mundo; spawnTx: number; spawnTy: number; zonas: Zona[]; semilla: string }> {
-  const it = prepararEscenario({ lab, semilla, tamano });
+  const it = prepararEscenario({ lab, semilla, tamano, minutos: null });
   let paso = it.next();
   while (!paso.done) {
     progreso(paso.value.pct, paso.value.texto);
@@ -95,6 +103,7 @@ function partidaNueva(
   gen: Awaited<ReturnType<typeof generar>>,
   nombre: string,
   guardable: boolean,
+  minutos = HORA_POR_DEFECTO,
 ): Partida {
   return {
     mundo: gen.mundo,
@@ -114,6 +123,7 @@ function partidaNueva(
       jugado: 0,
       material: 0,
       capaPared: false,
+      minutos,
     },
   };
 }
@@ -131,7 +141,12 @@ async function elegirPartida(
   // compartir un mundo concreto, y pasar por el menú solo estorbaría.
   if (op.lab || params.has('semilla')) {
     const gen = await generar(op.semilla, op.tamano, op.lab);
-    return partidaNueva(gen, op.lab ? 'Laboratorio' : `Semilla ${op.semilla}`, !op.lab);
+    return partidaNueva(
+      gen,
+      op.lab ? 'Laboratorio' : `Semilla ${op.semilla}`,
+      !op.lab,
+      op.minutos ?? HORA_POR_DEFECTO,
+    );
   }
 
   ocultarCargador();
@@ -141,7 +156,7 @@ async function elegirPartida(
 
   if (eleccion.tipo === 'nuevo') {
     const gen = await generar(eleccion.semilla, eleccion.tamano, false);
-    return partidaNueva(gen, eleccion.nombre, true);
+    return partidaNueva(gen, eleccion.nombre, true, op.minutos ?? HORA_POR_DEFECTO);
   }
 
   progreso(30, 'Abriendo el mundo…');
@@ -172,6 +187,10 @@ async function arrancar(): Promise<void> {
 
   progreso(96, 'Pintando los tiles…');
   const renderer = new Renderer(lienzo);
+
+  progreso(97, 'Encendiendo el sol…');
+  const reloj = new Reloj(partida.estado.minutos);
+  const motorLuz = new MotorLuz(mundo);
 
   progreso(98, 'Despertando al personaje…');
   const jugador = crearJugador(0, 0);
@@ -218,6 +237,7 @@ async function arrancar(): Promise<void> {
       partida.estado.jugado = jugadoPrevio + (Date.now() - inicioSesion);
       partida.estado.material = material;
       partida.estado.capaPared = capa === 'pared';
+      partida.estado.minutos = reloj.minutos;
 
       const bytes = await empaquetar(mundo, partida.estado);
       const meta: MetaMundo = {
@@ -302,7 +322,10 @@ async function arrancar(): Promise<void> {
 
     if (puntero.izq) {
       if (previo.ok) {
-        if (avanzarPicado(mundo, picado, tx, ty, capa)) renderer.cache.invalidar(tx, ty);
+        if (avanzarPicado(mundo, picado, tx, ty, capa)) {
+          renderer.cache.invalidar(tx, ty);
+          motorLuz.invalidar(tx);
+        }
       } else {
         reiniciarPicado(picado);
       }
@@ -314,11 +337,13 @@ async function arrancar(): Promise<void> {
       if (capa === 'bloque') mundo.setTile(tx, ty, id);
       else mundo.setPared(tx, ty, id);
       renderer.cache.invalidar(tx, ty);
+      motorLuz.invalidar(tx);
     }
   }
 
   const bucle = crearBucle(
     () => {
+      reloj.avanzar(TICK);
       editar();
       actualizarJugador(mundo, jugador, entrada.estado(), ajustes);
       entrada.finTick();
@@ -332,11 +357,13 @@ async function arrancar(): Promise<void> {
         mundo.ancho,
         mundo.alto,
       );
-      renderer.dibujar(mundo, jugador, alpha, partida.zonas, picado, objetivo);
+      renderer.dibujar(mundo, jugador, alpha, partida.zonas, picado, objetivo, motorLuz, reloj);
 
       debug.fps = bucle.fps;
       debug.msFrame = bucle.msFrame;
       debug.chunksVivos = renderer.cache.tamano;
+      debug.hora = reloj.hora;
+      debug.luzRaton = motorLuz.nivel(debug.ratonTx, debug.ratonTy);
       debug.segundosDesdeGuardado = partida.guardable
         ? Math.round((Date.now() - ultimoGuardado) / 1000)
         : -1;

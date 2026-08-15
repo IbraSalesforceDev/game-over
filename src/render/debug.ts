@@ -24,6 +24,10 @@ export interface EstadoDebug {
   semilla: string;
   /** Segundos desde el último guardado; -1 si la partida no se guarda. */
   segundosDesdeGuardado: number;
+  /** Hora del mundo. */
+  hora: string;
+  /** Nivel de luz bajo el puntero, 0-255. */
+  luzRaton: number;
 }
 
 export function crearEstadoDebug(): EstadoDebug {
@@ -38,6 +42,8 @@ export function crearEstadoDebug(): EstadoDebug {
     ratonTy: 0,
     semilla: '',
     segundosDesdeGuardado: -1,
+    hora: '',
+    luzRaton: 0,
   };
 }
 
@@ -122,7 +128,8 @@ export function dibujarDebug(
     `coyote ${c.ticksCoyote} · buffer ${c.ticksBuffer} · salto ${c.ticksSalto}`,
     `última caída ${c.ultimaCaida.toFixed(1)} tiles`,
     `ratón ${est.ratonTx}, ${est.ratonTy} · chunks ${est.chunksVivos}`,
-    `semilla ${est.semilla}`,
+    `semilla ${est.semilla} · ${est.hora}`,
+    `luz bajo el puntero ${est.luzRaton}`,
     est.segundosDesdeGuardado < 0
       ? 'sin guardado'
       : `guardado hace ${est.segundosDesdeGuardado} s`,
