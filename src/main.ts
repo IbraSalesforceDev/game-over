@@ -15,6 +15,7 @@ import { crearAlmacen, nuevoId, type MetaMundo, type SaveAdapter } from './world
 import {
   avanzarPicado,
   crearPicado,
+  enAlcance,
   puedeColocarBloque,
   puedeColocarPared,
   puedeMinar,
@@ -39,7 +40,16 @@ import {
 import { actualizarEnemigos, botinDe, type Enemigo } from './entities/enemies';
 import { crearGolpe, lanzarGolpe, resolverGolpe, tickGolpe } from './entities/combat';
 import { crearSalud, golpear, revivir, tickSalud, VIDA_MAXIMA } from './entities/salud';
-import { intentarAparicion, INTERVALO_INTENTO, limpiarEnemigos } from './entities/spawner';
+import { apagar, crearAliento, reiniciarAliento, tickAliento } from './entities/aliento';
+import { SimuladorLiquidos, sumersion } from './world/liquids';
+import { puedeUsarCubo, usarCubo } from './items/cubo';
+import { esCubo } from './items/items';
+import {
+  biomaEn,
+  intentarAparicion,
+  INTERVALO_INTENTO,
+  limpiarEnemigos,
+} from './entities/spawner';
 import { crearPanelVida } from './ui/vida';
 import { esArma } from './items/items';
 import {
@@ -107,8 +117,9 @@ async function generar(
   semilla: string,
   tamano: 'pequeno' | 'mediano',
   lab: boolean,
+  columna: number | null = null,
 ): Promise<{ mundo: Mundo; spawnTx: number; spawnTy: number; zonas: Zona[]; semilla: string }> {
-  const it = prepararEscenario({ lab, semilla, tamano, minutos: null });
+  const it = prepararEscenario({ lab, semilla, tamano, minutos: null, columna });
   let paso = it.next();
   while (!paso.done) {
     progreso(paso.value.pct, paso.value.texto);
@@ -162,7 +173,7 @@ async function elegirPartida(
   // Con ?lab=1 o ?semilla= se entra directo: son enlaces para probar y para
   // compartir un mundo concreto, y pasar por el menú solo estorbaría.
   if (op.lab || params.has('semilla')) {
-    const gen = await generar(op.semilla, op.tamano, op.lab);
+    const gen = await generar(op.semilla, op.tamano, op.lab, op.columna);
     return partidaNueva(
       gen,
       op.lab ? 'Laboratorio' : `Semilla ${op.semilla}`,
@@ -177,7 +188,7 @@ async function elegirPartida(
   await siguienteFrame();
 
   if (eleccion.tipo === 'nuevo') {
-    const gen = await generar(eleccion.semilla, eleccion.tamano, false);
+    const gen = await generar(eleccion.semilla, eleccion.tamano, false, op.columna);
     return partidaNueva(gen, eleccion.nombre, true, op.minutos ?? HORA_POR_DEFECTO);
   }
 
@@ -237,9 +248,16 @@ async function arrancar(): Promise<void> {
   const cofres = Contenedores.desdeDatos(mundo.ancho, partida.estado.cofres);
   const salud = crearSalud(VIDA_MAXIMA);
   if (partida.estado.vida > 0) salud.vida = Math.min(VIDA_MAXIMA, partida.estado.vida);
+  const aliento = crearAliento();
   const golpe = crearGolpe();
+  // Al abrir un mundo guardado el líquido está quieto en el array pero la
+  // simulación no sabe que existe: hay que despertarlo o el agua se quedaría
+  // congelada hasta que alguien la tocase.
+  const liquidos = new SimuladorLiquidos(mundo);
+  liquidos.despertarTodo();
   const panelVida = crearPanelVida(capaUI);
   panelVida.refrescar(salud);
+  panelVida.refrescarAliento(aliento);
   const aviso = crearAviso(capaUI);
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
@@ -402,6 +420,7 @@ async function arrancar(): Promise<void> {
     if (salud.muerto) {
       reaparecer(jugador);
       revivir(salud);
+      reiniciarAliento(aliento);
       panelVida.mostrarMuerte(true, 'Vuelves al punto de aparición.');
       window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
     }
@@ -411,9 +430,11 @@ async function arrancar(): Promise<void> {
     if (--relojAparicion <= 0) {
       relojAparicion = INTERVALO_INTENTO;
       const txJugador = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
+      const tyJugador = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
       intentarAparicion(mundo, enemigos, jugador.caja, {
         esNoche: reloj.esNoche,
         superficieTy: motorLuz.alturaCielo[txJugador] ?? 0,
+        bioma: biomaEn(mundo, txJugador, tyJugador),
       });
     }
 
@@ -439,6 +460,28 @@ async function arrancar(): Promise<void> {
     const enMano = barra.objetoActivo();
     const tileEnMano = defObjeto(enMano).tile;
     const potencia = mejorPico(inventario);
+
+    // El cubo actúa con el clic derecho, como colocar: el gesto es "poner algo
+    // ahí", aunque lo que se ponga sea agua. Y con el izquierdo, recoger.
+    if (esCubo(enMano)) {
+      const posible =
+        enAlcance(jugador.caja, tx, ty) && puedeUsarCubo(mundo, enMano, tx, ty);
+      objetivo.valido = posible;
+      reiniciarPicado(picado);
+      const usar = puntero.izq || (puntero.der && !derAnterior);
+      derAnterior = puntero.der;
+      if (!usar || !posible) return;
+      const r = usarCubo(mundo, liquidos, enMano, tx, ty);
+      if (r.tipo !== 'nada') {
+        inventario.sacarDe(barra.seleccion, 1);
+        // Si la ranura ya no cabe —porque llevaba varios cubos vacíos— el que
+        // vuelve va donde quepa, nunca al suelo.
+        if (!inventario.ponerEn(barra.seleccion, r.objeto, 1)) inventario.anadir(r.objeto, 1);
+        barra.refrescar(capa);
+        motorLuz.marcarSucio();
+      }
+      return;
+    }
 
     // Con un arma en la mano el clic izquierdo golpea; con cualquier otra cosa,
     // pica. Es lo que hace que elegir el arma signifique algo.
@@ -489,6 +532,8 @@ async function arrancar(): Promise<void> {
         if (avanzarPicado(mundo, picado, tx, ty, capa, potencia)) {
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
+          // Abrir un hueco es lo que hace que el agua de al lado se mueva.
+          liquidos.activar(tx, ty);
           soltar(drops, soltado, tx, ty);
           if (soltado === COFRE) cofres.borrar(tx, ty);
           const abierto = barra.cofreAbierto;
@@ -519,16 +564,56 @@ async function arrancar(): Promise<void> {
         else mundo.setPared(tx, ty, tileEnMano);
         renderer.cache.invalidar(tx, ty);
         motorLuz.invalidar(tx);
+        // Tapar una celda con agua la vacía en el paso siguiente, y el líquido
+        // de al lado tiene que enterarse de que ha perdido un camino.
+        liquidos.activar(tx, ty);
         barra.refrescar(capa);
       }
     }
+  }
+
+  /**
+   * Líquidos: un paso de simulación y sus consecuencias sobre el jugador.
+   *
+   * Devuelve cuánto está sumergido, que es lo que la física necesita para saber
+   * si toca nadar. La luz solo se marca sucia cuando hay lava en movimiento:
+   * el agua no ilumina, y rehacer la ventana de luz en cada tick de una cascada
+   * sería pagar por nada.
+   */
+  function actualizarLiquidos(): number {
+    const antes = liquidos.pendientes;
+    liquidos.paso();
+    const s = sumersion(mundo, jugador.caja, TILE);
+    if (s.lava || (antes > 0 && hayLavaCerca())) motorLuz.marcarSucio();
+
+    const r = tickAliento(aliento, salud, jugador.caja, s.cabeza && !s.lava, s.lava);
+    if (s.fraccion > 0 && !s.lava) apagar(aliento);
+    if (r.dano) {
+      panelVida.refrescar(salud);
+      if (r.motivo === 'ahogo') aviso.mostrar('Te estás ahogando', true);
+      else if (r.motivo === 'lava') aviso.mostrar('¡Lava!', true);
+    }
+    panelVida.refrescarAliento(aliento);
+    return s.fraccion;
+  }
+
+  /** ¿Hay lava en la ventana visible? Solo entonces su movimiento cambia la luz. */
+  function hayLavaCerca(): boolean {
+    const { tx0, ty0, tx1, ty1 } = renderer.camara.tilesVisibles();
+    for (let ty = ty0; ty <= ty1; ty += 2) {
+      for (let tx = tx0; tx <= tx1; tx += 2) {
+        if (mundo.getLiquido(tx, ty) > 0 && mundo.esLava(tx, ty)) return true;
+      }
+    }
+    return false;
   }
 
   const bucle = crearBucle(
     () => {
       reloj.avanzar(TICK);
       editar();
-      actualizarJugador(mundo, jugador, entrada.estado(), ajustes);
+      const sumergido = actualizarLiquidos();
+      actualizarJugador(mundo, jugador, entrada.estado(), ajustes, sumergido);
       actualizarDrops();
       actualizarCombate();
       entrada.finTick();

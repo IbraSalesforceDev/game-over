@@ -18,6 +18,8 @@ export class Mundo {
   readonly wallId: Uint16Array;
   /** Bits de estado por tile (orientación, variantes...). */
   readonly flags: Uint8Array;
+  /** Nivel de líquido, 0 = seco, 255 = celda llena. */
+  readonly liquido: Uint8Array;
 
   constructor(ancho: number, alto: number) {
     this.ancho = ancho;
@@ -26,6 +28,7 @@ export class Mundo {
     this.tileId = new Uint16Array(n);
     this.wallId = new Uint16Array(n);
     this.flags = new Uint8Array(n);
+    this.liquido = new Uint8Array(n);
   }
 
   dentro(tx: number, ty: number): boolean {
@@ -56,6 +59,40 @@ export class Mundo {
   setPared(tx: number, ty: number, id: number): void {
     if (!this.dentro(tx, ty)) return;
     this.wallId[ty * this.ancho + tx] = id;
+  }
+
+  // --- Líquidos -------------------------------------------------------------
+  //
+  // El tipo (agua o lava) va en un bit de `flags` en vez de en un array
+  // propio: son 1,26 MB de diferencia en un mundo mediano por un dato que solo
+  // tiene dos valores.
+
+  /** Bit de `flags` que marca la celda como lava. */
+  static readonly BIT_LAVA = 1;
+
+  getLiquido(tx: number, ty: number): number {
+    if (!this.dentro(tx, ty)) return 0;
+    return this.liquido[ty * this.ancho + tx]!;
+  }
+
+  esLava(tx: number, ty: number): boolean {
+    if (!this.dentro(tx, ty)) return false;
+    return (this.flags[ty * this.ancho + tx]! & Mundo.BIT_LAVA) !== 0;
+  }
+
+  setLiquido(tx: number, ty: number, nivel: number, lava = false): void {
+    if (!this.dentro(tx, ty)) return;
+    const i = ty * this.ancho + tx;
+    this.liquido[i] = Math.max(0, Math.min(255, Math.round(nivel)));
+    if (this.liquido[i] === 0) {
+      // Una celda seca no es "agua seca" ni "lava seca": pierde el tipo, para
+      // que la siguiente gota que caiga ahí no herede lo que hubo antes.
+      this.flags[i] = this.flags[i]! & ~Mundo.BIT_LAVA;
+    } else if (lava) {
+      this.flags[i] = this.flags[i]! | Mundo.BIT_LAVA;
+    } else {
+      this.flags[i] = this.flags[i]! & ~Mundo.BIT_LAVA;
+    }
   }
 
   /** Rellena un rectángulo inclusivo. Utilidad para el nivel de pruebas. */

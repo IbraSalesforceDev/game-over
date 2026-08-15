@@ -76,6 +76,7 @@ export function cajaGolpe(g: Golpe, jugador: Caja): Caja | null {
     ticksBuffer: 0,
     ticksSalto: 0,
     saltando: false,
+    nadaba: false,
     yInicioCaida: 0,
     ultimaCaida: 0,
   };

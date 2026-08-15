@@ -32,9 +32,14 @@ import {
   TICKS_INVULNERABLE,
   VIDA_MAXIMA,
 } from '../src/entities/salud';
-import { especiesPosibles, intentarAparicion, TOPE_ENEMIGOS } from '../src/entities/spawner';
+import {
+  biomaEn,
+  especiesPosibles,
+  intentarAparicion,
+  TOPE_ENEMIGOS,
+} from '../src/entities/spawner';
 import { defObjeto, ESPADA_HIERRO, ESPADA_MADERA, GEL, HUESO } from '../src/items/items';
-import { PIEDRA } from '../src/world/tiles';
+import { ARENA, NIEVE, PIEDRA } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
 const SUELO = 20;
@@ -329,19 +334,49 @@ describe('golpe cuerpo a cuerpo', () => {
 
 describe('aparición de enemigos', () => {
   it('de día en la superficie solo salen slimes', () => {
-    const especies = especiesPosibles({ esNoche: false, superficieTy: SUELO }, SUELO - 2);
+    const especies = especiesPosibles({ esNoche: false, superficieTy: SUELO , bioma: 'bosque' }, SUELO - 2);
     expect(especies).toEqual(['slime']);
   });
 
   it('de noche en la superficie salen zombis', () => {
-    const especies = especiesPosibles({ esNoche: true, superficieTy: SUELO }, SUELO - 2);
+    const especies = especiesPosibles({ esNoche: true, superficieTy: SUELO , bioma: 'bosque' }, SUELO - 2);
     expect(especies).toContain('zombi');
   });
 
   it('bajo tierra hay peligro a cualquier hora', () => {
-    const especies = especiesPosibles({ esNoche: false, superficieTy: SUELO }, SUELO + 60);
+    const especies = especiesPosibles({ esNoche: false, superficieTy: SUELO , bioma: 'bosque' }, SUELO + 60);
     expect(especies).toContain('murcielago');
     expect(especies).toContain('zombi');
+  });
+
+  it('cada bioma de superficie tiene su bicho', () => {
+    const desierto = especiesPosibles(
+      { esNoche: false, superficieTy: SUELO, bioma: 'desierto' },
+      SUELO - 2,
+    );
+    expect(desierto).toEqual(['escarabajo']);
+    const nieve = especiesPosibles(
+      { esNoche: true, superficieTy: SUELO, bioma: 'nieve' },
+      SUELO - 2,
+    );
+    expect(nieve).toContain('lobo');
+  });
+
+  it('bajo tierra el bioma da igual: manda la profundidad', () => {
+    const hondo = especiesPosibles(
+      { esNoche: false, superficieTy: SUELO, bioma: 'desierto' },
+      SUELO + 60,
+    );
+    expect(hondo).not.toContain('escarabajo');
+  });
+
+  it('el bioma se deduce del suelo que se pisa', () => {
+    const m = mundoPlano();
+    expect(biomaEn(m, 10, SUELO - 3)).toBe('bosque');
+    m.rellenar(10, SUELO, 10, SUELO + 4, ARENA);
+    expect(biomaEn(m, 10, SUELO - 3)).toBe('desierto');
+    m.rellenar(10, SUELO, 10, SUELO + 4, NIEVE);
+    expect(biomaEn(m, 10, SUELO - 3)).toBe('nieve');
   });
 
   it('aparecen lejos del jugador, no encima', () => {
@@ -354,7 +389,7 @@ describe('aparición de enemigos', () => {
         m,
         enemigos,
         jugador,
-        { esNoche: true, superficieTy: SUELO },
+        { esNoche: true, superficieTy: SUELO , bioma: 'bosque' },
         () => (i % 10) / 10 + 0.05,
       );
     }
@@ -369,7 +404,7 @@ describe('aparición de enemigos', () => {
     const jugador = jugadorEn(150);
     const enemigos: Enemigo[] = [];
     for (let i = 0; i < 300; i++) {
-      intentarAparicion(m, enemigos, jugador, { esNoche: true, superficieTy: SUELO });
+      intentarAparicion(m, enemigos, jugador, { esNoche: true, superficieTy: SUELO , bioma: 'bosque' });
     }
     expect(enemigos.filter((e) => e.vivo).length).toBeLessThanOrEqual(TOPE_ENEMIGOS);
   });

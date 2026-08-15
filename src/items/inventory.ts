@@ -93,6 +93,27 @@ export class Inventario {
     return sacado;
   }
 
+  /**
+   * Mete un objeto en una ranura concreta si está libre o ya lleva lo mismo.
+   * Devuelve false sin tocar nada si no cabe ahí.
+   *
+   * Existe por el cubo: lo natural es que el cubo lleno se quede en la misma
+   * ranura donde estaba el vacío, y no que salte al primer hueco libre del
+   * inventario justo cuando lo tienes en la mano.
+   */
+  ponerEn(indice: number, objeto: number, cantidad: number): boolean {
+    const r = this.ranuras[indice];
+    if (!r) return false;
+    if (estaVacia(r)) {
+      r.objeto = objeto;
+      r.cantidad = cantidad;
+      return true;
+    }
+    if (r.objeto !== objeto || r.cantidad + cantidad > maxPila(objeto)) return false;
+    r.cantidad += cantidad;
+    return true;
+  }
+
   contar(objeto: number): number {
     let n = 0;
     for (const r of this.ranuras) if (r.objeto === objeto) n += r.cantidad;

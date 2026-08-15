@@ -4,6 +4,7 @@ import { ANTORCHA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, 
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
+  CUBO,
   ESPADA_COBRE,
   ESPADA_HIERRO,
   ESPADA_MADERA,
@@ -163,6 +164,15 @@ export const RECETAS: readonly Receta[] = [
       [MADERA, 3],
     ],
     resultado: ESPADA_HIERRO,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  // El cubo es lo que convierte el agua en un material: sin él los lagos solo
+  // se pueden mover cavando, y la lava no se puede tocar en absoluto.
+  {
+    id: 'cubo',
+    ingredientes: [[LINGOTE_HIERRO, 3]],
+    resultado: CUBO,
     cantidad: 1,
     estacion: YUNQUE,
   },

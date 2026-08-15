@@ -1,16 +1,30 @@
 import {
   AIRE,
+  ARENA,
+  ARENISCA,
+  CACTUS,
   COBRE,
+  HIELO,
   HIERBA,
   HIERRO,
   HOJAS,
+  NIEVE,
   ORO,
   PIEDRA,
   PLATA,
   TIERRA,
   TRONCO,
 } from '../tiles';
+import { esSolido } from '../tiles';
 import { Mundo } from '../world';
+import {
+  BOSQUE,
+  DESIERTO,
+  distanciaAlBorde,
+  generarBiomas,
+  NIEVE_B,
+  type MapaBiomas,
+} from './biomas';
 import { fractal1D, fractal2D, ruido1D } from './noise';
 import { crearRngRico, semillaDeTexto, type Rng } from './rng';
 
@@ -52,6 +66,8 @@ export interface ResultadoGen {
   semilla: string;
   /** Altura de la superficie por columna, útil para depurar y para el spawn. */
   superficie: Int32Array;
+  /** Bioma de cada columna. */
+  biomas: MapaBiomas;
 }
 
 /** Perfil de capas, en fracciones de la altura del mundo. */
@@ -92,11 +108,15 @@ export function* generarMundoPasos(
 
   // --- 1. Relieve y capas -------------------------------------------------
   yield { pct: 5, texto: 'Levantando el relieve…' };
+  const biomas = generarBiomas(op.ancho, semilla, rng);
   const superficie = new Int32Array(op.ancho);
   for (let tx = 0; tx < op.ancho; tx++) {
     superficie[tx] = alturaSuperficie(tx, op, semilla);
   }
-  rellenarCapas(mundo, superficie, c, semilla);
+  // El desierto es una hondonada y la nieve una meseta: hundir y levantar el
+  // relieve por bioma hace que se noten desde lejos, antes de pisarlos.
+  suavizarRelievePorBioma(superficie, biomas);
+  rellenarCapas(mundo, superficie, biomas, c, semilla);
 
   // --- 2. Cuevas ----------------------------------------------------------
   yield { pct: 30, texto: 'Excavando cuevas…' };
@@ -112,18 +132,25 @@ export function* generarMundoPasos(
   yield { pct: 72, texto: 'Sembrando minerales…' };
   sembrarMinerales(mundo, superficie, c, rng);
 
-  // --- 4. Superficie ------------------------------------------------------
-  yield { pct: 84, texto: 'Plantando el bosque…' };
-  vestirSuperficie(mundo, superficie, rng, semilla);
+  // --- 4. Líquidos --------------------------------------------------------
+  //
+  // Antes de vestir la superficie: los lagos cambian el relieve al excavarse, y
+  // la hierba y los árboles tienen que ver el terreno ya con su orilla.
+  yield { pct: 80, texto: 'Llenando lagos y coladas…' };
+  llenarLiquidos(mundo, superficie, biomas, c, rng);
 
-  // --- 5. Bordes y remate -------------------------------------------------
+  // --- 5. Superficie ------------------------------------------------------
+  yield { pct: 88, texto: 'Plantando el bosque…' };
+  vestirSuperficie(mundo, superficie, biomas, rng, semilla);
+
+  // --- 6. Bordes y remate -------------------------------------------------
   yield { pct: 94, texto: 'Cerrando los bordes…' };
   cerrarBordes(mundo);
 
   const [spawnTx, spawnTy] = buscarSpawn(mundo, superficie);
   yield { pct: 100, texto: 'Mundo listo' };
 
-  return { mundo, spawnTx, spawnTy, semilla: op.semilla, superficie };
+  return { mundo, spawnTx, spawnTy, semilla: op.semilla, superficie, biomas };
 }
 
 /** Agota el generador. Para tests y para usos sin pantalla de carga. */
@@ -138,28 +165,113 @@ export function generarMundo(op: OpcionesGen): ResultadoGen {
 
 type Capas = ReturnType<typeof capas>;
 
+/**
+ * Hunde el desierto y levanta la nieve, con una transición larga a los lados.
+ *
+ * La transición importa más que el desnivel: un escalón seco entre bioma y
+ * bioma se ve como un fallo de generación, y un talud de treinta columnas se ve
+ * como una ladera.
+ */
+function suavizarRelievePorBioma(superficie: Int32Array, biomas: MapaBiomas): void {
+  const ancho = superficie.length;
+  const TRANSICION = 30;
+  const desnivel = new Float32Array(ancho);
+  for (let tx = 0; tx < ancho; tx++) {
+    const b = biomas[tx]!;
+    desnivel[tx] = b === DESIERTO ? 7 : b === NIEVE_B ? -5 : 0;
+  }
+  // Media móvil: es la forma más barata de convertir un escalón en una rampa.
+  const suave = new Float32Array(ancho);
+  let suma = 0;
+  for (let tx = 0; tx < ancho + TRANSICION; tx++) {
+    if (tx < ancho) suma += desnivel[tx]!;
+    if (tx >= TRANSICION) suma -= desnivel[tx - TRANSICION]!;
+    const centro = tx - Math.floor(TRANSICION / 2);
+    if (centro >= 0 && centro < ancho) suave[centro] = suma / TRANSICION;
+  }
+  for (let tx = 0; tx < ancho; tx++) {
+    superficie[tx] = Math.round(superficie[tx]! + suave[tx]!);
+  }
+}
+
+/** Suelo, subsuelo y roca de cada bioma. */
+function materialesDe(bioma: number): { suelo: number; subsuelo: number; roca: number } {
+  if (bioma === DESIERTO) return { suelo: ARENA, subsuelo: ARENA, roca: ARENISCA };
+  if (bioma === NIEVE_B) return { suelo: NIEVE, subsuelo: NIEVE, roca: PIEDRA };
+  return { suelo: HIERBA, subsuelo: TIERRA, roca: PIEDRA };
+}
+
 function rellenarCapas(
   mundo: Mundo,
   superficie: Int32Array,
+  biomas: MapaBiomas,
   c: Capas,
   semilla: number,
 ): void {
   const { ancho, alto } = mundo;
+  const borde = distanciaAlBorde(biomas);
+  /** Columnas que tarda un bioma en alcanzar todo su grosor. */
+  const CUNA = 16;
   for (let tx = 0; tx < ancho; tx++) {
     const sup = superficie[tx]!;
+    const bioma = biomas[tx]!;
+    const mat = materialesDe(bioma);
+    // El bioma entra en cuña: en su primera columna es una costra de un tile y
+    // va engordando hacia dentro.
+    const cuna = bioma === BOSQUE ? 1 : Math.min(1, borde[tx]! / CUNA);
     // El grosor de tierra varía por columna: si no, la frontera con la piedra
     // sale como una línea recta que canta muchísimo.
     const grosor = c.grosorTierra + Math.round((ruido1D(tx / 40, semilla + 313) - 0.5) * 14);
     const finTierra = sup + Math.max(4, grosor);
+    // Hasta dónde llega el material del bioma, ya en cuña.
+    const finBioma = sup + Math.max(1, Math.round((finTierra - sup) * cuna));
+    // La arenisca y el hielo solo llegan hasta donde llega el bioma: por debajo
+    // el mundo vuelve a ser el mismo para todos, que es lo que hace que la
+    // caverna sea un sitio único y no tres.
+    const finRocaBioma =
+      finBioma +
+      (bioma === BOSQUE
+        ? 0
+        : Math.round((26 + (ruido1D(tx / 23, semilla + 877) - 0.5) * 20) * cuna));
 
     for (let ty = sup; ty < alto; ty++) {
-      mundo.setTile(tx, ty, ty === sup ? HIERBA : ty < finTierra ? TIERRA : PIEDRA);
+      const id =
+        ty === sup
+          ? mat.suelo
+          : ty < finBioma
+            ? mat.subsuelo
+            : ty < finRocaBioma
+              ? mat.roca
+              : ty < finTierra
+                ? TIERRA
+                : PIEDRA;
+      mundo.setTile(tx, ty, id);
+    }
+
+    // Vetas de hielo en la nieve: es lo que le da textura al bioma sin
+    // necesidad de un tile más.
+    if (bioma === NIEVE_B) {
+      for (let ty = sup + 2; ty < finBioma; ty++) {
+        if (fractal2D(tx / 18, ty / 12, semilla + 4441, { octavas: 2, persistencia: 0.5 }) > 0.66) {
+          mundo.setTile(tx, ty, HIELO);
+        }
+      }
     }
 
     // Paredes: empiezan un poco por debajo de la superficie, para que al cavar
     // los primeros tiles se siga viendo el cielo y no una pared plantada.
     for (let ty = sup + 4; ty < alto; ty++) {
-      mundo.setPared(tx, ty, ty < finTierra ? TIERRA : PIEDRA);
+      mundo.setPared(
+        tx,
+        ty,
+        ty < finBioma
+          ? mat.subsuelo
+          : ty < finRocaBioma
+            ? mat.roca
+            : ty < finTierra
+              ? TIERRA
+              : PIEDRA,
+      );
     }
   }
 }
@@ -358,46 +470,74 @@ function pintarBlob(mundo: Mundo, cx: number, cy: number, radio: number, id: num
   }
 }
 
-/** Hierba en el techo del terreno y árboles repartidos por el bosque. */
+/** Hierba en el techo del terreno y vegetación propia de cada bioma. */
 function vestirSuperficie(
   mundo: Mundo,
   superficie: Int32Array,
+  biomas: MapaBiomas,
   rng: Rng,
   semillaArboles: number,
 ): void {
   const { ancho, alto } = mundo;
 
-  // La hierba va donde hay tierra con aire justo encima: tras las cuevas y los
+  // El suelo va donde hay materia con aire justo encima: tras las cuevas y los
   // gusanos, la superficie ya no es la que dijo el relieve.
   for (let tx = 0; tx < ancho; tx++) {
+    const suelo = materialesDe(biomas[tx]!).suelo;
+    // En el desierto la arena ya es el suelo y no hay nada que cambiar.
+    if (suelo === ARENA) continue;
     for (let ty = Math.max(0, superficie[tx]! - 6); ty < alto - 1; ty++) {
       const id = mundo.getTile(tx, ty);
       if (id === AIRE) continue;
-      if (id === TIERRA && mundo.getTile(tx, ty - 1) === AIRE) {
-        mundo.setTile(tx, ty, HIERBA);
+      if ((id === TIERRA || id === NIEVE) && mundo.getTile(tx, ty - 1) === AIRE) {
+        mundo.setTile(tx, ty, suelo);
       }
       break;
     }
   }
 
-  let ultimoArbol = -99;
+  let ultimaPlanta = -99;
   for (let tx = 3; tx < ancho - 3; tx++) {
-    if (tx - ultimoArbol < 5) continue;
+    const bioma = biomas[tx]!;
+    const separacion = bioma === DESIERTO ? 4 : 5;
+    if (tx - ultimaPlanta < separacion) continue;
     // La densidad ondula a lo largo del mundo: así hay bosquecillos cerrados y
     // claros abiertos, en vez de una hilera regular de árboles hasta el
     // horizonte.
     const espesura = ruido1D(tx / 90, semillaArboles);
-    if (!rng.suerte(0.015 + espesura * espesura * 0.16)) continue;
+    const probabilidad =
+      bioma === DESIERTO ? 0.07 : 0.015 + espesura * espesura * (bioma === NIEVE_B ? 0.11 : 0.16);
+    if (!rng.suerte(probabilidad)) continue;
 
     // Buscar el suelo real de esta columna.
     let ty = Math.max(0, superficie[tx]! - 6);
     while (ty < alto && mundo.getTile(tx, ty) === AIRE) ty++;
-    if (mundo.getTile(tx, ty) !== HIERBA) continue;
-    // Sin sitio para el tronco, no hay árbol.
+    const base = mundo.getTile(tx, ty);
+    if (base !== materialesDe(bioma).suelo) continue;
+    // Sin sitio para el tronco, no hay planta.
     if (mundo.getTile(tx, ty - 1) !== AIRE) continue;
+    // Y nada de árboles dentro del lago: la orilla es el sitio, no el fondo.
+    if (mundo.getLiquido(tx, ty - 1) > 0) continue;
 
-    plantarArbol(mundo, tx, ty - 1, rng);
-    ultimoArbol = tx;
+    if (bioma === DESIERTO) plantarCactus(mundo, tx, ty - 1, rng);
+    else plantarArbol(mundo, tx, ty - 1, rng);
+    ultimaPlanta = tx;
+  }
+}
+
+/** Un cactus es un tronco sin copa, con algún brazo. */
+function plantarCactus(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void {
+  const altura = rng.entero(3, 6);
+  for (let i = 0; i < altura; i++) {
+    const ty = tyBase - i;
+    if (ty < 2 || mundo.getTile(tx, ty) !== AIRE) return;
+    mundo.setTile(tx, ty, CACTUS);
+    // Un brazo a media altura, a un lado o al otro.
+    if (i === altura - 2 && rng.suerte(0.5)) {
+      const dx = rng.suerte(0.5) ? 1 : -1;
+      if (mundo.getTile(tx + dx, ty) === AIRE) mundo.setTile(tx + dx, ty, CACTUS);
+      if (mundo.getTile(tx + dx, ty - 1) === AIRE) mundo.setTile(tx + dx, ty - 1, CACTUS);
+    }
   }
 }
 
@@ -423,6 +563,181 @@ function plantarArbol(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void 
   }
 }
 
+/**
+ * Lagos en superficie, charcas en las cuevas y lava en el fondo.
+ *
+ * Todo se llena por inundación desde un punto, con un tope de celdas: así el
+ * agua toma la forma del hueco que encuentra —que es lo que hace que un lago
+ * parezca excavado por el terreno y no pegado encima— y una cueva conectada con
+ * media caverna no acaba anegando el mundo entero.
+ */
+function llenarLiquidos(
+  mundo: Mundo,
+  superficie: Int32Array,
+  biomas: MapaBiomas,
+  c: Capas,
+  rng: Rng,
+): void {
+  // --- Lagos de superficie ---
+  //
+  // Se excavan, no se buscan: el relieve por ruido casi nunca deja una cuenca
+  // lo bastante honda como para que quepa un lago, y un mundo entero sin un
+  // charco de agua a la vista deja la mitad de la fase escondida bajo tierra.
+  const lagos = Math.max(2, Math.floor(mundo.ancho / 170));
+  let ultimoLago = -999;
+  for (let i = 0; i < lagos; i++) {
+    for (let intento = 0; intento < 40; intento++) {
+      const tx = rng.entero(24, mundo.ancho - 25);
+      // El desierto no tiene lagos: es lo que lo hace desierto.
+      if (biomas[tx] === DESIERTO) continue;
+      const radio = rng.entero(7, 15);
+      if (Math.abs(tx - ultimoLago) < radio * 3) continue;
+      // Ni en una ladera ni en un terreno accidentado: el agua se vería colgada
+      // del monte, y la orilla quedaría como un escalón de seis tiles.
+      if (!terrenoLlano(superficie, tx, radio)) continue;
+      excavarLago(mundo, superficie, tx, radio, rng.entero(4, 7));
+      ultimoLago = tx;
+      break;
+    }
+  }
+
+  // --- Charcas subterráneas ---
+  const charcas = Math.floor(mundo.ancho / 90);
+  for (let i = 0; i < charcas; i++) {
+    for (let intento = 0; intento < 30; intento++) {
+      const tx = rng.entero(6, mundo.ancho - 7);
+      const techo = superficie[tx]! + c.techoCuevas + 10;
+      const ty = rng.entero(techo, Math.max(techo + 1, c.caverna + 40));
+      if (mundo.getTile(tx, ty) !== AIRE) continue;
+      if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
+      // Tres tiles de calado como mucho: una charca en el suelo de una cueva,
+      // no una columna de agua subiendo por la sala.
+      if (inundar(mundo, tx, ty, 90, false, ty - 2, ty + 2) > 8) break;
+    }
+  }
+
+  // --- Lava del fondo ---
+  const coladas = Math.floor(mundo.ancho / 70);
+  const inicioLava = Math.floor(c.caverna + (c.fondo - c.caverna) * 0.45);
+  for (let i = 0; i < coladas; i++) {
+    for (let intento = 0; intento < 30; intento++) {
+      const tx = rng.entero(6, mundo.ancho - 7);
+      const ty = rng.entero(inicioLava, c.fondo - 4);
+      if (mundo.getTile(tx, ty) !== AIRE) continue;
+      if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
+      if (inundar(mundo, tx, ty, 80, true, ty - 3, ty + 2) > 6) break;
+    }
+  }
+}
+
+/** ¿Todo el hueco del lago, y un poco más, cae dentro de dos tiles de desnivel? */
+function terrenoLlano(superficie: Int32Array, tx: number, radio: number): boolean {
+  const referencia = superficie[tx]!;
+  for (let x = tx - radio - 1; x <= tx + radio + 1; x++) {
+    if (x < 0 || x >= superficie.length) return false;
+    if (Math.abs(superficie[x]! - referencia) > 2) return false;
+  }
+  return true;
+}
+
+/**
+ * Excava una cuenca y la llena de agua.
+ *
+ * Dos decisiones sostienen todo lo demás. La lámina se pone un tile por debajo
+ * del punto más bajo del terreno del hueco, así que ninguna columna de la
+ * orilla queda por debajo del agua y el lago no se derrama en cuanto arranca la
+ * simulación. Y el fondo baja de tile en tile desde la orilla, en vez de caer
+ * de golpe: un lago con paredes verticales de seis tiles no se puede vadear, y
+ * lo que parecía una charca se convierte en una trampa.
+ */
+function excavarLago(
+  mundo: Mundo,
+  superficie: Int32Array,
+  tx: number,
+  radio: number,
+  hondura: number,
+): void {
+  // Mayor ty es más bajo: el punto más bajo del hueco es el de mayor ty.
+  let masBajo = superficie[tx]!;
+  for (let x = tx - radio; x <= tx + radio; x++) masBajo = Math.max(masBajo, superficie[x]!);
+  const nivel = masBajo + 1;
+
+  // Se rebaja dos columnas más allá del agua: sin ese remate, la orilla —que
+  // sí se ha rebajado hasta el nivel del agua— choca contra el terreno intacto
+  // de al lado y deja un escalón de varios tiles justo donde se entra al lago.
+  const REMATE = 2;
+
+  for (let x = tx - radio - REMATE; x <= tx + radio + REMATE; x++) {
+    if (x < 2 || x >= mundo.ancho - 2) continue;
+    // Talud de 45°: la hondura crece un tile por columna desde la orilla hasta
+    // llegar al fondo plano del centro, y sube igual de rápido al salir.
+    const hondo = Math.min(hondura, radio - Math.abs(x - tx));
+    const fondo = nivel + hondo;
+    if (fondo <= superficie[x]!) continue;
+
+    for (let y = superficie[x]!; y < fondo; y++) {
+      mundo.setTile(x, y, AIRE);
+      // Sin pared de fondo: un lago abierto enseña el cielo, no un panel de
+      // tierra. Y así el sol llega hasta la arena del fondo.
+      mundo.setPared(x, y, AIRE);
+      if (y >= nivel) mundo.setLiquido(x, y, 255);
+    }
+    // El suelo real de la columna baja hasta el fondo del lago.
+    superficie[x] = fondo;
+  }
+}
+
+/**
+ * Inunda desde una celda hacia abajo y hacia los lados, como haría el agua.
+ *
+ * Es una inundación con techo: nunca sube por encima de `limiteArriba`, para
+ * que un lago de superficie no trepe por la ladera ni se escape por una grieta
+ * hacia una cueva de treinta tiles más abajo. `limiteAbajo` hace lo propio por
+ * abajo: sin él, una charca que encuentra una grieta se cuela por ella y lo que
+ * queda en el mapa es un hilo vertical de un tile de ancho, no una charca.
+ */
+function inundar(
+  mundo: Mundo,
+  tx0: number,
+  ty0: number,
+  maximo: number,
+  lava: boolean,
+  limiteArriba: number,
+  limiteAbajo = Infinity,
+): number {
+  const pila: number[] = [ty0 * mundo.ancho + tx0];
+  const vistos = new Set<number>(pila);
+  let puestas = 0;
+
+  while (pila.length > 0 && puestas < maximo) {
+    const i = pila.pop()!;
+    const tx = i % mundo.ancho;
+    const ty = (i / mundo.ancho) | 0;
+    if (!mundo.dentro(tx, ty) || ty < limiteArriba || ty > limiteAbajo) continue;
+    if (esSolido(mundo.getTile(tx, ty))) continue;
+    if (mundo.getLiquido(tx, ty) > 0) continue;
+
+    mundo.setLiquido(tx, ty, 255, lava);
+    puestas++;
+
+    // La pila saca lo último que entró, así que el orden va del revés: abajo se
+    // apila el último para ser el primero en salir. El líquido busca el fondo
+    // antes de extenderse.
+    for (const [dx, dy] of [
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+    ] as const) {
+      const j = (ty + dy) * mundo.ancho + (tx + dx);
+      if (vistos.has(j)) continue;
+      vistos.add(j);
+      pila.push(j);
+    }
+  }
+  return puestas;
+}
+
 /** Marco de roca: el mundo no se acaba en un agujero por el que caerse. */
 function cerrarBordes(mundo: Mundo): void {
   const { ancho, alto } = mundo;
@@ -436,8 +751,12 @@ function cerrarBordes(mundo: Mundo): void {
  * hueco despejado por encima. Aparecer dentro de un árbol o en el borde de un
  * barranco es la clase de detalle que arruina el primer minuto de partida.
  */
-function buscarSpawn(mundo: Mundo, superficie: Int32Array): [number, number] {
-  const centro = Math.floor(mundo.ancho / 2);
+export function buscarSpawn(
+  mundo: Mundo,
+  superficie: Int32Array,
+  desde?: number,
+): [number, number] {
+  const centro = desde ?? Math.floor(mundo.ancho / 2);
   for (let d = 0; d < mundo.ancho / 2; d++) {
     for (const tx of [centro + d, centro - d]) {
       if (tx < 4 || tx >= mundo.ancho - 4) continue;

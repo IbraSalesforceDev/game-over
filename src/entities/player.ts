@@ -29,10 +29,11 @@ export function actualizarJugador(
   j: Jugador,
   entrada: Entrada,
   aj: Ajustes,
+  sumergido = 0,
 ): void {
   j.xPrev = j.caja.x;
   j.yPrev = j.caja.y;
-  actualizarFisica(mundo, j.caja, entrada, aj);
+  actualizarFisica(mundo, j.caja, entrada, aj, sumergido);
 }
 
 export function reaparecer(j: Jugador): void {

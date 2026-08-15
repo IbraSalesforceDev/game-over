@@ -20,12 +20,21 @@ export const MESA = 13;
 export const HORNO = 14;
 export const YUNQUE = 15;
 export const COFRE = 16;
+// Biomas (fase 9).
+export const ARENA = 17;
+export const ARENISCA = 18;
+export const CACTUS = 19;
+export const NIEVE = 20;
+export const HIELO = 21;
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
 export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
 
 /** Minerales, de menos a más profundo. */
 export const MINERALES = [COBRE, HIERRO, PLATA, ORO] as const;
+
+/** Suelos de superficie de cada bioma; se usan para vestir el terreno. */
+export const SUELOS_BIOMA = [HIERBA, ARENA, NIEVE] as const;
 
 export interface DefTile {
   readonly nombre: string;
@@ -70,6 +79,13 @@ export const TILES: readonly DefTile[] = [
   { nombre: 'horno', solido: false, plataforma: false, dureza: 30, color: '#7a6a5c', luz: 120 },
   { nombre: 'yunque', solido: false, plataforma: true, dureza: 40, color: '#4a4a52' },
   { nombre: 'cofre', solido: false, plataforma: false, dureza: 22, color: '#a37b3c' },
+  // La arena es blanda, la arenisca es la piedra del desierto y el cactus no
+  // frena, como los árboles.
+  { nombre: 'arena', solido: true, plataforma: false, dureza: 14, color: '#d9c07a' },
+  { nombre: 'arenisca', solido: true, plataforma: false, dureza: 40, color: '#b39457' },
+  { nombre: 'cactus', solido: false, plataforma: false, dureza: 18, color: '#4f8a4a' },
+  { nombre: 'nieve', solido: true, plataforma: false, dureza: 16, color: '#e6eef5' },
+  { nombre: 'hielo', solido: true, plataforma: false, dureza: 35, color: '#a9d6ec' },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */

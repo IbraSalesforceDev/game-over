@@ -15,7 +15,7 @@ import { crearSalud, golpear, tickSalud, type Salud } from './salud';
  * El daño es por contacto: no hay proyectiles todavía.
  */
 
-export type Especie = 'slime' | 'zombi' | 'murcielago';
+export type Especie = 'slime' | 'zombi' | 'murcielago' | 'escarabajo' | 'lobo';
 
 export interface DefEnemigo {
   readonly nombre: string;
@@ -74,6 +74,36 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     botinMax: 1,
     nocturno: false,
   },
+  // Los dos de bioma. Se mueven como los que ya existían —no hay una IA nueva
+  // que mantener— pero pegan distinto: el escarabajo es duro y lento de matar,
+  // y el lobo hace daño de verdad. Que cada bioma tenga su amenaza es lo que
+  // hace que cruzarlos se note.
+  escarabajo: {
+    nombre: 'escarabajo',
+    vida: 40,
+    dano: 14,
+    ancho: 22,
+    alto: 16,
+    color: '#b3903f',
+    colorOscuro: '#6f5720',
+    vuela: false,
+    botin: GEL,
+    botinMax: 2,
+    nocturno: false,
+  },
+  lobo: {
+    nombre: 'lobo de hielo',
+    vida: 50,
+    dano: 22,
+    ancho: 26,
+    alto: 22,
+    color: '#c3d8e8',
+    colorOscuro: '#6f8ba3',
+    vuela: false,
+    botin: HUESO,
+    botinMax: 2,
+    nocturno: true,
+  },
 };
 
 export interface Enemigo {
@@ -109,6 +139,7 @@ export function crearEnemigo(especie: Especie, wx: number, wy: number): Enemigo 
       ticksBuffer: 0,
       ticksSalto: 0,
       saltando: false,
+      nadaba: false,
       yInicioCaida: wy,
       ultimaCaida: 0,
     },
@@ -138,6 +169,25 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
   e.reloj++;
 
   switch (e.especie) {
+    case 'escarabajo':
+      // Anda pegado al suelo, más rápido que un zombi pero sin saltar: un
+      // escalón lo detiene, y esa es la forma de quitárselo de encima.
+      c.vx += (dir * 1.6 - c.vx) * 0.14;
+      c.mirando = dir;
+      break;
+
+    case 'lobo': {
+      // Corre y salta al acercarse: es el enemigo al que no se le escapa uno
+      // andando, y por eso hay que pararlo de frente.
+      const deseada = dir * 2.4;
+      c.vx += (deseada - c.vx) * 0.18;
+      c.mirando = dir;
+      if (c.enSuelo && (Math.abs(c.vx) < 0.4 || (Math.abs(dx) < 70 && e.reloj % 70 === 0))) {
+        c.vy = -5.6;
+      }
+      break;
+    }
+
     case 'slime':
       // Salta cada segundo y medio hacia el jugador. En el aire no corrige:
       // un slime es tonto, y esquivarlo tiene que ser posible.

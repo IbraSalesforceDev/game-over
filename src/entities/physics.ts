@@ -56,6 +56,28 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   alturaEscalon: 1,
 };
 
+/**
+ * Cómo se comporta el cuerpo dentro de un líquido.
+ *
+ * No es un modelo de flotación: es lo justo para que el agua se sienta como
+ * agua. Se cae despacio, se avanza con esfuerzo y se sube manteniendo el salto,
+ * que es lo que hace que un lago sea un sitio por el que se puede pasar en vez
+ * de una trampa mortal.
+ */
+export const NADO = {
+  /** Fracción de la caja dentro del líquido a partir de la cual se nada. */
+  umbral: 0.45,
+  /** Factores sobre los ajustes de tierra firme. */
+  gravedad: 0.34,
+  velTerminal: 0.3,
+  velMaxima: 0.62,
+  aceleracion: 0.55,
+  /** px/tick de subida mientras se mantenga el salto. */
+  impulso: 1.5,
+  /** Rebote al salir del agua con el salto pulsado, en px/tick. */
+  salida: 3.4,
+};
+
 export interface Entrada {
   izq: boolean;
   der: boolean;
@@ -88,6 +110,8 @@ export interface Caja {
   ticksBuffer: number;
   ticksSalto: number;
   saltando: boolean;
+  /** Estaba nadando en el tick anterior. */
+  nadaba: boolean;
   /** Altura desde la que se empezó a caer; la usará el daño por caída. */
   yInicioCaida: number;
   /** Tiles caídos en el último aterrizaje. */
@@ -108,6 +132,7 @@ export function crearCaja(x: number, y: number, ancho: number, alto: number): Ca
     ticksBuffer: 0,
     ticksSalto: 0,
     saltando: false,
+    nadaba: false,
     yInicioCaida: y,
     ultimaCaida: 0,
   };
@@ -288,21 +313,30 @@ function intentarEscalon(
 
 // --- Integración -------------------------------------------------------------
 
-/** Avanza la caja un tick de simulación. */
+/**
+ * Avanza la caja un tick de simulación.
+ *
+ * `sumergido` es la fracción de la caja que está dentro de un líquido (0-1).
+ * Se calcula fuera para que este módulo siga sin saber nada de niveles de agua:
+ * aquí solo llega un número.
+ */
 export function actualizarFisica(
   mundo: Mundo,
   caja: Caja,
   entrada: Entrada,
   aj: Ajustes,
+  sumergido = 0,
 ): void {
+  const nadando = sumergido >= NADO.umbral;
   const dir = (entrada.der ? 1 : 0) - (entrada.izq ? 1 : 0);
   if (dir !== 0) caja.mirando = dir > 0 ? 1 : -1;
 
   // Horizontal: acelerar hacia la punta, o frenar si no se pulsa nada.
-  const factor = caja.enSuelo ? 1 : aj.controlAereo;
+  const factor = (caja.enSuelo ? 1 : aj.controlAereo) * (nadando ? NADO.aceleracion : 1);
+  const velMaxima = nadando ? aj.velMaxima * NADO.velMaxima : aj.velMaxima;
   if (dir !== 0) {
     caja.vx += dir * aj.aceleracion * factor;
-    if (Math.abs(caja.vx) > aj.velMaxima) caja.vx = aj.velMaxima * Math.sign(caja.vx);
+    if (Math.abs(caja.vx) > velMaxima) caja.vx = velMaxima * Math.sign(caja.vx);
   } else {
     const frenada = aj.friccion * factor;
     if (Math.abs(caja.vx) <= frenada) caja.vx = 0;
@@ -321,7 +355,20 @@ export function actualizarFisica(
   // combo no debe disparar un salto.
   const atravesar = entrada.abajo && entrada.salto;
 
-  if (caja.ticksBuffer > 0 && caja.ticksCoyote > 0 && !caja.saltando && !atravesar) {
+  // Nadar: mantener salto empuja hacia arriba de forma continua, sin gastar el
+  // coyote ni el buffer. Al asomar la cabeza, el último empujón se convierte en
+  // un salto de verdad para poder salir a la orilla en vez de quedarse pegado
+  // al borde dando brazadas.
+  if (nadando) {
+    caja.saltando = false;
+    caja.ticksSalto = 0;
+    if (entrada.salto && !atravesar) caja.vy = -NADO.impulso;
+  } else if (caja.nadaba && entrada.salto && caja.vy < 0) {
+    caja.vy = -NADO.salida;
+  }
+  caja.nadaba = nadando;
+
+  if (!nadando && caja.ticksBuffer > 0 && caja.ticksCoyote > 0 && !caja.saltando && !atravesar) {
     caja.saltando = true;
     caja.ticksSalto = aj.ticksSaltoSostenido;
     caja.ticksBuffer = 0;
@@ -341,8 +388,9 @@ export function actualizarFisica(
     }
   }
 
-  caja.vy += aj.gravedad;
-  if (caja.vy > aj.velTerminal) caja.vy = aj.velTerminal;
+  caja.vy += nadando ? aj.gravedad * NADO.gravedad : aj.gravedad;
+  const terminal = nadando ? aj.velTerminal * NADO.velTerminal : aj.velTerminal;
+  if (caja.vy > terminal) caja.vy = terminal;
 
   // Registro de caída para el daño de fases futuras.
   if (caja.vy < 0 || caja.enSuelo) caja.yInicioCaida = caja.y;

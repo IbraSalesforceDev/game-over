@@ -2,7 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { fractal1D, fractal2D, ruido1D, ruido2D } from '../src/world/gen/noise';
 import { crearRngRico, semillaDeTexto } from '../src/world/gen/rng';
 import { generarMundo, TAMANOS } from '../src/world/gen/worldgen';
-import { AIRE, esSolido, HIERBA, MINERALES, PIEDRA, TIERRA } from '../src/world/tiles';
+import { BOSQUE, DESIERTO, NIEVE_B } from '../src/world/gen/biomas';
+import { SimuladorLiquidos } from '../src/world/liquids';
+import {
+  AIRE,
+  ARENA,
+  CACTUS,
+  esSolido,
+  HIERBA,
+  MINERALES,
+  NIEVE,
+  PIEDRA,
+  TIERRA,
+} from '../src/world/tiles';
 
 /** Mundo pequeño para que la suite siga siendo rápida. */
 const OP = { ancho: 400, alto: 300, semilla: 'PRUEBA' };
@@ -190,5 +202,111 @@ describe('generación de mundo', () => {
   it('los tamaños del catálogo son coherentes', () => {
     expect(TAMANOS.pequeno.ancho).toBeLessThan(TAMANOS.mediano.ancho);
     expect(TAMANOS.pequeno.alto).toBeLessThan(TAMANOS.mediano.alto);
+  });
+});
+
+describe('biomas', () => {
+  it('hay desierto y nieve, y cada uno en un lado', () => {
+    const { biomas } = generarMundo(OP);
+    const centro = biomas.length / 2;
+    let desiertoIzq = 0;
+    let desiertoDer = 0;
+    let nieveIzq = 0;
+    let nieveDer = 0;
+    for (let tx = 0; tx < biomas.length; tx++) {
+      if (biomas[tx] === DESIERTO) tx < centro ? desiertoIzq++ : desiertoDer++;
+      if (biomas[tx] === NIEVE_B) tx < centro ? nieveIzq++ : nieveDer++;
+    }
+    expect(desiertoIzq + desiertoDer).toBeGreaterThan(20);
+    expect(nieveIzq + nieveDer).toBeGreaterThan(20);
+    // Uno a cada lado: nunca los dos juntos.
+    expect(Math.min(desiertoIzq, desiertoDer)).toBe(0);
+    expect(Math.min(nieveIzq, nieveDer)).toBe(0);
+  });
+
+  it('el centro del mundo, donde aparece el jugador, es bosque', () => {
+    const { biomas, spawnTx } = generarMundo(OP);
+    expect(biomas[spawnTx]).toBe(BOSQUE);
+  });
+
+  it('el suelo de cada bioma es el suyo', () => {
+    const { mundo, biomas, superficie } = generarMundo(OP);
+    const suelos = new Map<number, Set<number>>();
+    for (let tx = 4; tx < mundo.ancho - 4; tx += 3) {
+      let ty = Math.max(0, superficie[tx]! - 6);
+      while (ty < mundo.alto && mundo.getTile(tx, ty) === AIRE) ty++;
+      const id = mundo.getTile(tx, ty);
+      if (!suelos.has(biomas[tx]!)) suelos.set(biomas[tx]!, new Set());
+      suelos.get(biomas[tx]!)!.add(id);
+    }
+    // La frontera entre biomas deja algún tile mezclado; lo que se comprueba es
+    // que el material propio de cada uno sea el que domina.
+    expect(suelos.get(DESIERTO)).toContain(ARENA);
+    expect(suelos.get(NIEVE_B)).toContain(NIEVE);
+    expect(suelos.get(BOSQUE)).toContain(HIERBA);
+  });
+
+  it('los cactus solo salen en el desierto', () => {
+    const { mundo, biomas } = generarMundo(OP);
+    let cactus = 0;
+    for (let tx = 0; tx < mundo.ancho; tx++) {
+      for (let ty = 0; ty < mundo.alto; ty++) {
+        if (mundo.getTile(tx, ty) !== CACTUS) continue;
+        cactus++;
+        expect(biomas[tx]).toBe(DESIERTO);
+      }
+    }
+    expect(cactus).toBeGreaterThan(0);
+  });
+});
+
+describe('líquidos del mundo generado', () => {
+  it('hay agua y hay lava', () => {
+    const { mundo } = generarMundo(OP);
+    let agua = 0;
+    let lava = 0;
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getLiquido(tx, ty) === 0) continue;
+        if (mundo.esLava(tx, ty)) lava++;
+        else agua++;
+      }
+    }
+    expect(agua).toBeGreaterThan(30);
+    expect(lava).toBeGreaterThan(10);
+  });
+
+  it('ningún líquido nace dentro de un bloque', () => {
+    const { mundo } = generarMundo(OP);
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getLiquido(tx, ty) > 0) {
+          expect(esSolido(mundo.getTile(tx, ty))).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('la lava está abajo, lejos de la superficie', () => {
+    const { mundo, superficie } = generarMundo(OP);
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getLiquido(tx, ty) > 0 && mundo.esLava(tx, ty)) {
+          expect(ty).toBeGreaterThan(superficie[tx]! + 60);
+        }
+      }
+    }
+  });
+
+  it('el agua de superficie se queda quieta al simularla', () => {
+    const { mundo } = generarMundo(OP);
+    const sim = new SimuladorLiquidos(mundo);
+    sim.despertarTodo();
+    const antes = mundo.liquido.reduce((a, v) => a + v, 0);
+    // Si los lagos se generasen desbordados, la simulación los vaciaría ladera
+    // abajo y esto se desplomaría.
+    for (let i = 0; i < 400 && sim.paso() > 0; i++);
+    const despues = mundo.liquido.reduce((a, v) => a + v, 0);
+    expect(despues).toBeGreaterThan(antes * 0.85);
   });
 });

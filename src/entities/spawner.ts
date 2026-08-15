@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
-import { esSolido } from '../world/tiles';
+import { ARENA, ARENISCA, esSolido, HIELO, NIEVE } from '../world/tiles';
 import type { Mundo } from '../world/world';
-import { crearEnemigo, type Enemigo, type Especie } from './enemies';
+import { crearEnemigo, ENEMIGOS, type Enemigo, type Especie } from './enemies';
 import type { Caja } from './physics';
 
 /**
@@ -23,11 +23,34 @@ export const INTERVALO_INTENTO = 40;
 /** Profundidad, en tiles bajo la superficie, a partir de la cual siempre hay peligro. */
 export const PROFUNDIDAD_PELIGRO = 28;
 
+export type BiomaLocal = 'bosque' | 'desierto' | 'nieve';
+
 export interface ContextoAparicion {
   /** Es de noche en el mundo. */
   esNoche: boolean;
   /** Altura del terreno en la columna del jugador. */
   superficieTy: number;
+  /** Bioma donde está el jugador. */
+  bioma: BiomaLocal;
+}
+
+/**
+ * Deduce el bioma mirando el terreno que pisa el jugador.
+ *
+ * Se saca del mundo y no de un mapa guardado a propósito: el mapa de biomas es
+ * cosa de la generación y no viaja en las partidas, mientras que la arena y la
+ * nieve están ahí siempre. Además así el bioma se mueve con el mundo: si
+ * alguien se trae un camión de arena y se monta un desierto, saldrán
+ * escarabajos.
+ */
+export function biomaEn(mundo: Mundo, tx: number, ty: number): BiomaLocal {
+  for (let d = 0; d <= 6; d++) {
+    const id = mundo.getTile(tx, ty + d);
+    if (id === ARENA || id === ARENISCA) return 'desierto';
+    if (id === NIEVE || id === HIELO) return 'nieve';
+    if (esSolido(id)) return 'bosque';
+  }
+  return 'bosque';
 }
 
 /** Especies que pueden salir en una situación dada. */
@@ -37,9 +60,15 @@ export function especiesPosibles(
 ): Especie[] {
   const bajoTierra = tyJugador > ctx.superficieTy + PROFUNDIDAD_PELIGRO;
   if (bajoTierra) return ['slime', 'murcielago', 'zombi'];
+
+  // En la superficie manda el bioma. El escarabajo sale también de día: el
+  // desierto no descansa, y es lo que hace que cruzarlo pese.
+  if (ctx.bioma === 'desierto') return ctx.esNoche ? ['escarabajo', 'zombi'] : ['escarabajo'];
+  if (ctx.bioma === 'nieve') return ctx.esNoche ? ['lobo', 'zombi'] : ['slime'];
+
   if (ctx.esNoche) return ['zombi', 'slime'];
-  // De día en la superficie solo hay slimes, y pocos: el mundo tiene que
-  // dejarte construir tranquilo en algún momento.
+  // De día en el bosque solo hay slimes, y pocos: el mundo tiene que dejarte
+  // construir tranquilo en algún momento.
   return ['slime'];
 }
 
@@ -114,10 +143,9 @@ export function intentarAparicion(
   const tx = txJugador + lado * distancia;
   if (tx < 3 || tx >= mundo.ancho - 3) return null;
 
-  const def = especie === 'murcielago';
-  const sitio = def
+  const sitio = ENEMIGOS[especie].vuela
     ? buscarAire(mundo, tx, tyJugador, rng)
-    : buscarSitio(mundo, tx, tyJugador, especie === 'zombi' ? 40 : 16, rng);
+    : buscarSitio(mundo, tx, tyJugador, ENEMIGOS[especie].alto, rng);
   if (!sitio) return null;
 
   const e = crearEnemigo(especie, sitio.x, sitio.y);

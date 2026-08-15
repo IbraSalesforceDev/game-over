@@ -19,7 +19,8 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 6** — Inventario, objetos y hotbar
 - ✅ **Fase 7** — Crafteo y contenedores
 - ✅ **Fase 8** — Vida, combate y enemigos
-- ⬜ **Fase 9** — Líquidos y biomas
+- ✅ **Fase 9** — Líquidos y biomas
+- ⬜ **Fase 10** — Pulido y audio
 
 Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
 fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
@@ -51,6 +52,7 @@ suaves. Un ciclo completo de día y noche dura 12 minutos reales.
 | `?tam=mediano` | Mundo de 2100×600 en vez de 1400×450 |
 | `?lab=1` | Abre el laboratorio de físicas de la fase 1 en vez de un mundo |
 | `?hora=22` o `?hora=5:40` | Empieza el mundo a esa hora (útil para ver la noche sin esperar) |
+| `?columna=700` | Aparece en esa columna en vez de en el centro (para ir directo a un lago o a un bioma) |
 
 El laboratorio sigue ahí a propósito: es donde se afinan las constantes de
 movimiento con `F4`, y es más rápido comprobar una regla de la física en un
@@ -63,8 +65,8 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | `A` `D` o `←` `→` | Moverse |
 | `W`, `↑` o `Espacio` | Saltar (mantener = salto más alto) |
 | `S` o `↓` + salto | Bajar por una plataforma |
-| Clic izquierdo | Minar, o golpear si llevas un arma en la mano |
-| Clic derecho | Colocar lo que lleves en la mano |
+| Clic izquierdo | Minar, golpear si llevas un arma, o llenar el cubo |
+| Clic derecho | Colocar lo que lleves en la mano, o vaciar el cubo |
 | `1`–`0` o rueda | Elegir ranura de la barra |
 | `E` | Abrir inventario y panel de fabricación |
 | Clic derecho en un cofre | Abrirlo |
@@ -100,6 +102,22 @@ morir se reaparece en el punto de origen con la vida llena.
 Se empieza con pico, espada de madera y antorchas. Los enemigos sueltan gel y
 huesos, y el gel hace que las antorchas cundan mucho más. Una espada mejor pega
 más fuerte pero se recupera más despacio.
+
+El mundo tiene agua y lava. Fluyen por celdas y solo se calculan las que están
+en movimiento, así que un océano quieto no cuesta nada; al romper la pared de
+una charca, el agua encuentra el hueco y se derrama. Dentro del agua se cae
+despacio y se sube manteniendo el salto, y hay medio minuto de aire antes de
+empezar a ahogarse — el medidor solo aparece cuando queda algo que vigilar. La
+lava quema al tocarla y se sigue ardiendo un rato al salir; meterse en el agua
+lo apaga. Con un cubo, que sale del yunque, se recoge y se vierte una celda
+entera: es la forma de llevarse el agua a donde haga falta.
+
+Además del bosque hay desierto y nieve, uno a cada lado del mundo y siempre
+lejos del punto de aparición. Cada uno tiene sus tiles —arena y arenisca con
+cactus, nieve y hielo—, su relieve (el desierto se hunde, la nieve se levanta) y
+su enemigo: escarabajos que no saltan y lobos de hielo que corren más que tú. El
+bioma se deduce del suelo que pisas, no de un mapa guardado, así que un desierto
+construido a mano también trae escarabajos.
 
 Fabricar necesita estar cerca de la estación: con las manos solo salen
 antorchas y la mesa de trabajo; la mesa desbloquea cofres, hornos y yunques; el

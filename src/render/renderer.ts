@@ -8,6 +8,7 @@ import { cajaGolpe, type Golpe } from '../entities/combat';
 import { defObjeto } from '../items/items';
 import type { Capa, Picado } from '../world/edit';
 import { durezaObjetivo, etapaGrieta } from '../world/edit';
+import { MINIMO } from '../world/liquids';
 import type { Mundo } from '../world/world';
 import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
@@ -265,6 +266,49 @@ export class Renderer {
     }
   }
 
+  /**
+   * Agua y lava. Se pintan encima de todo lo que hay dentro del líquido —
+   * tiles, objetos, jugador y enemigos— porque un personaje sumergido tiene que
+   * verse a través del agua, no delante de ella.
+   *
+   * Cada celda se dibuja con la altura que marca su nivel, así una celda medio
+   * llena deja ver el hueco de arriba y la superficie de una charca queda
+   * escalonada en vez de plana. La celda que tiene líquido encima se pinta
+   * entera: sin eso, cada fila enseñaría una raya del fondo entre celda y celda.
+   */
+  private liquidos(mundo: Mundo, ox: number, oy: number, tiempo: number): void {
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    const { tx0, ty0, tx1, ty1 } = camara.tilesVisibles();
+    ctx.save();
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const nivel = mundo.getLiquido(tx, ty);
+        if (nivel <= MINIMO) continue;
+        const lava = mundo.esLava(tx, ty);
+        const lleno = mundo.getLiquido(tx, ty - 1) > MINIMO;
+        const fraccion = lleno ? 1 : nivel / 255;
+        const alto = Math.max(1, Math.round(TILE * fraccion * z));
+        const sx = ox + tx * TILE * z;
+        const sy = oy + (ty + 1) * TILE * z - alto;
+
+        ctx.globalAlpha = lava ? 0.88 : 0.62;
+        ctx.fillStyle = lava ? '#d84a1b' : '#2f6fb5';
+        ctx.fillRect(sx, sy, TILE * z, alto);
+
+        // Una franja más clara en la superficie, ondulando despacio: es lo que
+        // hace que el agua parezca líquida y no un rectángulo azul.
+        if (!lleno) {
+          const onda = Math.sin(tiempo / 340 + tx * 0.6) * 0.5 + 0.5;
+          ctx.globalAlpha = lava ? 0.9 : 0.5;
+          ctx.fillStyle = lava ? '#ffb347' : '#7fc4f0';
+          ctx.fillRect(sx, sy, TILE * z, Math.max(1, Math.round((1 + onda) * z)));
+        }
+      }
+    }
+    ctx.restore();
+  }
+
   /** Enemigos. Parpadean en blanco el instante que siguen a un golpe. */
   private enemigos(lista: readonly Enemigo[], ox: number, oy: number): void {
     const { ctx, camara } = this;
@@ -397,6 +441,7 @@ export class Renderer {
     this.enemigos(enemigos, ox, oy);
     this.jugador(j, alpha, ox, oy);
     this.golpe(golpe, j, ox, oy);
+    this.liquidos(mundo, ox, oy, performance.now());
     // La luz va después del mundo y del personaje, pero antes de la interfaz:
     // el recuadro del puntero tiene que verse igual dentro de una cueva.
     this.luz(motorLuz, reloj, recalculada, ox, oy);

@@ -160,6 +160,37 @@ describe('empaquetado', () => {
     expect(mundo.tileId).toEqual(m.tileId);
   });
 
+  it('conserva la capa de líquidos, nivel y tipo', async () => {
+    const m = mundoDePrueba();
+    m.setLiquido(5, 10, 255);
+    m.setLiquido(6, 10, 128);
+    m.setLiquido(30, 35, 200, true);
+
+    const { mundo } = await desempaquetar(await empaquetar(m, estado()));
+    expect(mundo.getLiquido(5, 10)).toBe(255);
+    expect(mundo.getLiquido(6, 10)).toBe(128);
+    expect(mundo.esLava(5, 10)).toBe(false);
+    expect(mundo.getLiquido(30, 35)).toBe(200);
+    expect(mundo.esLava(30, 35)).toBe(true);
+  });
+
+  it('un mundo seco casi no paga por la capa de líquidos', async () => {
+    const m = mundoDePrueba();
+    const seco = (await empaquetar(m, estado())).length;
+    m.setLiquido(5, 10, 255);
+    const mojado = (await empaquetar(m, estado())).length;
+    // Una capa entera de ceros cabe en una sola tirada de RLE.
+    expect(mojado).toBeGreaterThanOrEqual(seco);
+    expect(seco).toBeLessThan(2048);
+  });
+
+  it('un mundo del formato 5 se abre seco, que es como estaba', () => {
+    const m = mundoDePrueba();
+    const bytes = serializar(m, estado());
+    const { mundo } = deserializar(bytes, 5);
+    expect(mundo.liquido.every((v) => v === 0)).toBe(true);
+  });
+
   it('rechaza un mundo de una versión futura', async () => {
     const bytes = await empaquetar(mundoDePrueba(), estado());
     new DataView(bytes.buffer).setUint16(4, VERSION_FORMATO + 1);

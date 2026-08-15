@@ -42,6 +42,10 @@ export function tickSalud(s: Salud): void {
 /**
  * Aplica daño y empuja en dirección contraria a la fuente. Devuelve true si el
  * golpe ha entrado; si estaba invulnerable, no pasa nada en absoluto.
+ *
+ * `empuje` se puede desactivar para el daño que no viene de un sitio concreto
+ * —ahogarse, quemarse—: dar un empujón ahí solo serviría para arrancarle el
+ * control al jugador justo cuando más lo necesita.
  */
 export function golpear(
   s: Salud,
@@ -49,16 +53,19 @@ export function golpear(
   dano: number,
   fuenteX: number,
   invulnerabilidad = TICKS_INVULNERABLE,
+  empuje = true,
 ): boolean {
   if (s.invulnerable > 0 || s.muerto) return false;
   s.vida -= dano;
   s.invulnerable = invulnerabilidad;
   s.desdeGolpe = 0;
 
-  const direccion = caja.x + caja.ancho / 2 < fuenteX ? -1 : 1;
-  caja.vx = direccion * KNOCKBACK;
-  caja.vy = -KNOCKBACK_VERTICAL;
-  caja.enSuelo = false;
+  if (empuje) {
+    const direccion = caja.x + caja.ancho / 2 < fuenteX ? -1 : 1;
+    caja.vx = direccion * KNOCKBACK;
+    caja.vy = -KNOCKBACK_VERTICAL;
+    caja.enSuelo = false;
+  }
 
   if (s.vida <= 0) {
     s.vida = 0;

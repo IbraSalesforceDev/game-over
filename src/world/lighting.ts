@@ -19,6 +19,8 @@ import type { Mundo } from './world';
 export const CAIDA_AIRE = 18;
 /** Luz que se pierde por tile al atravesar materia. */
 export const CAIDA_SOLIDO = 45;
+/** Luz que emite una celda llena de lava. */
+export const LUZ_LAVA = 200;
 /** Margen de tiles que se calcula fuera de la pantalla. */
 const MARGEN = 12;
 /** Cuántos tiles puede moverse la cámara antes de rehacer la ventana. */
@@ -133,6 +135,13 @@ export class MotorLuz {
           if (ty <= this.alturaCielo[tx]!) valor = luzSolar;
           const emision = emisionLuz(mundo.getTile(tx, ty));
           if (emision > valor) valor = emision;
+          // La lava alumbra proporcionalmente a lo llena que esté la celda: un
+          // charco delgado no ilumina una caverna entera.
+          const liquido = mundo.getLiquido(tx, ty);
+          if (liquido > 0 && mundo.esLava(tx, ty)) {
+            const brillo = (LUZ_LAVA * liquido) / 255;
+            if (brillo > valor) valor = brillo;
+          }
         } else if (ty < 0) {
           valor = luzSolar;
         }

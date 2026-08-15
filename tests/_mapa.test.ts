@@ -72,7 +72,15 @@ describe('mapa del mundo', () => {
       for (let tx = 0; tx < mundo.ancho; tx++) {
         const i = (ty * mundo.ancho + tx) * 3;
         const id = mundo.getTile(tx, ty);
-        if (id === 0) {
+        const liquido = mundo.getLiquido(tx, ty);
+        if (liquido > 0) {
+          // El líquido manda sobre el tile: lo que interesa mirar en el mapa es
+          // dónde han quedado los lagos y las coladas.
+          const c = mundo.esLava(tx, ty) ? [216, 74, 27] : [47, 111, 181];
+          rgb[i] = c[0]!;
+          rgb[i + 1] = c[1]!;
+          rgb[i + 2] = c[2]!;
+        } else if (id === 0) {
           // Aire: azul cielo si no hay pared, gris muy oscuro si la hay (cueva).
           const pared = mundo.getPared(tx, ty);
           const c = pared === 0 ? [110, 165, 215] : [24, 22, 20];

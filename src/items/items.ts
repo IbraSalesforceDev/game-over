@@ -1,8 +1,13 @@
 import {
   ANTORCHA,
+  ARENA,
+  ARENISCA,
+  CACTUS,
   COBRE,
   COFRE,
+  HIELO,
   HIERBA,
+  NIEVE,
   HIERRO,
   HOJAS,
   HORNO,
@@ -51,6 +56,9 @@ export const HUESO = 74;
 export const ESPADA_MADERA = 75;
 export const ESPADA_COBRE = 76;
 export const ESPADA_HIERRO = 77;
+export const CUBO = 78;
+export const CUBO_AGUA = 79;
+export const CUBO_LAVA = 80;
 
 /**
  * Identificadores que tenían las herramientas antes de moverse al rango 64+.
@@ -62,7 +70,7 @@ export const IDS_ANTIGUOS: Readonly<Record<number, number>> = {
   15: PICO_HIERRO,
 };
 
-export type TipoObjeto = 'bloque' | 'herramienta' | 'arma' | 'material';
+export type TipoObjeto = 'bloque' | 'herramienta' | 'arma' | 'material' | 'cubo';
 
 export interface DefObjeto {
   readonly nombre: string;
@@ -151,6 +159,17 @@ const ENTRADAS: [number, DefObjeto][] = [
   espada(ESPADA_MADERA, 'espada de madera', '#8a5f33', 12, 26, 34),
   espada(ESPADA_COBRE, 'espada de cobre', '#b06a3b', 18, 28, 38),
   espada(ESPADA_HIERRO, 'espada de hierro', '#a3968a', 26, 32, 42),
+  deTile(ARENA),
+  deTile(ARENISCA),
+  deTile(CACTUS),
+  deTile(NIEVE),
+  deTile(HIELO),
+  // Los cubos no se apilan: llevar diez cubos de agua sería llevar un lago en
+  // el bolsillo, y el viaje de ida y vuelta hasta el líquido es justo lo que
+  // hace que mover agua cueste algo.
+  [CUBO, { nombre: 'cubo vacío', tipo: 'cubo', color: '#9aa4ad', maxPila: 1 }],
+  [CUBO_AGUA, { nombre: 'cubo de agua', tipo: 'cubo', color: '#2f6fb5', maxPila: 1 }],
+  [CUBO_LAVA, { nombre: 'cubo de lava', tipo: 'cubo', color: '#d84a1b', maxPila: 1 }],
 ];
 
 /** Array disperso: hay hueco entre el último tile y el 64, y no pasa nada. */
@@ -177,6 +196,10 @@ export function esArma(id: number): boolean {
   return defObjeto(id).tipo === 'arma';
 }
 
+export function esCubo(id: number): boolean {
+  return defObjeto(id).tipo === 'cubo';
+}
+
 export function maxPila(id: number): number {
   return defObjeto(id).maxPila;
 }
@@ -195,6 +218,9 @@ export function dropDeTile(tile: number): number {
       return MADERA;
     case HOJAS:
       return NADA;
+    // El cactus se lleva como madera del desierto: sirve para lo mismo.
+    case CACTUS:
+      return MADERA;
     default:
       return tile;
   }

@@ -29,8 +29,10 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       ids 64+. Los inventarios del formato 3 se remapean al leerlos: sin
  *       eso, el pico de cobre de una partida antigua se convertiría en un
  *       horno al añadirse los muebles nuevos.
+ *   6 — se añade la capa de líquidos (fase 9). Los mundos anteriores se abren
+ *       secos, que es exactamente como estaban.
  */
-export const VERSION_FORMATO = 5;
+export const VERSION_FORMATO = 6;
 
 export interface EstadoJugador {
   x: number;
@@ -248,7 +250,24 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   e.u16(Math.max(0, Math.round(estado.vida))); // formato 5
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
+  escribirRle(e, capaLiquido(mundo)); // formato 6
   return e.terminar();
+}
+
+/**
+ * Empaqueta nivel y tipo de líquido en una sola capa de 16 bits: el nivel en el
+ * byte bajo y el bit de lava en el 256. Así el líquido cabe en una única tirada
+ * de RLE —y un mundo seco entero se guarda en una— en vez de en dos capas que
+ * habría que mantener sincronizadas al leer.
+ */
+function capaLiquido(mundo: Mundo): Uint16Array {
+  const capa = new Uint16Array(mundo.liquido.length);
+  for (let i = 0; i < capa.length; i++) {
+    const nivel = mundo.liquido[i]!;
+    if (nivel === 0) continue;
+    capa[i] = nivel | ((mundo.flags[i]! & Mundo.BIT_LAVA) !== 0 ? 256 : 0);
+  }
+  return capa;
 }
 
 export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Partida {
@@ -301,6 +320,16 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);
+  if (version >= 6) {
+    const capa = new Uint16Array(mundo.liquido.length);
+    leerRle(l, capa);
+    for (let i = 0; i < capa.length; i++) {
+      const v = capa[i]!;
+      if (v === 0) continue;
+      mundo.liquido[i] = v & 255;
+      if ((v & 256) !== 0) mundo.flags[i] = mundo.flags[i]! | Mundo.BIT_LAVA;
+    }
+  }
   return { mundo, estado };
 }
 
