@@ -10,6 +10,7 @@ import {
   esColocable,
   esCristal,
   esHerramienta,
+  esMapa,
   esPala,
   FLECHA,
   huecoDe,
@@ -270,12 +271,43 @@ const flechaIcono: Dibujo = (ctx, ox, oy, color) => {
   px(ctx, ox + 4, oy + 16, 1, 3, '#d8d2c0');
 };
 
+/**
+ * Mapa: un pergamino con dos costados enrollados y unas marcas dentro.
+ *
+ * Los cinco niveles comparten dibujo y solo cambia cuánto ocupa la hoja: el
+ * nivel se lee en la ranura por el tamaño, sin tener que pasar el ratón por
+ * encima para ver el nombre.
+ */
+function mapaIcono(nivel: number): Dibujo {
+  return (ctx, ox, oy, color) => {
+    const t = tono(color, 22, 34);
+    const rollo = tono('#8a5f33', 22, 28);
+    // De 8 a 16 píxeles de alto según el nivel.
+    const alto = 6 + nivel * 2;
+    const y = oy + Math.round((20 - alto) / 2);
+    bloque(ctx, ox + 4, y, 12, alto, t);
+    px(ctx, ox + 4, y, 12, 1, t.claro);
+    // Los dos rodillos del pergamino, a los lados.
+    bloque(ctx, ox + 2, y - 1, 2, alto + 2, rollo);
+    bloque(ctx, ox + 16, y - 1, 2, alto + 2, rollo);
+    // Marcas del dibujo: una costa y una cruz.
+    px(ctx, ox + 6, y + 2, 5, 1, t.oscuro);
+    px(ctx, ox + 9, y + 3, 4, 1, t.oscuro);
+    if (alto > 8) px(ctx, ox + 7, y + 5, 6, 1, t.oscuro);
+    px(ctx, ox + 12, y + alto - 3, 3, 1, '#b8483c');
+    px(ctx, ox + 13, y + alto - 4, 1, 3, '#b8483c');
+  };
+}
+
+const ICONOS_MAPA: readonly Dibujo[] = [1, 2, 3, 4, 5].map(mapaIcono);
+
 /** Elige el dibujo que le toca a cada objeto. */
 function dibujoDe(id: number): Dibujo {
   if (id === ANTORCHA) return antorchaIcono;
   if (id === MESA || id === HORNO || id === YUNQUE || id === COFRE) return mueble;
   if (id === CUBO || id === CUBO_AGUA || id === CUBO_LAVA) return cuboIcono;
   if (esCristal(id)) return cristalIcono;
+  if (esMapa(id)) return ICONOS_MAPA[Math.min(4, (defObjeto(id).nivelMapa ?? 1) - 1)]!;
   if (id === ARCO) return arcoIcono;
   if (id === FLECHA) return flechaIcono;
   const hueco = huecoDe(id);

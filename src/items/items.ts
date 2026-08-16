@@ -18,6 +18,7 @@ import {
   PIEDRA,
   PLATA,
   PLATAFORMA,
+  CANA,
   TIERRA,
   TIERRA_LABRADA,
   TILES,
@@ -85,6 +86,25 @@ export const ARCO = 99;
 export const FLECHA = 100;
 export const PALA_HIERRO = 101;
 export const AZADA = 102;
+export const PAPEL = 103;
+// Los cinco mapas. Van seguidos y de menos a más: el nivel es la posición en
+// `MAPAS`, no un campo, porque una ranura de inventario solo guarda un id.
+export const MAPA_1 = 104;
+export const MAPA_2 = 105;
+export const MAPA_3 = 106;
+export const MAPA_4 = 107;
+export const MAPA_5 = 108;
+
+/**
+ * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
+ *
+ * Empieza siendo un pañuelo —lo justo para no perder de vista la casa— y acaba
+ * enseñando el mundo entero. La progresión es geométrica porque lineal se haría
+ * eterna: con cinco escalones se pasa de ver el jardín a verlo todo, y cada
+ * salto se nota de verdad al abrirlo.
+ */
+export const MAPAS: readonly number[] = [MAPA_1, MAPA_2, MAPA_3, MAPA_4, MAPA_5];
+export const ALCANCE_MAPA: readonly number[] = [45, 110, 260, 620, Infinity];
 
 /**
  * Identificadores que tenían las herramientas antes de moverse al rango 64+.
@@ -106,7 +126,8 @@ export type TipoObjeto =
   | 'cristal'
   | 'armadura'
   | 'arco'
-  | 'municion';
+  | 'municion'
+  | 'mapa';
 
 /**
  * Dónde se lleva puesta una pieza de armadura.
@@ -158,6 +179,8 @@ export interface DefObjeto {
   readonly municion?: number;
   /** Velocidad de salida del proyectil, en píxeles por tick. */
   readonly velocidad?: number;
+  /** Nivel del mapa, si es un mapa: 1 el más pequeño. */
+  readonly nivelMapa?: number;
 }
 
 const PILA = 999;
@@ -293,6 +316,7 @@ const ENTRADAS: [number, DefObjeto][] = [
   deTile(CACTUS),
   deTile(NIEVE),
   deTile(HIELO),
+  deTile(CANA),
   // Los cubos no se apilan: llevar diez cubos de agua sería llevar un lago en
   // el bolsillo, y el viaje de ida y vuelta hasta el líquido es justo lo que
   // hace que mover agua cueste algo.
@@ -360,6 +384,17 @@ const ENTRADAS: [number, DefObjeto][] = [
     },
   ],
   [FLECHA, { nombre: 'flecha', tipo: 'municion', color: '#b8a882', maxPila: PILA }],
+  lingote(PAPEL, 'papel', '#e6e0cc'),
+  ...MAPAS.map((id, i): [number, DefObjeto] => [
+    id,
+    {
+      nombre: i === MAPAS.length - 1 ? 'mapa del mundo' : `mapa ${i + 1}`,
+      tipo: 'mapa',
+      color: '#d8c9a0',
+      maxPila: 1,
+      nivelMapa: i + 1,
+    },
+  ]),
 ];
 
 /** Array disperso: hay hueco entre el último tile y el 64, y no pasa nada. */
@@ -434,6 +469,19 @@ export function esPala(id: number): boolean {
 
 export function esAzada(id: number): boolean {
   return defObjeto(id).azada === true;
+}
+
+export function esMapa(id: number): boolean {
+  return defObjeto(id).tipo === 'mapa';
+}
+
+/**
+ * Hasta dónde ve el mejor mapa de una lista de objetos, en tiles. 0 si no hay
+ * ninguno; Infinity si se lleva el del mundo entero.
+ */
+export function alcanceDeMapa(id: number): number {
+  const nivel = defObjeto(id).nivelMapa;
+  return nivel === undefined ? 0 : ALCANCE_MAPA[nivel - 1] ?? 0;
 }
 
 /** ¿Es un arma a distancia? */

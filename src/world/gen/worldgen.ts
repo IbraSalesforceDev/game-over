@@ -3,6 +3,7 @@ import {
   ARENA,
   ARENISCA,
   CACTUS,
+  CANA,
   COBRE,
   CRISTAL_VIDA,
   HIELO,
@@ -156,6 +157,7 @@ export function* generarMundoPasos(
   // --- 5. Superficie ------------------------------------------------------
   yield { pct: 88, texto: 'Plantando el bosque…' };
   vestirSuperficie(mundo, superficie, biomas, rng, semilla);
+  plantarCanas(mundo, superficie, rng);
 
   // --- 6. Bordes y remate -------------------------------------------------
   yield { pct: 94, texto: 'Cerrando los bordes…' };
@@ -472,6 +474,48 @@ function sembrarMinerales(
       }
     }
   }
+}
+
+/**
+ * Caña de azúcar en las orillas.
+ *
+ * Se planta donde hay suelo con agua a un par de tiles: es la única cosecha del
+ * juego atada a un accidente del terreno, y por eso el papel —y con él el mapa—
+ * obliga a buscar un lago en vez de a picar más piedra.
+ *
+ * Crece en matas de dos o tres tallos porque una caña suelta se confunde con
+ * una brizna de hierba, y hace falta que se vea desde lejos.
+ */
+function plantarCanas(mundo: Mundo, superficie: Int32Array, rng: Rng): void {
+  for (let tx = 3; tx < mundo.ancho - 3; tx++) {
+    if (!rng.suerte(0.35)) continue;
+    // Suelo real de la columna, que tras las cuevas ya no es el del relieve.
+    let ty = Math.max(0, superficie[tx]! - 8);
+    while (ty < mundo.alto && mundo.getTile(tx, ty) === AIRE) ty++;
+    if (ty >= mundo.alto - 2) continue;
+    const suelo = mundo.getTile(tx, ty);
+    if (suelo !== ARENA && suelo !== HIERBA && suelo !== TIERRA) continue;
+    if (mundo.getLiquido(tx, ty - 1) > 0) continue;
+    if (!aguaCerca(mundo, tx, ty)) continue;
+
+    const alto = rng.entero(2, 3);
+    for (let d = 1; d <= alto; d++) {
+      if (mundo.getTile(tx, ty - d) !== AIRE) break;
+      mundo.setTile(tx, ty - d, CANA);
+    }
+  }
+}
+
+/** ¿Hay líquido a tres tiles a los lados de este suelo? */
+function aguaCerca(mundo: Mundo, tx: number, ty: number): boolean {
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dy = -1; dy <= 2; dy++) {
+      if (mundo.getLiquido(tx + dx, ty + dy) > 0 && !mundo.esLava(tx + dx, ty + dy)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

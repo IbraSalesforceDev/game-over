@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
+import { ANTORCHA, CANA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -38,6 +38,8 @@ import {
   FLECHA,
   PALA_HIERRO,
   AZADA,
+  PAPEL,
+  MAPAS,
 } from './items';
 
 /**
@@ -309,7 +311,49 @@ export const RECETAS: readonly Receta[] = [
     estacion: YUNQUE,
   },
   ...armaduras(),
+  ...mapas(),
 ];
+
+/**
+ * Papel y la escalera de mapas.
+ *
+ * El primer mapa cuesta dos papeles y enseña un pañuelo de terreno. A partir de
+ * ahí cada ampliación pide el mapa que ya tienes más otros dos papeles, así que
+ * el mapa del mundo entero sale por diez papeles en total — treinta cañas — y
+ * hay que ir haciéndolo por pasos. Es lo que convierte ver el mundo en algo que
+ * se gana, en vez de una casilla que se marca al fabricar un objeto.
+ */
+function mapas(): Receta[] {
+  const salida: Receta[] = [
+    {
+      id: 'papel',
+      ingredientes: [[CANA, 3]],
+      resultado: PAPEL,
+      cantidad: 2,
+      estacion: MESA,
+    },
+    {
+      id: 'mapa-1',
+      ingredientes: [[PAPEL, 2]],
+      resultado: MAPAS[0]!,
+      cantidad: 1,
+      estacion: MESA,
+    },
+  ];
+  for (let i = 1; i < MAPAS.length; i++) {
+    salida.push({
+      id: `mapa-${i + 1}`,
+      ingredientes: [
+        [MAPAS[i - 1]!, 1],
+        [PAPEL, 2],
+      ],
+      resultado: MAPAS[i]!,
+      cantidad: 1,
+      estacion: MESA,
+    });
+  }
+  return salida;
+}
 
 /**
  * Las doce piezas de armadura, generadas en vez de escritas a mano.

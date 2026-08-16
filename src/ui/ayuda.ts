@@ -36,6 +36,7 @@ const GRUPOS: Grupo[] = [
       ['Arco', 'Clic izq. dispara hacia el ratón · gasta una flecha'],
       ['Pala', 'Vuela cavando tierra, arena y nieve · fatal con la piedra'],
       ['Azada', 'Clic der. sobre hierba o tierra: la deja labrada'],
+      ['Caña', 'Crece en las orillas · 3 caña → papel · 2 papel → mapa'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],
     ],
@@ -44,6 +45,7 @@ const GRUPOS: Grupo[] = [
     titulo: 'Paneles',
     filas: [
       ['E', 'Inventario, equipo y fabricación'],
+      ['M', 'Mapa — hace falta llevar uno encima'],
       ['H', 'Esta ayuda'],
       ['Esc', 'Cerrar paneles · menú de pausa'],
       ['R', 'Volver al punto de aparición'],

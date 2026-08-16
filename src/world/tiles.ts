@@ -28,6 +28,7 @@ export const NIEVE = 20;
 export const HIELO = 21;
 export const CRISTAL_VIDA = 22;
 export const TIERRA_LABRADA = 23;
+export const CANA = 24;
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
 export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
@@ -140,6 +141,16 @@ export const TILES: readonly DefTile[] = [
     dureza: 18,
     color: '#5a3d21',
     blando: true,
+  },
+  // Caña de azúcar: crece al borde del agua y no frena, como los árboles. Es la
+  // única planta que sirve para algo que no sea comer — de ella sale el papel, y
+  // del papel el mapa.
+  {
+    nombre: 'caña de azúcar',
+    solido: false,
+    plataforma: false,
+    dureza: 6,
+    color: '#8fc44a',
   },
 ];
 

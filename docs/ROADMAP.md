@@ -179,14 +179,15 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
   lo hostil ✅, enemigos diurnos debilitados ✅, diez niveles de dificultad al
   crear el mundo ✅ (guardado v8), esqueleto, serpiente y momia ✅, cristales de
   vida ✅ (guardado v9), armadura de cobre, hierro, plata y oro ✅ (guardado
-  v10), arco y flechas ✅, pala y azada ✅. **Bloque cerrado.**
+  v10), arco y flechas ✅, pala y azada ✅, caña → papel → mapa ampliable con la
+  tecla M ✅. **Bloque cerrado.**
 - **Bloque 3 — Mundo** · tamaños de mundo de pequeño a enorme ✅; pendiente:
   selva junto al agua, mares pequeños con fondo de arena, montañas de piedra,
   bosques en grupos, taiga solo en la nieve, un segundo árbol de bosque,
   minerales por bioma, grava, menos lagos, fondos teñidos por bioma.
 - **Bloque 4 — Cultivo y vida** · camas para pasar la noche, semillas, trigo,
-  zanahorias, caña de azúcar → papel → mapa, brotes de las hojas, vidrio de la
-  arena, plumas, pedernal.
+  zanahorias, brotes de las hojas, vidrio de la arena, plumas, pedernal. (La
+  caña, el papel y el mapa se adelantaron al bloque 2.)
 - **Bloque 5 — Fortaleza y jefe** · estructura en la capa de piedra, altar (5
   huesos, 50 lingotes de oro y plata, 100 gel y una reliquia antigua que suelta
   cualquier hostil al 3 %), jefe final, espada mejor que la de hierro y una

@@ -8,6 +8,7 @@ import {
   AIRE,
   ARENA,
   CACTUS,
+  CANA,
   CRISTAL_VIDA,
   esSolido,
   HIERBA,
@@ -329,5 +330,27 @@ describe('líquidos del mundo generado', () => {
     // Bastantes para llegar al tope de vida, pero no una alfombra.
     expect(cuantos).toBeGreaterThanOrEqual(5);
     expect(cuantos).toBeLessThan(mundo.ancho / 40);
+  });
+
+  it('la caña de azúcar crece en la orilla, nunca lejos del agua', () => {
+    const { mundo } = generarMundo(OP);
+    let canas = 0;
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getTile(tx, ty) !== CANA) continue;
+        canas++;
+        // Agua a cuatro tiles como mucho: es la regla que obliga a buscar un
+        // lago para hacer papel en vez de picar más piedra.
+        let cerca = false;
+        for (let dx = -4; dx <= 4 && !cerca; dx++) {
+          for (let dy = -3; dy <= 5 && !cerca; dy++) {
+            if (mundo.getLiquido(tx + dx, ty + dy) > 0) cerca = true;
+          }
+        }
+        expect(cerca).toBe(true);
+      }
+    }
+    // Tiene que haber alguna: sin caña no hay papel, y sin papel no hay mapa.
+    expect(canas).toBeGreaterThan(0);
   });
 });

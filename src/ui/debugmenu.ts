@@ -32,6 +32,8 @@ export interface TrucosDebug {
   danoMultiplicador: number;
   /** Recibe daño o no. */
   invulnerable: boolean;
+  /** El mapa enseña el mundo entero sin necesidad de fabricarlo. */
+  mapaCompleto: boolean;
 }
 
 export function crearTrucos(): TrucosDebug {
@@ -41,6 +43,7 @@ export function crearTrucos(): TrucosDebug {
     volar: false,
     danoMultiplicador: 1,
     invulnerable: false,
+    mapaCompleto: false,
   };
 }
 
@@ -198,6 +201,10 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       <span class="interruptor" id="dbg-invuln">no</span>
     </div>
     <div class="fila">
+      <label>Mapa del mundo</label>
+      <span class="interruptor" id="dbg-mapa">no</span>
+    </div>
+    <div class="fila">
       <label>Daño</label>
       <input id="dbg-dano" type="range" min="1" max="20" step="1" value="1">
       <span class="valor" id="dbg-dano-val">×1</span>
@@ -230,6 +237,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   const area = $<HTMLSelectElement>('dbg-area');
   const volar = $('dbg-volar');
   const invuln = $('dbg-invuln');
+  const mapaTodo = $('dbg-mapa');
   const dano = $<HTMLInputElement>('dbg-dano');
   const danoVal = $('dbg-dano-val');
   const vidaMax = $<HTMLInputElement>('dbg-vidamax');
@@ -261,6 +269,11 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     op.trucos.invulnerable = !op.trucos.invulnerable;
     invuln.textContent = op.trucos.invulnerable ? 'sí' : 'no';
     invuln.classList.toggle('on', op.trucos.invulnerable);
+  });
+  mapaTodo.addEventListener('click', () => {
+    op.trucos.mapaCompleto = !op.trucos.mapaCompleto;
+    mapaTodo.textContent = op.trucos.mapaCompleto ? 'sí' : 'no';
+    mapaTodo.classList.toggle('on', op.trucos.mapaCompleto);
   });
   dano.addEventListener('input', () => {
     op.trucos.danoMultiplicador = Number(dano.value);

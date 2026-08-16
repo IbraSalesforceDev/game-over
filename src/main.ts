@@ -7,6 +7,7 @@ import { crearPuntero } from './engine/mouse';
 import { crearAudio } from './engine/audio';
 import { crearAjustes } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
+import { crearMapa } from './ui/mapa';
 import { crearPausa } from './ui/pausa';
 import { crearDebugMenu, crearTrucos } from './ui/debugmenu';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
@@ -45,9 +46,6 @@ import {
   TIERRA,
   TIERRA_LABRADA,
 } from './world/tiles';
-
-/** Lo que la azada puede convertir en tierra labrada. */
-const LABRABLES: readonly number[] = [HIERBA, TIERRA];
 import { Particulas } from './render/particles';
 import {
   actualizarDrop,
@@ -94,7 +92,15 @@ import {
 } from './entities/hambre';
 import { SimuladorLiquidos, sumersion } from './world/liquids';
 import { puedeUsarCubo, usarCubo } from './items/cubo';
-import { esArco, esAzada, esComida, esCristal, esCubo, municionDe } from './items/items';
+import {
+  alcanceDeMapa,
+  esArco,
+  esAzada,
+  esComida,
+  esCristal,
+  esCubo,
+  municionDe,
+} from './items/items';
 import {
   biomaEn,
   intentarAparicion,
@@ -116,6 +122,9 @@ import type { Mundo } from './world/world';
 
 /** Cada cuántos milisegundos se guarda solo. */
 const INTERVALO_AUTOGUARDADO = 30_000;
+
+/** Lo que la azada puede convertir en tierra labrada. */
+const LABRABLES: readonly number[] = [HIERBA, TIERRA];
 
 /** Muestra el panel de error con el detalle, en vez de dejar la pantalla negra. */
 function mostrarError(e: unknown): void {
@@ -347,6 +356,7 @@ async function arrancar(): Promise<void> {
   const audio = crearAudio();
   const opciones = crearAjustes(capaUI, audio);
   const ayuda = crearAyuda(capaUI);
+  const mapa = crearMapa(capaUI);
   const trucos = crearTrucos();
   const depuracion = crearDebugMenu(capaUI, {
     trucos,
@@ -486,6 +496,34 @@ async function arrancar(): Promise<void> {
     debug.nivel = debug.nivel === 'coordenadas' ? 'nada' : 'coordenadas';
     debug.activo = debug.nivel !== 'nada';
   });
+  /**
+   * El mapa, con la M.
+   *
+   * Enseña lo que abarque el mejor mapa que se lleve encima; sin ninguno, solo
+   * lo dice. El truco de depuración lo salta y enseña el mundo entero, que es
+   * justo lo que hace falta para comprobar la generación sin caminar medio
+   * mundo.
+   */
+  entrada.alPulsar('KeyM', () => {
+    if (barra.inventarioAbierto || pausa.abierto) return;
+    let mejor = 0;
+    for (const r of inventario.ranuras) {
+      if (r.cantidad > 0) mejor = Math.max(mejor, alcanceDeMapa(r.objeto));
+    }
+    const completo = trucos.mapaCompleto;
+    if (mejor <= 0 && !completo) {
+      aviso.mostrar('No llevas ningún mapa');
+      return;
+    }
+    const alcance = completo ? Infinity : mejor;
+    mapa.alternar(
+      mundo,
+      Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),
+      Math.floor((jugador.caja.y + jugador.caja.alto / 2) / TILE),
+      alcance,
+      Number.isFinite(alcance) ? `${alcance} tiles alrededor` : 'el mundo entero',
+    );
+  });
   entrada.alPulsar('F6', () => {
     debug.nivel = debug.nivel === 'completo' ? 'nada' : 'completo';
     debug.activo = debug.nivel !== 'nada';
@@ -506,10 +544,11 @@ async function arrancar(): Promise<void> {
       pausa.cerrar();
       return;
     }
-    if (ayuda.abierto || opciones.abierto || barra.inventarioAbierto) {
+    if (mapa.abierto || ayuda.abierto || opciones.abierto || barra.inventarioAbierto) {
       barra.cerrar();
       opciones.cerrar();
       ayuda.cerrar();
+      mapa.cerrar();
       return;
     }
     pausa.abrir();
