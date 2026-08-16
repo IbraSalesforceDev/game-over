@@ -7,6 +7,7 @@ import {
   CACTUS,
   COBRE,
   CRISTAL_VIDA,
+  TIERRA_LABRADA,
   HIELO,
   HIERBA,
   HIERRO,
@@ -112,6 +113,10 @@ function texturaDe(id: number): Textura {
     case TRONCO:
     case MESA:
       return 'madera';
+    // La labrada usa el mismo grano que la tierra; lo que la distingue son los
+    // surcos que se le pintan encima.
+    case TIERRA_LABRADA:
+      return 'tierra';
     case HOJAS:
     case CACTUS:
       return 'hojas';
@@ -379,6 +384,22 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillRect(ox, oy, TILE, 1);
       ctx.fillStyle = css(rgb(plat.color, -40));
       ctx.fillRect(ox, oy + 4, TILE, 1);
+    }
+  }
+
+  // Tierra labrada: surcos horizontales sobre el grano de la tierra. Se pinta
+  // encima de la textura ya generada en vez de sustituirla, para que un huerto
+  // siga pareciendo tierra y no un bloque nuevo.
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (TIERRA_LABRADA * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      for (const fila of [2, 7, 12]) {
+        ctx.fillStyle = 'rgba(0,0,0,0.32)';
+        ctx.fillRect(ox, oy + fila, TILE, 2);
+        ctx.fillStyle = 'rgba(255,235,200,0.10)';
+        ctx.fillRect(ox, oy + fila + 2, TILE, 1);
+      }
     }
   }
 

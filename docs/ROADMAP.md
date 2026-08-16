@@ -174,12 +174,12 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
   ajustes, menú de depuración en P+F3 con contraseña, F3 coordenadas y F6 diagnóstico,
   hambre y animales, mesa de trabajo con panel propio, rozamiento de arena y
   hielo, la pantalla de muerte dice de qué has muerto.
-- **Bloque 2 — Progresión y combate** (en curso) · niveles de herramienta ✅,
+- **Bloque 2 — Progresión y combate** ✅ · niveles de herramienta ✅,
   minar con las manos ✅, apuntar el mandoble con el ratón ✅, la luz espanta a
   lo hostil ✅, enemigos diurnos debilitados ✅, diez niveles de dificultad al
   crear el mundo ✅ (guardado v8), esqueleto, serpiente y momia ✅, cristales de
   vida ✅ (guardado v9), armadura de cobre, hierro, plata y oro ✅ (guardado
-  v10), arco y flechas ✅; pendiente: pala y azada.
+  v10), arco y flechas ✅, pala y azada ✅. **Bloque cerrado.**
 - **Bloque 3 — Mundo** · tamaños de mundo de pequeño a enorme ✅; pendiente:
   selva junto al agua, mares pequeños con fondo de arena, montañas de piedra,
   bosques en grupos, taiga solo en la nieve, un segundo árbol de bosque,

@@ -36,6 +36,8 @@ import {
   GREBAS_ORO,
   ARCO,
   FLECHA,
+  PALA_HIERRO,
+  AZADA,
 } from './items';
 
 /**
@@ -261,6 +263,28 @@ export const RECETAS: readonly Receta[] = [
     id: 'cubo',
     ingredientes: [[LINGOTE_HIERRO, 3]],
     resultado: CUBO,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  // La pala sale del mismo yunque que el pico de hierro y cuesta parecido: no
+  // es una mejora, es la otra mitad del par.
+  {
+    id: 'pala-hierro',
+    ingredientes: [
+      [LINGOTE_HIERRO, 9],
+      [MADERA, 4],
+    ],
+    resultado: PALA_HIERRO,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  {
+    id: 'azada',
+    ingredientes: [
+      [LINGOTE_COBRE, 4],
+      [MADERA, 5],
+    ],
+    resultado: AZADA,
     cantidad: 1,
     estacion: YUNQUE,
   },

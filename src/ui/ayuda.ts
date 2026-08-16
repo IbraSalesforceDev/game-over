@@ -34,6 +34,8 @@ const GRUPOS: Grupo[] = [
       ['Cristal de vida', 'Brilla en las cuevas · clic der. sube un corazón'],
       ['Armadura', 'Se pone en los tres huecos de la izquierda del inventario'],
       ['Arco', 'Clic izq. dispara hacia el ratón · gasta una flecha'],
+      ['Pala', 'Vuela cavando tierra, arena y nieve · fatal con la piedra'],
+      ['Azada', 'Clic der. sobre hierba o tierra: la deja labrada'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],
     ],

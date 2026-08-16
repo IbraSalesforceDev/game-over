@@ -27,6 +27,7 @@ export const CACTUS = 19;
 export const NIEVE = 20;
 export const HIELO = 21;
 export const CRISTAL_VIDA = 22;
+export const TIERRA_LABRADA = 23;
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
 export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
@@ -58,6 +59,13 @@ export interface DefTile {
    */
   readonly agarre?: number;
   /**
+   * Se cava, no se pica: la pala va rápida con esto y el pico va lento.
+   *
+   * Separa lo que se aparta a paladas —tierra, arena, nieve, hierba— de lo que
+   * hay que romper. Sin la distinción, una pala sería un pico con otro nombre.
+   */
+  readonly blando?: boolean;
+  /**
    * Nivel de pico que hace falta para romperlo.
    *
    * 0 se saca con las manos, 1 pide pico de madera o mejor, y así. Es lo que
@@ -70,8 +78,8 @@ export interface DefTile {
 
 export const TILES: readonly DefTile[] = [
   { nombre: 'aire', solido: false, plataforma: false, dureza: 0, color: '#000000' },
-  { nombre: 'tierra', solido: true, plataforma: false, dureza: 20, color: '#6b4b2a' },
-  { nombre: 'hierba', solido: true, plataforma: false, dureza: 20, color: '#4c8b3a' },
+  { nombre: 'tierra', solido: true, plataforma: false, dureza: 20, color: '#6b4b2a', blando: true },
+  { nombre: 'hierba', solido: true, plataforma: false, dureza: 20, color: '#4c8b3a', blando: true },
   { nombre: 'piedra', solido: true, plataforma: false, dureza: 45, color: '#6e6e78', nivelPico: 1 },
   { nombre: 'madera', solido: true, plataforma: false, dureza: 30, color: '#8a5f33' },
   { nombre: 'plataforma', solido: false, plataforma: true, dureza: 15, color: '#a07545' },
@@ -104,10 +112,10 @@ export const TILES: readonly DefTile[] = [
   { nombre: 'cofre', solido: false, plataforma: false, dureza: 22, color: '#a37b3c' },
   // La arena es blanda, la arenisca es la piedra del desierto y el cactus no
   // frena, como los árboles.
-  { nombre: 'arena', solido: true, plataforma: false, dureza: 14, color: '#d9c07a', agarre: 1.5 },
+  { nombre: 'arena', solido: true, plataforma: false, dureza: 14, color: '#d9c07a', agarre: 1.5, blando: true },
   { nombre: 'arenisca', solido: true, plataforma: false, dureza: 40, color: '#b39457', nivelPico: 1 },
   { nombre: 'cactus', solido: false, plataforma: false, dureza: 18, color: '#4f8a4a' },
-  { nombre: 'nieve', solido: true, plataforma: false, dureza: 16, color: '#e6eef5' },
+  { nombre: 'nieve', solido: true, plataforma: false, dureza: 16, color: '#e6eef5', blando: true },
   { nombre: 'hielo', solido: true, plataforma: false, dureza: 35, color: '#a9d6ec', agarre: 0.18, nivelPico: 1 },
   // El cristal de vida. Ilumina bastante a propósito: encontrarlo en una cueva
   // a oscuras tiene que ser un "¿qué es esa luz rosa de ahí abajo?", no un
@@ -121,6 +129,17 @@ export const TILES: readonly DefTile[] = [
     color: '#e0538f',
     luz: 190,
     nivelPico: 2,
+  },
+  // Tierra labrada: lo que deja la azada. De momento solo se distingue a la
+  // vista; los cultivos que va a sostener llegan con el bloque de siembra, y
+  // tenerla ya evita que ese bloque tenga que tocar el formato de guardado.
+  {
+    nombre: 'tierra labrada',
+    solido: true,
+    plataforma: false,
+    dureza: 18,
+    color: '#5a3d21',
+    blando: true,
   },
 ];
 
@@ -148,6 +167,11 @@ export function esEstacion(id: number): boolean {
 /** Nivel de pico necesario. 0 = se saca con las manos. */
 export function nivelPicoTile(id: number): number {
   return defTile(id).nivelPico ?? 0;
+}
+
+/** ¿Se cava a paladas en vez de picarse? */
+export function esBlando(id: number): boolean {
+  return defTile(id).blando === true;
 }
 
 /** Agarre del tile: multiplica la fricción del suelo. 1 si no dice nada. */

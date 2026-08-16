@@ -31,12 +31,23 @@ import {
 import { leerOpciones, prepararEscenario } from './world/escenario';
 import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
-import { equipoInicial, nivelEnMano, potenciaEnMano } from './items/equipo';
+import { equipoInicial, nivelEnMano, potenciaContra } from './items/equipo';
 import { cabeEnEquipo, crearEquipo, danoTrasArmadura, defensaTotal } from './items/equipado';
 import { defObjeto, dropDePared, dropDeTile, nombrePicoDeNivel } from './items/items';
 import { estacionesCerca } from './items/recipes';
 import { Contenedores } from './world/contenedores';
-import { AIRE, COFRE, defTile, esEstacion } from './world/tiles';
+import {
+  AIRE,
+  COFRE,
+  defTile,
+  esEstacion,
+  HIERBA,
+  TIERRA,
+  TIERRA_LABRADA,
+} from './world/tiles';
+
+/** Lo que la azada puede convertir en tierra labrada. */
+const LABRABLES: readonly number[] = [HIERBA, TIERRA];
 import { Particulas } from './render/particles';
 import {
   actualizarDrop,
@@ -83,7 +94,7 @@ import {
 } from './entities/hambre';
 import { SimuladorLiquidos, sumersion } from './world/liquids';
 import { puedeUsarCubo, usarCubo } from './items/cubo';
-import { esArco, esComida, esCristal, esCubo, municionDe } from './items/items';
+import { esArco, esAzada, esComida, esCristal, esCubo, municionDe } from './items/items';
 import {
   biomaEn,
   intentarAparicion,
@@ -763,8 +774,38 @@ async function arrancar(): Promise<void> {
 
     const enMano = barra.objetoActivo();
     const tileEnMano = defObjeto(enMano).tile;
-    const potencia = potenciaEnMano(enMano);
     const nivel = nivelEnMano(enMano);
+    // La potencia depende del tile al que se apunta, no solo de la mano: es
+    // lo que separa una pala de un pico rápido.
+    const tileApuntado = capa === 'bloque' ? mundo.getTile(tx, ty) : mundo.getPared(tx, ty);
+    const potencia = potenciaContra(enMano, tileApuntado);
+
+    // La azada labra con el clic derecho: no rompe nada, cambia el tile por
+    // tierra labrada. Es el sustrato donde se sembrará más adelante.
+    if (esAzada(enMano)) {
+      const labrable =
+        capa === 'bloque' &&
+        enAlcance(jugador.caja, tx, ty) &&
+        LABRABLES.includes(mundo.getTile(tx, ty)) &&
+        mundo.getTile(tx, ty - 1) === AIRE;
+      objetivo.valido = labrable;
+      reiniciarPicado(picado);
+      const usar = puntero.der && !derAnterior;
+      derAnterior = puntero.der;
+      if (!usar || !labrable) return;
+      mundo.setTile(tx, ty, TIERRA_LABRADA);
+      renderer.cache.invalidar(tx, ty);
+      audio.sonar('picar', 0.7);
+      particulas.emitir(tx * TILE + 8, ty * TILE + 4, {
+        cantidad: 8,
+        color: defTile(TIERRA_LABRADA).color,
+        dispersion: 1.4,
+        empujeY: -0.8,
+        vida: 20,
+        tam: 2,
+      });
+      return;
+    }
 
     // El cristal de vida se usa como la comida: clic derecho, donde uno esté.
     if (esCristal(enMano)) {

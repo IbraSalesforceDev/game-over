@@ -6,9 +6,11 @@ import {
   CUBO_LAVA,
   defObjeto,
   esArma,
+  esAzada,
   esColocable,
   esCristal,
   esHerramienta,
+  esPala,
   FLECHA,
   huecoDe,
   type Hueco,
@@ -218,6 +220,29 @@ const ICONOS_ARMADURA: Record<Hueco, Dibujo> = {
   piernas: armaduraIcono('piernas'),
 };
 
+/** Pala: mango largo y una hoja ancha y plana abajo. */
+const palaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 26, 34);
+  const madera = tono('#8a5f33', 22, 28);
+  bloque(ctx, ox + 9, oy + 2, 2, 11, madera);
+  px(ctx, ox + 7, oy + 1, 6, 2, madera.claro);
+  // La hoja: ancha arriba y redondeada abajo, que es lo que la separa del pico.
+  bloque(ctx, ox + 5, oy + 12, 10, 5, t);
+  px(ctx, ox + 6, oy + 17, 8, 1, t.oscuro);
+  px(ctx, ox + 5, oy + 12, 10, 1, t.claro);
+};
+
+/** Azada: mango y una hoja corta doblada en ángulo recto. */
+const azadaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 26, 34);
+  const madera = tono('#8a5f33', 22, 28);
+  bloque(ctx, ox + 11, oy + 4, 2, 14, madera);
+  // El codo, arriba a la izquierda: es toda la silueta de una azada.
+  bloque(ctx, ox + 4, oy + 3, 8, 3, t);
+  px(ctx, ox + 4, oy + 3, 8, 1, t.claro);
+  px(ctx, ox + 4, oy + 6, 3, 3, t.oscuro);
+};
+
 /** Arco: el asta curva y la cuerda tensada, en diagonal. */
 const arcoIcono: Dibujo = (ctx, ox, oy, color) => {
   const t = tono(color, 26, 34);
@@ -255,6 +280,8 @@ function dibujoDe(id: number): Dibujo {
   if (id === FLECHA) return flechaIcono;
   const hueco = huecoDe(id);
   if (hueco) return ICONOS_ARMADURA[hueco];
+  if (esPala(id)) return palaIcono;
+  if (esAzada(id)) return azadaIcono;
   if (esHerramienta(id)) return picoIcono;
   if (esArma(id)) return espadaIcono;
   if (esColocable(id)) return bloqueIcono;

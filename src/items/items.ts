@@ -19,6 +19,7 @@ import {
   PLATA,
   PLATAFORMA,
   TIERRA,
+  TIERRA_LABRADA,
   TILES,
   TRONCO,
   YUNQUE,
@@ -82,6 +83,8 @@ export const PETO_ORO = 97;
 export const GREBAS_ORO = 98;
 export const ARCO = 99;
 export const FLECHA = 100;
+export const PALA_HIERRO = 101;
+export const AZADA = 102;
 
 /**
  * Identificadores que tenían las herramientas antes de moverse al rango 64+.
@@ -127,6 +130,16 @@ export interface DefObjeto {
   readonly potencia?: number;
   /** Nivel de la herramienta: qué tiles puede romper. */
   readonly nivel?: number;
+  /**
+   * Es una pala: va rapidísima en lo blando y fatal en lo demás.
+   *
+   * La alternativa era darle simplemente más potencia que el pico, y entonces
+   * sería un pico mejor y nadie volvería a llevar pico. Que sea buena en una
+   * cosa y mala en otra es lo que hace que valga la pena llevar las dos.
+   */
+  readonly pala?: boolean;
+  /** Labra la tierra en vez de romperla. */
+  readonly azada?: boolean;
   /** Daño por golpe, si es un arma. */
   readonly dano?: number;
   /** Ticks entre golpes, si es un arma. */
@@ -303,6 +316,33 @@ const ENTRADAS: [number, DefObjeto][] = [
   ...juegoArmadura([CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO], 'hierro', '#a3968a', 2),
   ...juegoArmadura([CASCO_PLATA, PETO_PLATA, GREBAS_PLATA], 'plata', '#c2ccd6', 3),
   ...juegoArmadura([CASCO_ORO, PETO_ORO, GREBAS_ORO], 'oro', '#dcb13a', 4),
+  // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
+  // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
+  [
+    PALA_HIERRO,
+    {
+      nombre: 'pala de hierro',
+      tipo: 'herramienta',
+      color: '#9aa6b2',
+      maxPila: 1,
+      potencia: 420,
+      nivel: 1,
+      pala: true,
+    },
+  ],
+  // La azada no rompe nada: convierte hierba y tierra en tierra labrada.
+  [
+    AZADA,
+    {
+      nombre: 'azada',
+      tipo: 'herramienta',
+      color: '#7d6a4a',
+      maxPila: 1,
+      potencia: 0,
+      nivel: 0,
+      azada: true,
+    },
+  ],
   // El arco pega menos por flechazo que la espada de piedra por mandoble, pero
   // dispara desde lejos. Lo que lo equilibra no es el daño sino la munición:
   // sin flechas es un palo, y las flechas hay que fabricarlas.
@@ -388,6 +428,14 @@ export function esArmadura(id: number): boolean {
   return defObjeto(id).tipo === 'armadura';
 }
 
+export function esPala(id: number): boolean {
+  return defObjeto(id).pala === true;
+}
+
+export function esAzada(id: number): boolean {
+  return defObjeto(id).azada === true;
+}
+
 /** ¿Es un arma a distancia? */
 export function esArco(id: number): boolean {
   return defObjeto(id).tipo === 'arco';
@@ -422,6 +470,9 @@ export function dropDeTile(tile: number): number {
   switch (tile) {
     case CRISTAL_VIDA:
       return CRISTAL;
+    // Labrar no crea material nuevo: al romperla vuelve tierra.
+    case TIERRA_LABRADA:
+      return TIERRA;
     case HIERBA:
       return TIERRA;
     case TRONCO:

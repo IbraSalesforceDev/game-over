@@ -1,8 +1,9 @@
-import { ANTORCHA } from '../world/tiles';
+import { ANTORCHA, esBlando } from '../world/tiles';
 import { Inventario } from './inventory';
 import {
   defObjeto,
   esHerramienta,
+  esPala,
   ESPADA_MADERA,
   nivelHerramienta,
   PICO_MADERA,
@@ -55,6 +56,29 @@ export const POTENCIA_MANO = 24;
 export function potenciaEnMano(objeto: number): number {
   if (!esHerramienta(objeto)) return POTENCIA_MANO;
   return defObjeto(objeto).potencia ?? POTENCIA_MANO;
+}
+
+/**
+ * Penalización de la pala fuera de su terreno.
+ *
+ * Con la pala en la mano la piedra se pica a la décima parte. No se prohíbe
+ * —quedarse encerrado por llevar la herramienta equivocada sería cruel— pero
+ * cuesta lo bastante como para que uno cambie de ranura.
+ */
+export const CASTIGO_PALA = 0.1;
+
+/**
+ * Potencia real contra un tile concreto.
+ *
+ * Es donde se cruza la herramienta con el material: la pala vuela en lo blando
+ * y se atasca en lo demás, y el pico al revés. Sin esto una pala solo podría
+ * ser "un pico más rápido", y entonces sustituiría al pico en vez de
+ * acompañarlo.
+ */
+export function potenciaContra(objeto: number, tile: number): number {
+  const base = potenciaEnMano(objeto);
+  if (!esPala(objeto)) return base;
+  return esBlando(tile) ? base : base * CASTIGO_PALA;
 }
 
 /** Nivel de la herramienta en la mano. Las manos son nivel 0. */
