@@ -8,6 +8,8 @@ import { crearAudio } from './engine/audio';
 import { crearAjustes } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
 import { crearMapa } from './ui/mapa';
+import { crearBrujula } from './ui/brujula';
+import { crearPanelJefe } from './ui/jefe';
 import { crearPausa } from './ui/pausa';
 import { crearDebugMenu, crearTrucos } from './ui/debugmenu';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
@@ -30,6 +32,12 @@ import {
   type Capa,
 } from './world/edit';
 import { leerOpciones, prepararEscenario } from './world/escenario';
+import { faltaParaOfrenda, pagarOfrenda, textoFalta } from './world/altar';
+import {
+  estructuraMasCercana,
+  nombreEstructura,
+  type Estructura,
+} from './world/estructuras';
 import { puedeSembrar, tickCultivos } from './world/cultivo';
 import { plantarArbolEn } from './world/gen/worldgen';
 import { MotorLuz } from './world/lighting';
@@ -38,9 +46,10 @@ import { equipoInicial, nivelEnMano, potenciaContra } from './items/equipo';
 import { cabeEnEquipo, crearEquipo, danoTrasArmadura, defensaTotal } from './items/equipado';
 import { defObjeto, dropDePared, dropDeTile, nombrePicoDeNivel } from './items/items';
 import { estacionesCerca } from './items/recipes';
-import { Contenedores } from './world/contenedores';
+import { Contenedores, type DatosCofre } from './world/contenedores';
 import {
   AIRE,
+  ALTAR,
   CAMA,
   COFRE,
   defTile,
@@ -57,7 +66,17 @@ import {
   soltar,
   type Drop,
 } from './entities/drop';
-import { actualizarEnemigos, botinDe, crearEnemigo, ENEMIGOS, type Enemigo } from './entities/enemies';
+import {
+  actualizarEnemigos,
+  botinDe,
+  crearEnemigo,
+  ENEMIGOS,
+  esJefe,
+  MITAD_JEFE,
+  OBJETO_RELIQUIA,
+  sueltaReliquia,
+  type Enemigo,
+} from './entities/enemies';
 import {
   crearGolpe,
   lanzarGolpe,
@@ -99,12 +118,16 @@ import {
   alcanceDeMapa,
   esArco,
   esAzada,
+  esBrujula,
   esSemilla,
   siembraDe,
   esComida,
   esCristal,
   esCubo,
   municionDe,
+  ESENCIA,
+  ESPADA_GUARDIAN,
+  LINGOTE_ORO,
 } from './items/items';
 import {
   biomaEn,
@@ -130,6 +153,11 @@ const INTERVALO_AUTOGUARDADO = 30_000;
 
 /** Lo que la azada puede convertir en tierra labrada. */
 const LABRABLES: readonly number[] = [HIERBA, TIERRA];
+
+/** Ticks entre tandas de esqueletos mientras el guardián está enfurecido. */
+const INTERVALO_ESBIRROS = 420;
+/** Enemigos vivos como máximo durante la pelea contra el jefe. */
+const TOPE_CON_JEFE = 9;
 
 /** Muestra el panel de error con el detalle, en vez de dejar la pantalla negra. */
 function mostrarError(e: unknown): void {
@@ -184,7 +212,15 @@ async function generar(
   tamano: NombreTamano,
   lab: boolean,
   columna: number | null = null,
-): Promise<{ mundo: Mundo; spawnTx: number; spawnTy: number; zonas: Zona[]; semilla: string }> {
+): Promise<{
+  mundo: Mundo;
+  spawnTx: number;
+  spawnTy: number;
+  zonas: Zona[];
+  semilla: string;
+  estructuras: Estructura[];
+  cofres: DatosCofre[];
+}> {
   const it = prepararEscenario({ lab, semilla, tamano, minutos: null, columna });
   let paso = it.next();
   while (!paso.done) {
@@ -224,13 +260,18 @@ function partidaNueva(
       minutos,
       inventario: equipoInicial().aDatos(),
       equipo: crearEquipo().aDatos(),
-      cofres: [],
+      // Los cofres del mundo nuevo son los de sus estructuras, con el botín ya
+      // dentro: el generador decide qué hay en cada uno para que dos partidas
+      // abiertas del mismo fichero encuentren exactamente lo mismo.
+      cofres: gen.cofres,
       vida: VIDA_MAXIMA,
       vidaMax: VIDA_MAXIMA,
       hambre: HAMBRE_MAXIMA,
       dificultad: nivel,
       hardcore,
       hardcoreMuerto: false,
+      estructuras: gen.estructuras,
+      jefeVencido: false,
     },
   };
 }
@@ -367,6 +408,17 @@ async function arrancar(): Promise<void> {
   const opciones = crearAjustes(capaUI, audio);
   const ayuda = crearAyuda(capaUI);
   const mapa = crearMapa(capaUI);
+  const brujula = crearBrujula(capaUI);
+  const panelJefe = crearPanelJefe(capaUI);
+  /**
+   * El guardián, mientras esté vivo.
+   *
+   * Se guarda aparte de la lista de enemigos porque hay tres sitios que
+   * necesitan preguntar por él —la barra de vida, los esbirros y el altar, que
+   * no debe poder invocarlo dos veces— y buscarlo en el array en cada uno sería
+   * repetir el mismo recorrido tres veces por tick.
+   */
+  let jefe: Enemigo | null = null;
   const trucos = crearTrucos();
   const depuracion = crearDebugMenu(capaUI, {
     trucos,
@@ -388,6 +440,24 @@ async function arrancar(): Promise<void> {
       panelVida.refrescar(salud);
     },
     vidaMaximaActual: () => salud.vidaMax,
+    estructuras: () =>
+      partida.estado.estructuras.map((e) => ({
+        nombre: nombreEstructura(e.tipo),
+        tx: e.tx,
+        ty: e.ty,
+      })),
+    viajarA: (tx, ty) => {
+      // Un par de tiles por encima del punto anotado: el centro de la sala del
+      // altar es el altar mismo, y aparecer dentro de un mueble es feo.
+      jugador.caja.x = tx * TILE;
+      jugador.caja.y = (ty - 3) * TILE;
+      jugador.caja.vx = 0;
+      jugador.caja.vy = 0;
+      jugador.xPrev = jugador.caja.x;
+      jugador.yPrev = jugador.caja.y;
+      renderer.camara.centrar(jugador.caja.x, jugador.caja.y, mundo.ancho, mundo.alto);
+      motorLuz.marcarSucio();
+    },
   });
   const pausa = crearPausa(capaUI, {
     nombre: partida.nombre,
@@ -534,6 +604,11 @@ async function arrancar(): Promise<void> {
       Math.floor((jugador.caja.y + jugador.caja.alto / 2) / TILE),
       alcance,
       Number.isFinite(alcance) ? `${alcance} tiles alrededor` : 'el mundo entero',
+      // Las estructuras solo se marcan llevando brújula. Un mapa que las
+      // enseñara siempre convertiría la brújula en un adorno, y un mapa que no
+      // las enseñara nunca obligaría a buscar la fortaleza mirando una aguja
+      // de veinte píxeles durante media hora.
+      llevaBrujula() || trucos.mapaCompleto ? partida.estado.estructuras : [],
     );
   });
   entrada.alPulsar('F6', () => {
@@ -585,6 +660,37 @@ async function arrancar(): Promise<void> {
    */
   function sacudir(fuerza: number): void {
     if (opciones.sacudidaActiva) renderer.camara.sacudir(fuerza);
+  }
+
+  /** ¿Se lleva una brújula encima? Es lo que enciende la aguja y el mapa. */
+  function llevaBrujula(): boolean {
+    return inventario.ranuras.some((r) => r.cantidad > 0 && esBrujula(r.objeto));
+  }
+
+  /**
+   * Refresca la aguja de la brújula.
+   *
+   * Va en el render y no en el tick porque no cambia nada del mundo: es
+   * información, y una aguja que se recalcula sesenta veces por segundo cuesta
+   * lo mismo que una que se recalcula treinta y se ve igual.
+   */
+  function actualizarBrujula(): void {
+    if (!llevaBrujula() || partida.estado.estructuras.length === 0) {
+      brujula.actualizar(null);
+      return;
+    }
+    const tx = (jugador.caja.x + jugador.caja.ancho / 2) / TILE;
+    const ty = (jugador.caja.y + jugador.caja.alto / 2) / TILE;
+    const cerca = estructuraMasCercana(partida.estado.estructuras, tx, ty);
+    if (!cerca) {
+      brujula.actualizar(null);
+      return;
+    }
+    brujula.actualizar({
+      nombre: nombreEstructura(cerca.estructura.tipo),
+      distancia: Math.round(cerca.distancia),
+      angulo: Math.atan2(cerca.estructura.ty - ty, cerca.estructura.tx - tx),
+    });
   }
 
   /** Mueve los objetos del suelo, los recoge y limpia los que ya no están. */
@@ -650,6 +756,8 @@ async function arrancar(): Promise<void> {
   }
   /** Ticks hasta el próximo intento de aparición de enemigos. */
   let relojAparicion = 0;
+  /** Ticks hasta la próxima tanda de esbirros del guardián. */
+  let relojEsbirros = 0;
 
   /**
    * Un enemigo muere: suelta su botín, revienta en partículas y suena.
@@ -658,20 +766,142 @@ async function arrancar(): Promise<void> {
    * duplicar esto era duplicar el botín el día que cambiara la tabla.
    */
   function morir(especie: Enemigo['especie'], caja: Enemigo['caja']): void {
-    const b = botinDe(especie);
     const tx = Math.floor((caja.x + caja.ancho / 2) / TILE);
     const ty = Math.floor((caja.y + caja.alto / 2) / TILE);
-    drops.push(crearDrop(b.objeto, b.cantidad, tx, ty));
+    repartirBotin(especie, tx, ty);
+    const grande = esJefe(especie);
     particulas.emitir(caja.x + caja.ancho / 2, caja.y + caja.alto / 2, {
-      cantidad: 18,
+      cantidad: grande ? 90 : 18,
       color: ENEMIGOS[especie].color,
-      dispersion: 2.6,
+      dispersion: grande ? 5 : 2.6,
       empujeY: -1.2,
-      vida: 34,
+      vida: grande ? 70 : 34,
       tam: 3,
     });
-    sacudir(2.4);
-    audio.sonar('golpe', 0.7);
+    sacudir(grande ? 9 : 2.4);
+    audio.sonar(grande ? 'muerte' : 'golpe', grande ? 0.6 : 0.7);
+    if (grande) caerJefe();
+  }
+
+  /**
+   * El botín de un muerto: el suyo, y con suerte una reliquia.
+   *
+   * Está aquí porque hay dos caminos hasta la muerte de un bicho —el mandoble
+   * y la flecha por un lado, la lava y el resto por otro— y cada uno tenía su
+   * propia línea de `crearDrop`. Con dos sitios que reparten botín, el día que
+   * cambie la tabla solo se acuerda uno de los dos.
+   */
+  function repartirBotin(especie: Enemigo['especie'], tx: number, ty: number): void {
+    const b = botinDe(especie);
+    drops.push(crearDrop(b.objeto, b.cantidad, tx, ty));
+    if (sueltaReliquia(especie)) {
+      drops.push(crearDrop(OBJETO_RELIQUIA, 1, tx, ty));
+    }
+    // El guardián no suelta reliquia pero sí lo suyo: la espada, la esencia y
+    // el oro del que estaba hecho.
+    if (esJefe(especie)) {
+      drops.push(crearDrop(ESPADA_GUARDIAN, 1, tx, ty));
+      drops.push(crearDrop(ESENCIA, 1, tx, ty));
+      drops.push(crearDrop(LINGOTE_ORO, 12, tx, ty));
+    }
+  }
+
+  /** Remate de la caída del jefe: barra fuera, aviso y marca en la partida. */
+  function caerJefe(): void {
+    jefe = null;
+    panelJefe.ocultar();
+    const primera = !partida.estado.jefeVencido;
+    partida.estado.jefeVencido = true;
+    aviso.mostrar(
+      primera
+        ? 'El guardián ha caído. La fortaleza es tuya.'
+        : 'El guardián vuelve a caer.',
+    );
+    // Guardar en el acto: perder la espada del jefe porque el navegador se
+    // cerró antes del autoguardado sería el peor bug posible de este bloque.
+    void guardar('auto');
+  }
+
+  /**
+   * Despierta al guardián sobre el altar.
+   *
+   * La ofrenda se cobra antes de crear al jefe, y solo si está completa: cobrar
+   * y no invocar sería el peor resultado posible de todo el bloque.
+   */
+  function invocarJefe(tx: number, ty: number): void {
+    if (jefe) {
+      aviso.mostrar('El guardián ya está despierto', true);
+      return;
+    }
+    const falta = faltaParaOfrenda(inventario);
+    if (falta.length > 0) {
+      aviso.mostrar(`Al altar le falta: ${textoFalta(falta)}`, true);
+      return;
+    }
+    pagarOfrenda(inventario);
+    barra.refrescar(capa);
+
+    // Nace unos tiles por encima del altar, para que no aparezca encajado
+    // dentro del pedestal y salga empujado a un lado por la colisión.
+    const def = ENEMIGOS.guardian;
+    const nuevo = crearEnemigo(
+      'guardian',
+      tx * TILE + TILE / 2 - def.ancho / 2,
+      (ty - 5) * TILE,
+      nivelDif.fuerza,
+    );
+    enemigos.push(nuevo);
+    jefe = nuevo;
+
+    aviso.mostrar('Algo despierta bajo la fortaleza');
+    sacudir(9);
+    audio.sonar('quemar', 0.4);
+    particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
+      cantidad: 60,
+      color: '#c79bf0',
+      dispersion: 4,
+      empujeY: -2,
+      vida: 60,
+      tam: 3,
+    });
+  }
+
+  /**
+   * El jefe, tick a tick: barra de vida y esbirros.
+   *
+   * Los esqueletos solo salen en la segunda mitad de la pelea. Un jefe que
+   * invoca ayuda desde el primer segundo convierte la sala en un caos en el que
+   * no se ve al jefe; saliendo a partir de la mitad, son el aviso de que la
+   * cosa se ha puesto seria.
+   */
+  function actualizarJefe(): void {
+    if (jefe && !jefe.vivo) jefe = null;
+    if (!jefe) {
+      panelJefe.ocultar();
+      return;
+    }
+    const furioso = jefe.salud.vida < jefe.salud.vidaMax * MITAD_JEFE;
+    panelJefe.mostrar(
+      ENEMIGOS.guardian.nombre,
+      jefe.salud.vida,
+      jefe.salud.vidaMax,
+      furioso,
+    );
+    if (!furioso) return;
+    if (--relojEsbirros > 0) return;
+    relojEsbirros = INTERVALO_ESBIRROS;
+    // Tope aparte del aforo normal: la sala tiene que seguir siendo transitable.
+    if (enemigos.filter((e) => e.vivo).length >= TOPE_CON_JEFE) return;
+    for (const lado of [-1, 1]) {
+      enemigos.push(
+        crearEnemigo(
+          'esqueleto',
+          jefe.caja.x + lado * 70,
+          jefe.caja.y + 40,
+          nivelDif.fuerza,
+        ),
+      );
+    }
   }
 
   /** Lo plantado crece alrededor del jugador; los brotes se hacen árboles. */
@@ -787,8 +1017,8 @@ async function arrancar(): Promise<void> {
       }
     }
     for (const m of res.muertos) {
-      const b = botinDe(m.especie);
-      drops.push(crearDrop(b.objeto, b.cantidad, m.tx, m.ty));
+      repartirBotin(m.especie, m.tx, m.ty);
+      if (esJefe(m.especie)) caerJefe();
     }
 
     if (salud.muerto) {
@@ -824,6 +1054,10 @@ async function arrancar(): Promise<void> {
       panelVida.mostrarMuerte(true, motivo);
       window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
     }
+
+    // Va después de repartir muertos y antes de limpiar: así la barra ya sabe
+    // que el guardián ha caído en el mismo tick en que cae.
+    actualizarJefe();
 
     limpiarEnemigos(enemigos);
 
@@ -1153,6 +1387,17 @@ async function arrancar(): Promise<void> {
       return;
     }
 
+    // El altar: clic derecho con la ofrenda completa y el guardián despierta.
+    // No hace falta llevar nada en la mano —lo que cuenta es lo que hay en el
+    // zurrón— porque en el momento de invocarlo lo que uno quiere tener en la
+    // mano es la espada, no el hueso.
+    if (puntero.der && !derAnterior && mundo.getTile(tx, ty) === ALTAR) {
+      derAnterior = puntero.der;
+      if (!enAlcance(jugador.caja, tx, ty)) return;
+      invocarJefe(tx, ty);
+      return;
+    }
+
     // Y una estación se abre igual, con su lista de recetas en grande. Antes
     // había que acordarse de acercarse y abrir el inventario; hacer clic en la
     // mesa es lo que intenta todo el mundo la primera vez.
@@ -1468,6 +1713,7 @@ async function arrancar(): Promise<void> {
       debug.segundosDesdeGuardado = partida.guardable
         ? Math.round((Date.now() - ultimoGuardado) / 1000)
         : -1;
+      actualizarBrujula();
       dibujarDebug(renderer.ctx, renderer.camara, jugador, debug, renderer.escala);
     },
   );

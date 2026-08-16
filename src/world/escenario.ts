@@ -1,6 +1,8 @@
 import { DIFICULTADES, DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
 import { buscarSpawn, generarMundoPasos, TAMANOS, type NombreTamano } from './gen/worldgen';
 import { semillaAleatoria } from './gen/rng';
+import type { DatosCofre } from './contenedores';
+import type { Estructura } from './estructuras';
 import { crearNivelPruebas } from './testLevel';
 import type { Zona } from './testLevel';
 import type { Mundo } from './world';
@@ -30,6 +32,10 @@ export interface Escenario {
   zonas: Zona[];
   semilla: string;
   esLaboratorio: boolean;
+  /** Estructuras que ha levantado el generador. El laboratorio no tiene. */
+  estructuras: Estructura[];
+  /** Cofres de esas estructuras, con su botín dentro. */
+  cofres: DatosCofre[];
 }
 
 export interface OpcionesEscenario {
@@ -101,6 +107,8 @@ export function* prepararEscenario(
       zonas: nivel.zonas,
       semilla: 'laboratorio',
       esLaboratorio: true,
+      estructuras: [],
+      cofres: [],
     };
   }
 
@@ -123,5 +131,7 @@ export function* prepararEscenario(
     zonas: [],
     semilla: r.semilla,
     esLaboratorio: false,
+    estructuras: r.estructuras,
+    cofres: r.cofres,
   };
 }

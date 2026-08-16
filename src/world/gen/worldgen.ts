@@ -25,6 +25,9 @@ import {
   TRONCO_JUNGLA,
 } from '../tiles';
 import { esSolido } from '../tiles';
+import type { DatosCofre } from '../contenedores';
+import type { Estructura } from '../estructuras';
+import { levantarEstructuras } from './estructuras';
 import { Mundo } from '../world';
 import {
   BOSQUE,
@@ -90,6 +93,10 @@ export interface ResultadoGen {
   superficie: Int32Array;
   /** Bioma de cada columna. */
   biomas: MapaBiomas;
+  /** Dónde ha quedado cada estructura, para la brújula y el mapa. */
+  estructuras: Estructura[];
+  /** Cofres de las estructuras, con su botín ya dentro. */
+  cofres: DatosCofre[];
 }
 
 /** Perfil de capas, en fracciones de la altura del mundo. */
@@ -173,14 +180,30 @@ export function* generarMundoPasos(
   vestirSuperficie(mundo, superficie, biomas, rng, semilla);
   plantarCanas(mundo, superficie, rng);
 
-  // --- 6. Bordes y remate -------------------------------------------------
-  yield { pct: 94, texto: 'Cerrando los bordes…' };
+  // --- 6. Estructuras -----------------------------------------------------
+  //
+  // Las últimas, y no por casualidad: una sala construida antes de los lagos se
+  // inunda, y una cabaña puesta antes de los árboles acaba con un roble dentro.
+  yield { pct: 92, texto: 'Levantando la fortaleza…' };
+  const construido = levantarEstructuras(mundo, superficie, c.caverna, c.fondo, rng);
+
+  // --- 7. Bordes y remate -------------------------------------------------
+  yield { pct: 96, texto: 'Cerrando los bordes…' };
   cerrarBordes(mundo);
 
   const [spawnTx, spawnTy] = buscarSpawn(mundo, superficie);
   yield { pct: 100, texto: 'Mundo listo' };
 
-  return { mundo, spawnTx, spawnTy, semilla: op.semilla, superficie, biomas };
+  return {
+    mundo,
+    spawnTx,
+    spawnTy,
+    semilla: op.semilla,
+    superficie,
+    biomas,
+    estructuras: construido.estructuras,
+    cofres: construido.cofres,
+  };
 }
 
 /** Agota el generador. Para tests y para usos sin pantalla de carga. */

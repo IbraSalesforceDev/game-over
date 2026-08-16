@@ -51,6 +51,10 @@ export const ZANAHORIA_1 = 40;
 export const ZANAHORIA_2 = 41;
 export const ZANAHORIA_3 = 42;
 export const BROTE = 43;
+// Bloque 5: la fortaleza. El ladrillo es su material —y el único bloque del
+// juego que no sale de ningún bioma— y el altar es la pieza que la justifica.
+export const LADRILLO = 44;
+export const ALTAR = 45;
 
 /**
  * Cultivos: primera etapa, última y qué se planta con qué semilla.
@@ -242,6 +246,31 @@ export const TILES: readonly DefTile[] = [
   { nombre: 'zanahoria (creciendo)', solido: false, plataforma: false, dureza: 4, color: '#4c9a3a' },
   { nombre: 'zanahoria', solido: false, plataforma: false, dureza: 4, color: '#54a83e' },
   { nombre: 'brote', solido: false, plataforma: false, dureza: 4, color: '#4f9a3a' },
+  // Ladrillo de fortaleza: duro, pero no imposible. Pide pico de piedra porque
+  // llegar a la fortaleza ya cuesta bastante, y encontrarla para descubrir que
+  // no se puede entrar sería la peor recompensa posible.
+  {
+    nombre: 'ladrillo de fortaleza',
+    solido: true,
+    plataforma: false,
+    dureza: 110,
+    color: '#4b4757',
+    nivelPico: 2,
+  },
+  // El altar. No frena —se entra en él, como en cualquier mueble— y alumbra
+  // poco, con esa luz morada que se ve desde el otro lado de la sala y dice
+  // "aquí es". Pide pico de oro para romperlo: quien llegue con uno ya ha
+  // ganado el derecho a desmontarlo, y hasta entonces no puede perderlo por un
+  // clic despistado.
+  {
+    nombre: 'altar antiguo',
+    solido: false,
+    plataforma: false,
+    dureza: 400,
+    color: '#6d4d8e',
+    luz: 150,
+    nivelPico: 6,
+  },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */

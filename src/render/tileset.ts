@@ -2,8 +2,10 @@ import { TILE } from '../core/constants';
 import { ABAJO, ARRIBA, DERECHA, IZQUIERDA, MASCARAS } from '../world/framing';
 import {
   AIRE,
+  ALTAR,
   ANTORCHA,
   ARENISCA,
+  LADRILLO,
   BARRO,
   BROTE,
   CACTUS,
@@ -115,7 +117,15 @@ function lienzo(w: number, h: number): HTMLCanvasElement {
  * verticales y el mineral pepitas brillantes sobre roca. Pintarlos todos con el
  * mismo ruido dejaba un mundo que parecía coloreado con rotulador.
  */
-type Textura = 'tierra' | 'piedra' | 'madera' | 'hojas' | 'mineral' | 'hielo' | 'nieve';
+type Textura =
+  | 'tierra'
+  | 'piedra'
+  | 'madera'
+  | 'hojas'
+  | 'mineral'
+  | 'hielo'
+  | 'nieve'
+  | 'ladrillo';
 
 function texturaDe(id: number): Textura {
   switch (id) {
@@ -149,6 +159,8 @@ function texturaDe(id: number): Textura {
     case PLATA:
     case ORO:
       return 'mineral';
+    case LADRILLO:
+      return 'ladrillo';
     case HIELO:
       return 'hielo';
     case NIEVE:
@@ -250,6 +262,20 @@ function pintarBase(
             if (fino > 0.93) delta = 14;
             else if (grueso < 0.2) delta = -10;
             break;
+          case 'ladrillo': {
+            // Aparejo a soga: hiladas de cuatro píxeles con las juntas
+            // desplazadas media pieza en filas alternas. Es lo único que hace
+            // falta para que un muro se lea como construido y no como roca:
+            // la línea recta y repetida es justo lo que el terreno no tiene.
+            const hilada = Math.floor(py / 4);
+            const junta = py % 4 === 0;
+            const desfase = hilada % 2 === 0 ? 0 : 4;
+            if (junta || (px + desfase + v) % 8 === 0) delta = -34;
+            else if (py % 4 === 1) delta = 12;
+            else if (fino > 0.9) delta = 8;
+            else if (grueso < 0.25) delta = -8;
+            break;
+          }
         }
 
         if (delta === null) continue;
@@ -574,6 +600,39 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillStyle = '#c53d78';
       ctx.fillRect(ox + 3 + (v % 2), base - 3, 2, 4);
       ctx.fillRect(ox + 11, base - 2, 2, 3);
+    }
+  }
+
+  // El altar: una losa con una cuenca encima y una llama morada dentro. Es la
+  // única pieza del juego que el jugador no puede fabricar ni encontrar por
+  // casualidad, así que tiene que verse de una sola mirada como "esto es otra
+  // cosa": nada de grano de piedra, formas grandes y un color que no usa nadie.
+  ctx.clearRect(0, ALTAR * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (ALTAR * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      // Base y fuste.
+      ctx.fillStyle = '#3c3350';
+      ctx.fillRect(ox + 1, oy + 13, 14, 3);
+      ctx.fillRect(ox + 4, oy + 7, 8, 6);
+      ctx.fillStyle = '#55496e';
+      ctx.fillRect(ox + 1, oy + 13, 14, 1);
+      ctx.fillRect(ox + 4, oy + 7, 8, 1);
+      // Cuenca.
+      ctx.fillStyle = '#2b2440';
+      ctx.fillRect(ox + 2, oy + 4, 12, 3);
+      ctx.fillStyle = '#6d4d8e';
+      ctx.fillRect(ox + 2, oy + 4, 12, 1);
+      // Llama, un píxel más alta en variantes alternas: así una fila de
+      // altares —que no la habrá— no se vería calcada, y sobre todo así el
+      // tile no queda perfectamente simétrico, que es lo que lo hace metálico.
+      ctx.fillStyle = '#8f5fc8';
+      ctx.fillRect(ox + 6, oy + 1 - (v % 2), 4, 4);
+      ctx.fillStyle = '#c79bf0';
+      ctx.fillRect(ox + 7, oy + 2 - (v % 2), 2, 2);
+      ctx.fillStyle = '#f2e4ff';
+      ctx.fillRect(ox + 7, oy + 2 - (v % 2), 1, 1);
     }
   }
 

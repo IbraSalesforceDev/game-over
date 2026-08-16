@@ -192,12 +192,17 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
   toque ✅, agua y lava dan obsidiana ✅, botas y guantes ✅, modo hardcore ✅
   (guardado v11). **Bloque cerrado.** (La caña, el papel y el mapa se
   adelantaron al bloque 2.)
-- **Bloque 5 — Fortaleza y jefe** · estructura en la capa de piedra, altar (5
-  huesos, 50 lingotes de oro y plata, 100 gel y una reliquia antigua que suelta
-  cualquier hostil al 3 %), jefe final, espada mejor que la de hierro y una
-  esencia guardada para más adelante. Y alguna forma de **encontrar** la
-  fortaleza y las demás estructuras: una fortaleza que solo aparece cavando al
-  azar es una fortaleza que nadie ve.
+- **Bloque 5 — Fortaleza y jefe** ✅ · fortaleza de ladrillo en la caverna, con
+  tres pisos de salas, cofres con botín y la sala del altar abajo ✅; altar que
+  pide 5 huesos, 25 lingotes de oro y 25 de plata, 100 gel y una reliquia
+  antigua ✅; la reliquia la suelta cualquier hostil al 3 % ✅; el guardián de la
+  fortaleza, que vuela, embiste, se enfurece a media vida y llama esqueletos ✅,
+  con su barra arriba ✅; suelta la espada del guardián —la única mejor que la de
+  hierro— y una esencia guardada para más adelante ✅. Y para **encontrarla**:
+  brújula fabricable que señala la estructura más cercana y las marca en el
+  mapa ✅, más cabañas abandonadas en la superficie y minas abandonadas en la
+  caverna para que la aguja tenga a qué apuntar desde el primer día ✅
+  (guardado v12). **Bloque cerrado.**
 - **Bloque 6 — Audio y remate** · sonido de rotura por material, sonidos de
   ataque, gruñidos, muerte de enemigos, descripciones de objetos, iconos más
   detallados, opciones de gráficos y resolución, **la armadura puesta se ve en

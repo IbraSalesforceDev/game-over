@@ -1,6 +1,7 @@
 import { DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
 import { migrarId } from '../items/items';
 import type { DatosCofre } from './contenedores';
+import type { Estructura, TipoEstructura } from './estructuras';
 import { Mundo } from './world';
 
 /**
@@ -43,8 +44,12 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       que es como se guardaron.
  *  11 — se añade el modo hardcore y si ya se ha muerto en él. Los mundos
  *       anteriores se abren en modo normal, con sus muertes ya perdonadas.
+ *  12 — se añaden las estructuras del mundo y si ya se venció al jefe. Los
+ *       mundos anteriores se abren sin ninguna estructura apuntada, que es la
+ *       verdad: se generaron en un juego donde la fortaleza no existía, así
+ *       que tampoco está enterrada esperando a que la brújula la encuentre.
  */
-export const VERSION_FORMATO = 11;
+export const VERSION_FORMATO = 12;
 
 export interface EstadoJugador {
   x: number;
@@ -86,6 +91,16 @@ export interface EstadoPartida {
   hardcore: boolean;
   /** Ya se ha muerto en hardcore: el mundo queda cerrado; formato 11. */
   hardcoreMuerto: boolean;
+  /**
+   * Estructuras que levantó el generador; formato 12.
+   *
+   * Se guardan porque no se pueden deducir: el mundo se edita tile a tile, y
+   * salir a buscar rectángulos de ladrillo cada vez que se abre una partida
+   * sería recorrer un millón de tiles para recuperar tres coordenadas.
+   */
+  estructuras: readonly Estructura[];
+  /** Ya se ha vencido al guardián al menos una vez; formato 12. */
+  jefeVencido: boolean;
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -290,6 +305,14 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   // lector de una versión anterior encuentre todo lo suyo donde lo espera, y
   // meterlo en medio rompería esa propiedad para todos los campos posteriores.
   e.u8((estado.hardcore ? 1 : 0) | (estado.hardcoreMuerto ? 2 : 0));
+  // Formato 12: las estructuras y si el jefe ya cayó. Al final, por lo mismo.
+  e.u16(estado.estructuras.length);
+  for (const s of estado.estructuras) {
+    e.u8(s.tipo);
+    e.u32(Math.max(0, Math.round(s.tx)));
+    e.u32(Math.max(0, Math.round(s.ty)));
+  }
+  e.u8(estado.jefeVencido ? 1 : 0);
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -339,6 +362,8 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     dificultad: DIFICULTAD_POR_DEFECTO,
     hardcore: false,
     hardcoreMuerto: false,
+    estructuras: [],
+    jefeVencido: false,
   };
   if (version >= 3) {
     const n = l.u16();
@@ -378,6 +403,15 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     const bits = l.u8();
     estado.hardcore = (bits & 1) !== 0;
     estado.hardcoreMuerto = (bits & 2) !== 0;
+  }
+  if (version >= 12) {
+    const cuantas = l.u16();
+    const lista: Estructura[] = [];
+    for (let i = 0; i < cuantas; i++) {
+      lista.push({ tipo: l.u8() as TipoEstructura, tx: l.u32(), ty: l.u32() });
+    }
+    estado.estructuras = lista;
+    estado.jefeVencido = l.u8() === 1;
   }
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);

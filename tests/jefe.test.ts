@@ -1,0 +1,116 @@
+import { describe, expect, it } from 'vitest';
+import { TILE } from '../src/core/constants';
+import {
+  actualizarEnemigos,
+  botinDe,
+  crearEnemigo,
+  danarEnemigo,
+  ENEMIGOS,
+  esJefe,
+  PROBABILIDAD_RELIQUIA,
+  sueltaReliquia,
+  type Especie,
+} from '../src/entities/enemies';
+import { especiesPosibles } from '../src/entities/spawner';
+import { ESENCIA } from '../src/items/items';
+import { Mundo } from '../src/world/world';
+import { PIEDRA } from '../src/world/tiles';
+import { crearJugador } from '../src/entities/player';
+
+/** Un contador que devuelve valores fijos, para no depender del azar. */
+function secuencia(valores: number[]): () => number {
+  let i = 0;
+  return () => valores[i++ % valores.length]!;
+}
+
+describe('el guardián', () => {
+  it('es un jefe y suelta esencia', () => {
+    expect(esJefe('guardian')).toBe(true);
+    expect(botinDe('guardian', () => 0).objeto).toBe(ESENCIA);
+  });
+
+  it('no sale nunca por sí solo', () => {
+    // Ni de día ni de noche, ni arriba ni abajo, ni en ningún bioma.
+    const biomas = ['bosque', 'desierto', 'nieve', 'jungla'] as const;
+    for (const bioma of biomas) {
+      for (const esNoche of [true, false]) {
+        for (const ty of [10, 400]) {
+          const lista = especiesPosibles({ esNoche, superficieTy: 20, bioma }, ty);
+          expect(lista).not.toContain('guardian' as Especie);
+        }
+      }
+    }
+  });
+
+  it('no desaparece por olvido, aunque el jugador se vaya lejísimos', () => {
+    const mundo = new Mundo(60, 60);
+    mundo.rellenar(0, 50, 59, 59, PIEDRA);
+    const jefe = crearEnemigo('guardian', 10 * TILE, 40 * TILE);
+    const zombi = crearEnemigo('zombi', 10 * TILE, 40 * TILE);
+    const enemigos = [jefe, zombi];
+    const jugador = crearJugador(50 * TILE, 40 * TILE).caja;
+
+    // Bastante más de los diez segundos que tarda un bicho normal en olvidarse.
+    for (let i = 0; i < 700; i++) {
+      actualizarEnemigos(mundo, enemigos, jugador, { invulnerable: 0 }, 1);
+    }
+    expect(zombi.vivo).toBe(false);
+    expect(jefe.vivo).toBe(true);
+  });
+
+  it('pega más fuerte que cualquier otra cosa del juego', () => {
+    const otros = (Object.keys(ENEMIGOS) as Especie[])
+      .filter((e) => e !== 'guardian')
+      .map((e) => ENEMIGOS[e].dano);
+    expect(ENEMIGOS.guardian.dano).toBeGreaterThan(Math.max(...otros));
+  });
+});
+
+describe('la reliquia', () => {
+  it('los hostiles la sueltan de vez en cuando', () => {
+    // Justo por debajo del umbral, sí; justo por encima, no.
+    expect(sueltaReliquia('zombi', () => PROBABILIDAD_RELIQUIA - 0.001)).toBe(true);
+    expect(sueltaReliquia('zombi', () => PROBABILIDAD_RELIQUIA + 0.001)).toBe(false);
+  });
+
+  it('los animales no sueltan nada de eso', () => {
+    for (const pacifico of ['conejo', 'gallina', 'jabali'] as const) {
+      expect(sueltaReliquia(pacifico, () => 0)).toBe(false);
+    }
+  });
+
+  it('el jefe tampoco: ya suelta lo suyo', () => {
+    expect(sueltaReliquia('guardian', () => 0)).toBe(false);
+  });
+
+  it('la proporción a la larga es la anunciada', () => {
+    // Mil tiradas repartidas por igual entre 0 y 1.
+    const azar = secuencia(Array.from({ length: 1000 }, (_, i) => i / 1000));
+    let caidas = 0;
+    for (let i = 0; i < 1000; i++) if (sueltaReliquia('esqueleto', azar)) caidas++;
+    expect(caidas).toBe(Math.round(PROBABILIDAD_RELIQUIA * 1000));
+  });
+});
+
+describe('un bicho solo se muere una vez', () => {
+  it('rematarlo lo marca muerto en el acto, no al final del tick', () => {
+    const e = crearEnemigo('slime', 0, 0);
+    expect(e.vivo).toBe(true);
+    // De un solo golpe: tras uno normal quedan doce ticks de invulnerabilidad,
+    // y un segundo golpe inmediato no llegaría a contar.
+    expect(danarEnemigo(e, 999, 0)).toBe(true);
+    // Si siguiera vivo aquí, `actualizarEnemigos` volvería a darlo por muerto
+    // en el mismo tick y su botín se repartiría dos veces.
+    expect(e.vivo).toBe(false);
+  });
+
+  it('y el recorrido de enemigos ya no lo cuenta otra vez', () => {
+    const mundo = new Mundo(40, 40);
+    mundo.rellenar(0, 30, 39, 39, PIEDRA);
+    const e = crearEnemigo('slime', 5 * TILE, 28 * TILE);
+    const jugador = crearJugador(6 * TILE, 28 * TILE).caja;
+    danarEnemigo(e, 999, 0);
+    const r = actualizarEnemigos(mundo, [e], jugador, { invulnerable: 0 });
+    expect(r.muertos).toHaveLength(0);
+  });
+});

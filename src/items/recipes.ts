@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, CAMA, CANA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, CAMA, CANA, COBRE, esEstacion, HIERRO, HORNO, LADRILLO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -53,6 +53,7 @@ import {
   PAN,
   TRIGO,
   PLUMA,
+  BRUJULA,
 } from './items';
 
 /**
@@ -255,6 +256,16 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 1,
     estacion: HORNO,
   },
+  // El ladrillo de fortaleza se puede cocer: es el único material del juego
+  // que no sale de ningún bioma, y dejarlo solo para picarlo de la fortaleza
+  // convertiría la fortaleza en una cantera. Así se puede construir con él.
+  {
+    id: 'ladrillo',
+    ingredientes: [[PIEDRA, 2]],
+    resultado: LADRILLO,
+    cantidad: 2,
+    estacion: HORNO,
+  },
   {
     id: 'lingote-cobre',
     ingredientes: [[COBRE, 3]],
@@ -353,6 +364,19 @@ export const RECETAS: readonly Receta[] = [
       [MADERA, 5],
     ],
     resultado: AZADA,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  // La brújula. Cuesta un poco de oro a propósito: con ella la fortaleza deja
+  // de ser un premio de lotería y pasa a ser un sitio al que se va, así que
+  // tiene que llegar cuando ya se ha bajado a la caverna, no antes.
+  {
+    id: 'brujula',
+    ingredientes: [
+      [LINGOTE_HIERRO, 5],
+      [LINGOTE_ORO, 1],
+    ],
+    resultado: BRUJULA,
     cantidad: 1,
     estacion: YUNQUE,
   },

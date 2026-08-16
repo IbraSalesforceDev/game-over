@@ -314,7 +314,8 @@ export type EspecieSprite =
   | 'esqueleto'
   | 'serpiente'
   | 'momia'
-  | 'gallina';
+  | 'gallina'
+  | 'guardian';
 
 interface Molde {
   ancho: number;
@@ -706,6 +707,83 @@ const MOLDES: Record<EspecieSprite, Molde> = {
       px(ctx, cx + 8, cy - 5, 3, 2, '#e8a12c');
       px(ctx, cx + 6, cy - 2, 2, 2, '#d63b3b');
       px(ctx, cx + 6, cy - 6, 1, 1, '#20242a');
+    },
+  },
+
+  /**
+   * El guardián: una máscara flotante con dos hombreras sueltas orbitándola.
+   *
+   * Que las piezas no se toquen es todo el truco. Un jefe con brazos pegados
+   * al cuerpo se lee como un enemigo grande; uno cuyas placas flotan aparte se
+   * lee como algo que no debería estar vivo, que es exactamente lo que hace
+   * falta a doscientos tiles bajo tierra. El ojo es lo único que no se mueve:
+   * es el punto al que mira quien pelea.
+   */
+  guardian: {
+    ancho: 70,
+    alto: 70,
+    frames: 8,
+    offX: -5,
+    offY: -5,
+    pintar(ctx, ox, oy, f) {
+      // Paleta clara a propósito. La pelea ocurre a doscientos tiles bajo
+      // tierra, en una sala de ladrillo gris oscuro y con la luz de dos
+      // antorchas: con el morado apagado que pedía el personaje, el jefe se
+      // fundía con la pared y lo único que se veía era su aura. Un jefe al que
+      // hay que adivinar dónde está no es difícil, es injusto.
+      const piedra = tono('#9c86d8', 30, 40);
+      const oscuro = tono('#5a4890', 24, 28);
+      const oro = tono('#f0cc66', 30, 44);
+      const cx = ox + 35;
+      const cy = oy + 35;
+      const t = (f / 8) * Math.PI * 2;
+      const flota = Math.round(Math.sin(t) * 3);
+      // Las placas orbitan en contrafase: cuando la máscara sube, ellas bajan.
+      const orbita = Math.round(Math.cos(t) * 4);
+
+      // Aura: un halo que separa al jefe del ladrillo del fondo. Dos capas,
+      // porque una sola con poca opacidad se pierde y con mucha tapa el sprite.
+      ctx.globalAlpha = 0.2;
+      elipse(ctx, cx, cy + flota, 33, 33, '#a37ef0');
+      ctx.globalAlpha = 0.26;
+      elipse(ctx, cx, cy + flota, 24, 24, '#c0a0ff');
+      ctx.globalAlpha = 1;
+
+      // Las dos hombreras, con su borde dorado.
+      for (const lado of [-1, 1]) {
+        const px0 = cx + lado * 26 - 5;
+        const py0 = cy - 8 + lado * orbita;
+        bloque(ctx, px0, py0, 11, 17, oscuro);
+        px(ctx, px0, py0, 11, 3, oro.base);
+        px(ctx, px0 + (lado < 0 ? 0 : 8), py0 + 3, 3, 14, piedra.claro);
+      }
+
+      // Cuerpo: un rombo de piedra con la cara plana hacia delante.
+      const by = cy + flota;
+      for (let i = -19; i <= 19; i++) {
+        const ancho = 20 - Math.abs(i);
+        if (ancho <= 0) continue;
+        px(ctx, cx - ancho, by + i, ancho * 2, 1, i < 0 ? piedra.claro : piedra.base);
+      }
+      // Grietas: dos líneas oscuras que rompen la superficie lisa.
+      px(ctx, cx - 8, by - 11, 1, 9, oscuro.oscuro);
+      px(ctx, cx + 7, by + 3, 1, 11, oscuro.oscuro);
+      // Cinturón dorado a media altura.
+      px(ctx, cx - 16, by - 1, 32, 3, oro.base);
+      px(ctx, cx - 16, by - 1, 32, 1, oro.claro);
+
+      // Cuernos: lo que convierte el rombo en una cabeza.
+      for (const lado of [-1, 1]) {
+        for (let i = 0; i < 7; i++) {
+          px(ctx, cx + lado * (9 + i), by - 12 - i, 2, 2, oscuro.base);
+        }
+      }
+
+      // El ojo. Late despacio y es lo único brillante del sprite.
+      const latido = 4 + Math.abs(Math.sin(t)) * 1.8;
+      elipse(ctx, cx, by - 6, 8, 5.5, '#1a1026');
+      elipse(ctx, cx, by - 6, latido, latido * 0.7, '#ffd66b');
+      elipse(ctx, cx, by - 6, latido * 0.5, latido * 0.4, '#fff6d8');
     },
   },
 

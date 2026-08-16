@@ -12,6 +12,7 @@ import {
 } from '../src/world/save';
 import { DIFICULTAD_POR_DEFECTO } from '../src/core/dificultad';
 import { HIERBA, MADERA, PIEDRA, TIERRA } from '../src/world/tiles';
+import { CABANA, FORTALEZA } from '../src/world/estructuras';
 import { Mundo } from '../src/world/world';
 
 function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
@@ -35,6 +36,11 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     vidaMax: 140,
     hambre: 72,
     dificultad: 5,
+    estructuras: [
+      { tipo: FORTALEZA, tx: 812, ty: 340 },
+      { tipo: CABANA, tx: 214, ty: 96 },
+    ],
+    jefeVencido: true,
     ...parcial,
   };
 }
@@ -124,7 +130,7 @@ describe('empaquetado', () => {
   function cuerpoAntiguo(
     m: Mundo,
     e: EstadoPartida,
-    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11,
   ): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
@@ -140,6 +146,9 @@ describe('empaquetado', () => {
     // real: nadie llevaba armadura antes de que existiera.
     const campoEquipo = 2;
     const campoHardcore = 1;
+    // Cada estructura son un byte de tipo y dos enteros de coordenadas, más el
+    // contador de delante; el byte del jefe va detrás de todas.
+    const campoEstructuras = 2 + 9 * e.estructuras.length + 1;
 
     const actual = serializar(m, e);
     const inicioRle =
@@ -152,7 +161,8 @@ describe('empaquetado', () => {
       campoDificultad +
       campoVidaMax +
       campoEquipo +
-      campoHardcore;
+      campoHardcore +
+      campoEstructuras;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
@@ -164,9 +174,10 @@ describe('empaquetado', () => {
     if (version >= 8) extra += campoDificultad;
     if (version >= 9) extra += campoVidaMax;
     if (version >= 10) extra += campoEquipo;
-    // El hardcore nunca: es del formato 11, y aquí solo se construyen cuerpos
-    // anteriores. Recortarla es justo lo que hace que el lector antiguo
-    // encuentre el RLE donde lo espera.
+    if (version >= 11) extra += campoHardcore;
+    // Las estructuras nunca: son del formato 12, y aquí solo se construyen
+    // cuerpos anteriores. Recortarlas es justo lo que hace que el lector
+    // antiguo encuentre el RLE donde lo espera.
 
     const salida = new Uint8Array(comun + extra + rle.length);
     salida.set(actual.subarray(0, comun + extra), 0);
@@ -184,6 +195,19 @@ describe('empaquetado', () => {
     expect(leido.inventario).toEqual([]);
     expect(leido.semilla).toBe(e.semilla);
     expect(mundo.tileId).toEqual(m.tileId);
+  });
+
+  it('un mundo del formato 11 no tiene estructuras apuntadas', () => {
+    const m = new Mundo(4, 4);
+    m.rellenar(0, 2, 3, 3, PIEDRA);
+    const e = estado();
+
+    const { estado: leido } = deserializar(cuerpoAntiguo(m, e, 11), 11);
+    // Y es la verdad: se generó en un juego sin fortaleza, así que no hay
+    // ninguna enterrada esperando a que la brújula la encuentre.
+    expect(leido.estructuras).toEqual([]);
+    expect(leido.jefeVencido).toBe(false);
+    expect(leido.hardcore).toBe(e.hardcore);
   });
 
   it('un mundo del formato 10 no es hardcore', () => {

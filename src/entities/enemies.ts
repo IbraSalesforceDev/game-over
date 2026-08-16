@@ -1,5 +1,5 @@
 import { TILE } from '../core/constants';
-import { CARNE_CRUDA, GEL, HUESO, PLUMA } from '../items/items';
+import { CARNE_CRUDA, ESENCIA, GEL, HUESO, PLUMA, RELIQUIA } from '../items/items';
 import type { Mundo } from '../world/world';
 import { moverX, moverY, solapaSolido, type Caja } from './physics';
 import { crearSalud, golpear, tickSalud, type Salud } from './salud';
@@ -26,7 +26,8 @@ export type Especie =
   | 'esqueleto'
   | 'serpiente'
   | 'momia'
-  | 'gallina';
+  | 'gallina'
+  | 'guardian';
 
 export interface DefEnemigo {
   readonly nombre: string;
@@ -48,6 +49,12 @@ export interface DefEnemigo {
    * un conejo que te muerde por acercarte sería un enemigo con orejas.
    */
   readonly pasivo?: boolean;
+  /**
+   * Es un jefe: se invoca a mano, no desaparece por olvido y sale en la barra
+   * de arriba. No aparece en ninguna lista del generador de apariciones, así
+   * que la única forma de verlo es despertarlo.
+   */
+  readonly jefe?: boolean;
 }
 
 export const ENEMIGOS: Record<Especie, DefEnemigo> = {
@@ -199,6 +206,25 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     nocturno: false,
     pasivo: true,
   },
+  // El guardián de la fortaleza. Vuela porque un jefe que anda se esquiva
+  // subiéndose a un bloque, y la sala del altar tiene doce tiles de alto justo
+  // para que pueda usarlos. Aguanta mucho y pega fuerte, pero no de un toque:
+  // con armadura de plata quedan cinco o seis errores de margen, que es lo que
+  // convierte la pelea en una pelea y no en una tirada de dados.
+  guardian: {
+    nombre: 'guardián de la fortaleza',
+    vida: 900,
+    dano: 34,
+    ancho: 60,
+    alto: 60,
+    color: '#a37ef0',
+    colorOscuro: '#3a2a58',
+    vuela: true,
+    botin: ESENCIA,
+    botinMax: 1,
+    nocturno: false,
+    jefe: true,
+  },
   lobo: {
     nombre: 'lobo de hielo',
     vida: 50,
@@ -247,6 +273,14 @@ export interface Enemigo {
 
 const GRAVEDAD = 0.4;
 const VEL_TERMINAL = 10;
+
+/** Vida a la que el guardián se enfurece, como fracción de su máximo. */
+export const MITAD_JEFE = 0.5;
+/** Ticks entre embestidas del guardián, tranquilo y enfurecido. */
+const CICLO_EMBESTIDA = 190;
+const CICLO_EMBESTIDA_FURIOSO = 130;
+/** Ticks que dura una embestida antes de volver a flotar. */
+const TICKS_EMBESTIDA = 34;
 
 export function crearEnemigo(
   especie: Especie,
@@ -424,6 +458,33 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
       break;
     }
 
+    case 'guardian': {
+      // Dos velocidades y una embestida. En reposo flota hacia el jugador
+      // despacio, con un bamboleo que impide predecir su altura exacta; cada
+      // pocos segundos toma carrerilla y se lanza en línea recta sin corregir.
+      // Esa embestida es toda la dificultad de la pelea: se ve venir, dura
+      // poco y se esquiva apartándose, así que castiga quedarse quieto pegando
+      // sin castigar el simple hecho de estar cerca.
+      const furioso = e.salud.vida < e.salud.vidaMax * MITAD_JEFE;
+      e.fase += 0.05;
+      const ciclo = furioso ? CICLO_EMBESTIDA_FURIOSO : CICLO_EMBESTIDA;
+      const t = e.reloj % ciclo;
+      if (t === 0) {
+        const d = Math.hypot(dx, dy) || 1;
+        const impulso = furioso ? 9.5 : 7.5;
+        c.vx = (dx / d) * impulso;
+        c.vy = (dy / d) * impulso;
+      } else if (t > TICKS_EMBESTIDA) {
+        // Fuera de la embestida: acercarse sin prisa y flotar.
+        const vel = furioso ? 2.4 : 1.7;
+        c.vx += (dir * vel - c.vx) * 0.05;
+        const deseada = Math.sign(dy) * 1.1 + Math.sin(e.fase) * 0.9;
+        c.vy += (deseada - c.vy) * 0.06;
+      }
+      c.mirando = dir;
+      break;
+    }
+
     case 'murcielago': {
       // Vuelo ondulante: se acerca en horizontal y bambolea en vertical, así
       // que no cae en línea recta y cuesta darle.
@@ -550,8 +611,10 @@ export function actualizarEnemigos(
     const lejos = Math.hypot(objetivo.x - mio.x, objetivo.y - mio.y) > distanciaOlvido;
     e.olvidado = lejos ? e.olvidado + 1 : 0;
     // Un enemigo al que nadie ve durante diez segundos desaparece: si no, el
-    // mundo se llena de bichos vagando por rincones que nadie visitará.
-    if (e.olvidado > 600) {
+    // mundo se llena de bichos vagando por rincones que nadie visitará. El jefe
+    // no: se ha invocado a mano y con una ofrenda cara, y perderlo por alejarse
+    // a curarse convertiría la pelea en una broma.
+    if (e.olvidado > 600 && !ENEMIGOS[e.especie].jefe) {
       e.vivo = false;
       continue;
     }
@@ -620,6 +683,12 @@ export function danarEnemigo(e: Enemigo, dano: number, desdeX: number): boolean 
   // Menos invulnerabilidad que el jugador: si no, una espada rápida pega igual
   // que una lenta y la cadencia del arma deja de significar nada.
   golpear(e.salud, e.caja, dano, desdeX, 12);
+  // Se marca muerto aquí mismo, no al final del tick. Sin esto, un bicho
+  // rematado a espada seguía contando como vivo hasta que `actualizarEnemigos`
+  // lo recorría en el mismo tick y volvía a darlo por muerto: quien lo mató ya
+  // había repartido su botín, y el segundo pase repartía otro. Soltaba el doble
+  // de todo, y con el guardián habría soltado dos espadas.
+  if (e.salud.muerto) e.vivo = false;
   return e.salud.muerto;
 }
 
@@ -630,3 +699,31 @@ export function botinDe(especie: Especie, rng: () => number = Math.random): {
   const def = ENEMIGOS[especie];
   return { objeto: def.botin, cantidad: 1 + Math.floor(rng() * def.botinMax) };
 }
+
+/** ¿Es un jefe? */
+export function esJefe(especie: Especie): boolean {
+  return ENEMIGOS[especie].jefe === true;
+}
+
+/**
+ * Con qué probabilidad un hostil suelta la reliquia que pide el altar.
+ *
+ * Tres de cada cien. Es poco por bicho y mucho por partida: matando lo que uno
+ * mata de todas formas, la reliquia cae sola en un rato largo de juego, sin
+ * obligar a cazar una especie concreta ni a farmear un sitio. Y como el altar
+ * pide una sola, tenerla nunca es el cuello de botella —lo son los cien geles.
+ */
+export const PROBABILIDAD_RELIQUIA = 0.03;
+
+/**
+ * ¿Este muerto suelta reliquia? Solo los hostiles, y nunca los jefes: el jefe
+ * ya suelta lo suyo, y darle además la llave de sí mismo no tendría sentido.
+ */
+export function sueltaReliquia(especie: Especie, rng: () => number = Math.random): boolean {
+  const def = ENEMIGOS[especie];
+  if (def.pasivo || def.dano <= 0 || def.jefe) return false;
+  return rng() < PROBABILIDAD_RELIQUIA;
+}
+
+/** El objeto que suelta la reliquia, para que quien la reparta no lo importe. */
+export const OBJETO_RELIQUIA = RELIQUIA;

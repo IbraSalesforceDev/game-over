@@ -1,4 +1,5 @@
 import {
+  ALTAR,
   ANTORCHA,
   ARENA,
   ARENISCA,
@@ -22,6 +23,7 @@ import {
   BROTE,
   CAMA,
   CANA,
+  LADRILLO,
   GRAVA,
   HIERBA_JUNGLA,
   OBSIDIANA,
@@ -130,6 +132,11 @@ export const SEMILLAS_ZANAHORIA = 120;
 export const TRIGO = 121;
 export const PAN = 122;
 export const PLUMA = 123;
+// Bloque 5: la fortaleza, el altar y el jefe.
+export const RELIQUIA = 124;
+export const BRUJULA = 125;
+export const ESPADA_GUARDIAN = 126;
+export const ESENCIA = 127;
 
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
@@ -164,7 +171,8 @@ export type TipoObjeto =
   | 'arco'
   | 'municion'
   | 'mapa'
-  | 'semilla';
+  | 'semilla'
+  | 'brujula';
 
 /**
  * Dónde se lleva puesta una pieza de armadura.
@@ -493,6 +501,29 @@ const ENTRADAS: [number, DefObjeto][] = [
   // La zanahoria se come tal cual, sin pasar por el horno: es la comida que
   // arregla una tarde mala sin tener que montar cocina.
   comida(ZANAHORIA_3, 'zanahoria', '#e08a3a', 22, 4),
+  deTile(LADRILLO),
+  // La reliquia: lo único que sueltan los hostiles y que no sirve para nada
+  // salvo para el altar. Al 3 % cae sola mientras se juega, sin obligar a
+  // cazar un bicho concreto, y eso es justo lo que se busca: que el día que
+  // encuentres la fortaleza ya lleves una encima sin haberla ido a buscar.
+  lingote(RELIQUIA, 'reliquia antigua', '#9a6ad2'),
+  // La esencia no hace nada todavía y lo dice en su nombre. Está aquí porque
+  // el jefe tiene que soltar algo que huela a lo siguiente, y prometerlo con
+  // un objeto real es más honesto que prometerlo con un cartel.
+  lingote(ESENCIA, 'esencia del guardián (sin uso aún)', '#6fe0d0'),
+  // La espada del jefe: la única mejor que la de hierro, y la única que no se
+  // fabrica. Pega bastante más y llega más lejos, pero es igual de lenta: si
+  // además fuera rápida, todo lo anterior dejaría de tener sentido.
+  espada(ESPADA_GUARDIAN, 'espada del guardián', '#a98ae0', 40, 30, 50),
+  [
+    BRUJULA,
+    {
+      nombre: 'brújula',
+      tipo: 'brujula',
+      color: '#c8b07a',
+      maxPila: 1,
+    },
+  ],
   ...MAPAS.map((id, i): [number, DefObjeto] => [
     id,
     {
@@ -592,6 +623,11 @@ export function esMapa(id: number): boolean {
   return defObjeto(id).tipo === 'mapa';
 }
 
+/** ¿Es la brújula? Llevarla encima es lo que enseña dónde están las cosas. */
+export function esBrujula(id: number): boolean {
+  return defObjeto(id).tipo === 'brujula';
+}
+
 /**
  * Hasta dónde ve el mejor mapa de una lista de objetos, en tiles. 0 si no hay
  * ninguno; Infinity si se lleva el del mundo entero.
@@ -654,6 +690,11 @@ export function dropDeTile(tile: number): number {
   switch (tile) {
     case CRISTAL_VIDA:
       return CRISTAL;
+    // El altar no se recoge. No es un mueble que se pueda mudar: es el sitio
+    // donde despierta el guardián, y si cupiera en el zurrón se acabaría
+    // invocando al jefe en el jardín de casa. Romperlo es tirarlo.
+    case ALTAR:
+      return NADA;
     // Labrar no crea material nuevo: al romperla vuelve tierra.
     case TIERRA_LABRADA:
       return TIERRA;

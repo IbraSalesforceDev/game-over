@@ -1,4 +1,9 @@
 import { AIRE, defTile, esSolido } from '../world/tiles';
+import {
+  COLOR_ESTRUCTURA,
+  MARCA_ESTRUCTURA,
+  type Estructura,
+} from '../world/estructuras';
 import type { Mundo } from '../world/world';
 
 /**
@@ -48,7 +53,14 @@ const ESTILO = `
 
 export interface PanelMapa {
   /** Abre o cierra. Al abrir redibuja con el alcance que se le pase. */
-  alternar(mundo: Mundo, tx: number, ty: number, alcance: number, etiqueta: string): void;
+  alternar(
+    mundo: Mundo,
+    tx: number,
+    ty: number,
+    alcance: number,
+    etiqueta: string,
+    estructuras?: readonly Estructura[],
+  ): void;
   cerrar(): void;
   readonly abierto: boolean;
 }
@@ -164,7 +176,13 @@ export function crearMapa(contenedor: HTMLElement): PanelMapa {
 
   capa.addEventListener('click', () => capa.classList.remove('visible'));
 
-  function dibujar(mundo: Mundo, tx: number, ty: number, alcance: number): void {
+  function dibujar(
+    mundo: Mundo,
+    tx: number,
+    ty: number,
+    alcance: number,
+    estructuras: readonly Estructura[],
+  ): void {
     const region = regionDelMapa(mundo, tx, ty, alcance);
     const paso = pasoDeMuestreo(region.ancho, region.alto);
     const img = pintarMapa(mundo, region, paso);
@@ -188,14 +206,41 @@ export function crearMapa(contenedor: HTMLElement): PanelMapa {
     ctx.fillStyle = '#ff3b3b';
     ctx.fillRect(px - brazo, py, brazo * 2 + 1, 1);
     ctx.fillRect(px, py - brazo, 1, brazo * 2 + 1);
+
+    // Las estructuras, si la brújula las ha revelado. Un rombo con su inicial
+    // dentro: a un píxel por tile no cabe un icono, y una letra sí se lee.
+    // El rombo no se escala con el lienzo como la cruz del jugador porque
+    // puede haber varios y a partir de cierto tamaño se solapan entre ellos.
+    for (const e of estructuras) {
+      const ex = Math.floor((e.tx - region.tx0) / paso);
+      const ey = Math.floor((e.ty - region.ty0) / paso);
+      if (ex < -8 || ey < -8 || ex > img.width + 8 || ey > img.height + 8) continue;
+      const r = 6;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey - r);
+      ctx.lineTo(ex + r, ey);
+      ctx.lineTo(ex, ey + r);
+      ctx.lineTo(ex - r, ey);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(8,10,14,0.82)';
+      ctx.fill();
+      ctx.strokeStyle = COLOR_ESTRUCTURA[e.tipo] ?? '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = COLOR_ESTRUCTURA[e.tipo] ?? '#ffffff';
+      ctx.font = 'bold 7px ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(MARCA_ESTRUCTURA[e.tipo] ?? '?', ex, ey + 0.5);
+    }
   }
 
   return {
-    alternar(mundo, tx, ty, alcance, etiqueta) {
+    alternar(mundo, tx, ty, alcance, etiqueta, estructuras = []) {
       const abriendo = !capa.classList.contains('visible');
       capa.classList.toggle('visible', abriendo);
       if (!abriendo) return;
-      dibujar(mundo, tx, ty, alcance);
+      dibujar(mundo, tx, ty, alcance, estructuras);
       pie.innerHTML = `<b>${etiqueta}</b> · X ${tx} Y ${ty} · M o clic para cerrar`;
     },
     cerrar: () => capa.classList.remove('visible'),

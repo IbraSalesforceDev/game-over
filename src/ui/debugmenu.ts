@@ -54,6 +54,15 @@ export interface OpcionesDebugMenu {
   rellenarVida(): void;
   establecerVidaMaxima(v: number): void;
   vidaMaximaActual(): number;
+  /**
+   * Estructuras del mundo, para poder plantarse en ellas.
+   *
+   * Probar la fortaleza cavando hasta ella cuesta un cuarto de hora por
+   * intento, y la mitad de las veces se pasa de largo. Con esto se llega en un
+   * clic, que es exactamente para lo que existe este panel.
+   */
+  estructuras(): readonly { nombre: string; tx: number; ty: number }[];
+  viajarA(tx: number, ty: number): void;
 }
 
 const ESTILO = `
@@ -224,6 +233,12 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       <button id="dbg-generar">Generar</button>
     </div>
 
+    <h4>Estructuras</h4>
+    <div class="fila">
+      <select id="dbg-estructura"></select>
+      <button id="dbg-viajar">Ir</button>
+    </div>
+
     <div class="pie">P + F3 para abrir y cerrar. No aparece en los controles.</div>
   `;
   contenedor.appendChild(panel);
@@ -242,6 +257,24 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   const danoVal = $('dbg-dano-val');
   const vidaMax = $<HTMLInputElement>('dbg-vidamax');
   const selEspecie = $<HTMLSelectElement>('dbg-especie');
+  const selEstructura = $<HTMLSelectElement>('dbg-estructura');
+
+  /**
+   * Rellena la lista de destinos.
+   *
+   * Se rehace cada vez que se abre el panel y no una sola vez al crearlo: el
+   * menú se construye durante el arranque, cuando la partida todavía se está
+   * montando, y una lista pintada entonces saldría vacía para siempre.
+   */
+  function refrescarEstructuras(): void {
+    const lista = op.estructuras();
+    selEstructura.innerHTML = lista
+      .map((e, i) => `<option value="${i}">${e.nombre} · ${e.tx}, ${e.ty}</option>`)
+      .join('');
+    if (lista.length === 0) {
+      selEstructura.innerHTML = '<option value="-1">este mundo no tiene</option>';
+    }
+  }
 
   function pintarIcono(): void {
     iconos.pintarEn(iconoObjeto, Number(selObjeto.value));
@@ -278,6 +311,11 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   dano.addEventListener('input', () => {
     op.trucos.danoMultiplicador = Number(dano.value);
     danoVal.textContent = `×${dano.value}`;
+  });
+  $('dbg-viajar').addEventListener('click', () => {
+    const i = Number(selEstructura.value);
+    const destino = op.estructuras()[i];
+    if (destino) op.viajarA(destino.tx, destino.ty);
   });
   $('dbg-aplicar-vida').addEventListener('click', () => {
     op.establecerVidaMaxima(Math.max(20, Number(vidaMax.value) || 100));
@@ -321,6 +359,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     clave.classList.remove('mal');
     puerta.classList.remove('visible');
     panel.classList.add('visible');
+    refrescarEstructuras();
   }
 
   puerta.querySelector('#dbg-entrar')!.addEventListener('click', probar);
@@ -337,7 +376,9 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   return {
     alternar() {
       if (desbloqueado) {
-        panel.classList.toggle('visible');
+        const abriendo = !panel.classList.contains('visible');
+        panel.classList.toggle('visible', abriendo);
+        if (abriendo) refrescarEstructuras();
         return;
       }
       const abriendo = !puerta.classList.contains('visible');

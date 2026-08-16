@@ -16,6 +16,7 @@ import {
   TRONCO_JUNGLA,
   esSolido,
   HIERBA,
+  MADERA,
   MINERALES,
   NIEVE,
   PIEDRA,
@@ -167,7 +168,13 @@ describe('generación de mundo', () => {
     const { mundo, superficie } = generarMundo(OP);
     let conPared = 0;
     for (let tx = 5; tx < mundo.ancho - 5; tx += 13) {
-      expect(mundo.getPared(tx, superficie[tx]! - 2)).toBe(AIRE);
+      // El terreno no pone pared por encima de su superficie. Lo construido
+      // sí: una cabaña es una habitación, y una habitación sin pared de fondo
+      // se ve como un marco de tablones flotando en el cielo. La excepción es
+      // la madera, y solo la madera, para que esto siga detectando el día que
+      // la generación empiece a empapelar el aire por su cuenta.
+      const arriba = mundo.getPared(tx, superficie[tx]! - 2);
+      expect(arriba === AIRE || arriba === MADERA).toBe(true);
       if (mundo.getPared(tx, superficie[tx]! + 20) !== AIRE) conPared++;
     }
     expect(conPared).toBeGreaterThan(0);

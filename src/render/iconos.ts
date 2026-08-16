@@ -7,12 +7,15 @@ import {
   defObjeto,
   esArma,
   esAzada,
+  esBrujula,
   esColocable,
   esCristal,
   esHerramienta,
   esMapa,
   esPala,
+  ESENCIA,
   FLECHA,
+  RELIQUIA,
   huecoDe,
   type Hueco,
   IDS_OBJETO,
@@ -324,6 +327,56 @@ function mapaIcono(nivel: number): Dibujo {
 
 const ICONOS_MAPA: readonly Dibujo[] = [1, 2, 3, 4, 5].map(mapaIcono);
 
+/** Brújula: caja redonda, rosa de los vientos y aguja roja al norte. */
+const brujulaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const caja = tono(color, 26, 34);
+  elipse(ctx, ox + 10, oy + 10, 9, 9, caja.oscuro);
+  elipse(ctx, ox + 10, oy + 10, 7.5, 7.5, caja.base);
+  elipse(ctx, ox + 10, oy + 10, 6, 6, '#20283a');
+  // Las cuatro marcas cardinales.
+  px(ctx, ox + 10, oy + 4, 1, 2, caja.claro);
+  px(ctx, ox + 10, oy + 15, 1, 2, caja.claro);
+  px(ctx, ox + 4, oy + 10, 2, 1, caja.claro);
+  px(ctx, ox + 15, oy + 10, 2, 1, caja.claro);
+  // Aguja: mitad roja arriba, mitad blanca abajo, en diagonal para que no se
+  // confunda con el eje de la caja.
+  for (let i = 0; i < 4; i++) px(ctx, ox + 10 - i, oy + 7 + i, 1, 1, '#d94f4f');
+  for (let i = 0; i < 4; i++) px(ctx, ox + 10 + i, oy + 11 - i, 1, 1, '#e8eef6');
+  px(ctx, ox + 10, oy + 10, 1, 1, '#ffd66b');
+};
+
+/**
+ * Reliquia: un disco grabado y partido.
+ *
+ * La grieta es lo que la separa de una moneda. Es un objeto que solo sirve
+ * para ponerlo en un altar, y tiene que parecer viejo antes que valioso.
+ */
+const reliquiaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 32, 40);
+  elipse(ctx, ox + 10, oy + 10, 8, 8, t.oscuro);
+  elipse(ctx, ox + 10, oy + 10, 6.5, 6.5, t.base);
+  elipse(ctx, ox + 10, oy + 10, 3, 3, t.claro);
+  elipse(ctx, ox + 10, oy + 10, 1.5, 1.5, '#1b1230');
+  // Grieta: una línea quebrada que cruza el disco.
+  px(ctx, ox + 12, oy + 3, 1, 3, '#1b1230');
+  px(ctx, ox + 13, oy + 6, 1, 3, '#1b1230');
+  px(ctx, ox + 12, oy + 9, 1, 4, '#1b1230');
+  px(ctx, ox + 6, oy + 6, 1, 1, t.claro);
+};
+
+/** Esencia: un frasco con una luz dentro que no se sabe para qué sirve. */
+const esenciaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 34, 40);
+  const vidrio = tono('#9fc8d8', 26, 30);
+  px(ctx, ox + 8, oy + 2, 4, 3, vidrio.base);
+  px(ctx, ox + 7, oy + 1, 6, 2, vidrio.claro);
+  bloque(ctx, ox + 5, oy + 5, 10, 13, vidrio);
+  px(ctx, ox + 6, oy + 8, 8, 9, t.base);
+  px(ctx, ox + 6, oy + 8, 8, 2, t.claro);
+  elipse(ctx, ox + 10, oy + 12, 2.5, 2.5, '#f0fffb');
+  px(ctx, ox + 6, oy + 6, 1, 10, 'rgba(255,255,255,0.55)');
+};
+
 /** Elige el dibujo que le toca a cada objeto. */
 function dibujoDe(id: number): Dibujo {
   if (id === ANTORCHA) return antorchaIcono;
@@ -333,6 +386,9 @@ function dibujoDe(id: number): Dibujo {
   if (esMapa(id)) return ICONOS_MAPA[Math.min(4, (defObjeto(id).nivelMapa ?? 1) - 1)]!;
   if (id === ARCO) return arcoIcono;
   if (id === FLECHA) return flechaIcono;
+  if (esBrujula(id)) return brujulaIcono;
+  if (id === RELIQUIA) return reliquiaIcono;
+  if (id === ESENCIA) return esenciaIcono;
   const hueco = huecoDe(id);
   if (hueco) return ICONOS_ARMADURA[hueco];
   if (esPala(id)) return palaIcono;
