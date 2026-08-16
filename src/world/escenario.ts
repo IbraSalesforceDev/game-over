@@ -1,4 +1,5 @@
 import { DIFICULTADES, DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
+import { hay, indiceVersion, VERSION_ACTUAL } from '../core/versiones';
 import { buscarSpawn, generarMundoPasos, TAMANOS, type NombreTamano } from './gen/worldgen';
 import { semillaAleatoria } from './gen/rng';
 import type { DatosCofre } from './contenedores';
@@ -42,6 +43,8 @@ export interface OpcionesEscenario {
   lab: boolean;
   semilla: string;
   tamano: NombreTamano;
+  /** Versión del juego con la que se crea el mundo. */
+  version?: string;
   /** Minuto del día con el que empieza un mundo nuevo, o null para el normal. */
   minutos: number | null;
   /** Columna donde aparecer, o null para el centro del mundo. */
@@ -59,6 +62,11 @@ export interface OpcionesEscenario {
 export interface OpcionesArranque extends OpcionesEscenario {
   dificultad: number;
   hardcore: boolean;
+}
+
+/** Versión de la URL. Un id que no exista cae en la actual. */
+export function leerVersion(texto: string | null): string {
+  return texto && indiceVersion(texto) >= 0 ? texto : VERSION_ACTUAL;
 }
 
 /** Dificultad de la URL. Fuera de rango o ilegible, la de siempre. */
@@ -91,13 +99,19 @@ export function leerOpciones(busqueda: string): OpcionesArranque {
     columna: Number.isFinite(columna) && columna > 0 ? Math.floor(columna) : null,
     dificultad: leerDificultad(p.get('dif')),
     hardcore: p.get('hardcore') === '1',
+    version: leerVersion(p.get('version')),
   };
 }
 
 export function* prepararEscenario(
   op: OpcionesEscenario,
 ): Generator<{ pct: number; texto: string }, Escenario, void> {
-  if (op.lab) {
+  // Antes de 1.3.0 no había generación de mundo: lo que había era el
+  // laboratorio de físicas hecho a mano, y sigue estando en el código. Elegir
+  // 1.0.0, 1.1.0 o 1.2.0 abre exactamente eso, que es lo más parecido a la
+  // verdad que se puede ofrecer sin inventarse un mundo que nunca existió.
+  const version = op.version ?? VERSION_ACTUAL;
+  if (op.lab || !hay('mundoGenerado', version)) {
     yield { pct: 50, texto: 'Montando el laboratorio…' };
     const nivel = crearNivelPruebas();
     return {
@@ -117,6 +131,7 @@ export function* prepararEscenario(
     ancho: tam.ancho,
     alto: tam.alto,
     semilla: op.semilla,
+    version,
   });
 
   const [spawnTx, spawnTy] =

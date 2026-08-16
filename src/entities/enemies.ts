@@ -1,4 +1,5 @@
 import { TILE } from '../core/constants';
+import { alMenos } from '../core/versiones';
 import { CARNE_CRUDA, ESENCIA, GEL, HUESO, PLUMA, RELIQUIA } from '../items/items';
 import type { Mundo } from '../world/world';
 import { moverX, moverY, solapaSolido, type Caja } from './physics';
@@ -55,10 +56,13 @@ export interface DefEnemigo {
    * que la única forma de verlo es despertarlo.
    */
   readonly jefe?: boolean;
+  /** Versión en la que apareció esta especie. */
+  readonly desde: string;
 }
 
 export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   slime: {
+    desde: '2.0.0',
     nombre: 'slime',
     vida: 25,
     dano: 12,
@@ -72,6 +76,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     nocturno: false,
   },
   zombi: {
+    desde: '2.0.0',
     nombre: 'zombi',
     vida: 45,
     dano: 18,
@@ -85,6 +90,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     nocturno: true,
   },
   murcielago: {
+    desde: '2.0.0',
     nombre: 'murciélago',
     vida: 20,
     dano: 10,
@@ -102,6 +108,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   // y el lobo hace daño de verdad. Que cada bioma tenga su amenaza es lo que
   // hace que cruzarlos se note.
   escarabajo: {
+    desde: '2.1.0',
     nombre: 'escarabajo',
     vida: 40,
     dano: 14,
@@ -118,6 +125,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   // Sueltan comida y no hacen daño. El conejo es rápido y da poco; el jabalí
   // aguanta más y da de comer para un buen rato, pero hay que perseguirlo.
   conejo: {
+    desde: '2.3.0',
     nombre: 'conejo',
     vida: 12,
     dano: 0,
@@ -132,6 +140,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     pasivo: true,
   },
   jabali: {
+    desde: '2.3.0',
     nombre: 'jabalí',
     vida: 38,
     dano: 0,
@@ -149,6 +158,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   // El esqueleto vive abajo y es el que hace que bajar sin espada decente sea
   // mala idea: pega fuerte y aguanta. Suelta hueso, que es lo que pide el altar.
   esqueleto: {
+    desde: '3.0.0',
     nombre: 'esqueleto',
     vida: 55,
     dano: 20,
@@ -164,6 +174,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   // La serpiente es baja y rápida: por debajo de la espada si no se apunta al
   // suelo, que es justo la razón de que el mandoble se pueda apuntar.
   serpiente: {
+    desde: '3.0.0',
     nombre: 'serpiente',
     vida: 22,
     dano: 16,
@@ -178,6 +189,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   },
   // La momia es el zombi del desierto: más lenta, más dura, y de día también.
   momia: {
+    desde: '3.0.0',
     nombre: 'momia',
     vida: 70,
     dano: 24,
@@ -193,6 +205,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   // La gallina existe por las plumas: sin ellas no hay flechas de verdad, y
   // atarlas a un animal que hay que perseguir es mejor que dejarlas en un cofre.
   gallina: {
+    desde: '3.2.0',
     nombre: 'gallina',
     vida: 8,
     dano: 0,
@@ -212,6 +225,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   // con armadura de plata quedan cinco o seis errores de margen, que es lo que
   // convierte la pelea en una pelea y no en una tirada de dados.
   guardian: {
+    desde: '4.0.0',
     nombre: 'guardián de la fortaleza',
     vida: 900,
     dano: 34,
@@ -226,6 +240,7 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     jefe: true,
   },
   lobo: {
+    desde: '2.1.0',
     nombre: 'lobo de hielo',
     vida: 50,
     dano: 22,
@@ -698,6 +713,11 @@ export function botinDe(especie: Especie, rng: () => number = Math.random): {
 } {
   const def = ENEMIGOS[especie];
   return { objeto: def.botin, cantidad: 1 + Math.floor(rng() * def.botinMax) };
+}
+
+/** ¿Existía esta especie en esta versión del juego? */
+export function especieExisteEn(especie: Especie, versionMundo: string): boolean {
+  return alMenos(versionMundo, ENEMIGOS[especie].desde);
 }
 
 /** ¿Es un jefe? */

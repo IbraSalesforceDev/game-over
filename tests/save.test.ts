@@ -7,6 +7,7 @@ import {
   empaquetar,
   HORA_POR_DEFECTO,
   serializar,
+  VERSION_ANTES_DE_ELEGIR,
   VERSION_FORMATO,
   type EstadoPartida,
 } from '../src/world/save';
@@ -41,6 +42,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
       { tipo: CABANA, tx: 214, ty: 96 },
     ],
     jefeVencido: true,
+    versionJuego: '4.0.0',
     ...parcial,
   };
 }
@@ -130,7 +132,7 @@ describe('empaquetado', () => {
   function cuerpoAntiguo(
     m: Mundo,
     e: EstadoPartida,
-    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
   ): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
@@ -149,6 +151,8 @@ describe('empaquetado', () => {
     // Cada estructura son un byte de tipo y dos enteros de coordenadas, más el
     // contador de delante; el byte del jefe va detrás de todas.
     const campoEstructuras = 2 + 9 * e.estructuras.length + 1;
+    // El texto de la versión va con su longitud delante, como la semilla.
+    const campoVersionJuego = 2 + new TextEncoder().encode(e.versionJuego).length;
 
     const actual = serializar(m, e);
     const inicioRle =
@@ -162,7 +166,8 @@ describe('empaquetado', () => {
       campoVidaMax +
       campoEquipo +
       campoHardcore +
-      campoEstructuras;
+      campoEstructuras +
+      campoVersionJuego;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
@@ -175,8 +180,9 @@ describe('empaquetado', () => {
     if (version >= 9) extra += campoVidaMax;
     if (version >= 10) extra += campoEquipo;
     if (version >= 11) extra += campoHardcore;
-    // Las estructuras nunca: son del formato 12, y aquí solo se construyen
-    // cuerpos anteriores. Recortarlas es justo lo que hace que el lector
+    if (version >= 12) extra += campoEstructuras;
+    // La versión del juego nunca: es del formato 13, y aquí solo se construyen
+    // cuerpos anteriores. Recortarla es justo lo que hace que el lector
     // antiguo encuentre el RLE donde lo espera.
 
     const salida = new Uint8Array(comun + extra + rle.length);
@@ -195,6 +201,18 @@ describe('empaquetado', () => {
     expect(leido.inventario).toEqual([]);
     expect(leido.semilla).toBe(e.semilla);
     expect(mundo.tileId).toEqual(m.tileId);
+  });
+
+  it('un mundo del formato 12 se abre como la última versión que hubo', () => {
+    const m = new Mundo(4, 4);
+    m.rellenar(0, 2, 3, 3, PIEDRA);
+    const e = estado();
+
+    const { estado: leido } = deserializar(cuerpoAntiguo(m, e, 12), 12);
+    // Se creó con todo lo que había entonces, así que abrirlo como más antiguo
+    // le quitaría cosas que sí tiene enterradas.
+    expect(leido.versionJuego).toBe(VERSION_ANTES_DE_ELEGIR);
+    expect(leido.estructuras).toEqual(e.estructuras);
   });
 
   it('un mundo del formato 11 no tiene estructuras apuntadas', () => {

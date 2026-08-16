@@ -73,6 +73,15 @@ export class Particulas {
   private siguiente = 0;
   private vivas = 0;
 
+  /**
+   * Apagarlas del todo.
+   *
+   * Un mundo anterior a 2.2.0 no tenía partículas, y la forma honesta de
+   * jugarlo es sin ellas. Se apaga aquí, en la puerta, en vez de rodear con un
+   * `if` las veinte llamadas a `emitir` repartidas por el bucle.
+   */
+  habilitadas = true;
+
   constructor() {
     for (let i = 0; i < TOPE; i++) this.pool.push(vacia());
   }
@@ -82,6 +91,7 @@ export class Particulas {
   }
 
   emitir(x: number, y: number, op: OpcionesEmision): void {
+    if (!this.habilitadas) return;
     const {
       cantidad,
       color,

@@ -2,6 +2,16 @@ import { DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
 import { migrarId } from '../items/items';
 import type { DatosCofre } from './contenedores';
 import type { Estructura, TipoEstructura } from './estructuras';
+
+/**
+ * Con qué versión se abre un mundo que no la lleva apuntada.
+ *
+ * Es la última que hubo antes de que la versión se pudiera elegir: cualquier
+ * mundo guardado con el formato 12 o anterior se creó con todo el contenido de
+ * entonces, así que abrirlo como más antiguo le quitaría cosas que sí tiene
+ * enterradas.
+ */
+export const VERSION_ANTES_DE_ELEGIR = '4.1.0';
 import { Mundo } from './world';
 
 /**
@@ -48,8 +58,18 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       mundos anteriores se abren sin ninguna estructura apuntada, que es la
  *       verdad: se generaron en un juego donde la fortaleza no existía, así
  *       que tampoco está enterrada esperando a que la brújula la encuentre.
+ *  13 — se añade la versión del juego con la que se creó el mundo. Los mundos
+ *       anteriores se abren como 4.1.0, que es la última que hubo antes de que
+ *       se pudiera elegir: es la única respuesta correcta, porque se crearon
+ *       con todo lo que había entonces.
+ *
+ * Ojo con no confundir los dos números. Este `VERSION_FORMATO` describe cómo
+ * está escrito el fichero; la versión del juego describe con qué reglas se
+ * generó el mundo. Suben por separado y por motivos distintos: un arreglo del
+ * empaquetado sube el formato sin tocar el juego, y una tanda de contenido
+ * sube el juego sin tocar el formato.
  */
-export const VERSION_FORMATO = 12;
+export const VERSION_FORMATO = 13;
 
 export interface EstadoJugador {
   x: number;
@@ -101,6 +121,13 @@ export interface EstadoPartida {
   estructuras: readonly Estructura[];
   /** Ya se ha vencido al guardián al menos una vez; formato 12. */
   jefeVencido: boolean;
+  /**
+   * Versión del juego con la que se creó el mundo; formato 13.
+   *
+   * No cambia nunca: es lo que decide qué existe en esta partida. Actualizar
+   * un mundo a una versión más nueva es otro asunto y todavía no se hace.
+   */
+  versionJuego: string;
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -313,6 +340,8 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
     e.u32(Math.max(0, Math.round(s.ty)));
   }
   e.u8(estado.jefeVencido ? 1 : 0);
+  // Formato 13: la versión del juego. Al final del cuerpo, como todo lo nuevo.
+  e.texto(estado.versionJuego);
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -364,6 +393,9 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     hardcoreMuerto: false,
     estructuras: [],
     jefeVencido: false,
+    // Un mundo sin versión apuntada es de antes de que se pudieran elegir, así
+    // que se creó con todo lo que había: la última anterior a este formato.
+    versionJuego: VERSION_ANTES_DE_ELEGIR,
   };
   if (version >= 3) {
     const n = l.u16();
@@ -413,6 +445,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     estado.estructuras = lista;
     estado.jefeVencido = l.u8() === 1;
   }
+  if (version >= 13) estado.versionJuego = l.texto();
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

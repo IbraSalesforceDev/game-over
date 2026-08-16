@@ -169,6 +169,12 @@ export interface OpcionesBarra {
    * la pila del puntero desapareciera sin más.
    */
   alSoltarAlMundo?(objeto: number, cantidad: number): void;
+  /** Versión del mundo: decide qué recetas se ven. */
+  version?: string;
+  /** ¿Existe la armadura en esta versión? Si no, el panel de equipo no sale. */
+  conEquipo?: boolean;
+  /** ¿Existe la ficha de objeto en esta versión? */
+  conFicha?: boolean;
 }
 
 /** Etiqueta gris que se ve en cada hueco vacío del equipo. */
@@ -370,7 +376,7 @@ export function crearBarra(
     return destino instanceof HTMLElement ? destino.closest('[data-objeto]') : null;
   }
 
-  contenedor.addEventListener('pointerover', (e) => {
+  if (opciones.conFicha !== false) contenedor.addEventListener('pointerover', (e) => {
     const el = anclaDe(e.target);
     const id = Number(el?.dataset.objeto ?? 0);
     if (el && id > 0) ficha.mostrar(id, el);
@@ -412,9 +418,9 @@ export function crearBarra(
     lista.className = 'lista';
     panelCrafteo.appendChild(lista);
 
-    const recetas = recetasVisibles(estaciones);
+    const recetas = recetasVisibles(estaciones, opciones.version);
     for (const receta of recetas) {
-      const puede = sePuedeCraftear(inventario, receta, estaciones);
+      const puede = sePuedeCraftear(inventario, receta, estaciones, opciones.version);
       const fila = document.createElement('div');
       fila.className = `receta${puede ? '' : ' no'}`;
       // La ficha también sale sobre las recetas, y ahí es donde más falta
@@ -445,7 +451,7 @@ export function crearBarra(
         fila.addEventListener('pointerdown', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (craftear(inventario, receta, opciones.estaciones())) {
+          if (craftear(inventario, receta, opciones.estaciones(), opciones.version)) {
             pintar();
             opciones.alCambiar();
             opciones.alFabricar?.();
@@ -525,7 +531,8 @@ export function crearBarra(
   function abrirPaneles(v: boolean): void {
     abierto = v;
     panel.classList.toggle('abierto', v);
-    panelEquipo.classList.toggle('abierto', v);
+    // Antes de 3.0.0 no había armadura: el panel no se abre porque no existe.
+    panelEquipo.classList.toggle('abierto', v && opciones.conEquipo !== false);
     panelCrafteo.classList.toggle('abierto', v);
     if (!v) {
       soltarMano();

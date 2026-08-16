@@ -15,7 +15,14 @@ import {
   NIEVE,
 } from '../world/tiles';
 import type { Mundo } from '../world/world';
-import { crearEnemigo, ENEMIGOS, type Enemigo, type Especie } from './enemies';
+import { hay, VERSION_ACTUAL } from '../core/versiones';
+import {
+  crearEnemigo,
+  ENEMIGOS,
+  especieExisteEn,
+  type Enemigo,
+  type Especie,
+} from './enemies';
 import type { Caja } from './physics';
 
 /**
@@ -73,6 +80,8 @@ export interface ContextoAparicion {
   luzEn?: (tx: number, ty: number) => number;
   /** Dificultad del mundo. Sin ella, normal. */
   dif?: NivelDificultad;
+  /** Versión del mundo. Sin ella, la actual: sale todo. */
+  version?: string;
 }
 
 /** ¿Esta especie viene a hacer daño? Los animales, no. */
@@ -109,7 +118,11 @@ export function especiesPosibles(
   // En pacífico no sale nada que pueda hacer daño, ni en la superficie ni en el
   // fondo de la cueva más honda. Se filtra al final, sobre la lista que tocase,
   // para no tener que mantener una segunda tabla de biomas sin hostiles.
-  const lista = especiesDelSitio(ctx, tyJugador);
+  const v = ctx.version ?? VERSION_ACTUAL;
+  // Antes de 2.0.0 no había bichos de ninguna clase: el juego era construir y
+  // nada más, y llenarlo de conejos sería inventarse una versión que no fue.
+  if (!hay('combate', v)) return [];
+  const lista = especiesDelSitio(ctx, tyJugador).filter((e) => especieExisteEn(e, v));
   const dif = ctx.dif ?? dificultad(DIFICULTAD_POR_DEFECTO);
   return hayHostiles(dif) ? lista : lista.filter((e) => !esHostil(e));
 }

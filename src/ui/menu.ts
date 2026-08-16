@@ -3,6 +3,13 @@ import {
   DIFICULTADES,
   DIFICULTAD_POR_DEFECTO,
 } from '../core/dificultad';
+import {
+  hay,
+  NOMBRE_ETAPA,
+  version,
+  VERSIONES,
+  VERSION_ACTUAL,
+} from '../core/versiones';
 import type { MetaMundo, SaveAdapter } from '../world/almacen';
 import { semillaAleatoria } from '../world/gen/rng';
 import { TAMANOS, type NombreTamano } from '../world/gen/worldgen';
@@ -23,6 +30,8 @@ export type Eleccion =
       nombre: string;
       dificultad: number;
       hardcore: boolean;
+      /** Versión del juego con la que se crea el mundo. */
+      version: string;
     }
   | { tipo: 'cargar'; meta: MetaMundo };
 
@@ -68,6 +77,21 @@ const ESTILO = `
   width: 100%; margin-top: 8px; color: #8b98a8; font-size: 10px; line-height: 1.6;
 }
 #menu .resumen-dif b { color: #e8b64c; font-weight: normal; }
+#menu .resumen-version {
+  width: 100%; margin-top: 10px; padding: 10px 12px;
+  background: #101720; border: 1px solid #26313d;
+  color: #8b98a8; font-size: 10px; line-height: 1.6;
+}
+#menu .resumen-version .cabeza {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
+}
+#menu .resumen-version b { color: #e8b64c; font-weight: normal; font-size: 11px; }
+#menu .resumen-version .etapa {
+  color: #6d7a8a; letter-spacing: .12em; text-transform: uppercase; font-size: 9px;
+}
+#menu .resumen-version ul { margin: 6px 0 0 14px; color: #7f8c9b; }
+#menu .resumen-version li { margin-bottom: 2px; }
+#menu .aviso-version { margin-top: 7px; color: #b08a4a; }
 #menu .aviso-dif { color: #b08a4a; }
 #menu label.hardcore {
   flex-direction: row; align-items: center; gap: 6px; padding-bottom: 7px;
@@ -173,6 +197,23 @@ export function mostrarMenu(
       // La dificultad se fija al crear el mundo y ya no se toca: por eso se
       // explica aquí en una línea, y no en un menú de opciones donde nadie la
       // leería hasta después de morir.
+      // --- Versión ---
+      //
+      // Va la primera de las opciones porque es la que manda sobre las demás:
+      // en un mundo de 1.4.0 no hay dificultad que elegir ni hardcore que
+      // marcar, porque ninguna de las dos existía todavía.
+      const lVersion = document.createElement('label');
+      lVersion.textContent = 'Versión';
+      const sVersion = document.createElement('select');
+      for (const v of [...VERSIONES].reverse()) {
+        const op = document.createElement('option');
+        op.value = v.id;
+        op.textContent = `${v.id} · ${v.nombre}`;
+        sVersion.appendChild(op);
+      }
+      sVersion.value = VERSION_ACTUAL;
+      lVersion.appendChild(sVersion);
+
       const lDif = document.createElement('label');
       lDif.textContent = 'Dificultad';
       const sDif = document.createElement('select');
@@ -195,20 +236,45 @@ export function mostrarMenu(
       textoHardcore.textContent = 'Hardcore';
       lHardcore.append(iHardcore, textoHardcore);
 
+      const resumenVersion = document.createElement('div');
+      resumenVersion.className = 'resumen-version';
+
       const resumenDif = document.createElement('div');
       resumenDif.className = 'resumen-dif';
       const pintarResumen = (): void => {
+        const v = version(sVersion.value);
+        const conDif = hay('dificultad', v.id);
+        const conHc = hay('hardcore', v.id);
+        // Lo que la versión no tiene no se enseña en gris: se esconde. Un
+        // desplegable de dificultad apagado obliga a preguntarse por qué está
+        // ahí, y la respuesta —"porque en 1.4.0 no existía"— cabe mejor en la
+        // lista de cambios que en un control muerto.
+        lDif.style.display = conDif ? '' : 'none';
+        lHardcore.style.display = conHc ? '' : 'none';
+
+        const cambios = v.cambios.map((c) => `<li>${c}</li>`).join('');
+        const sello = v.id === VERSION_ACTUAL ? ' · la más nueva' : '';
+        resumenVersion.innerHTML =
+          `<div class="cabeza"><b>${v.id} ${v.nombre}</b>` +
+          `<span class="etapa">${NOMBRE_ETAPA[v.etapa]}${sello}</span></div>` +
+          `<div>${v.resumen}</div><ul>${cambios}</ul>` +
+          (v.id === VERSION_ACTUAL
+            ? ''
+            : '<div class="aviso-version">Reconstrucción: el motor es el de hoy; ' +
+              'lo que cambia es qué hay en el mundo.</div>');
+
         const d = dificultad(Number(sDif.value));
         const extra =
           d.id >= 7
             ? ' <span class="aviso-dif">No se puede cambiar después.</span>'
             : '';
-        const hc = iHardcore.checked
+        const hc = iHardcore.checked && conHc
           ? ' <span class="aviso-dif">Hardcore: al morir, el mundo se cierra.</span>'
           : '';
-        resumenDif.innerHTML = `<b>${d.nombre}</b> — ${d.resumen}${extra}${hc}`;
+        resumenDif.innerHTML = conDif ? `<b>${d.nombre}</b> — ${d.resumen}${extra}${hc}` : '';
       };
       pintarResumen();
+      sVersion.addEventListener('change', pintarResumen);
       sDif.addEventListener('change', pintarResumen);
       iHardcore.addEventListener('change', pintarResumen);
 
@@ -221,12 +287,28 @@ export function mostrarMenu(
           semilla: iSemilla.value.trim() || semillaAleatoria(),
           tamano: sTam.value as NombreTamano,
           nombre: iNombre.value.trim() || 'Mi mundo',
-          dificultad: Number(sDif.value),
-          hardcore: iHardcore.checked,
+          // Lo que la versión no tenía no se manda, aunque el control guarde
+          // su último valor: un mundo de 1.4.0 en hardcore sería un mundo con
+          // una regla que en 1.4.0 no existía.
+          dificultad: hay('dificultad', sVersion.value)
+            ? Number(sDif.value)
+            : DIFICULTAD_POR_DEFECTO,
+          hardcore: hay('hardcore', sVersion.value) && iHardcore.checked,
+          version: sVersion.value,
         }),
       );
 
-      campos.append(lNombre, lSemilla, lTam, lDif, lHardcore, crear, resumenDif);
+      campos.append(
+        lNombre,
+        lSemilla,
+        lTam,
+        lVersion,
+        lDif,
+        lHardcore,
+        crear,
+        resumenVersion,
+        resumenDif,
+      );
       caja.appendChild(campos);
 
       // --- Mundos guardados ---
@@ -266,7 +348,7 @@ export function mostrarMenu(
         const detalle = document.createElement('div');
         detalle.className = 'detalle';
         detalle.textContent =
-          `${meta.ancho}×${meta.alto} · semilla ${meta.semilla} · ` +
+          `v${meta.versionJuego ?? '?'} · ${meta.ancho}×${meta.alto} · semilla ${meta.semilla} · ` +
           `${duracion(meta.jugado)} jugados · ${peso(meta.bytes)} · ${fecha(meta.modificado)}`;
         datos.append(nombre, detalle);
 

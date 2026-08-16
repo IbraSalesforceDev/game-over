@@ -1,11 +1,12 @@
 import { TICK, TILE } from './core/constants';
 import { dificultad, DIFICULTAD_POR_DEFECTO } from './core/dificultad';
+import { hay, VERSION_ACTUAL, type Caracteristica } from './core/versiones';
 import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
 import { AMANECER, Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
 import { crearAudio } from './engine/audio';
-import { crearAjustes } from './ui/ajustes';
+import { crearAjustes, type Graficos } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
 import { crearMapa } from './ui/mapa';
 import { crearBrujula } from './ui/brujula';
@@ -15,6 +16,7 @@ import { crearDebugMenu, crearTrucos } from './ui/debugmenu';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
+import { ARMADURA_DESNUDA } from './render/sprites';
 import { Renderer, type Objetivo } from './render/renderer';
 import { crearAviso } from './ui/aviso';
 import { crearBarra } from './ui/hotbar';
@@ -224,6 +226,7 @@ async function generar(
   tamano: NombreTamano,
   lab: boolean,
   columna: number | null = null,
+  version: string = VERSION_ACTUAL,
 ): Promise<{
   mundo: Mundo;
   spawnTx: number;
@@ -233,7 +236,7 @@ async function generar(
   estructuras: Estructura[];
   cofres: DatosCofre[];
 }> {
-  const it = prepararEscenario({ lab, semilla, tamano, minutos: null, columna });
+  const it = prepararEscenario({ lab, semilla, tamano, minutos: null, columna, version });
   let paso = it.next();
   while (!paso.done) {
     progreso(paso.value.pct, paso.value.texto);
@@ -250,6 +253,7 @@ function partidaNueva(
   minutos = HORA_POR_DEFECTO,
   nivel = DIFICULTAD_POR_DEFECTO,
   hardcore = false,
+  versionJuego = VERSION_ACTUAL,
 ): Partida {
   return {
     mundo: gen.mundo,
@@ -284,6 +288,7 @@ function partidaNueva(
       hardcoreMuerto: false,
       estructuras: gen.estructuras,
       jefeVencido: false,
+      versionJuego,
     },
   };
 }
@@ -300,7 +305,7 @@ async function elegirPartida(
   // Con ?lab=1 o ?semilla= se entra directo: son enlaces para probar y para
   // compartir un mundo concreto, y pasar por el menú solo estorbaría.
   if (op.lab || params.has('semilla')) {
-    const gen = await generar(op.semilla, op.tamano, op.lab, op.columna);
+    const gen = await generar(op.semilla, op.tamano, op.lab, op.columna, op.version);
     return partidaNueva(
       gen,
       op.lab ? 'Laboratorio' : `Semilla ${op.semilla}`,
@@ -308,6 +313,7 @@ async function elegirPartida(
       op.minutos ?? HORA_POR_DEFECTO,
       op.dificultad,
       op.hardcore,
+      op.version,
     );
   }
 
@@ -317,7 +323,13 @@ async function elegirPartida(
   await siguienteFrame();
 
   if (eleccion.tipo === 'nuevo') {
-    const gen = await generar(eleccion.semilla, eleccion.tamano, false, op.columna);
+    const gen = await generar(
+      eleccion.semilla,
+      eleccion.tamano,
+      false,
+      op.columna,
+      eleccion.version,
+    );
     return partidaNueva(
       gen,
       eleccion.nombre,
@@ -325,6 +337,7 @@ async function elegirPartida(
       op.minutos ?? HORA_POR_DEFECTO,
       eleccion.dificultad,
       eleccion.hardcore,
+      eleccion.version,
     );
   }
 
@@ -370,6 +383,17 @@ async function arrancar(): Promise<void> {
   jugador.spawnX = partida.estado.jugador.spawnX;
   jugador.spawnY = partida.estado.jugador.spawnY;
   renderer.camara.centrar(jugador.caja.x, jugador.caja.y, mundo.ancho, mundo.alto);
+
+  /**
+   * Qué existe en este mundo.
+   *
+   * Se lee una vez de la partida y ya no cambia: la versión es del mundo, como
+   * la semilla y la dificultad. Todo lo que este bloque enciende o apaga pasa
+   * por aquí, así que buscar `tiene(` es la forma de ver de un vistazo qué se
+   * comporta distinto según la versión.
+   */
+  const versionMundo = partida.estado.versionJuego;
+  const tiene = (q: Caracteristica): boolean => hay(q, versionMundo);
 
   const ajustes: Ajustes = { ...AJUSTES_POR_DEFECTO };
   const debug = crearEstadoDebug();
@@ -417,10 +441,27 @@ async function arrancar(): Promise<void> {
   panelVida.refrescarHambre(hambre);
   const aviso = crearAviso(capaUI);
   const audio = crearAudio();
-  const opciones = crearAjustes(capaUI, audio, (g) => renderer.aplicarGraficos(g));
+  // Antes de 2.2.0 el juego era mudo. Se apaga en la puerta y no en cada
+  // llamada: hay veinte `audio.sonar` repartidos por el bucle.
+  if (!tiene('audio')) audio.sonar = () => {};
+  particulas.habilitadas = tiene('particulas');
+
+  /**
+   * Los gráficos, ya con la versión aplicada.
+   *
+   * Antes de 1.5.0 no había iluminación: el mundo se veía entero y a plena luz,
+   * cuevas incluidas. Se consigue subiendo el suelo de luz al máximo, que es
+   * exactamente lo que era entonces —no había buffer de luz que multiplicar.
+   */
+  const graficosDeLaVersion = (g: Graficos): Graficos =>
+    tiene('luz') ? g : { ...g, oscuridad: 255 };
+
+  const opciones = crearAjustes(capaUI, audio, (g) =>
+    renderer.aplicarGraficos(graficosDeLaVersion(g)),
+  );
   // Los ajustes guardados se aplican al arrancar, no solo al tocarlos: si no,
   // quien eligió jugar a ×2 vería la primera partida a otro zoom cada vez.
-  renderer.aplicarGraficos(opciones.graficos);
+  renderer.aplicarGraficos(graficosDeLaVersion(opciones.graficos));
   const ayuda = crearAyuda(capaUI);
   const mapa = crearMapa(capaUI);
   const brujula = crearBrujula(capaUI);
@@ -475,7 +516,9 @@ async function arrancar(): Promise<void> {
     },
   });
   const pausa = crearPausa(capaUI, {
-    nombre: partida.nombre,
+    // La versión va pegada al nombre: es lo que explica por qué en este mundo
+    // no hay selva, y el sitio donde uno lo pregunta es el menú de pausa.
+    nombre: `${partida.nombre} · v${versionMundo}`,
     alReanudar: () => {},
     alAbrirControles: () => ayuda.alternar(),
     alAbrirOpciones: () => opciones.alternar(),
@@ -502,6 +545,9 @@ async function arrancar(): Promise<void> {
   let capa: Capa = partida.estado.capaPared ? 'pared' : 'bloque';
   const objetivo: Objetivo = { tx: 0, ty: 0, valido: false, visible: false, capa };
   const barra = crearBarra(capaUI, inventario, equipo, {
+    version: versionMundo,
+    conEquipo: tiene('armadura'),
+    conFicha: tiene('fichaObjeto'),
     alCambiar: () => reiniciarPicado(picado),
     estaciones: () => estacionesCerca(mundo, jugador.caja),
     alFabricar: () => audio.sonar('craftear'),
@@ -555,6 +601,7 @@ async function arrancar(): Promise<void> {
         jugado: partida.estado.jugado,
         bytes: bytes.length,
         version: VERSION_FORMATO,
+        versionJuego: partida.estado.versionJuego,
         hardcore: partida.estado.hardcore,
         caido: partida.estado.hardcoreMuerto,
       };
@@ -608,6 +655,10 @@ async function arrancar(): Promise<void> {
       if (r.cantidad > 0) mejor = Math.max(mejor, alcanceDeMapa(r.objeto));
     }
     const completo = trucos.mapaCompleto;
+    if (!tiene('mapas') && !completo) {
+      aviso.mostrar(`Los mapas no existen en la versión ${versionMundo}`);
+      return;
+    }
     if (mejor <= 0 && !completo) {
       aviso.mostrar('No llevas ningún mapa');
       return;
@@ -679,6 +730,7 @@ async function arrancar(): Promise<void> {
 
   /** ¿Se lleva una brújula encima? Es lo que enciende la aguja y el mapa. */
   function llevaBrujula(): boolean {
+    if (!tiene('brujula')) return false;
     return inventario.ranuras.some((r) => r.cantidad > 0 && esBrujula(r.objeto));
   }
 
@@ -978,10 +1030,13 @@ async function arrancar(): Promise<void> {
     // El hambre gasta más si se está haciendo algo: correr, saltar o picar.
     const activo =
       Math.abs(jugador.caja.vx) > 0.6 || !jugador.caja.enSuelo || picado.progreso > 0;
-    const rh = tickHambre(hambre, salud, jugador.caja, activo, nivelDif.hambre, nivelDif.castigo);
-    if (rh.curado || rh.danado) panelVida.refrescar(salud);
-    if (rh.danado) aviso.mostrar('Tienes hambre', true);
-    panelVida.refrescarHambre(hambre);
+    // Antes de 2.3.0 no se comía: la barra ni se mueve ni se enseña.
+    if (tiene('hambre')) {
+      const rh = tickHambre(hambre, salud, jugador.caja, activo, nivelDif.hambre, nivelDif.castigo);
+      if (rh.curado || rh.danado) panelVida.refrescar(salud);
+      if (rh.danado) aviso.mostrar('Tienes hambre', true);
+      panelVida.refrescarHambre(hambre);
+    }
 
     // El golpe activo alcanza a quien toque, una vez por mandoble.
     const r = resolverGolpe(golpe, jugador.caja, enemigos, trucos.danoMultiplicador);
@@ -1122,6 +1177,7 @@ async function arrancar(): Promise<void> {
         bioma: biomaEn(mundo, txJugador, tyJugador),
         luzEn: (tx, ty) => motorLuz.luzEstimada(tx, ty, reloj.luzSolar),
         dif: nivelDif,
+        version: versionMundo,
       });
     }
 
@@ -1146,7 +1202,8 @@ async function arrancar(): Promise<void> {
 
     const enMano = barra.objetoActivo();
     const tileEnMano = defObjeto(enMano).tile;
-    const nivel = nivelEnMano(enMano);
+    // Antes de 3.0.0 cualquier pico rompía cualquier cosa: no había niveles.
+    const nivel = tiene('nivelesHerramienta') ? nivelEnMano(enMano) : Infinity;
     // La potencia depende del tile al que se apunta, no solo de la mano: es
     // lo que separa una pala de un pico rápido.
     const tileApuntado = capa === 'bloque' ? mundo.getTile(tx, ty) : mundo.getPared(tx, ty);
@@ -1375,7 +1432,11 @@ async function arrancar(): Promise<void> {
         // El material lo pone el tile, no la herramienta: picar un tronco con
         // el pico de oro sigue sonando a madera.
         const material = materialDe(capa === 'bloque' ? mundo.getTile(tx, ty) : mundo.getPared(tx, ty));
-        if (picado.progreso > 0) audio.sonar(`picar-${material}`, 0.85 + Math.random() * 0.35);
+        // Hasta 4.1.0 todo sonaba igual, con una sola voz para picar y otra
+        // para romper.
+        const vozPicar = tiene('audioPorMaterial') ? (`picar-${material}` as const) : 'picar';
+        const vozRomper = tiene('audioPorMaterial') ? (`romper-${material}` as const) : 'romper';
+        if (picado.progreso > 0) audio.sonar(vozPicar, 0.85 + Math.random() * 0.35);
         if (picado.progreso > 0 && Math.random() < 0.35) {
           particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
             cantidad: 1,
@@ -1403,7 +1464,7 @@ async function arrancar(): Promise<void> {
             tam: 3,
           });
           sacudir(0.9);
-          audio.sonar(`romper-${material}`, 0.88 + Math.random() * 0.28);
+          audio.sonar(vozRomper, 0.88 + Math.random() * 0.28);
           soltar(drops, soltado, tx, ty);
           if (soltado === COFRE) cofres.borrar(tx, ty);
           const abierto = barra.cofreAbierto;
@@ -1430,7 +1491,7 @@ async function arrancar(): Promise<void> {
     // saltarse el día sería saltarse el juego.
     if (puntero.der && !derAnterior && mundo.getTile(tx, ty) === CAMA) {
       derAnterior = puntero.der;
-      if (!enAlcance(jugador.caja, tx, ty)) return;
+      if (!tiene('camas') || !enAlcance(jugador.caja, tx, ty)) return;
       if (!reloj.esNoche) {
         aviso.mostrar('Solo se duerme de noche');
         return;
@@ -1451,7 +1512,7 @@ async function arrancar(): Promise<void> {
     // mano es la espada, no el hueso.
     if (puntero.der && !derAnterior && mundo.getTile(tx, ty) === ALTAR) {
       derAnterior = puntero.der;
-      if (!enAlcance(jugador.caja, tx, ty)) return;
+      if (!tiene('jefe') || !enAlcance(jugador.caja, tx, ty)) return;
       invocarJefe(tx, ty);
       return;
     }
@@ -1499,6 +1560,7 @@ async function arrancar(): Promise<void> {
    * sería pagar por nada.
    */
   function actualizarLiquidos(): number {
+    if (!tiene('liquidos')) return 0;
     const antes = liquidos.pendientes;
     liquidos.paso();
     // Una colada apagada deja obsidiana: hay que repintar el chunk y rehacer la
@@ -1566,7 +1628,7 @@ async function arrancar(): Promise<void> {
 
     // Daño de caída. Va con el aterrizaje porque es el mismo suceso: el polvo
     // y el golpe salen de la misma altura.
-    if (!enSueloAntes && c.enSuelo) {
+    if (!enSueloAntes && c.enSuelo && tiene('danoCaida')) {
       const dano = Math.round(danoDeCaida(c.ultimaCaida) * nivelDif.castigo);
       if (dano > 0 && golpear(salud, c, dano, c.x + c.ancho / 2, 30, false, 'caida')) {
         panelVida.refrescar(salud);
@@ -1711,7 +1773,8 @@ async function arrancar(): Promise<void> {
 
   const bucle = crearBucle(
     () => {
-      reloj.avanzar(TICK);
+      // Antes de 1.5.0 no había ciclo: el sol no se movía de mediodía.
+      if (tiene('diaNoche')) reloj.avanzar(TICK);
       if (esperaAvisoPico > 0) esperaAvisoPico--;
       if (esperaAvisoFlechas > 0) esperaAvisoFlechas--;
       if (esperaAvisoSiembra > 0) esperaAvisoSiembra--;
@@ -1723,7 +1786,7 @@ async function arrancar(): Promise<void> {
       efectosDelJugador(enSueloAntes, sumergido);
       sumergidoAhora = sumergido;
       actualizarDrops();
-      actualizarCultivos();
+      if (tiene('cultivos')) actualizarCultivos();
       actualizarCombate();
       particulas.actualizar(mundo);
       if (opciones.sacudidaActiva) renderer.camara.tickSacudida();
@@ -1754,7 +1817,8 @@ async function arrancar(): Promise<void> {
         particulas,
         sumergido: sumergidoAhora,
         enMano: barra.objetoActivo(),
-        armadura: coloresEquipo(equipo),
+        // Hasta 4.1.0 la armadura se llevaba pero no se veía.
+        armadura: tiene('armaduraVisible') ? coloresEquipo(equipo) : ARMADURA_DESNUDA,
       bioma: biomaEn(
         mundo,
         Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),

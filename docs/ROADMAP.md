@@ -1,5 +1,15 @@
 # Plan de trabajo — Juego sandbox 2D estilo Terraria
 
+
+---
+
+> **Nota (4.2.0).** Este documento es historia: describe el plan por fases y
+> bloques con el que se construyó el juego, y se conserva porque explica *por
+> qué* está hecho como está. A partir de la 4.2.0 no hay fases ni bloques: hay
+> versiones, y viven en [`VERSIONES.md`](VERSIONES.md) y en
+> `src/core/versiones.ts`.
+
+
 ## Contexto
 
 El repo `IbraSalesforceDev/game-over` está vacío (solo un `README.md` de una línea, un commit, rama `claude/terraria-game-plan-4ib6ix`). El objetivo es construir un juego sandbox 2D de tiles inspirado en Terraria, desplegado en Vercel como el resto de tus juegos (`green-war-nostalgy`, `random-game-me`, etc.: SPAs estáticas Vite + TypeScript, canvas a pantalla completa, UI en español, pantalla de carga y panel de error).

@@ -1,4 +1,5 @@
 import { TILE } from '../core/constants';
+import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
 import { ANTORCHA, ARENA, CAMA, CANA, COBRE, esEstacion, HIERRO, HORNO, LADRILLO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
@@ -70,6 +71,14 @@ import {
 export interface Receta {
   /** Identificador estable, por si algún día hay que guardarlas. */
   readonly id: string;
+  /**
+   * Versión en la que apareció.
+   *
+   * Sin esto, un mundo de 1.7.0 podría fabricar un arco: la receta existe en
+   * el código de hoy y el código de hoy es el que corre. Es la diferencia
+   * entre elegir versión de verdad y elegirla de adorno.
+   */
+  readonly desde?: string;
   readonly ingredientes: readonly (readonly [objeto: number, cantidad: number])[];
   readonly resultado: number;
   readonly cantidad: number;
@@ -81,6 +90,7 @@ export const RECETAS: readonly Receta[] = [
   // --- A mano ---
   {
     id: 'antorchas',
+    desde: '1.5.0',
     ingredientes: [[MADERA, 1]],
     resultado: ANTORCHA,
     cantidad: 3,
@@ -88,6 +98,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'mesa',
+    desde: '1.7.0',
     ingredientes: [[MADERA, 10]],
     resultado: MESA,
     cantidad: 1,
@@ -98,6 +109,7 @@ export const RECETAS: readonly Receta[] = [
   // es lo que convierte matar bichos en algo útil y no solo en sobrevivir.
   {
     id: 'antorchas-gel',
+    desde: '2.0.0',
     ingredientes: [
       [MADERA, 1],
       [GEL, 1],
@@ -110,6 +122,7 @@ export const RECETAS: readonly Receta[] = [
   // --- Mesa de trabajo ---
   {
     id: 'plataformas',
+    desde: '1.7.0',
     ingredientes: [[MADERA, 1]],
     resultado: PLATAFORMA,
     cantidad: 2,
@@ -117,6 +130,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'cofre',
+    desde: '1.7.0',
     ingredientes: [[MADERA, 8]],
     resultado: COFRE,
     cantidad: 1,
@@ -124,6 +138,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'horno',
+    desde: '1.7.0',
     ingredientes: [[PIEDRA, 20]],
     resultado: HORNO,
     cantidad: 1,
@@ -131,6 +146,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'espada-madera',
+    desde: '2.0.0',
     ingredientes: [[MADERA, 7]],
     resultado: ESPADA_MADERA,
     cantidad: 1,
@@ -141,6 +157,7 @@ export const RECETAS: readonly Receta[] = [
   // pico de madera y la piedra está literalmente bajo los pies.
   {
     id: 'pico-madera',
+    desde: '1.7.0',
     ingredientes: [[MADERA, 12]],
     resultado: PICO_MADERA,
     cantidad: 1,
@@ -148,6 +165,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'pico-piedra',
+    desde: '3.0.0',
     ingredientes: [
       [PIEDRA, 20],
       [MADERA, 5],
@@ -158,6 +176,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'espada-piedra',
+    desde: '3.0.0',
     ingredientes: [
       [PIEDRA, 14],
       [MADERA, 4],
@@ -171,6 +190,7 @@ export const RECETAS: readonly Receta[] = [
   // sin más opción que la espada.
   {
     id: 'arco',
+    desde: '3.0.0',
     ingredientes: [[MADERA, 14]],
     resultado: ARCO,
     cantidad: 1,
@@ -179,6 +199,7 @@ export const RECETAS: readonly Receta[] = [
   // Cinco por tirada: una a una, fabricar munición sería el juego entero.
   {
     id: 'flechas',
+    desde: '3.0.0',
     ingredientes: [
       [MADERA, 1],
       [PIEDRA, 1],
@@ -191,6 +212,7 @@ export const RECETAS: readonly Receta[] = [
   // que se paga con lo que sobra de la primera noche que se aguanta despierto.
   {
     id: 'cama',
+    desde: '3.2.0',
     ingredientes: [
       [MADERA, 12],
       [GEL, 8],
@@ -203,6 +225,7 @@ export const RECETAS: readonly Receta[] = [
   // grava del río valga la pena.
   {
     id: 'flechas-pedernal',
+    desde: '3.2.0',
     ingredientes: [
       [MADERA, 1],
       [PEDERNAL, 1],
@@ -215,6 +238,7 @@ export const RECETAS: readonly Receta[] = [
   // tarde de perseguir gallinas en un carcaj lleno.
   {
     id: 'flechas-pluma',
+    desde: '3.2.0',
     ingredientes: [
       [MADERA, 1],
       [PEDERNAL, 1],
@@ -226,6 +250,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'yunque',
+    desde: '1.7.0',
     ingredientes: [[LINGOTE_HIERRO, 5]],
     resultado: YUNQUE,
     cantidad: 1,
@@ -235,6 +260,7 @@ export const RECETAS: readonly Receta[] = [
   // --- Horno: fundir mineral ---
   {
     id: 'pan',
+    desde: '3.2.0',
     ingredientes: [[TRIGO, 3]],
     resultado: PAN,
     cantidad: 1,
@@ -242,6 +268,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'carne-asada',
+    desde: '2.3.0',
     ingredientes: [[CARNE_CRUDA, 1]],
     resultado: CARNE_ASADA,
     cantidad: 1,
@@ -251,6 +278,7 @@ export const RECETAS: readonly Receta[] = [
   // mismo gesto que fundir mineral.
   {
     id: 'vidrio',
+    desde: '3.2.0',
     ingredientes: [[ARENA, 2]],
     resultado: VIDRIO,
     cantidad: 1,
@@ -261,6 +289,7 @@ export const RECETAS: readonly Receta[] = [
   // convertiría la fortaleza en una cantera. Así se puede construir con él.
   {
     id: 'ladrillo',
+    desde: '4.0.0',
     ingredientes: [[PIEDRA, 2]],
     resultado: LADRILLO,
     cantidad: 2,
@@ -268,6 +297,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'lingote-cobre',
+    desde: '1.7.0',
     ingredientes: [[COBRE, 3]],
     resultado: LINGOTE_COBRE,
     cantidad: 1,
@@ -275,6 +305,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'lingote-hierro',
+    desde: '1.7.0',
     ingredientes: [[HIERRO, 3]],
     resultado: LINGOTE_HIERRO,
     cantidad: 1,
@@ -282,6 +313,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'lingote-plata',
+    desde: '3.0.0',
     ingredientes: [[PLATA, 4]],
     resultado: LINGOTE_PLATA,
     cantidad: 1,
@@ -289,6 +321,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'lingote-oro',
+    desde: '3.0.0',
     ingredientes: [[ORO, 4]],
     resultado: LINGOTE_ORO,
     cantidad: 1,
@@ -298,6 +331,7 @@ export const RECETAS: readonly Receta[] = [
   // --- Yunque: herramientas ---
   {
     id: 'pico-cobre',
+    desde: '1.7.0',
     ingredientes: [
       [LINGOTE_COBRE, 10],
       [MADERA, 4],
@@ -308,6 +342,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'pico-hierro',
+    desde: '1.7.0',
     ingredientes: [
       [LINGOTE_HIERRO, 12],
       [MADERA, 4],
@@ -318,6 +353,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'espada-cobre',
+    desde: '2.0.0',
     ingredientes: [
       [LINGOTE_COBRE, 8],
       [MADERA, 3],
@@ -328,6 +364,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'espada-hierro',
+    desde: '2.0.0',
     ingredientes: [
       [LINGOTE_HIERRO, 10],
       [MADERA, 3],
@@ -340,6 +377,7 @@ export const RECETAS: readonly Receta[] = [
   // se pueden mover cavando, y la lava no se puede tocar en absoluto.
   {
     id: 'cubo',
+    desde: '2.1.0',
     ingredientes: [[LINGOTE_HIERRO, 3]],
     resultado: CUBO,
     cantidad: 1,
@@ -349,6 +387,7 @@ export const RECETAS: readonly Receta[] = [
   // es una mejora, es la otra mitad del par.
   {
     id: 'pala-hierro',
+    desde: '3.0.0',
     ingredientes: [
       [LINGOTE_HIERRO, 9],
       [MADERA, 4],
@@ -359,6 +398,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'azada',
+    desde: '3.0.0',
     ingredientes: [
       [LINGOTE_COBRE, 4],
       [MADERA, 5],
@@ -372,6 +412,7 @@ export const RECETAS: readonly Receta[] = [
   // tiene que llegar cuando ya se ha bajado a la caverna, no antes.
   {
     id: 'brujula',
+    desde: '4.0.0',
     ingredientes: [
       [LINGOTE_HIERRO, 5],
       [LINGOTE_ORO, 1],
@@ -382,6 +423,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'pico-plata',
+    desde: '3.0.0',
     ingredientes: [
       [LINGOTE_PLATA, 12],
       [MADERA, 4],
@@ -392,6 +434,7 @@ export const RECETAS: readonly Receta[] = [
   },
   {
     id: 'pico-oro',
+    desde: '3.0.0',
     ingredientes: [
       [LINGOTE_ORO, 12],
       [MADERA, 4],
@@ -417,6 +460,7 @@ function mapas(): Receta[] {
   const salida: Receta[] = [
     {
       id: 'papel',
+    desde: '3.0.0',
       ingredientes: [[CANA, 3]],
       resultado: PAPEL,
       cantidad: 2,
@@ -424,6 +468,7 @@ function mapas(): Receta[] {
     },
     {
       id: 'mapa-1',
+      desde: '3.0.0',
       ingredientes: [[PAPEL, 2]],
       resultado: MAPAS[0]!,
       cantidad: 1,
@@ -433,6 +478,7 @@ function mapas(): Receta[] {
   for (let i = 1; i < MAPAS.length; i++) {
     salida.push({
       id: `mapa-${i + 1}`,
+      desde: '3.0.0',
       ingredientes: [
         [MAPAS[i - 1]!, 1],
         [PAPEL, 2],
@@ -473,6 +519,8 @@ function armaduras(): Receta[] {
     coste.forEach(([pieza, cuantos], i) => {
       salida.push({
         id: `${pieza}-${metal}`,
+        // Las cinco piezas llegaron a la vez, con la armadura entera.
+        desde: pieza === 'botas' || pieza === 'guantes' ? '3.2.0' : '3.0.0',
         ingredientes: [[lingoteId, cuantos]],
         resultado: ids[i]!,
         cantidad: 1,
@@ -516,8 +564,13 @@ export function sePuedeCraftear(
   inv: Inventario,
   receta: Receta,
   estaciones: ReadonlySet<number>,
+  versionMundo: string = VERSION_ACTUAL,
 ): boolean {
-  return estacionDisponible(receta, estaciones) && tieneIngredientes(inv, receta);
+  return (
+    estacionDisponible(receta, estaciones) &&
+    existeEn(receta, versionMundo) &&
+    tieneIngredientes(inv, receta)
+  );
 }
 
 /**
@@ -525,8 +578,18 @@ export function sePuedeCraftear(
  * pueden pagar todavía, en gris: saber que existe un pico de hierro es lo que
  * te empuja a bajar a por hierro.
  */
-export function recetasVisibles(estaciones: ReadonlySet<number>): Receta[] {
-  return RECETAS.filter((r) => estacionDisponible(r, estaciones));
+export function recetasVisibles(
+  estaciones: ReadonlySet<number>,
+  versionMundo: string = VERSION_ACTUAL,
+): Receta[] {
+  return RECETAS.filter(
+    (r) => estacionDisponible(r, estaciones) && existeEn(r, versionMundo),
+  );
+}
+
+/** ¿Esta receta ya existía en esta versión del juego? */
+export function existeEn(receta: Receta, versionMundo: string): boolean {
+  return receta.desde === undefined || alMenos(versionMundo, receta.desde);
 }
 
 /**
@@ -538,8 +601,9 @@ export function craftear(
   inv: Inventario,
   receta: Receta,
   estaciones: ReadonlySet<number>,
+  versionMundo: string = VERSION_ACTUAL,
 ): boolean {
-  if (!sePuedeCraftear(inv, receta, estaciones)) return false;
+  if (!sePuedeCraftear(inv, receta, estaciones, versionMundo)) return false;
   if (!inv.cabe(receta.resultado, receta.cantidad)) return false;
 
   for (const [objeto, n] of receta.ingredientes) {

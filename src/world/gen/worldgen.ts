@@ -38,6 +38,7 @@ import {
   NIEVE_B,
   type MapaBiomas,
 } from './biomas';
+import { hay, VERSION_ACTUAL, type Caracteristica } from '../../core/versiones';
 import { fractal1D, fractal2D, ruido1D } from './noise';
 import { crearRngRico, semillaDeTexto, type Rng } from './rng';
 
@@ -77,6 +78,16 @@ export interface OpcionesGen {
   alto: number;
   /** Semilla en texto; se convierte a entero. */
   semilla: string;
+  /**
+   * Versión del juego con la que se crea el mundo.
+   *
+   * Decide qué existe: un mundo de 2.1.0 no tiene selva ni fortaleza porque
+   * entonces no las había. Se pasa aquí y no se consulta desde un global
+   * porque la generación tiene que seguir siendo una función de sus
+   * argumentos: dos llamadas con la misma semilla y la misma versión dan el
+   * mismo mundo, y eso es lo que sostiene los tests.
+   */
+  version?: string;
 }
 
 export interface Progreso {
@@ -134,10 +145,15 @@ export function* generarMundoPasos(
   const rng = crearRngRico(semilla);
   const mundo = new Mundo(op.ancho, op.alto);
   const c = capas(op.alto);
+  const v = op.version ?? VERSION_ACTUAL;
+  const tiene = (q: Caracteristica): boolean => hay(q, v);
 
   // --- 1. Relieve y capas -------------------------------------------------
   yield { pct: 5, texto: 'Levantando el relieve…' };
-  const biomas = generarBiomas(op.ancho, semilla, rng);
+  const permitidos: number[] = [];
+  if (tiene('biomasSecos')) permitidos.push(DESIERTO, NIEVE_B);
+  if (tiene('biomasNuevos')) permitidos.push(JUNGLA);
+  const biomas = generarBiomas(op.ancho, semilla, rng, permitidos);
   const superficie = new Int32Array(op.ancho);
   for (let tx = 0; tx < op.ancho; tx++) {
     superficie[tx] = alturaSuperficie(tx, op, semilla);
@@ -145,7 +161,7 @@ export function* generarMundoPasos(
   // El desierto es una hondonada y la nieve una meseta: hundir y levantar el
   // relieve por bioma hace que se noten desde lejos, antes de pisarlos.
   suavizarRelievePorBioma(superficie, biomas);
-  levantarMontanas(superficie, biomas, rng);
+  if (tiene('montanas')) levantarMontanas(superficie, biomas, rng);
   rellenarCapas(mundo, superficie, biomas, c, semilla);
 
   // --- 2. Cuevas ----------------------------------------------------------
@@ -158,34 +174,36 @@ export function* generarMundoPasos(
   yield { pct: 60, texto: 'Abriendo galerías…' };
   cavarGusanos(mundo, superficie, c, rng);
 
-  pelarCumbres(mundo, superficie, biomas);
+  if (tiene('montanas')) pelarCumbres(mundo, superficie, biomas);
 
   // --- 3. Minerales -------------------------------------------------------
   yield { pct: 72, texto: 'Sembrando minerales…' };
-  sembrarMinerales(mundo, superficie, c, rng, biomas);
-  sembrarCristales(mundo, superficie, c, rng);
+  sembrarMinerales(mundo, superficie, c, rng, biomas, tiene('biomasNuevos'));
+  if (tiene('cristalesVida')) sembrarCristales(mundo, superficie, c, rng);
 
   // --- 4. Líquidos --------------------------------------------------------
   //
   // Antes de vestir la superficie: los lagos cambian el relieve al excavarse, y
   // la hierba y los árboles tienen que ver el terreno ya con su orilla.
   yield { pct: 80, texto: 'Llenando lagos y coladas…' };
-  llenarLiquidos(mundo, superficie, biomas, c, rng);
+  if (tiene('liquidos')) llenarLiquidos(mundo, superficie, biomas, c, rng, tiene('mares'));
   // Después del agua, no antes: la mitad de la grava va en el fondo de los
   // lagos y los mares, y antes de llenarlos no hay fondo que forrar.
-  sembrarGrava(mundo, superficie, c, rng, biomas);
+  if (tiene('grava')) sembrarGrava(mundo, superficie, c, rng, biomas);
 
   // --- 5. Superficie ------------------------------------------------------
   yield { pct: 88, texto: 'Plantando el bosque…' };
   vestirSuperficie(mundo, superficie, biomas, rng, semilla);
-  plantarCanas(mundo, superficie, rng);
+  if (tiene('cana')) plantarCanas(mundo, superficie, rng);
 
   // --- 6. Estructuras -----------------------------------------------------
   //
   // Las últimas, y no por casualidad: una sala construida antes de los lagos se
   // inunda, y una cabaña puesta antes de los árboles acaba con un roble dentro.
   yield { pct: 92, texto: 'Levantando la fortaleza…' };
-  const construido = levantarEstructuras(mundo, superficie, c.caverna, c.fondo, rng);
+  const construido = tiene('estructuras')
+    ? levantarEstructuras(mundo, superficie, c.caverna, c.fondo, rng)
+    : { estructuras: [], cofres: [] };
 
   // --- 7. Bordes y remate -------------------------------------------------
   yield { pct: 96, texto: 'Cerrando los bordes…' };
@@ -540,6 +558,7 @@ function sembrarMinerales(
   c: Capas,
   rng: Rng,
   biomas: MapaBiomas,
+  porBioma: boolean,
 ): void {
   const receta = [
     { id: COBRE, desde: 0.06, hasta: 0.55, densidad: 0.055, tamano: [6, 16] },
@@ -570,7 +589,7 @@ function sembrarMinerales(
         // veta que cae en el bioma equivocado se reintenta unas cuantas veces
         // antes de plantarse igual, así que se puede encontrar todo en todas
         // partes, pero bajar por el sitio adecuado se nota.
-        if (intento < 16 && !rng.suerte(pesoDeBioma(veta.id, biomas[cx]!))) continue;
+        if (porBioma && intento < 16 && !rng.suerte(pesoDeBioma(veta.id, biomas[cx]!))) continue;
         tx0 = cx;
         ty0 = cy;
         break;
@@ -1015,6 +1034,7 @@ function llenarLiquidos(
   biomas: MapaBiomas,
   c: Capas,
   rng: Rng,
+  conMares: boolean,
 ): void {
   // --- Lagos de superficie ---
   //
@@ -1048,7 +1068,7 @@ function llenarLiquidos(
   // lago grande: lo que lo hace mar es la playa —se entra andando— y que se
   // vea de lado a lado de la pantalla. Va después de los lagos para poder
   // pisarlos si coinciden: dos masas de agua solapadas se derraman.
-  const mares = Math.max(1, Math.floor(mundo.ancho / 900));
+  const mares = conMares ? Math.max(1, Math.floor(mundo.ancho / 900)) : 0;
   for (let i = 0; i < mares; i++) {
     for (let intento = 0; intento < 220; intento++) {
       const tx = rng.entero(60, mundo.ancho - 61);

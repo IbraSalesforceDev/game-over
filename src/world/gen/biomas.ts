@@ -29,7 +29,21 @@ export type MapaBiomas = Uint8Array;
 /** Mitad del mundo, en fracción, que queda reservada al bosque inicial. */
 const RESERVA_CENTRO = 0.16;
 
-export function generarBiomas(ancho: number, semilla: number, rng: Rng): MapaBiomas {
+/**
+ * Genera las franjas de bioma.
+ *
+ * `permitidos` dice qué biomas existen en este mundo. Es la puerta por la que
+ * entra la versión elegida al crear la partida: un mundo de 2.1.0 tiene
+ * desierto y nieve pero no selva, y en vez de tener dos generadores de biomas
+ * —uno viejo y uno nuevo, que habría que arreglar dos veces— se le pasa la
+ * lista y las franjas que no valgan sencillamente no se colocan.
+ */
+export function generarBiomas(
+  ancho: number,
+  semilla: number,
+  rng: Rng,
+  permitidos: readonly number[] = [DESIERTO, NIEVE_B, JUNGLA],
+): MapaBiomas {
   const mapa = new Uint8Array(ancho);
   const centro = ancho / 2;
 
@@ -49,6 +63,9 @@ export function generarBiomas(ancho: number, semilla: number, rng: Rng): MapaBio
     // trecho de bosque, para que nunca queden dos biomas pegados.
     let borde = centro * RESERVA_CENTRO * 2;
     for (const tipo of tipos) {
+      // Se sortean el ancho y el hueco aunque la franja no se vaya a colocar:
+      // así la semilla sigue dando el mismo mundo salvo por lo que falta, en
+      // vez de descolocarlo entero por una banda de menos.
       const anchoBanda = Math.floor(ancho * rng.rango(0.1, 0.16));
       const hueco = Math.floor(ancho * rng.rango(0.02, 0.05));
       borde += hueco;
@@ -56,6 +73,7 @@ export function generarBiomas(ancho: number, semilla: number, rng: Rng): MapaBio
         ? Math.floor(centro - borde - anchoBanda)
         : Math.floor(centro + borde);
       borde += anchoBanda;
+      if (!permitidos.includes(tipo)) continue;
 
       for (let tx = 0; tx < anchoBanda; tx++) {
         // El borde se desdibuja con ruido: los últimos tiles de arena se meten

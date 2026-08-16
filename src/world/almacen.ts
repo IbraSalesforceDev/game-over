@@ -20,7 +20,16 @@ export interface MetaMundo {
   jugado: number;
   /** Tamaño del blob guardado. */
   bytes: number;
+  /** Versión del formato del fichero. No es la del juego. */
   version: number;
+  /**
+   * Versión del juego con la que se creó el mundo.
+   *
+   * En la ficha y no solo dentro del guardado porque el menú tiene que poder
+   * decirla sin abrir el mundo entero. Opcional para que las fichas escritas
+   * antes de que se pudiera elegir se sigan leyendo.
+   */
+  versionJuego?: string;
   /**
    * Mundo hardcore, y si ya se murió en él.
    *
