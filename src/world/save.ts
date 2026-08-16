@@ -39,8 +39,10 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *   9 — se añade la vida máxima, que ya no es fija: los cristales de vida la
  *       suben. Los mundos anteriores se abren con los cinco corazones de
  *       siempre.
+ *  10 — se añade la armadura puesta. Los mundos anteriores se abren desnudos,
+ *       que es como se guardaron.
  */
-export const VERSION_FORMATO = 9;
+export const VERSION_FORMATO = 10;
 
 export interface EstadoJugador {
   x: number;
@@ -63,6 +65,8 @@ export interface EstadoPartida {
   minutos: number;
   /** Ranuras del inventario como pares (objeto, cantidad); formato 3. */
   inventario: readonly (readonly [number, number])[];
+  /** Las tres ranuras de armadura puesta; formato 10. */
+  equipo: readonly (readonly [number, number])[];
   /** Contenido de los cofres del mundo; formato 4. */
   cofres: readonly DatosCofre[];
   /** Vida del jugador; formato 5. 0 significa "al máximo". */
@@ -268,6 +272,13 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   e.u16(Math.max(0, Math.round(estado.hambre))); // formato 7
   e.u8(Math.max(0, Math.min(255, Math.round(estado.dificultad)))); // formato 8
   e.u16(Math.max(0, Math.round(estado.vidaMax))); // formato 9
+  // Formato 10: la armadura. Va con su longitud por delante, igual que el
+  // inventario, para poder añadir un cuarto hueco sin subir de versión.
+  e.u16(estado.equipo.length);
+  for (const [objeto, cantidad] of estado.equipo) {
+    e.u16(objeto);
+    e.u16(Math.min(65535, cantidad));
+  }
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -309,6 +320,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     // El campo de la hora no existe en el formato 1: esos mundos amanecen.
     minutos: version >= 2 ? l.u16() : HORA_POR_DEFECTO,
     inventario: [],
+    equipo: [],
     cofres: [],
     vida: 0,
     vidaMax: 0,
@@ -343,6 +355,12 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   if (version >= 7) estado.hambre = l.u16();
   if (version >= 8) estado.dificultad = l.u8();
   if (version >= 9) estado.vidaMax = l.u16();
+  if (version >= 10) {
+    const n = l.u16();
+    const ranuras: [number, number][] = [];
+    for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
+    estado.equipo = ranuras;
+  }
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

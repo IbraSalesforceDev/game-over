@@ -29,6 +29,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     ],
     cofres: [],
     vida: 80,
+    equipo: [],
     vidaMax: 140,
     hambre: 72,
     dificultad: 5,
@@ -121,7 +122,7 @@ describe('empaquetado', () => {
   function cuerpoAntiguo(
     m: Mundo,
     e: EstadoPartida,
-    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9,
   ): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
@@ -133,6 +134,9 @@ describe('empaquetado', () => {
     const campoHambre = 2;
     const campoDificultad = 1;
     const campoVidaMax = 2;
+    // Solo se construyen cuerpos antiguos con el equipo vacío, que es el caso
+    // real: nadie llevaba armadura antes de que existiera.
+    const campoEquipo = 2;
 
     const actual = serializar(m, e);
     const inicioRle =
@@ -143,7 +147,8 @@ describe('empaquetado', () => {
       campoVida +
       campoHambre +
       campoDificultad +
-      campoVidaMax;
+      campoVidaMax +
+      campoEquipo;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
@@ -153,7 +158,8 @@ describe('empaquetado', () => {
     if (version >= 5) extra += campoVida;
     if (version >= 7) extra += campoHambre;
     if (version >= 8) extra += campoDificultad;
-    // La vida máxima nunca: es del formato 9, y aquí solo se construyen cuerpos
+    if (version >= 9) extra += campoVidaMax;
+    // El equipo nunca: es del formato 10, y aquí solo se construyen cuerpos
     // anteriores. Recortarla es justo lo que hace que el lector antiguo
     // encuentre el RLE donde lo espera.
 
@@ -173,6 +179,16 @@ describe('empaquetado', () => {
     expect(leido.inventario).toEqual([]);
     expect(leido.semilla).toBe(e.semilla);
     expect(mundo.tileId).toEqual(m.tileId);
+  });
+
+  it('un mundo del formato 9 se abre desnudo', () => {
+    const m = new Mundo(4, 4);
+    m.rellenar(0, 2, 3, 3, PIEDRA);
+    const e = estado();
+
+    const { estado: leido } = deserializar(cuerpoAntiguo(m, e, 9), 9);
+    expect(leido.equipo).toEqual([]);
+    expect(leido.vidaMax).toBe(e.vidaMax);
   });
 
   it('un mundo del formato 8 se abre con los cinco corazones de siempre', () => {

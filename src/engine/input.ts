@@ -37,7 +37,7 @@ export interface GestorEntrada {
   /**
    * ¿Está esa tecla pulsada ahora mismo?
    *
-   * Hace falta para los acordes: el menú de depuración se abre con Alt+D+F3, y
+   * Hace falta para los acordes: el menú de depuración se abre con Alt+R+F3, y
    * eso no se puede expresar con un atajo de una sola tecla.
    */
   mantenida(codigo: string): boolean;

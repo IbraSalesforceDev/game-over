@@ -22,6 +22,18 @@ import {
   PICO_HIERRO,
   PICO_ORO,
   PICO_PLATA,
+  CASCO_COBRE,
+  PETO_COBRE,
+  GREBAS_COBRE,
+  CASCO_HIERRO,
+  PETO_HIERRO,
+  GREBAS_HIERRO,
+  CASCO_PLATA,
+  PETO_PLATA,
+  GREBAS_PLATA,
+  CASCO_ORO,
+  PETO_ORO,
+  GREBAS_ORO,
 } from './items';
 
 /**
@@ -249,7 +261,44 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 1,
     estacion: YUNQUE,
   },
+  ...armaduras(),
 ];
+
+/**
+ * Las doce piezas de armadura, generadas en vez de escritas a mano.
+ *
+ * Doce entradas idénticas salvo por dos números son doce sitios donde
+ * equivocarse al retocar el coste. El reparto —peto lo más caro, casco lo más
+ * barato— es el mismo en los cuatro metales, así que sale de un bucle.
+ */
+function armaduras(): Receta[] {
+  const juegos: [string, number, [number, number, number]][] = [
+    ['cobre', LINGOTE_COBRE, [CASCO_COBRE, PETO_COBRE, GREBAS_COBRE]],
+    ['hierro', LINGOTE_HIERRO, [CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO]],
+    ['plata', LINGOTE_PLATA, [CASCO_PLATA, PETO_PLATA, GREBAS_PLATA]],
+    ['oro', LINGOTE_ORO, [CASCO_ORO, PETO_ORO, GREBAS_ORO]],
+  ];
+  // Un juego entero cuesta 45 lingotes: bastante más que el pico del mismo
+  // metal, para que vestirse sea una decisión y no el siguiente paso obvio.
+  const coste: [string, number][] = [
+    ['casco', 12],
+    ['peto', 20],
+    ['grebas', 13],
+  ];
+  const salida: Receta[] = [];
+  for (const [metal, lingoteId, ids] of juegos) {
+    coste.forEach(([pieza, cuantos], i) => {
+      salida.push({
+        id: `${pieza}-${metal}`,
+        ingredientes: [[lingoteId, cuantos]],
+        resultado: ids[i]!,
+        cantidad: 1,
+        estacion: YUNQUE,
+      });
+    });
+  }
+  return salida;
+}
 
 /** Radio, en tiles, dentro del cual una estación cuenta como "cerca". */
 export const RADIO_ESTACION = 6;

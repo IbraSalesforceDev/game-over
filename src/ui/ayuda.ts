@@ -32,6 +32,7 @@ const GRUPOS: Grupo[] = [
       ['Ratón', 'Apunta el mandoble: al lado, arriba o abajo'],
       ['Pico', 'Cada bloque pide su nivel: piedra → madera, oro → hierro'],
       ['Cristal de vida', 'Brilla en las cuevas · clic der. sube un corazón'],
+      ['Armadura', 'Se pone en los tres huecos de la izquierda del inventario'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],
     ],
@@ -39,7 +40,7 @@ const GRUPOS: Grupo[] = [
   {
     titulo: 'Paneles',
     filas: [
-      ['E', 'Inventario y fabricación'],
+      ['E', 'Inventario, equipo y fabricación'],
       ['H', 'Esta ayuda'],
       ['Esc', 'Cerrar paneles · menú de pausa'],
       ['R', 'Volver al punto de aparición'],

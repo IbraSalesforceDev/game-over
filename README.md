@@ -50,7 +50,7 @@ suaves. Un ciclo completo de día y noche dura 12 minutos reales.
 | Parámetro | Efecto |
 |---|---|
 | `?semilla=LOQUESEA` | Genera siempre el mismo mundo |
-| `?tam=mediano` | Mundo de 2100×600 en vez de 1400×450 |
+| `?tam=mediano` · `grande` · `enorme` | Mundo mayor: 2100×600, 3200×750 o 4800×900 |
 | `?lab=1` | Abre el laboratorio de físicas de la fase 1 en vez de un mundo |
 | `?hora=22` o `?hora=5:40` | Empieza el mundo a esa hora (útil para ver la noche sin esperar) |
 | `?dif=0` … `?dif=9` | Dificultad del mundo, de pacífico a «tú lo has querido» |

@@ -1,6 +1,7 @@
 import { crearIconos, LADO_ICONO } from '../render/iconos';
 import { estaVacia, RANURAS_BARRA, TOTAL_RANURAS, type Inventario } from '../items/inventory';
-import { defObjeto, NADA } from '../items/items';
+import { defObjeto, HUECOS, NADA, type Hueco } from '../items/items';
+import { cabeEnEquipo, defensaTotal } from '../items/equipado';
 import { craftear, recetasVisibles, sePuedeCraftear } from '../items/recipes';
 import type { Capa } from '../world/edit';
 
@@ -57,6 +58,31 @@ const ESTILO = `
   grid-column: 1 / -1; color: #e8b64c; font: 11px ui-monospace, monospace;
   letter-spacing: .12em; text-transform: uppercase;
 }
+
+/* Equipo: tres ranuras en columna a la izquierda del inventario. Van fuera de
+   la rejilla porque no son mochila: mezclarlas con las cuarenta ranuras haría
+   que arrastrar una pila de tierra pudiera acabar en la cabeza. */
+#equipo {
+  /* Anclado por el borde derecho al lado izquierdo de la rejilla (que mide
+     472 px, o sea 236 a cada lado del centro), para que no dependa de lo ancho
+     que salga el propio panel. */
+  position: fixed; right: 50%; margin-right: 242px; bottom: 74px;
+  z-index: 41; display: none; padding: 8px; text-align: center;
+  background: rgba(13,17,23,.94); border: 1px solid #2a343f; pointer-events: auto;
+  font: 11px ui-monospace, monospace; color: #d8cfc0;
+}
+#equipo.abierto { display: block; }
+#equipo .titulo {
+  color: #e8b64c; letter-spacing: .12em; text-transform: uppercase;
+  font-size: 10px; margin-bottom: 6px;
+}
+#equipo .ranura { display: block; margin-bottom: 4px; }
+#equipo .ranura.hueco::after {
+  content: attr(data-hueco); position: absolute; inset: 0;
+  display: grid; place-items: center; color: #3f4b58; font-size: 9px;
+  letter-spacing: .1em; text-transform: uppercase; pointer-events: none;
+}
+#equipo .defensa { color: #8fb6d6; font-size: 10px; margin-top: 4px; }
 
 #en-mano {
   position: fixed; z-index: 60; width: 30px; height: 30px; margin: -15px 0 0 -15px;
@@ -144,9 +170,17 @@ export interface OpcionesBarra {
   alSoltarAlMundo?(objeto: number, cantidad: number): void;
 }
 
+/** Etiqueta gris que se ve en cada hueco vacío del equipo. */
+const ETIQUETA_HUECO: Record<Hueco, string> = {
+  cabeza: 'casco',
+  torso: 'peto',
+  piernas: 'grebas',
+};
+
 export function crearBarra(
   contenedor: HTMLElement,
   inventario: Inventario,
+  equipo: Inventario,
   opciones: OpcionesBarra,
 ): Barra {
   const estilo = document.createElement('style');
@@ -181,6 +215,15 @@ export function crearBarra(
   tituloCofre.textContent = 'Cofre';
   panelCofre.appendChild(tituloCofre);
 
+  const panelEquipo = document.createElement('div');
+  panelEquipo.id = 'equipo';
+  const tituloEquipo = document.createElement('div');
+  tituloEquipo.className = 'titulo';
+  tituloEquipo.textContent = 'Equipo';
+  const textoDefensa = document.createElement('div');
+  textoDefensa.className = 'defensa';
+  panelEquipo.appendChild(tituloEquipo);
+
   const panelCrafteo = document.createElement('div');
   panelCrafteo.id = 'crafteo';
 
@@ -195,14 +238,22 @@ export function crearBarra(
 
   const domsInv: RanuraDom[] = [];
   const domsCofre: RanuraDom[] = [];
+  const domsEquipo: RanuraDom[] = [];
 
   /**
    * Intercambia, apila o recoge, según lo que haya en la ranura y en la mano.
    * Es la única operación de manipulación que existe.
    */
-  function tocarRanura(inv: Inventario, indice: number): void {
+  function tocarRanura(
+    inv: Inventario,
+    indice: number,
+    admite: (objeto: number) => boolean = () => true,
+  ): void {
     const r = inv.ranuras[indice];
     if (!r) return;
+    // Sacar siempre se puede; meter, solo lo que admita la ranura. Es lo que
+    // impide dejar una pila de tierra en el hueco del casco.
+    if (enMano.objeto !== NADA && !admite(enMano.objeto)) return;
     if (enMano.objeto === NADA) {
       if (estaVacia(r)) return;
       enMano.objeto = r.objeto;
@@ -274,7 +325,31 @@ export function crearBarra(
     (esBarra ? barra : panel).appendChild(d.raiz);
   }
 
-  contenedor.append(barra, panel, panelCofre, panelCrafteo, cursor);
+  HUECOS.forEach((hueco, i) => {
+    const d = crearRanura(i, false, false);
+    d.raiz.classList.add('hueco');
+    d.raiz.dataset.hueco = ETIQUETA_HUECO[hueco];
+    // El listener que puso `crearRanura` apunta a la mochila; este panel es
+    // otra cosa, así que se reemplaza el nodo por un clon sin escuchas.
+    const limpio = d.raiz.cloneNode(true) as HTMLElement;
+    d.raiz.replaceWith(limpio);
+    const dom: RanuraDom = {
+      raiz: limpio,
+      icono: limpio.querySelector('.icono')!,
+      cant: limpio.querySelector('.cant')!,
+    };
+    limpio.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!abierto) return;
+      tocarRanura(equipo, i, (objeto) => cabeEnEquipo(objeto, i));
+    });
+    domsEquipo.push(dom);
+    panelEquipo.appendChild(limpio);
+  });
+  panelEquipo.appendChild(textoDefensa);
+
+  contenedor.append(barra, panel, panelCofre, panelEquipo, panelCrafteo, cursor);
 
   document.addEventListener('pointermove', (e) => {
     cursor.style.left = `${e.clientX}px`;
@@ -363,6 +438,15 @@ export function crearBarra(
       }
     }
 
+    for (let i = 0; i < domsEquipo.length; i++) {
+      const d = domsEquipo[i]!;
+      pintarRanura(d, equipo, i, false);
+      // La etiqueta del hueco solo se ve con la ranura vacía.
+      d.raiz.classList.toggle('hueco', equipo.ranuras[i]!.cantidad <= 0);
+    }
+    const defensa = defensaTotal(equipo);
+    textoDefensa.textContent = defensa > 0 ? `defensa ${defensa}` : 'sin defensa';
+
     const activa = inventario.ranuras[seleccion]!;
     const nombre = estaVacia(activa) ? '—' : defObjeto(activa.objeto).nombre;
     info.textContent = `${nombre}   ·   capa ${capaActual === 'pared' ? 'PARED' : 'BLOQUE'}`;
@@ -406,6 +490,7 @@ export function crearBarra(
   function abrirPaneles(v: boolean): void {
     abierto = v;
     panel.classList.toggle('abierto', v);
+    panelEquipo.classList.toggle('abierto', v);
     panelCrafteo.classList.toggle('abierto', v);
     if (!v) {
       soltarMano();

@@ -171,19 +171,19 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
 
 - **Bloque 1 — Errores y manejo** ✅ · el cofre ya no se traga objetos, daño por
   caída, la oscuridad tiene suelo, techo de construcción, menú de pausa, ayuda,
-  ajustes, menú de depuración en Alt+D+F3, F3 coordenadas y F6 diagnóstico,
+  ajustes, menú de depuración en Alt+R+F3, F3 coordenadas y F6 diagnóstico,
   hambre y animales, mesa de trabajo con panel propio, rozamiento de arena y
   hielo, la pantalla de muerte dice de qué has muerto.
 - **Bloque 2 — Progresión y combate** (en curso) · niveles de herramienta ✅,
   minar con las manos ✅, apuntar el mandoble con el ratón ✅, la luz espanta a
   lo hostil ✅, enemigos diurnos debilitados ✅, diez niveles de dificultad al
   crear el mundo ✅ (guardado v8), esqueleto, serpiente y momia ✅, cristales de
-  vida ✅ (guardado v9); pendiente: arco y flechas, pala y azada, armadura,
-  recetas de cobre, plata y oro.
-- **Bloque 3 — Mundo** · selva junto al agua, mares pequeños con fondo de arena,
-  montañas de piedra, bosques en grupos, taiga solo en la nieve, un segundo
-  árbol de bosque, minerales por bioma, grava, menos lagos, tamaños de mundo de
-  pequeño a enorme, fondos teñidos por bioma.
+  vida ✅ (guardado v9), armadura de cobre, hierro, plata y oro ✅ (guardado
+  v10); pendiente: arco y flechas, pala y azada.
+- **Bloque 3 — Mundo** · tamaños de mundo de pequeño a enorme ✅; pendiente:
+  selva junto al agua, mares pequeños con fondo de arena, montañas de piedra,
+  bosques en grupos, taiga solo en la nieve, un segundo árbol de bosque,
+  minerales por bioma, grava, menos lagos, fondos teñidos por bioma.
 - **Bloque 4 — Cultivo y vida** · camas para pasar la noche, semillas, trigo,
   zanahorias, caña de azúcar → papel → mapa, brotes de las hojas, vidrio de la
   arena, plumas, pedernal.

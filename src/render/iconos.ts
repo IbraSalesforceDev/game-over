@@ -8,6 +8,8 @@ import {
   esColocable,
   esCristal,
   esHerramienta,
+  huecoDe,
+  type Hueco,
   IDS_OBJETO,
   NADA,
 } from '../items/items';
@@ -168,12 +170,60 @@ const cristalIcono: Dibujo = (ctx, ox, oy, color) => {
   px(ctx, ox + 9, oy + 12, 2, 1, '#ffd6e6');
 };
 
+/**
+ * Armadura: una silueta distinta por hueco.
+ *
+ * Tres piezas del mismo metal comparten color, así que si compartieran forma
+ * serían tres cuadrados idénticos en la mochila. La silueta es lo único que las
+ * distingue de un vistazo.
+ */
+function armaduraIcono(hueco: Hueco): Dibujo {
+  return (ctx, ox, oy, color) => {
+    const t = tono(color, 28, 36);
+    if (hueco === 'cabeza') {
+      // Casco: cúpula con visera y una franja de ventilación.
+      bloque(ctx, ox + 4, oy + 4, 12, 8, t);
+      px(ctx, ox + 4, oy + 4, 12, 2, t.claro);
+      px(ctx, ox + 3, oy + 11, 14, 3, t.base);
+      px(ctx, ox + 3, oy + 13, 14, 1, t.oscuro);
+      // Ranura de los ojos, en negro: es lo que lo hace un casco y no un cuenco.
+      px(ctx, ox + 6, oy + 9, 8, 2, '#14181c');
+      px(ctx, ox + 9, oy + 4, 2, 8, t.claro);
+      return;
+    }
+    if (hueco === 'torso') {
+      // Peto: hombreras anchas y cintura estrecha.
+      bloque(ctx, ox + 2, oy + 4, 16, 4, t);
+      bloque(ctx, ox + 4, oy + 7, 12, 9, t);
+      px(ctx, ox + 4, oy + 7, 12, 1, t.claro);
+      px(ctx, ox + 9, oy + 8, 2, 8, t.claro);
+      px(ctx, ox + 5, oy + 15, 10, 2, t.oscuro);
+      return;
+    }
+    // Grebas: dos perneras separadas colgando de una cintura.
+    bloque(ctx, ox + 4, oy + 3, 12, 4, t);
+    px(ctx, ox + 4, oy + 3, 12, 1, t.claro);
+    for (const dx of [4, 11]) {
+      bloque(ctx, ox + dx, oy + 7, 5, 10, t);
+      px(ctx, ox + dx, oy + 16, 5, 1, t.oscuro);
+    }
+  };
+}
+
+const ICONOS_ARMADURA: Record<Hueco, Dibujo> = {
+  cabeza: armaduraIcono('cabeza'),
+  torso: armaduraIcono('torso'),
+  piernas: armaduraIcono('piernas'),
+};
+
 /** Elige el dibujo que le toca a cada objeto. */
 function dibujoDe(id: number): Dibujo {
   if (id === ANTORCHA) return antorchaIcono;
   if (id === MESA || id === HORNO || id === YUNQUE || id === COFRE) return mueble;
   if (id === CUBO || id === CUBO_AGUA || id === CUBO_LAVA) return cuboIcono;
   if (esCristal(id)) return cristalIcono;
+  const hueco = huecoDe(id);
+  if (hueco) return ICONOS_ARMADURA[hueco];
   if (esHerramienta(id)) return picoIcono;
   if (esArma(id)) return espadaIcono;
   if (esColocable(id)) return bloqueIcono;

@@ -7,7 +7,7 @@ import { ENEMIGOS } from '../entities/enemies';
  * Menú de trucos y depuración.
  *
  * No aparece en los controles ni en las opciones a propósito: es una puerta de
- * servicio, no una función del juego. Se abre con Alt+D+F3, un acorde que no se
+ * servicio, no una función del juego. Se abre con Alt+R+F3, un acorde que no se
  * pulsa por accidente, y quien no lo conozca no lo encontrará jugando.
  *
  * Existe porque probar el juego sin él cuesta horas: para ver si el pico de oro
@@ -172,7 +172,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       <button id="dbg-generar">Generar</button>
     </div>
 
-    <div class="pie">Alt + D + F3 para abrir y cerrar. No aparece en los controles.</div>
+    <div class="pie">Alt + R + F3 para abrir y cerrar. No aparece en los controles.</div>
   `;
   contenedor.appendChild(panel);
 

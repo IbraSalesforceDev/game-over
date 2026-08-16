@@ -41,9 +41,21 @@ import { crearRngRico, semillaDeTexto, type Rng } from './rng';
  * semilla dan mundos idénticos, tile a tile.
  */
 
+/**
+ * Tamaños de mundo.
+ *
+ * Van creciendo a razón de un 50 % en ancho por escalón y algo menos en alto: a
+ * lo ancho es donde caben más biomas, que es lo que de verdad cambia jugar en
+ * uno grande, mientras que el alto solo añade cueva y hace la partida más
+ * pesada de guardar. El enorme son 4,3 millones de tiles: 25 MB de TypedArray
+ * en memoria y algo más de medio segundo de generación, que entra de sobra,
+ * pero no es el que conviene por defecto aunque sea el que más apetece.
+ */
 export const TAMANOS = {
   pequeno: { ancho: 1400, alto: 450, nombre: 'pequeño' },
   mediano: { ancho: 2100, alto: 600, nombre: 'mediano' },
+  grande: { ancho: 3200, alto: 750, nombre: 'grande' },
+  enorme: { ancho: 4800, alto: 900, nombre: 'enorme' },
 } as const;
 
 export type NombreTamano = keyof typeof TAMANOS;

@@ -32,6 +32,7 @@ import { leerOpciones, prepararEscenario } from './world/escenario';
 import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
 import { equipoInicial, nivelEnMano, potenciaEnMano } from './items/equipo';
+import { cabeEnEquipo, crearEquipo, danoTrasArmadura, defensaTotal } from './items/equipado';
 import { defObjeto, dropDePared, dropDeTile, nombrePicoDeNivel } from './items/items';
 import { estacionesCerca } from './items/recipes';
 import { Contenedores } from './world/contenedores';
@@ -90,6 +91,7 @@ import {
   VERSION_FORMATO,
   type EstadoPartida,
 } from './world/save';
+import type { NombreTamano } from './world/gen/worldgen';
 import type { Zona } from './world/testLevel';
 import type { Mundo } from './world/world';
 
@@ -146,7 +148,7 @@ interface Partida {
  */
 async function generar(
   semilla: string,
-  tamano: 'pequeno' | 'mediano',
+  tamano: NombreTamano,
   lab: boolean,
   columna: number | null = null,
 ): Promise<{ mundo: Mundo; spawnTx: number; spawnTy: number; zonas: Zona[]; semilla: string }> {
@@ -187,6 +189,7 @@ function partidaNueva(
       capaPared: false,
       minutos,
       inventario: equipoInicial().aDatos(),
+      equipo: crearEquipo().aDatos(),
       cofres: [],
       vida: VIDA_MAXIMA,
       vidaMax: VIDA_MAXIMA,
@@ -289,6 +292,12 @@ async function arrancar(): Promise<void> {
   const enemigos: Enemigo[] = [];
   const particulas = new Particulas();
   const cofres = Contenedores.desdeDatos(mundo.ancho, partida.estado.cofres);
+  const equipo = crearEquipo();
+  // Solo se recupera lo que de verdad puede ir en cada hueco: si un guardado
+  // trae basura en la ranura del casco, se descarta en vez de vestirla.
+  partida.estado.equipo.forEach(([objeto, cantidad], i) => {
+    if (cantidad > 0 && cabeEnEquipo(objeto, i)) equipo.ponerEn(i, objeto, cantidad);
+  });
   const salud = crearSalud(
     Math.max(VIDA_MAXIMA, Math.min(VIDA_TOPE, partida.estado.vidaMax || VIDA_MAXIMA)),
   );
@@ -367,7 +376,7 @@ async function arrancar(): Promise<void> {
   const picado = crearPicado();
   let capa: Capa = partida.estado.capaPared ? 'pared' : 'bloque';
   const objetivo: Objetivo = { tx: 0, ty: 0, valido: false, visible: false, capa };
-  const barra = crearBarra(capaUI, inventario, {
+  const barra = crearBarra(capaUI, inventario, equipo, {
     alCambiar: () => reiniciarPicado(picado),
     estaciones: () => estacionesCerca(mundo, jugador.caja),
     alFabricar: () => audio.sonar('craftear'),
@@ -400,6 +409,7 @@ async function arrancar(): Promise<void> {
       partida.estado.jugado = jugadoPrevio + (Date.now() - inicioSesion);
       partida.estado.material = barra.seleccion;
       partida.estado.inventario = inventario.aDatos();
+      partida.estado.equipo = equipo.aDatos();
       cofres.limpiar();
       partida.estado.cofres = cofres.aDatos();
       partida.estado.vida = salud.vida;
@@ -445,10 +455,12 @@ async function arrancar(): Promise<void> {
   // primero que veía quien abría el juego, y saber en qué tile estás no debería
   // costar catorce líneas de diagnóstico.
   entrada.alPulsar('F3', () => {
-    // Alt + D + F3 abre la puerta de servicio. Con el acorde completo no se
+    // Alt + R + F3 abre la puerta de servicio. Con el acorde completo no se
     // pisa nunca por accidente, y por eso no hace falta anunciarlo en ningún
-    // menú.
-    if (entrada.alt && entrada.mantenida('KeyD')) {
+    // menú. Era Alt+D+F3 hasta que se vio que ese acorde lo tiene cogido el
+    // panel de NVIDIA: un atajo secreto que abre el programa de otro no es un
+    // atajo secreto, es una tecla rota.
+    if (entrada.alt && entrada.mantenida('KeyR')) {
       depuracion.alternar();
       return;
     }
@@ -616,7 +628,11 @@ async function arrancar(): Promise<void> {
           fuenteX = e.caja.x + e.caja.ancho / 2;
         }
       }
-      if (golpear(salud, jugador.caja, res.danoAlJugador, fuenteX)) {
+      // La armadura descuenta aquí y no dentro de `golpear`: el hambre, la
+      // lava y el suelo no son golpes de los que un peto proteja, y meterla
+      // en la función común los cubriría a todos sin querer.
+      const encaja = danoTrasArmadura(res.danoAlJugador, defensaTotal(equipo));
+      if (golpear(salud, jugador.caja, encaja, fuenteX)) {
         panelVida.refrescar(salud);
         particulas.emitir(
           jugador.caja.x + jugador.caja.ancho / 2,

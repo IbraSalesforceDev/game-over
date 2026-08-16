@@ -79,7 +79,7 @@ export function leerOpciones(busqueda: string): OpcionesArranque {
   return {
     lab: p.get('lab') === '1',
     semilla: p.get('semilla') || semillaAleatoria(),
-    tamano: tam === 'mediano' || tam === 'pequeno' ? tam : 'pequeno',
+    tamano: tam !== null && tam in TAMANOS ? (tam as NombreTamano) : 'pequeno',
     minutos: leerHora(p.get('hora')),
     columna: Number.isFinite(columna) && columna > 0 ? Math.floor(columna) : null,
     dificultad: leerDificultad(p.get('dif')),

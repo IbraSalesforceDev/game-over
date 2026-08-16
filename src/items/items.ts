@@ -66,6 +66,20 @@ export const CARNE_CRUDA = 83;
 export const CARNE_ASADA = 84;
 export const BAYAS = 85;
 export const CRISTAL = 86;
+// Armadura: casco, peto y grebas de cada metal. Van seguidos y en el mismo
+// orden en los cuatro juegos, para que la tabla de recetas sea un bucle.
+export const CASCO_COBRE = 87;
+export const PETO_COBRE = 88;
+export const GREBAS_COBRE = 89;
+export const CASCO_HIERRO = 90;
+export const PETO_HIERRO = 91;
+export const GREBAS_HIERRO = 92;
+export const CASCO_PLATA = 93;
+export const PETO_PLATA = 94;
+export const GREBAS_PLATA = 95;
+export const CASCO_ORO = 96;
+export const PETO_ORO = 97;
+export const GREBAS_ORO = 98;
 
 /**
  * Identificadores que tenían las herramientas antes de moverse al rango 64+.
@@ -84,7 +98,19 @@ export type TipoObjeto =
   | 'material'
   | 'cubo'
   | 'comida'
-  | 'cristal';
+  | 'cristal'
+  | 'armadura';
+
+/**
+ * Dónde se lleva puesta una pieza de armadura.
+ *
+ * Son tres huecos y no uno solo porque la progresión interesante es la de ir
+ * completando el juego: llevar el casco de cobre y el peto de hierro tiene que
+ * ser un estado posible, no un error.
+ */
+export type Hueco = 'cabeza' | 'torso' | 'piernas';
+
+export const HUECOS: readonly Hueco[] = ['cabeza', 'torso', 'piernas'];
 
 export interface DefObjeto {
   readonly nombre: string;
@@ -107,6 +133,10 @@ export interface DefObjeto {
   readonly saciedad?: number;
   /** Vida que cura al comerla. */
   readonly curacion?: number;
+  /** Dónde se equipa, si es armadura. */
+  readonly hueco?: Hueco;
+  /** Daño que descuenta llevándola puesta. */
+  readonly defensa?: number;
 }
 
 const PILA = 999;
@@ -162,6 +192,42 @@ function comida(
   curacion: number,
 ): [number, DefObjeto] {
   return [id, { nombre, tipo: 'comida', color, maxPila: 99, saciedad, curacion }];
+}
+
+/**
+ * Una pieza de armadura.
+ *
+ * El peto defiende casi el doble que el casco y las grebas quedan en medio: es
+ * el reparto clásico y hace que, con material justo, la primera pieza que
+ * merece la pena forjar sea la del pecho.
+ */
+function armadura(
+  id: number,
+  nombre: string,
+  color: string,
+  hueco: Hueco,
+  defensa: number,
+): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'armadura', color, maxPila: 1, hueco, defensa }];
+}
+
+/** Los tres nombres y sus defensas relativas, iguales en los cuatro metales. */
+const PIEZAS: readonly [string, Hueco, number][] = [
+  ['casco', 'cabeza', 1],
+  ['peto', 'torso', 1.8],
+  ['grebas', 'piernas', 1.3],
+];
+
+/** Un juego completo de armadura de un metal. */
+function juegoArmadura(
+  ids: readonly [number, number, number],
+  metal: string,
+  color: string,
+  base: number,
+): [number, DefObjeto][] {
+  return PIEZAS.map(([nombre, hueco, peso], i) =>
+    armadura(ids[i]!, `${nombre} de ${metal}`, color, hueco, Math.round(base * peso)),
+  );
 }
 
 const ENTRADAS: [number, DefObjeto][] = [
@@ -221,6 +287,14 @@ const ENTRADAS: [number, DefObjeto][] = [
     CRISTAL,
     { nombre: 'cristal de vida', tipo: 'cristal', color: '#e0538f', maxPila: 99 },
   ],
+  // La armadura sube despacio a propósito: el juego entero de oro descuenta
+  // catorce de cada golpe, que ante un zombi de dieciocho es mucho pero no lo
+  // vuelve inofensivo. Una armadura que anula el daño convierte el combate en
+  // un trámite y la exploración en un paseo.
+  ...juegoArmadura([CASCO_COBRE, PETO_COBRE, GREBAS_COBRE], 'cobre', '#b06a3b', 1),
+  ...juegoArmadura([CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO], 'hierro', '#a3968a', 2),
+  ...juegoArmadura([CASCO_PLATA, PETO_PLATA, GREBAS_PLATA], 'plata', '#c2ccd6', 3),
+  ...juegoArmadura([CASCO_ORO, PETO_ORO, GREBAS_ORO], 'oro', '#dcb13a', 4),
 ];
 
 /** Array disperso: hay hueco entre el último tile y el 64, y no pasa nada. */
@@ -283,6 +357,20 @@ export function esComida(id: number): boolean {
 
 export function esCristal(id: number): boolean {
   return defObjeto(id).tipo === 'cristal';
+}
+
+export function esArmadura(id: number): boolean {
+  return defObjeto(id).tipo === 'armadura';
+}
+
+/** Hueco donde va esta pieza, o null si no es armadura. */
+export function huecoDe(id: number): Hueco | null {
+  return defObjeto(id).hueco ?? null;
+}
+
+/** Defensa que aporta una pieza suelta. */
+export function defensaDe(id: number): number {
+  return defObjeto(id).defensa ?? 0;
 }
 
 export function maxPila(id: number): number {
