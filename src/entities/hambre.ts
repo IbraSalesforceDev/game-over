@@ -78,21 +78,29 @@ export interface ResultadoHambre {
  *
  * `activo` es true cuando el jugador está corriendo, saltando o picando: gastar
  * energía cuesta comida.
+ *
+ * `ritmo` es el multiplicador de la dificultad: en pacífico vale 0 y el hambre
+ * se queda quieta —comer pasa a ser solo el botiquín—, y en las dificultades
+ * altas baja al doble de deprisa. `castigo` escala el daño por inanición, que
+ * va aparte porque una cosa es tener que comer a menudo y otra que no comer te
+ * mate en veinte segundos.
  */
 export function tickHambre(
   h: Hambre,
   s: Salud,
   caja: Caja,
   activo: boolean,
+  ritmo = 1,
+  castigo = 1,
 ): ResultadoHambre {
   const salida: ResultadoHambre = { curado: false, danado: false };
   if (s.muerto) return salida;
 
-  let gasto = DRENAJE_BASE * (activo ? FACTOR_ACTIVIDAD : 1);
+  let gasto = DRENAJE_BASE * (activo ? FACTOR_ACTIVIDAD : 1) * ritmo;
 
   if (saciado(h) && s.vida < s.vidaMax) {
     // Regenerar consume de más: es el precio de usar la comida como botiquín.
-    gasto += COSTE_REGENERACION;
+    gasto += COSTE_REGENERACION * ritmo;
     if (--h.proximaCura <= 0) {
       h.proximaCura = INTERVALO_REGENERACION;
       curar(s, CURACION_POR_TICK);
@@ -109,7 +117,8 @@ export function tickHambre(
       h.proximoDano = INTERVALO_INANICION;
       // Sin invulnerabilidad y sin empujón: el hambre no es un golpe del que
       // uno se aparte, y darle fotogramas de gracia la haría inofensiva.
-      if (golpear(s, caja, DANO_INANICION, caja.x + caja.ancho / 2, 0, false, 'hambre')) {
+      const dano = Math.max(1, Math.round(DANO_INANICION * castigo));
+      if (golpear(s, caja, dano, caja.x + caja.ancho / 2, 0, false, 'hambre')) {
         salida.danado = true;
       }
     }

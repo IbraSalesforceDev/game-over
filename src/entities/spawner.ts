@@ -1,4 +1,10 @@
 import { TILE } from '../core/constants';
+import {
+  dificultad,
+  DIFICULTAD_POR_DEFECTO,
+  hayHostiles,
+  type NivelDificultad,
+} from '../core/dificultad';
 import { ARENA, ARENISCA, esSolido, HIELO, NIEVE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import { crearEnemigo, ENEMIGOS, type Enemigo, type Especie } from './enemies';
@@ -57,6 +63,8 @@ export interface ContextoAparicion {
    * que hacía el juego antes de que las antorchas espantaran nada.
    */
   luzEn?: (tx: number, ty: number) => number;
+  /** Dificultad del mundo. Sin ella, normal. */
+  dif?: NivelDificultad;
 }
 
 /** ¿Esta especie viene a hacer daño? Los animales, no. */
@@ -89,6 +97,15 @@ export function especiesPosibles(
   ctx: ContextoAparicion,
   tyJugador: number,
 ): Especie[] {
+  // En pacífico no sale nada que pueda hacer daño, ni en la superficie ni en el
+  // fondo de la cueva más honda. Se filtra al final, sobre la lista que tocase,
+  // para no tener que mantener una segunda tabla de biomas sin hostiles.
+  const lista = especiesDelSitio(ctx, tyJugador);
+  const dif = ctx.dif ?? dificultad(DIFICULTAD_POR_DEFECTO);
+  return hayHostiles(dif) ? lista : lista.filter((e) => !esHostil(e));
+}
+
+function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] {
   const bajoTierra = tyJugador > ctx.superficieTy + PROFUNDIDAD_PELIGRO;
   if (bajoTierra) return ['slime', 'murcielago', 'zombi'];
 
@@ -163,8 +180,12 @@ export function intentarAparicion(
   ctx: ContextoAparicion,
   rng: () => number = Math.random,
 ): Enemigo | null {
+  const dif = ctx.dif ?? dificultad(DIFICULTAD_POR_DEFECTO);
   const vivos = enemigos.filter((e) => e.vivo).length;
-  if (vivos >= TOPE_ENEMIGOS) return null;
+  // El aforo sube con la dificultad, pero nunca baja de uno mientras haya algo
+  // que pueda salir: los animales tienen que caber aunque el mundo sea pacífico.
+  const tope = Math.max(1, Math.round(TOPE_ENEMIGOS * Math.max(dif.aforo, 0.5)));
+  if (vivos >= tope) return null;
 
   const txJugador = Math.floor((jugador.x + jugador.ancho / 2) / TILE);
   const tyJugador = Math.floor((jugador.y + jugador.alto / 2) / TILE);
@@ -193,8 +214,11 @@ export function intentarAparicion(
     if (luz > UMBRAL_LUZ_HOSTIL) return null;
   }
 
-  // De día lo hostil sale mermado; de noche, entero.
-  const fuerza = esHostil(especie) && !ctx.esNoche ? FUERZA_DIURNA : 1;
+  // De día lo hostil sale mermado; de noche, entero. La dificultad multiplica
+  // encima: es lo único que separa "tranquilo" de "tú lo has querido".
+  const fuerza = esHostil(especie)
+    ? dif.fuerza * (ctx.esNoche ? 1 : FUERZA_DIURNA)
+    : 1;
 
   const e = crearEnemigo(especie, sitio.x, sitio.y, fuerza);
   enemigos.push(e);

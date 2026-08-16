@@ -1,3 +1,4 @@
+import { DIFICULTADES, DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
 import { buscarSpawn, generarMundoPasos, TAMANOS, type NombreTamano } from './gen/worldgen';
 import { semillaAleatoria } from './gen/rng';
 import { crearNivelPruebas } from './testLevel';
@@ -41,6 +42,25 @@ export interface OpcionesEscenario {
   columna: number | null;
 }
 
+/**
+ * Lo que se lee de la URL.
+ *
+ * La dificultad va aquí y no en `OpcionesEscenario` a propósito: el terreno no
+ * depende de ella. Dos mundos con la misma semilla y distinta dificultad tienen
+ * que salir idénticos tile a tile, y tenerla fuera del generador es la forma de
+ * que eso no pueda dejar de ser verdad por descuido.
+ */
+export interface OpcionesArranque extends OpcionesEscenario {
+  dificultad: number;
+}
+
+/** Dificultad de la URL. Fuera de rango o ilegible, la de siempre. */
+export function leerDificultad(texto: string | null): number {
+  const n = Number(texto);
+  if (!texto || !Number.isFinite(n)) return DIFICULTAD_POR_DEFECTO;
+  return Math.max(0, Math.min(DIFICULTADES.length - 1, Math.floor(n)));
+}
+
 /** Acepta "22" y "22:30". Devuelve null si no hay nada legible. */
 export function leerHora(texto: string | null): number | null {
   if (!texto) return null;
@@ -52,7 +72,7 @@ export function leerHora(texto: string | null): number | null {
   return horas * 60 + minutos;
 }
 
-export function leerOpciones(busqueda: string): OpcionesEscenario {
+export function leerOpciones(busqueda: string): OpcionesArranque {
   const p = new URLSearchParams(busqueda);
   const tam = p.get('tam');
   const columna = Number(p.get('columna'));
@@ -62,6 +82,7 @@ export function leerOpciones(busqueda: string): OpcionesEscenario {
     tamano: tam === 'mediano' || tam === 'pequeno' ? tam : 'pequeno',
     minutos: leerHora(p.get('hora')),
     columna: Number.isFinite(columna) && columna > 0 ? Math.floor(columna) : null,
+    dificultad: leerDificultad(p.get('dif')),
   };
 }
 

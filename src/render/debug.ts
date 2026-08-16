@@ -34,6 +34,8 @@ export interface EstadoDebug {
   ratonTy: number;
   /** Semilla del mundo, para poder repetir la partida. */
   semilla: string;
+  /** Nombre de la dificultad con la que se creó el mundo. */
+  dificultad: string;
   /** Segundos desde el último guardado; -1 si la partida no se guarda. */
   segundosDesdeGuardado: number;
   /** Hora del mundo. */
@@ -62,6 +64,7 @@ export function crearEstadoDebug(): EstadoDebug {
     ratonTx: 0,
     ratonTy: 0,
     semilla: '',
+    dificultad: '',
     segundosDesdeGuardado: -1,
     hora: '',
     luzRaton: 0,
@@ -168,6 +171,7 @@ export function dibujarDebug(
     `última caída ${c.ultimaCaida.toFixed(1)} tiles`,
     `ratón ${est.ratonTx}, ${est.ratonTy} · chunks ${est.chunksVivos}`,
     `semilla ${est.semilla} · ${est.hora}`,
+    `dificultad ${est.dificultad}`,
     `luz bajo el puntero ${est.luzRaton} · drops ${est.drops} · enemigos ${est.enemigos}`,
     est.segundosDesdeGuardado < 0
       ? 'sin guardado'

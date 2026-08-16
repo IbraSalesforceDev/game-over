@@ -1,4 +1,5 @@
 import { TICK, TILE } from './core/constants';
+import { dificultad, DIFICULTAD_POR_DEFECTO } from './core/dificultad';
 import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
 import { Reloj } from './engine/time';
@@ -162,6 +163,7 @@ function partidaNueva(
   nombre: string,
   guardable: boolean,
   minutos = HORA_POR_DEFECTO,
+  nivel = DIFICULTAD_POR_DEFECTO,
 ): Partida {
   return {
     mundo: gen.mundo,
@@ -186,6 +188,7 @@ function partidaNueva(
       cofres: [],
       vida: VIDA_MAXIMA,
       hambre: HAMBRE_MAXIMA,
+      dificultad: nivel,
     },
   };
 }
@@ -208,6 +211,7 @@ async function elegirPartida(
       op.lab ? 'Laboratorio' : `Semilla ${op.semilla}`,
       !op.lab,
       op.minutos ?? HORA_POR_DEFECTO,
+      op.dificultad,
     );
   }
 
@@ -218,7 +222,13 @@ async function elegirPartida(
 
   if (eleccion.tipo === 'nuevo') {
     const gen = await generar(eleccion.semilla, eleccion.tamano, false, op.columna);
-    return partidaNueva(gen, eleccion.nombre, true, op.minutos ?? HORA_POR_DEFECTO);
+    return partidaNueva(
+      gen,
+      eleccion.nombre,
+      true,
+      op.minutos ?? HORA_POR_DEFECTO,
+      eleccion.dificultad,
+    );
   }
 
   progreso(30, 'Abriendo el mundo…');
@@ -283,6 +293,13 @@ async function arrancar(): Promise<void> {
     partida.estado.hambre > 0 ? partida.estado.hambre : HAMBRE_MAXIMA,
   );
   const golpe = crearGolpe();
+  /**
+   * Dificultad del mundo, fijada al crearlo. Se lee una vez y no cambia: no hay
+   * ninguna forma de tocarla desde dentro de la partida, ni siquiera desde el
+   * menú de depuración, porque para eso están las perillas sueltas de ahí.
+   */
+  const nivelDif = dificultad(partida.estado.dificultad);
+  debug.dificultad = `${nivelDif.id} · ${nivelDif.nombre}`;
   // Al abrir un mundo guardado el líquido está quieto en el array pero la
   // simulación no sabe que existe: hay que despertarlo o el agua se quedaría
   // congelada hasta que alguien la tocase.
@@ -539,7 +556,7 @@ async function arrancar(): Promise<void> {
     // El hambre gasta más si se está haciendo algo: correr, saltar o picar.
     const activo =
       Math.abs(jugador.caja.vx) > 0.6 || !jugador.caja.enSuelo || picado.progreso > 0;
-    const rh = tickHambre(hambre, salud, jugador.caja, activo);
+    const rh = tickHambre(hambre, salud, jugador.caja, activo, nivelDif.hambre, nivelDif.castigo);
     if (rh.curado || rh.danado) panelVida.refrescar(salud);
     if (rh.danado) aviso.mostrar('Tienes hambre', true);
     panelVida.refrescarHambre(hambre);
@@ -648,6 +665,7 @@ async function arrancar(): Promise<void> {
         superficieTy: motorLuz.alturaCielo[txJugador] ?? 0,
         bioma: biomaEn(mundo, txJugador, tyJugador),
         luzEn: (tx, ty) => motorLuz.luzEstimada(tx, ty, reloj.luzSolar),
+        dif: nivelDif,
       });
     }
 
@@ -885,7 +903,14 @@ async function arrancar(): Promise<void> {
     const s = sumersion(mundo, jugador.caja, TILE);
     if (s.lava || (antes > 0 && hayLavaCerca())) motorLuz.marcarSucio();
 
-    const r = tickAliento(aliento, salud, jugador.caja, s.cabeza && !s.lava, s.lava);
+    const r = tickAliento(
+      aliento,
+      salud,
+      jugador.caja,
+      s.cabeza && !s.lava,
+      s.lava,
+      nivelDif.castigo,
+    );
     if (s.fraccion > 0 && !s.lava) apagar(aliento);
     if (r.dano) {
       panelVida.refrescar(salud);
@@ -922,7 +947,7 @@ async function arrancar(): Promise<void> {
     // Daño de caída. Va con el aterrizaje porque es el mismo suceso: el polvo
     // y el golpe salen de la misma altura.
     if (!enSueloAntes && c.enSuelo) {
-      const dano = danoDeCaida(c.ultimaCaida);
+      const dano = Math.round(danoDeCaida(c.ultimaCaida) * nivelDif.castigo);
       if (dano > 0 && golpear(salud, c, dano, c.x + c.ancho / 2, 30, false, 'caida')) {
         panelVida.refrescar(salud);
         aviso.mostrar('¡Golpe al caer!', true);

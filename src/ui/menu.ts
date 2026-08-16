@@ -1,3 +1,8 @@
+import {
+  dificultad,
+  DIFICULTADES,
+  DIFICULTAD_POR_DEFECTO,
+} from '../core/dificultad';
 import type { MetaMundo, SaveAdapter } from '../world/almacen';
 import { semillaAleatoria } from '../world/gen/rng';
 import { TAMANOS, type NombreTamano } from '../world/gen/worldgen';
@@ -11,7 +16,13 @@ import { TAMANOS, type NombreTamano } from '../world/gen/worldgen';
  */
 
 export type Eleccion =
-  | { tipo: 'nuevo'; semilla: string; tamano: NombreTamano; nombre: string }
+  | {
+      tipo: 'nuevo';
+      semilla: string;
+      tamano: NombreTamano;
+      nombre: string;
+      dificultad: number;
+    }
   | { tipo: 'cargar'; meta: MetaMundo };
 
 const ESTILO = `
@@ -52,6 +63,11 @@ const ESTILO = `
 }
 #menu input { width: 150px; }
 #menu .vacio { color: #6d7a8a; padding: 10px 0 4px; }
+#menu .resumen-dif {
+  width: 100%; margin-top: 8px; color: #8b98a8; font-size: 10px; line-height: 1.6;
+}
+#menu .resumen-dif b { color: #e8b64c; font-weight: normal; }
+#menu .aviso-dif { color: #b08a4a; }
 #menu .pie { margin-top: 22px; color: #55606d; font-size: 10px; line-height: 1.7; }
 `;
 
@@ -143,6 +159,34 @@ export function mostrarMenu(
       }
       lTam.appendChild(sTam);
 
+      // La dificultad se fija al crear el mundo y ya no se toca: por eso se
+      // explica aquí en una línea, y no en un menú de opciones donde nadie la
+      // leería hasta después de morir.
+      const lDif = document.createElement('label');
+      lDif.textContent = 'Dificultad';
+      const sDif = document.createElement('select');
+      for (const d of DIFICULTADES) {
+        const op = document.createElement('option');
+        op.value = String(d.id);
+        op.textContent = `${d.id} · ${d.nombre}`;
+        sDif.appendChild(op);
+      }
+      sDif.value = String(DIFICULTAD_POR_DEFECTO);
+      lDif.appendChild(sDif);
+
+      const resumenDif = document.createElement('div');
+      resumenDif.className = 'resumen-dif';
+      const pintarResumen = (): void => {
+        const d = dificultad(Number(sDif.value));
+        const extra =
+          d.id >= 7
+            ? ' <span class="aviso-dif">No se puede cambiar después.</span>'
+            : '';
+        resumenDif.innerHTML = `<b>${d.nombre}</b> — ${d.resumen}${extra}`;
+      };
+      pintarResumen();
+      sDif.addEventListener('change', pintarResumen);
+
       const crear = document.createElement('button');
       crear.className = 'principal';
       crear.textContent = 'Crear y jugar';
@@ -152,10 +196,11 @@ export function mostrarMenu(
           semilla: iSemilla.value.trim() || semillaAleatoria(),
           tamano: sTam.value as NombreTamano,
           nombre: iNombre.value.trim() || 'Mi mundo',
+          dificultad: Number(sDif.value),
         }),
       );
 
-      campos.append(lNombre, lSemilla, lTam, crear);
+      campos.append(lNombre, lSemilla, lTam, lDif, crear, resumenDif);
       caja.appendChild(campos);
 
       // --- Mundos guardados ---

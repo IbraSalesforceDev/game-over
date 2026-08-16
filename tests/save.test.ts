@@ -10,6 +10,7 @@ import {
   VERSION_FORMATO,
   type EstadoPartida,
 } from '../src/world/save';
+import { DIFICULTAD_POR_DEFECTO } from '../src/core/dificultad';
 import { HIERBA, MADERA, PIEDRA, TIERRA } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
@@ -29,6 +30,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     cofres: [],
     vida: 80,
     hambre: 72,
+    dificultad: 5,
     ...parcial,
   };
 }
@@ -118,7 +120,7 @@ describe('empaquetado', () => {
   function cuerpoAntiguo(
     m: Mundo,
     e: EstadoPartida,
-    version: 1 | 2 | 3 | 4 | 5 | 6,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7,
   ): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
@@ -128,10 +130,17 @@ describe('empaquetado', () => {
     const campoCofres = 2;
     const campoVida = 2;
     const campoHambre = 2;
+    const campoDificultad = 1;
 
     const actual = serializar(m, e);
     const inicioRle =
-      comun + campoMinutos + campoInventario + campoCofres + campoVida + campoHambre;
+      comun +
+      campoMinutos +
+      campoInventario +
+      campoCofres +
+      campoVida +
+      campoHambre +
+      campoDificultad;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
@@ -139,7 +148,8 @@ describe('empaquetado', () => {
     if (version >= 3) extra += campoInventario;
     if (version >= 4) extra += campoCofres;
     if (version >= 5) extra += campoVida;
-    // El hambre nunca: es del formato 7, y aquí solo se construyen cuerpos
+    if (version >= 7) extra += campoHambre;
+    // La dificultad nunca: es del formato 8, y aquí solo se construyen cuerpos
     // anteriores. Recortarla es justo lo que hace que el lector antiguo
     // encuentre el RLE donde lo espera.
 
@@ -159,6 +169,17 @@ describe('empaquetado', () => {
     expect(leido.inventario).toEqual([]);
     expect(leido.semilla).toBe(e.semilla);
     expect(mundo.tileId).toEqual(m.tileId);
+  });
+
+  it('un mundo del formato 7 se abre en dificultad normal', () => {
+    const m = new Mundo(4, 4);
+    m.rellenar(0, 2, 3, 3, PIEDRA);
+    const e = estado();
+
+    const { estado: leido } = deserializar(cuerpoAntiguo(m, e, 7), 7);
+    // Se jugó en un juego sin dificultades, así que la suya es la de entonces.
+    expect(leido.dificultad).toBe(DIFICULTAD_POR_DEFECTO);
+    expect(leido.hambre).toBe(e.hambre);
   });
 
   it('abre un mundo del formato 2, que guardaba la hora pero no el inventario', () => {

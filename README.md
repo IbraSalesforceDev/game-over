@@ -53,6 +53,7 @@ suaves. Un ciclo completo de día y noche dura 12 minutos reales.
 | `?tam=mediano` | Mundo de 2100×600 en vez de 1400×450 |
 | `?lab=1` | Abre el laboratorio de físicas de la fase 1 en vez de un mundo |
 | `?hora=22` o `?hora=5:40` | Empieza el mundo a esa hora (útil para ver la noche sin esperar) |
+| `?dif=0` … `?dif=9` | Dificultad del mundo, de pacífico a «tú lo has querido» |
 | `?columna=700` | Aparece en esa columna en vez de en el centro (para ir directo a un lago o a un bioma) |
 
 El laboratorio sigue ahí a propósito: es donde se afinan las constantes de

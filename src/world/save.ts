@@ -1,3 +1,4 @@
+import { DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
 import { migrarId } from '../items/items';
 import type { DatosCofre } from './contenedores';
 import { Mundo } from './world';
@@ -33,8 +34,10 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       secos, que es exactamente como estaban.
  *   7 — se añade el hambre. Los mundos anteriores se abren con el estómago
  *       lleno, que es lo justo: se guardaron en un juego donde no existía.
+ *   8 — se añade la dificultad del mundo. Los mundos anteriores se abren en
+ *       normal, que es la dificultad con la que se jugaron.
  */
-export const VERSION_FORMATO = 7;
+export const VERSION_FORMATO = 8;
 
 export interface EstadoJugador {
   x: number;
@@ -63,6 +66,11 @@ export interface EstadoPartida {
   vida: number;
   /** Hambre del jugador; formato 7. 0 significa "al máximo". */
   hambre: number;
+  /**
+   * Dificultad del mundo; formato 8. Se elige al crearlo y no se toca después:
+   * poder subirla y bajarla a mitad de partida vaciaría de sentido elegirla.
+   */
+  dificultad: number;
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -253,6 +261,7 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   }
   e.u16(Math.max(0, Math.round(estado.vida))); // formato 5
   e.u16(Math.max(0, Math.round(estado.hambre))); // formato 7
+  e.u8(Math.max(0, Math.min(255, Math.round(estado.dificultad)))); // formato 8
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -297,6 +306,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     cofres: [],
     vida: 0,
     hambre: 0,
+    dificultad: DIFICULTAD_POR_DEFECTO,
   };
   if (version >= 3) {
     const n = l.u16();
@@ -324,6 +334,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   }
   if (version >= 5) estado.vida = l.u16();
   if (version >= 7) estado.hambre = l.u16();
+  if (version >= 8) estado.dificultad = l.u8();
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);
