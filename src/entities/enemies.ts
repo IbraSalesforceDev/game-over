@@ -117,6 +117,14 @@ export interface Enemigo {
   vivo: boolean;
   /** Fase del vuelo, solo para los que vuelan. */
   fase: number;
+  /**
+   * Ticks acumulados para la animación.
+   *
+   * Va aparte de `reloj` porque ese lo reinicia cada IA cuando le conviene —el
+   * slime lo pone a cero en cada salto— y un contador que salta hacia atrás
+   * hace que el sprite parpadee entre frames.
+   */
+  animReloj: number;
 }
 
 const GRAVEDAD = 0.4;
@@ -148,6 +156,9 @@ export function crearEnemigo(especie: Especie, wx: number, wy: number): Enemigo 
     olvidado: 0,
     vivo: true,
     fase: Math.random() * Math.PI * 2,
+    // Desfase inicial al azar: si no, todos los slimes de la pantalla se
+    // aplastan a la vez y se ve la maquinaria.
+    animReloj: Math.floor(Math.random() * 60),
   };
 }
 
@@ -300,6 +311,9 @@ export function actualizarEnemigos(
 
     pensar(e, objetivo);
     moverEnemigo(mundo, e);
+    // La animación corre con lo que se mueve: un bicho parado no debe seguir
+    // dando zancadas en el sitio.
+    e.animReloj += ENEMIGOS[e.especie].vuela ? 1 : Math.min(1, Math.abs(e.caja.vx) * 0.6 + 0.12);
 
     if (solapan(e.caja, jugador) && saludJugador.invulnerable <= 0) {
       salida.danoAlJugador = Math.max(salida.danoAlJugador, ENEMIGOS[e.especie].dano);

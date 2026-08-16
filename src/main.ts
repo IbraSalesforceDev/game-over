@@ -3,6 +3,8 @@ import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
 import { Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
+import { crearAudio } from './engine/audio';
+import { crearAjustes } from './ui/ajustes';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
@@ -29,7 +31,8 @@ import { equipoInicial, mejorPico } from './items/equipo';
 import { defObjeto, dropDePared, dropDeTile } from './items/items';
 import { estacionesCerca } from './items/recipes';
 import { Contenedores } from './world/contenedores';
-import { COFRE } from './world/tiles';
+import { AIRE, COFRE, defTile } from './world/tiles';
+import { Particulas } from './render/particles';
 import {
   actualizarDrop,
   crearDrop,
@@ -37,7 +40,7 @@ import {
   soltar,
   type Drop,
 } from './entities/drop';
-import { actualizarEnemigos, botinDe, type Enemigo } from './entities/enemies';
+import { actualizarEnemigos, botinDe, ENEMIGOS, type Enemigo } from './entities/enemies';
 import { crearGolpe, lanzarGolpe, resolverGolpe, tickGolpe } from './entities/combat';
 import { crearSalud, golpear, revivir, tickSalud, VIDA_MAXIMA } from './entities/salud';
 import { apagar, crearAliento, reiniciarAliento, tickAliento } from './entities/aliento';
@@ -245,6 +248,7 @@ async function arrancar(): Promise<void> {
       : equipoInicial();
   const drops: Drop[] = [];
   const enemigos: Enemigo[] = [];
+  const particulas = new Particulas();
   const cofres = Contenedores.desdeDatos(mundo.ancho, partida.estado.cofres);
   const salud = crearSalud(VIDA_MAXIMA);
   if (partida.estado.vida > 0) salud.vida = Math.min(VIDA_MAXIMA, partida.estado.vida);
@@ -259,8 +263,17 @@ async function arrancar(): Promise<void> {
   panelVida.refrescar(salud);
   panelVida.refrescarAliento(aliento);
   const aviso = crearAviso(capaUI);
+  const audio = crearAudio();
+  const opciones = crearAjustes(capaUI, audio);
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
+
+  // El navegador no deja sonar nada hasta que el usuario toca algo. En vez de
+  // pedirle que pulse un botón, se aprovecha el primer clic o la primera tecla
+  // que dé de todas formas para empezar a jugar.
+  for (const evento of ['pointerdown', 'keydown'] as const) {
+    window.addEventListener(evento, () => audio.despertar(), { once: true });
+  }
 
   // --- Estado de construcción ---
   const picado = crearPicado();
@@ -269,6 +282,7 @@ async function arrancar(): Promise<void> {
   const barra = crearBarra(capaUI, inventario, {
     alCambiar: () => reiniciarPicado(picado),
     estaciones: () => estacionesCerca(mundo, jugador.caja),
+    alFabricar: () => audio.sonar('craftear'),
   });
   barra.seleccionar(partida.estado.material);
   barra.refrescar(capa);
@@ -341,7 +355,10 @@ async function arrancar(): Promise<void> {
     barra.refrescar(capa);
   });
   entrada.alPulsar('KeyE', () => barra.alternarInventario());
-  entrada.alPulsar('Escape', () => barra.cerrar());
+  entrada.alPulsar('Escape', () => {
+    barra.cerrar();
+    opciones.cerrar();
+  });
   for (let i = 0; i < 10; i++) {
     entrada.alPulsar(`Digit${(i + 1) % 10}`, () => barra.seleccionar(i));
   }
@@ -351,6 +368,17 @@ async function arrancar(): Promise<void> {
   });
 
   window.addEventListener('resize', () => renderer.redimensionar());
+
+  /**
+   * Sacude la cámara, si quien juega no lo ha desactivado.
+   *
+   * Pasa por aquí y no por la cámara directamente porque la sacudida marea a
+   * bastante gente, y un ajuste que solo apaga la mitad de los sitios que
+   * sacuden no sirve de nada.
+   */
+  function sacudir(fuerza: number): void {
+    if (opciones.sacudidaActiva) renderer.camara.sacudir(fuerza);
+  }
 
   /** Mueve los objetos del suelo, los recoge y limpia los que ya no están. */
   function actualizarDrops(): void {
@@ -372,7 +400,10 @@ async function arrancar(): Promise<void> {
       drops.length = 0;
       drops.push(...vivos);
     }
-    if (recogidoAlgo) barra.refrescar(capa);
+    if (recogidoAlgo) {
+      barra.refrescar(capa);
+      audio.sonar('recoger', 0.9 + Math.random() * 0.3);
+    }
   }
 
   /** Estado del botón derecho en el tick anterior, para detectar el flanco. */
@@ -387,11 +418,37 @@ async function arrancar(): Promise<void> {
 
     // El golpe activo alcanza a quien toque, una vez por mandoble.
     const r = resolverGolpe(golpe, jugador.caja, enemigos);
+    for (const tocado of r.tocados) {
+      // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
+      // de que el mandoble ha entrado, que hasta ahora solo decía la barra de
+      // vida del bicho.
+      particulas.emitir(tocado.caja.x + tocado.caja.ancho / 2, tocado.caja.y + tocado.caja.alto / 2, {
+        cantidad: 8,
+        color: '#ffe9a8',
+        forma: 'chispa',
+        dispersion: 2.4,
+        empujeX: jugador.caja.mirando * 1.4,
+        vida: 14,
+        tam: 2,
+        gravedad: 0.08,
+      });
+      sacudir(1.4);
+    }
     for (const muerto of r.muertos) {
       const b = botinDe(muerto.especie);
       const tx = Math.floor((muerto.caja.x + muerto.caja.ancho / 2) / TILE);
       const ty = Math.floor((muerto.caja.y + muerto.caja.alto / 2) / TILE);
       drops.push(crearDrop(b.objeto, b.cantidad, tx, ty));
+      particulas.emitir(muerto.caja.x + muerto.caja.ancho / 2, muerto.caja.y + muerto.caja.alto / 2, {
+        cantidad: 18,
+        color: ENEMIGOS[muerto.especie].color,
+        dispersion: 2.6,
+        empujeY: -1.2,
+        vida: 34,
+        tam: 3,
+      });
+      sacudir(2.4);
+      audio.sonar('golpe', 0.7);
     }
 
     const res = actualizarEnemigos(mundo, enemigos, jugador.caja, salud);
@@ -410,6 +467,20 @@ async function arrancar(): Promise<void> {
       }
       if (golpear(salud, jugador.caja, res.danoAlJugador, fuenteX)) {
         panelVida.refrescar(salud);
+        particulas.emitir(
+          jugador.caja.x + jugador.caja.ancho / 2,
+          jugador.caja.y + jugador.caja.alto / 2,
+          {
+            cantidad: 12,
+            color: '#d94f4f',
+            dispersion: 2.2,
+            empujeY: -1,
+            vida: 30,
+            tam: 2,
+          },
+        );
+        sacudir(3.4);
+        audio.sonar('dano');
       }
     }
     for (const m of res.muertos) {
@@ -418,9 +489,17 @@ async function arrancar(): Promise<void> {
     }
 
     if (salud.muerto) {
+      particulas.emitir(
+        jugador.caja.x + jugador.caja.ancho / 2,
+        jugador.caja.y + jugador.caja.alto / 2,
+        { cantidad: 40, color: '#d94f4f', dispersion: 3.4, vida: 55, tam: 3 },
+      );
+      sacudir(8);
+      audio.sonar('muerte');
       reaparecer(jugador);
       revivir(salud);
       reiniciarAliento(aliento);
+      particulas.limpiar();
       panelVida.mostrarMuerte(true, 'Vuelves al punto de aparición.');
       window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
     }
@@ -529,11 +608,38 @@ async function arrancar(): Promise<void> {
           capa === 'bloque'
             ? dropDeTile(mundo.getTile(tx, ty))
             : dropDePared(mundo.getPared(tx, ty));
+        // Chispas del pico mientras se pica, no solo al romper: el bloque
+        // avisa de que le está pasando algo antes de partirse.
+        const colorTile =
+          capa === 'bloque'
+            ? defTile(mundo.getTile(tx, ty)).color
+            : defTile(mundo.getPared(tx, ty)).color;
+        if (picado.progreso > 0) audio.sonar('picar', 0.8 + Math.random() * 0.5);
+        if (picado.progreso > 0 && Math.random() < 0.35) {
+          particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
+            cantidad: 1,
+            color: colorTile,
+            dispersion: 1.2,
+            empujeY: -0.7,
+            vida: 16,
+            tam: 2,
+          });
+        }
         if (avanzarPicado(mundo, picado, tx, ty, capa, potencia)) {
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
           // Abrir un hueco es lo que hace que el agua de al lado se mueva.
           liquidos.activar(tx, ty);
+          // El bloque revienta en cascotes de su propio color.
+          particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
+            cantidad: 14,
+            color: colorTile,
+            dispersion: 2.2,
+            vida: 32,
+            tam: 3,
+          });
+          sacudir(0.9);
+          audio.sonar('romper', 0.85 + Math.random() * 0.3);
           soltar(drops, soltado, tx, ty);
           if (soltado === COFRE) cofres.borrar(tx, ty);
           const abierto = barra.cofreAbierto;
@@ -564,6 +670,7 @@ async function arrancar(): Promise<void> {
         else mundo.setPared(tx, ty, tileEnMano);
         renderer.cache.invalidar(tx, ty);
         motorLuz.invalidar(tx);
+        audio.sonar('colocar', 0.85 + Math.random() * 0.3);
         // Tapar una celda con agua la vacía en el paso siguiente, y el líquido
         // de al lado tiene que enterarse de que ha perdido un camino.
         liquidos.activar(tx, ty);
@@ -592,9 +699,104 @@ async function arrancar(): Promise<void> {
       panelVida.refrescar(salud);
       if (r.motivo === 'ahogo') aviso.mostrar('Te estás ahogando', true);
       else if (r.motivo === 'lava') aviso.mostrar('¡Lava!', true);
+      audio.sonar(r.motivo === 'ahogo' ? 'chapoteo' : 'quemar');
     }
     panelVida.refrescarAliento(aliento);
     return s.fraccion;
+  }
+
+  /** Ticks que llevaba el jugador dentro del agua, para el chapoteo de entrada. */
+  let mojadoAntes = false;
+  /** Ticks entre pisada y pisada de polvo al correr. */
+  let relojPisada = 0;
+
+  /**
+   * Polvo, chapoteos y sacudidas que salen de lo que hace el jugador.
+   *
+   * Va aquí y no dentro de la física porque nada de esto cambia la simulación:
+   * son avisos para el ojo. Si mañana hay que quitarlos para depurar, se quita
+   * esta función entera y el juego se comporta exactamente igual.
+   */
+  function efectosDelJugador(enSueloAntes: boolean, sumergido: number): void {
+    const c = jugador.caja;
+    const pies = { x: c.x + c.ancho / 2, y: c.y + c.alto };
+
+    // El salto suena en el tick en que despega: estaba en el suelo, ya no lo
+    // está, y el impulso acaba de empezar.
+    if (enSueloAntes && !c.enSuelo && c.saltando) {
+      audio.sonar('saltar', 0.95 + Math.random() * 0.15);
+    }
+
+    // Aterrizaje: cuanto más alta la caída, más polvo y más sacude.
+    if (!enSueloAntes && c.enSuelo && c.ultimaCaida > 1.5) {
+      const fuerza = Math.min(1, c.ultimaCaida / 12);
+      particulas.emitir(pies.x, pies.y, {
+        cantidad: Math.round(4 + fuerza * 12),
+        color: colorDelSuelo(pies.x, pies.y),
+        dispersion: 1 + fuerza * 1.6,
+        empujeY: -0.6,
+        vida: 26,
+        tam: 2,
+      });
+      if (fuerza > 0.4) sacudir(fuerza * 3.2);
+      audio.sonar('aterrizar', 0.85 + fuerza * 0.4);
+    }
+
+    // Correr levanta polvo, pero solo de vez en cuando: una nube continua
+    // convierte al personaje en una locomotora.
+    if (c.enSuelo && Math.abs(c.vx) > 1.6 && --relojPisada <= 0) {
+      relojPisada = 9;
+      particulas.emitir(pies.x - Math.sign(c.vx) * 5, pies.y - 1, {
+        cantidad: 2,
+        color: colorDelSuelo(pies.x, pies.y),
+        dispersion: 0.5,
+        empujeX: -Math.sign(c.vx) * 0.5,
+        empujeY: -0.5,
+        vida: 18,
+        tam: 2,
+      });
+    }
+
+    // Entrar y salir del agua: el chapoteo es lo que convierte el borde del
+    // lago en una superficie y no en una línea de color.
+    const mojado = sumergido > 0.12;
+    if (mojado !== mojadoAntes && Math.abs(c.vy) > 1) {
+      audio.sonar('chapoteo');
+      particulas.emitir(pies.x, c.y + c.alto * (mojado ? 0.8 : 0.2), {
+        cantidad: 10,
+        color: '#9fd0f2',
+        dispersion: 1.9,
+        empujeY: -1.5,
+        vida: 24,
+        tam: 2,
+        gravedad: 0.3,
+      });
+    }
+    mojadoAntes = mojado;
+
+    // Burbujas al bucear: el aviso de que ahí abajo se gasta aire.
+    if (sumergido > 0.5 && Math.random() < 0.06) {
+      particulas.emitir(c.x + c.ancho * 0.7, c.y + 6, {
+        cantidad: 1,
+        color: '#cfeaff',
+        forma: 'burbuja',
+        dispersion: 0.25,
+        vida: 60,
+        tam: 2,
+        gravedad: 0.06,
+      });
+    }
+  }
+
+  /** Color aproximado del bloque que se pisa, para que el polvo sea de su tierra. */
+  function colorDelSuelo(wx: number, wy: number): string {
+    const tx = Math.floor(wx / TILE);
+    const ty = Math.floor(wy / TILE);
+    for (let d = 0; d < 3; d++) {
+      const id = mundo.getTile(tx, ty + d);
+      if (id !== AIRE) return defTile(id).color;
+    }
+    return '#8a7360';
   }
 
   /** ¿Hay lava en la ventana visible? Solo entonces su movimiento cambia la luz. */
@@ -608,14 +810,22 @@ async function arrancar(): Promise<void> {
     return false;
   }
 
+  /** Fracción sumergida del último tick, que el render necesita para la pose. */
+  let sumergidoAhora = 0;
+
   const bucle = crearBucle(
     () => {
       reloj.avanzar(TICK);
       editar();
       const sumergido = actualizarLiquidos();
+      const enSueloAntes = jugador.caja.enSuelo;
       actualizarJugador(mundo, jugador, entrada.estado(), ajustes, sumergido);
+      efectosDelJugador(enSueloAntes, sumergido);
+      sumergidoAhora = sumergido;
       actualizarDrops();
       actualizarCombate();
+      particulas.actualizar(mundo);
+      if (opciones.sacudidaActiva) renderer.camara.tickSacudida();
       entrada.finTick();
       // Red de seguridad: si algo lo saca del mundo, vuelve al spawn.
       if (jugador.caja.y > mundo.alto * TILE + 200) reaparecer(jugador);
@@ -627,11 +837,11 @@ async function arrancar(): Promise<void> {
         mundo.ancho,
         mundo.alto,
       );
-      renderer.dibujar(
+      renderer.dibujar({
         mundo,
         jugador,
         alpha,
-        partida.zonas,
+        zonas: partida.zonas,
         picado,
         objetivo,
         motorLuz,
@@ -639,7 +849,9 @@ async function arrancar(): Promise<void> {
         drops,
         enemigos,
         golpe,
-      );
+        particulas,
+        sumergido: sumergidoAhora,
+      });
 
       debug.fps = bucle.fps;
       debug.msFrame = bucle.msFrame;

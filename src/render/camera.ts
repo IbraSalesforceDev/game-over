@@ -20,6 +20,37 @@ export class Camara {
   /** Suavizado del seguimiento: 0 = pegada, 1 = no se mueve. */
   suavizado = 0.12;
 
+  /**
+   * Sacudida: amplitud actual en píxeles de mundo, y su desplazamiento.
+   *
+   * Se aplica al origen y no a la posición de la cámara para que no arrastre el
+   * suavizado del seguimiento: si se sumara a `x`, cada sacudida dejaría a la
+   * cámara descentrada y tardaría un segundo en volver.
+   */
+  private amplitud = 0;
+  private desX = 0;
+  private desY = 0;
+
+  /** Pide una sacudida. La mayor gana: dos golpes seguidos no se acumulan. */
+  sacudir(fuerza: number): void {
+    this.amplitud = Math.min(9, Math.max(this.amplitud, fuerza));
+  }
+
+  /** Avanza la sacudida un tick. */
+  tickSacudida(): void {
+    if (this.amplitud <= 0.05) {
+      this.amplitud = 0;
+      this.desX = 0;
+      this.desY = 0;
+      return;
+    }
+    // Signo alterno: una sacudida que va y viene se lee como un impacto,
+    // mientras que un ruido al azar se lee como una avería del monitor.
+    this.desX = (Math.random() < 0.5 ? -1 : 1) * this.amplitud;
+    this.desY = (Math.random() < 0.5 ? -1 : 1) * this.amplitud * 0.7;
+    this.amplitud *= 0.86;
+  }
+
   redimensionar(anchoCanvas: number, altoCanvas: number): void {
     this.ancho = anchoCanvas / this.zoom;
     this.alto = altoCanvas / this.zoom;
@@ -57,11 +88,11 @@ export class Camara {
    * los chunks; redondear el origen una vez, no.
    */
   origenX(): number {
-    return Math.round(-this.x * this.zoom);
+    return Math.round((-this.x + this.desX) * this.zoom);
   }
 
   origenY(): number {
-    return Math.round(-this.y * this.zoom);
+    return Math.round((-this.y + this.desY) * this.zoom);
   }
 
   /** Posición de pantalla alineada a píxel, coherente entre todas las capas. */

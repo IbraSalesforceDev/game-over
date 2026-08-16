@@ -3,7 +3,7 @@ import { css, type Reloj } from '../engine/time';
 import type { Jugador } from '../entities/player';
 import type { MotorLuz } from '../world/lighting';
 import { TAMANO_DROP, type Drop } from '../entities/drop';
-import { ENEMIGOS, type Enemigo } from '../entities/enemies';
+import type { Enemigo } from '../entities/enemies';
 import { cajaGolpe, type Golpe } from '../entities/combat';
 import { defObjeto } from '../items/items';
 import type { Capa, Picado } from '../world/edit';
@@ -13,6 +13,15 @@ import type { Mundo } from '../world/world';
 import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
 import { CacheChunks, CHUNK_RENDER } from './chunkCache';
+import { Fondo } from './fondo';
+import type { Particulas } from './particles';
+import {
+  crearSprites,
+  JUGADOR_OFF_X,
+  JUGADOR_OFF_Y,
+  type Pose,
+  type Sprites,
+} from './sprites';
 import { crearTileset, type Tileset } from './tileset';
 
 /** Lo que el render necesita saber del puntero de construcción. */
@@ -24,23 +33,57 @@ export interface Objetivo {
   capa: Capa;
 }
 
+/**
+ * Todo lo que hace falta para pintar un frame.
+ *
+ * Va agrupado en un objeto y no como once parámetros sueltos porque la lista ya
+ * había llegado al punto en que añadir uno obligaba a contar comas para no
+ * cruzar dos argumentos del mismo tipo.
+ */
+export interface Escena {
+  mundo: Mundo;
+  jugador: Jugador;
+  alpha: number;
+  zonas: Zona[];
+  picado: Picado;
+  objetivo: Objetivo;
+  motorLuz: MotorLuz;
+  reloj: Reloj;
+  drops: readonly Drop[];
+  enemigos: readonly Enemigo[];
+  golpe: Golpe;
+  particulas: Particulas;
+  /** Fracción del jugador bajo líquido, para elegir la pose de nado. */
+  sumergido: number;
+}
+
 export class Renderer {
   readonly ctx: CanvasRenderingContext2D;
   readonly camara = new Camara();
   readonly cache: CacheChunks;
   private readonly tileset: Tileset;
+  private readonly sprites: Sprites;
+  private readonly fondo = new Fondo();
   private dpr = 1;
   private lienzoLuz: HTMLCanvasElement | null = null;
   private ctxLuz: CanvasRenderingContext2D | null = null;
   private imgLuz: ImageData | null = null;
   private tinteAnterior = '';
+  private gradienteVineta: CanvasGradient | null = null;
+  private vinetaW = 0;
+  private vinetaH = 0;
+  private animPose: Pose = 'quieto';
+  private animAvance = 0;
+  private ultimoMs = 0;
 
   constructor(private readonly lienzo: HTMLCanvasElement) {
     const ctx = lienzo.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Este navegador no soporta canvas 2D');
     this.ctx = ctx;
     this.tileset = crearTileset();
+    this.sprites = crearSprites();
     this.cache = new CacheChunks(this.tileset);
+    this.ultimoMs = performance.now();
     this.redimensionar();
   }
 
@@ -83,6 +126,76 @@ export class Renderer {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.anchoCanvas, this.altoCanvas);
     this.estrellas(reloj);
+    this.astro(reloj);
+    this.fondo.dibujar(
+      ctx,
+      reloj,
+      this.camara.x,
+      this.camara.y,
+      this.anchoCanvas,
+      this.altoCanvas,
+      this.dpr,
+      performance.now(),
+    );
+  }
+
+  /**
+   * Sol y luna, recorriendo el cielo según la hora.
+   *
+   * Se dibujan detrás de las montañas para que salgan y se pongan por detrás
+   * del horizonte, que es la mitad de la gracia de tener un ciclo de día.
+   */
+  private astro(reloj: Reloj): void {
+    const { ctx } = this;
+    const w = this.anchoCanvas;
+    const h = this.altoCanvas;
+    const dia = reloj.luzSolar > 90;
+    // El arco va de izquierda a derecha a lo largo de su medio ciclo. Se usa el
+    // minuto del reloj directamente: el sol sale por un lado y se pone por el
+    // otro, sin más matemáticas.
+    const t = dia
+      ? (reloj.minutos - 4.5 * 60) / (15 * 60)
+      : ((reloj.minutos + 24 * 60 - 19.5 * 60) % (24 * 60)) / (9 * 60);
+    if (t < -0.05 || t > 1.05) return;
+
+    const x = w * (0.08 + t * 0.84);
+    const y = h * 0.66 - Math.sin(Math.max(0, Math.min(1, t)) * Math.PI) * h * 0.55;
+    const r = Math.max(10, 16 * this.dpr);
+
+    ctx.save();
+    if (dia) {
+      // Halo: un degradado radial suave alrededor del disco.
+      const halo = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 4.5);
+      halo.addColorStop(0, 'rgba(255,238,180,0.55)');
+      halo.addColorStop(1, 'rgba(255,238,180,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(x - r * 5, y - r * 5, r * 10, r * 10);
+      ctx.fillStyle = '#fff4c8';
+    } else {
+      const halo = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 3.5);
+      halo.addColorStop(0, 'rgba(200,220,255,0.35)');
+      halo.addColorStop(1, 'rgba(200,220,255,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(x - r * 4, y - r * 4, r * 8, r * 8);
+      ctx.fillStyle = '#e6eefa';
+    }
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    if (!dia) {
+      // Cráteres: tres manchas y la luna deja de ser un círculo blanco.
+      ctx.fillStyle = 'rgba(150,168,196,0.55)';
+      for (const [dx, dy, rr] of [
+        [-0.3, -0.2, 0.22],
+        [0.25, 0.1, 0.16],
+        [-0.05, 0.35, 0.12],
+      ] as const) {
+        ctx.beginPath();
+        ctx.arc(x + dx * r * 2, y + dy * r * 2, rr * r * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   /**
@@ -198,28 +311,95 @@ export class Renderer {
     }
   }
 
-  private jugador(j: Jugador, alpha: number, ox: number, oy: number): void {
+  /**
+   * Elige la pose y avanza el contador de animación.
+   *
+   * El avance depende de la velocidad real del jugador: con un contador fijo,
+   * andar despacio se ve como patinar, porque los pies se mueven a un ritmo que
+   * no tiene nada que ver con el que recorre el suelo.
+   */
+  private animarJugador(j: Jugador, sumergido: number, ms: number): { pose: Pose; frame: number } {
+    const dt = Math.min(64, ms - this.ultimoMs) / 16.667;
+    this.ultimoMs = ms;
+
+    let pose: Pose;
+    let velocidad = 0.14;
+    if (sumergido >= 0.45) {
+      pose = 'nadar';
+      velocidad = 0.11;
+    } else if (!j.caja.enSuelo) {
+      pose = j.caja.vy < 0 ? 'saltar' : 'caer';
+    } else if (Math.abs(j.caja.vx) > 0.25) {
+      pose = 'andar';
+      velocidad = Math.abs(j.caja.vx) * 0.085;
+    } else {
+      pose = 'quieto';
+      velocidad = 0.022;
+    }
+
+    // Al cambiar de pose se arranca en el primer frame: entrar a mitad del
+    // ciclo de paso deja al personaje con una pierna estirada de golpe.
+    if (pose !== this.animPose) {
+      this.animPose = pose;
+      this.animAvance = 0;
+    }
+    this.animAvance += velocidad * dt;
+    return { pose, frame: Math.floor(this.animAvance) };
+  }
+
+  private jugador(j: Jugador, alpha: number, ox: number, oy: number, sumergido: number): void {
     const { ctx, camara } = this;
     // Interpolación entre el tick anterior y el actual: el movimiento se ve
     // fluido aunque la simulación vaya a 60 fijos.
     const wx = j.xPrev + (j.caja.x - j.xPrev) * alpha;
     const wy = j.yPrev + (j.caja.y - j.yPrev) * alpha;
     const u = camara.zoom;
-    const sx = ox + Math.round(wx * u);
-    const sy = oy + Math.round(wy * u);
-    const w = j.caja.ancho * u;
-    const h = j.caja.alto * u;
+    const { pose, frame } = this.animarJugador(j, sumergido, performance.now());
 
-    ctx.fillStyle = '#2b3a4a';
-    ctx.fillRect(sx, sy + h * 0.45, w, h * 0.55);
-    ctx.fillStyle = '#3f5f7a';
-    ctx.fillRect(sx, sy + h * 0.3, w, h * 0.2);
-    ctx.fillStyle = '#e8c9a0';
-    ctx.fillRect(sx + u * 2, sy, w - u * 4, h * 0.32);
+    this.sprites.jugador(
+      ctx,
+      pose,
+      frame,
+      j.caja.mirando,
+      ox + Math.round((wx + JUGADOR_OFF_X) * u),
+      oy + Math.round((wy + JUGADOR_OFF_Y) * u),
+      u,
+    );
+  }
 
-    ctx.fillStyle = '#1a2430';
-    const ojoX = j.caja.mirando > 0 ? sx + w - u * 7 : sx + u * 4;
-    ctx.fillRect(ojoX, sy + u * 6, u * 3, u * 3);
+  /**
+   * Sombra elíptica bajo una caja apoyada en el suelo.
+   *
+   * Es el truco más barato que existe para que un personaje parezca posado
+   * sobre el terreno en vez de pegado por delante, y cuesta un `ellipse` por
+   * bicho visible.
+   */
+  private sombra(
+    x: number,
+    y: number,
+    ancho: number,
+    ox: number,
+    oy: number,
+    fuerza = 1,
+  ): void {
+    if (fuerza <= 0.02) return;
+    const { ctx, camara } = this;
+    const u = camara.zoom;
+    ctx.save();
+    ctx.globalAlpha = 0.28 * fuerza;
+    ctx.fillStyle = '#05070a';
+    ctx.beginPath();
+    ctx.ellipse(
+      ox + (x + ancho / 2) * u,
+      oy + y * u,
+      (ancho / 2) * u * fuerza,
+      Math.max(1.5, 2.5 * u * 0.5 * fuerza),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+    ctx.restore();
   }
 
   /** Grietas del bloque que se está picando ahora mismo. */
@@ -309,41 +489,45 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Enemigos. Parpadean en blanco el instante que siguen a un golpe. */
+  /** Enemigos. Destellan en blanco el instante que sigue a un golpe. */
   private enemigos(lista: readonly Enemigo[], ox: number, oy: number): void {
     const { ctx, camara } = this;
     const z = camara.zoom;
     for (const e of lista) {
       if (!e.vivo) continue;
-      const def = ENEMIGOS[e.especie];
       const c = e.caja;
-      const sx = ox + Math.round(c.x * z);
-      const sy = oy + Math.round(c.y * z);
-      const w = c.ancho * z;
-      const h = c.alto * z;
+      const molde = this.sprites.moldeDe(e.especie);
+      const sx = ox + Math.round((c.x + molde.offX) * z);
+      const sy = oy + Math.round((c.y + molde.offY) * z);
 
+      if (c.enSuelo) this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy, 0.85);
+
+      const frame = Math.floor(e.animReloj * 0.35);
+      this.sprites.enemigo(ctx, e.especie, frame, c.mirando, sx, sy, z);
+
+      // Destello del impacto: el sprite se repinta en blanco puro encima de sí
+      // mismo. Con `source-atop` respeta su silueta, así que no hace falta una
+      // segunda versión blanca de cada bicho en el atlas.
       const tocado = e.salud.desdeGolpe < 6;
-      ctx.fillStyle = tocado ? '#ffffff' : def.color;
-      ctx.fillRect(sx, sy, w, h);
-      if (!tocado) {
-        ctx.fillStyle = def.colorOscuro;
-        ctx.fillRect(sx, sy + h * 0.62, w, h * 0.38);
-        // Dos ojos mirando hacia donde se mueve.
-        ctx.fillStyle = '#0d1117';
-        const ojo = Math.max(2, z);
-        const base = c.mirando > 0 ? sx + w * 0.45 : sx + w * 0.2;
-        ctx.fillRect(base, sy + h * 0.25, ojo, ojo);
-        ctx.fillRect(base + ojo * 2.2, sy + h * 0.25, ojo, ojo);
+      if (tocado) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.55 * (1 - e.salud.desdeGolpe / 6);
+        this.sprites.enemigo(ctx, e.especie, frame, c.mirando, sx, sy, z);
+        this.sprites.enemigo(ctx, e.especie, frame, c.mirando, sx, sy, z);
+        ctx.restore();
       }
 
       // Barra de vida solo cuando está herido: llenar la pantalla de barras
       // llenas no informa de nada.
       if (e.salud.vida < e.salud.vidaMax) {
         const pct = e.salud.vida / e.salud.vidaMax;
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(sx, sy - 6 * z, w, 3 * z);
-        ctx.fillStyle = '#e05a5a';
-        ctx.fillRect(sx, sy - 6 * z, w * pct, 3 * z);
+        const bx = ox + Math.round(c.x * z);
+        const by = oy + Math.round(c.y * z) - 6 * z;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(bx - 1, by - 1, c.ancho * z + 2, 3 * z + 2);
+        ctx.fillStyle = pct > 0.5 ? '#7bc86c' : pct > 0.25 ? '#e8b64c' : '#e05a5a';
+        ctx.fillRect(bx, by, c.ancho * z * pct, 3 * z);
       }
     }
   }
@@ -416,36 +600,69 @@ export class Renderer {
     }
   }
 
-  dibujar(
-    mundo: Mundo,
-    j: Jugador,
-    alpha: number,
-    zonas: Zona[],
-    picado: Picado,
-    objetivo: Objetivo,
-    motorLuz: MotorLuz,
-    reloj: Reloj,
-    drops: readonly Drop[],
-    enemigos: readonly Enemigo[],
-    golpe: Golpe,
-  ): void {
+  dibujar(e: Escena): void {
     const ox = this.camara.origenX();
     const oy = this.camara.origenY();
     const { tx0, ty0, tx1, ty1 } = this.camara.tilesVisibles();
-    const recalculada = motorLuz.actualizar(tx0, ty0, tx1, ty1, reloj.luzSolar);
+    const recalculada = e.motorLuz.actualizar(tx0, ty0, tx1, ty1, e.reloj.luzSolar);
 
-    this.cielo(reloj);
-    this.chunks(mundo, ox, oy);
-    this.picado(mundo, picado, ox, oy);
-    this.drops(drops, ox, oy);
-    this.enemigos(enemigos, ox, oy);
-    this.jugador(j, alpha, ox, oy);
-    this.golpe(golpe, j, ox, oy);
-    this.liquidos(mundo, ox, oy, performance.now());
+    this.cielo(e.reloj);
+    this.chunks(e.mundo, ox, oy);
+    this.picado(e.mundo, e.picado, ox, oy);
+    this.drops(e.drops, ox, oy);
+    this.enemigos(e.enemigos, ox, oy);
+    if (e.jugador.caja.enSuelo) {
+      const c = e.jugador.caja;
+      this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy);
+    }
+    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido);
+    this.golpe(e.golpe, e.jugador, ox, oy);
+    // Las partículas van delante de los cuerpos pero detrás del agua: los
+    // cascotes que caen a un lago tienen que verse a través de él.
+    e.particulas.dibujar(this.ctx, ox, oy, this.camara.zoom);
+    this.liquidos(e.mundo, ox, oy, performance.now());
     // La luz va después del mundo y del personaje, pero antes de la interfaz:
     // el recuadro del puntero tiene que verse igual dentro de una cueva.
-    this.luz(motorLuz, reloj, recalculada, ox, oy);
-    this.objetivo(objetivo, ox, oy);
-    this.zonas(zonas, ox);
+    this.luz(e.motorLuz, e.reloj, recalculada, ox, oy);
+    this.vineta(e.reloj);
+    this.objetivo(e.objetivo, ox, oy);
+    this.zonas(e.zonas, ox);
+  }
+
+  /**
+   * Viñeta: un oscurecido suave en los bordes de la pantalla.
+   *
+   * Concentra la mirada en el centro, que es donde está el personaje, y de paso
+   * disimula el corte recto del borde del canvas. Es el retoque más barato que
+   * existe para que una escena deje de parecer una captura de un editor.
+   */
+  private vineta(reloj: Reloj): void {
+    const { ctx } = this;
+    const w = this.anchoCanvas;
+    const h = this.altoCanvas;
+    // La viñeta se suma al multiply de la luz, así que de noche oscurecía dos
+    // veces y la pantalla se quedaba en negro. Se ata al sol: de día marca los
+    // bordes, de noche casi desaparece porque la escena ya está oscura.
+    const fuerza = 0.12 + (reloj.luzSolar / 255) * 0.22;
+    ctx.save();
+    ctx.globalAlpha = fuerza;
+    if (!this.gradienteVineta || this.vinetaW !== w || this.vinetaH !== h) {
+      const g = ctx.createRadialGradient(
+        w / 2,
+        h / 2,
+        Math.min(w, h) * 0.36,
+        w / 2,
+        h / 2,
+        Math.max(w, h) * 0.72,
+      );
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,1)');
+      this.gradienteVineta = g;
+      this.vinetaW = w;
+      this.vinetaH = h;
+    }
+    ctx.fillStyle = this.gradienteVineta;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
   }
 }

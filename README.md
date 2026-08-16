@@ -20,7 +20,8 @@ Se construye por fases, cada una jugable y desplegable por separado.
 - ✅ **Fase 7** — Crafteo y contenedores
 - ✅ **Fase 8** — Vida, combate y enemigos
 - ✅ **Fase 9** — Líquidos y biomas
-- ⬜ **Fase 10** — Pulido y audio
+- ✅ **Fase 10** — Pulido, sprites y audio
+- ⬜ **Fase 11** — Controles táctiles
 
 Cada partida genera un mundo nuevo a partir de una semilla: relieve por ruido
 fractal, capa de tierra, subsuelo de piedra con grietas sueltas, caverna con
@@ -125,6 +126,27 @@ horno funde mineral en lingotes y el yunque los convierte en picos mejores. El
 panel enseña también lo que todavía no puedes pagar, en gris — saber que existe
 un pico de oro es lo que empuja a bajar a buscarlo. Un cofre no se puede romper
 si tiene cosas dentro.
+
+Todo lo que se ve está dibujado por código al arrancar: el personaje y los
+enemigos son sprites de píxel generados en lienzos fuera de pantalla, con ciclo
+de paso, brazos y piernas en dos planos —el de atrás más oscuro, que es lo que
+hace que la zancada se lea— y poses de salto, caída y nado. Los tiles tienen
+grano propio por familia: la piedra mancha, la tierra motea, la madera veta y
+los minerales son roca con pepitas. La hierba y la nieve se recortan en briznas
+cuando su borde da al aire, y las copas de los árboles redondean las esquinas
+para leerse como una masa y no como una cuadrícula.
+
+Detrás hay dos cordilleras con parallax, nubes a la deriva y el sol o la luna
+recorriendo el cielo según la hora. Delante, partículas: cascotes del color del
+bloque que rompes, polvo al aterrizar y al correr, chispas al golpear,
+chapoteos al entrar al agua y burbujas al bucear. La cámara se sacude al recibir
+daño y al reventar algo.
+
+El sonido también sale de código, con WebAudio y sin un solo fichero de audio:
+osciladores, envolventes y ruido blanco filtrado. Cada disparo desafina un poco
+a propósito, porque un efecto que se repite treinta veces con la misma nota
+exacta se convierte en una alarma. El botón **⚙** de abajo a la izquierda abre
+volumen, silencio y sacudida de cámara, y lo recuerda entre partidas.
 
 El panel `F4` permite tocar en caliente la gravedad, el salto, la fricción y
 todo lo demás; el botón **Copiar** vuelca el ajuste para pegarlo en

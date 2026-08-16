@@ -541,24 +541,67 @@ function plantarCactus(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void
   }
 }
 
+/**
+ * Un árbol con raíces, ramas y copa de varios lóbulos.
+ *
+ * La versión anterior era un palo de un tile con un rombo de hojas encima, y
+ * desde lejos el bosque parecía una valla. Lo que hace que se lea como un árbol
+ * son tres cosas, por este orden: que la base se ensanche, que la copa tenga
+ * más de un bulto, y que salgan ramas a media altura para romper la vertical.
+ */
 function plantarArbol(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void {
-  const altura = rng.entero(5, 11);
+  // La altura la manda la cámara: se ven unos quince tiles de alto, así que un
+  // árbol de catorce deja la copa fuera de pantalla y el jugador solo ve un
+  // palo. Entre cinco y nueve cabe entero con su copa.
+  const altura = rng.entero(5, 9);
+  if (tyBase - altura < 4) return;
+
   for (let i = 0; i < altura; i++) {
     const ty = tyBase - i;
-    if (ty < 2) return;
     if (mundo.getTile(tx, ty) !== AIRE) return;
     mundo.setTile(tx, ty, TRONCO);
   }
 
-  // Copa: un rombo achatado de hojas sobre la punta del tronco.
+  // Ramas: una o dos, en la mitad alta y a lados distintos. Siempre de un solo
+  // tile y siempre acabadas en hojas: una rama pelada de dos tiles se lee como
+  // el brazo de una farola, no como parte de un árbol.
+  const ramas = rng.entero(1, 2);
+  let ladoAnterior = 0;
+  for (let r = 0; r < ramas; r++) {
+    const lado = ladoAnterior === 0 ? (rng.suerte(0.5) ? 1 : -1) : -ladoAnterior;
+    ladoAnterior = lado;
+    const ty = tyBase - rng.entero(Math.floor(altura * 0.55), altura - 2);
+    if (mundo.getTile(tx + lado, ty) !== AIRE) continue;
+    mundo.setTile(tx + lado, ty, TRONCO);
+    // Dos lóbulos por rama: uno pasado el extremo y otro justo encima. Con uno
+    // solo, las hojas quedaban al lado de la rama y no sobre ella, y lo que se
+    // veía era un muñón pelado saliendo del tronco: un poste de la luz.
+    const r = rng.rango(2.1, 2.8);
+    lobuloHojas(mundo, tx + lado * 2, ty, r);
+    lobuloHojas(mundo, tx + lado, ty - 2, r * 0.8);
+  }
+
+  // Copa: tres lóbulos solapados, uno central y dos algo más bajos a los lados.
   const cy = tyBase - altura;
-  const radio = rng.entero(2, 3);
-  for (let dy = -radio; dy <= radio - 1; dy++) {
-    for (let dx = -radio; dx <= radio; dx++) {
-      if (Math.abs(dx) + Math.abs(dy) > radio + 1) continue;
+  const radio = rng.rango(2.8, 4.4);
+  lobuloHojas(mundo, tx, cy - 1, radio);
+  lobuloHojas(mundo, tx - Math.round(radio * 0.75), cy + 1, radio * 0.72);
+  lobuloHojas(mundo, tx + Math.round(radio * 0.75), cy + 1, radio * 0.72);
+  // Y un remate arriba, para que la silueta no acabe plana.
+  lobuloHojas(mundo, tx + (rng.suerte(0.5) ? 1 : -1), cy - 3, radio * 0.55);
+}
+
+/** Bola de hojas. No pisa nada que no sea aire. */
+function lobuloHojas(mundo: Mundo, cx: number, cy: number, radio: number): void {
+  const r2 = radio * radio;
+  for (let dy = Math.floor(-radio); dy <= Math.ceil(radio); dy++) {
+    for (let dx = Math.floor(-radio); dx <= Math.ceil(radio); dx++) {
+      // Se aplasta un poco en vertical: una copa perfectamente redonda se ve
+      // como una piruleta.
+      if (dx * dx + dy * dy * 1.35 > r2) continue;
       const ty = cy + dy;
-      if (ty < 1) continue;
-      if (mundo.getTile(tx + dx, ty) === AIRE) mundo.setTile(tx + dx, ty, HOJAS);
+      if (ty < 1 || ty >= mundo.alto) continue;
+      if (mundo.getTile(cx + dx, ty) === AIRE) mundo.setTile(cx + dx, ty, HOJAS);
     }
   }
 }

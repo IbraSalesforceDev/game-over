@@ -1,6 +1,25 @@
 import { TILE } from '../core/constants';
 import { ABAJO, ARRIBA, DERECHA, IZQUIERDA, MASCARAS } from '../world/framing';
-import { AIRE, ANTORCHA, PLATAFORMA, TILES } from '../world/tiles';
+import {
+  AIRE,
+  ANTORCHA,
+  ARENISCA,
+  CACTUS,
+  COBRE,
+  HIELO,
+  HIERBA,
+  HIERRO,
+  HOJAS,
+  MADERA,
+  MESA,
+  NIEVE,
+  ORO,
+  PIEDRA,
+  PLATA,
+  PLATAFORMA,
+  TILES,
+  TRONCO,
+} from '../world/tiles';
 
 /**
  * Tileset procedural con auto-tiling.
@@ -74,29 +93,129 @@ function lienzo(w: number, h: number): HTMLCanvasElement {
 }
 
 /**
+ * Familias de textura.
+ *
+ * Un tile no se distingue de otro por su color medio sino por su grano: la
+ * piedra tiene manchas grandes, la tierra motas finas, la madera vetas
+ * verticales y el mineral pepitas brillantes sobre roca. Pintarlos todos con el
+ * mismo ruido dejaba un mundo que parecía coloreado con rotulador.
+ */
+type Textura = 'tierra' | 'piedra' | 'madera' | 'hojas' | 'mineral' | 'hielo' | 'nieve';
+
+function texturaDe(id: number): Textura {
+  switch (id) {
+    case PIEDRA:
+    case ARENISCA:
+      return 'piedra';
+    case MADERA:
+    case TRONCO:
+    case MESA:
+      return 'madera';
+    case HOJAS:
+    case CACTUS:
+      return 'hojas';
+    case COBRE:
+    case HIERRO:
+    case PLATA:
+    case ORO:
+      return 'mineral';
+    case HIELO:
+      return 'hielo';
+    case NIEVE:
+      return 'nieve';
+    default:
+      return 'tierra';
+  }
+}
+
+/**
  * Dibuja las VARIANTES texturas base de un tipo de tile en una tira horizontal.
  * El grano se pinta píxel a píxel una sola vez, en la carga.
  */
 function pintarBase(
   ctx: CanvasRenderingContext2D,
+  id: number,
   color: string,
   escala: number,
   oy: number,
 ): void {
+  const textura = texturaDe(id);
+  // El mineral se asienta sobre roca: en Terraria una veta de cobre es piedra
+  // con pepitas, no un bloque naranja, y esa diferencia es la que hace que
+  // encontrar una veta se vea como encontrar algo.
+  const fondo = textura === 'mineral' ? TILES[PIEDRA]!.color : color;
+
   for (let v = 0; v < VARIANTES; v++) {
     const ox = v * TILE;
-    ctx.fillStyle = css(rgb(color, 0, escala));
+    ctx.fillStyle = css(rgb(fondo, 0, escala));
     ctx.fillRect(ox, oy, TILE, TILE);
+
     for (let py = 0; py < TILE; py++) {
       for (let px = 0; px < TILE; px++) {
-        const n = hash2(px + v * 31, py + v * 17);
-        if (n > 0.86) {
-          ctx.fillStyle = css(rgb(color, 16, escala));
-          ctx.fillRect(ox + px, oy + py, 1, 1);
-        } else if (n < 0.14) {
-          ctx.fillStyle = css(rgb(color, -18, escala));
-          ctx.fillRect(ox + px, oy + py, 1, 1);
+        // Dos escalas de ruido: una gruesa que hace las manchas y una fina que
+        // hace el grano. Con una sola, la textura se ve como lluvia.
+        const grueso = hash2(Math.floor(px / 4) + v * 53, Math.floor(py / 4) + v * 29);
+        const fino = hash2(px + v * 31, py + v * 17);
+        let delta: number | null = null;
+
+        switch (textura) {
+          case 'piedra':
+            if (grueso > 0.62) delta = 13;
+            else if (grueso < 0.3) delta = -20;
+            if (fino > 0.9) delta = (delta ?? 0) + 12;
+            break;
+          case 'tierra':
+            if (fino > 0.84) delta = 16;
+            else if (fino < 0.16) delta = -20;
+            else if (grueso < 0.22) delta = -9;
+            break;
+          case 'madera': {
+            // Vetas verticales: columnas enteras algo más claras o más oscuras.
+            const veta = hash2(px + v * 91, 0);
+            if (veta > 0.72) delta = 12;
+            else if (veta < 0.3) delta = -16;
+            // Nudos: una mancha redonda de vez en cuando.
+            if (fino > 0.95) delta = -26;
+            break;
+          }
+          case 'hojas': {
+            // Racimos: manchas redondeadas de tres tonos, y algún hueco por el
+            // que se ve el cielo. Una copa opaca parece un cartel verde.
+            const c = hash2(Math.floor(px / 3) + v * 17, Math.floor(py / 3) + v * 43);
+            if (c > 0.74) delta = 20;
+            else if (c < 0.28) delta = -22;
+            if (fino > 0.93) delta = 30;
+            break;
+          }
+          case 'mineral': {
+            // Pepitas: bolas del color del mineral repartidas por la roca.
+            const d = Math.hypot(px - 5 - v * 2, py - 6 - ((v * 3) % 5));
+            const d2 = Math.hypot(px - 11 + v, py - 11 + ((v * 2) % 4));
+            if (d < 2.6 + fino || d2 < 2.1 + fino * 0.8) {
+              ctx.fillStyle = css(rgb(color, fino > 0.6 ? 26 : fino < 0.25 ? -22 : 0, escala));
+              ctx.fillRect(ox + px, oy + py, 1, 1);
+              continue;
+            }
+            if (grueso > 0.66) delta = 10;
+            else if (grueso < 0.32) delta = -18;
+            break;
+          }
+          case 'hielo':
+            // Facetas: bandas diagonales claras, como cristal roto.
+            if ((px + py * 2) % 7 === 0) delta = 22;
+            else if (grueso < 0.3) delta = -16;
+            if (fino > 0.94) delta = 34;
+            break;
+          case 'nieve':
+            // Casi lisa, con algún destello: la nieve es plana y brillante.
+            if (fino > 0.93) delta = 14;
+            else if (grueso < 0.2) delta = -10;
+            break;
         }
+
+        if (delta === null) continue;
+        ctx.fillStyle = css(rgb(fondo, delta, escala));
+        ctx.fillRect(ox + px, oy + py, 1, 1);
       }
     }
   }
@@ -105,14 +224,58 @@ function pintarBase(
 /** Bisela los lados que NO conectan: ahí es donde el bloque queda a la vista. */
 function pintarBordes(
   ctx: CanvasRenderingContext2D,
+  id: number,
   color: string,
   escala: number,
   mascara: number,
   ox: number,
   oy: number,
+  variante: number,
 ): void {
   const claro = css(rgb(color, 30, escala));
   const oscuro = css(rgb(color, -34, escala));
+
+  // Las hojas no tienen aristas: cuando dos lados contiguos quedan al aire, la
+  // esquina se recorta en diagonal. Es lo que convierte una copa de tiles
+  // cuadrados en una mancha orgánica, y sale solo de la máscara de vecinos.
+  if (texturaDe(id) === 'hojas') {
+    const esquinas: [number, number, number, number][] = [
+      [ARRIBA, IZQUIERDA, 0, 0],
+      [ARRIBA, DERECHA, TILE - 1, 0],
+      [ABAJO, IZQUIERDA, 0, TILE - 1],
+      [ABAJO, DERECHA, TILE - 1, TILE - 1],
+    ];
+    for (const [ladoA, ladoB, ex, ey] of esquinas) {
+      if (mascara & ladoA || mascara & ladoB) continue;
+      const dirX = ex === 0 ? 1 : -1;
+      const dirY = ey === 0 ? 1 : -1;
+      // Escalón de tres píxeles: 3, 2 y 1. Con más, la hoja se ve mordida.
+      for (let i = 0; i < 3; i++) {
+        ctx.clearRect(ox + ex + dirX * i, oy + ey, 1, (3 - i) * dirY);
+        if (dirY < 0) ctx.clearRect(ox + ex + dirX * i, oy + ey - (2 - i), 1, 3 - i);
+      }
+    }
+    // Bordes expuestos: claro arriba —la hoja que da al sol— y oscuro en los
+    // otros tres. Sin ese contorno, la copa se funde con el cielo y con la copa
+    // de al lado, y el bosque se ve como una mancha verde continua.
+    if (!(mascara & ARRIBA)) {
+      ctx.fillStyle = claro;
+      ctx.fillRect(ox + 3, oy, TILE - 6, 1);
+    }
+    if (!(mascara & ABAJO)) {
+      ctx.fillStyle = oscuro;
+      ctx.fillRect(ox + 3, oy + TILE - 1, TILE - 6, 1);
+    }
+    if (!(mascara & IZQUIERDA)) {
+      ctx.fillStyle = oscuro;
+      ctx.fillRect(ox, oy + 3, 1, TILE - 6);
+    }
+    if (!(mascara & DERECHA)) {
+      ctx.fillStyle = oscuro;
+      ctx.fillRect(ox + TILE - 1, oy + 3, 1, TILE - 6);
+    }
+    return;
+  }
 
   if (!(mascara & ARRIBA)) {
     ctx.fillStyle = claro;
@@ -121,6 +284,10 @@ function pintarBordes(
   if (!(mascara & ABAJO)) {
     ctx.fillStyle = oscuro;
     ctx.fillRect(ox, oy + TILE - BISEL, TILE, BISEL);
+    // Cornisa: una sombra bajo el saliente. Es lo que hace que un bloque
+    // suelto se vea flotando sobre el fondo y no pegado a él.
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(ox, oy + TILE - 1, TILE, 1);
   }
   if (!(mascara & IZQUIERDA)) {
     ctx.fillStyle = claro;
@@ -129,6 +296,22 @@ function pintarBordes(
   if (!(mascara & DERECHA)) {
     ctx.fillStyle = oscuro;
     ctx.fillRect(ox + TILE - BISEL, oy, BISEL, TILE);
+  }
+
+  // Flecos del suelo vivo: cuando el borde de arriba está al aire, la hierba y
+  // la nieve se recortan en dientes en vez de acabar en una línea recta. Lo que
+  // se dibuja no son briznas nuevas sino los huecos entre ellas, porque el
+  // sprite no puede salirse de su celda del atlas sin invadir la de al lado.
+  if (!(mascara & ARRIBA) && (id === HIERBA || id === NIEVE)) {
+    const puntas = css(rgb(color, id === NIEVE ? 26 : 40, escala));
+    for (let px = 0; px < TILE; px++) {
+      const n = hash2(px * 7 + variante * 13, id * 3);
+      const hueco = n < 0.34 ? 2 : n < 0.6 ? 1 : 0;
+      if (hueco > 0) ctx.clearRect(ox + px, oy, 1, hueco);
+      // Y la punta de cada brizna se queda iluminada.
+      ctx.fillStyle = puntas;
+      ctx.fillRect(ox + px, oy + hueco, 1, 1);
+    }
   }
 }
 
@@ -146,7 +329,7 @@ function crearAtlas(escala: number, alfa: number): HTMLCanvasElement {
 
   for (let id = 0; id < TILES.length; id++) {
     if (id === AIRE) continue;
-    pintarBase(cbase, TILES[id]!.color, escala, id * TILE);
+    pintarBase(cbase, id, TILES[id]!.color, escala, id * TILE);
   }
 
   ctx.globalAlpha = alfa;
@@ -157,7 +340,7 @@ function crearAtlas(escala: number, alfa: number): HTMLCanvasElement {
       const oy = (id * MASCARAS + m) * TILE;
       ctx.drawImage(bases, 0, id * TILE, VARIANTES * TILE, TILE, 0, oy, VARIANTES * TILE, TILE);
       for (let v = 0; v < VARIANTES; v++) {
-        pintarBordes(ctx, def.color, escala, m, v * TILE, oy);
+        pintarBordes(ctx, id, def.color, escala, m, v * TILE, oy, v);
       }
     }
   }

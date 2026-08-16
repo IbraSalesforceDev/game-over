@@ -85,6 +85,8 @@ export function cajaGolpe(g: Golpe, jugador: Caja): Caja | null {
 export interface ResultadoGolpe {
   /** Enemigos alcanzados en este tick. */
   alcanzados: number;
+  /** Los que han recibido el golpe, para poder sacar chispas donde toca. */
+  tocados: Enemigo[];
   /** Los que han muerto por el golpe. */
   muertos: Enemigo[];
 }
@@ -98,7 +100,7 @@ export function resolverGolpe(
   jugador: Caja,
   enemigos: readonly Enemigo[],
 ): ResultadoGolpe {
-  const salida: ResultadoGolpe = { alcanzados: 0, muertos: [] };
+  const salida: ResultadoGolpe = { alcanzados: 0, tocados: [], muertos: [] };
   const caja = cajaGolpe(g, jugador);
   if (!caja) return salida;
 
@@ -112,6 +114,7 @@ export function resolverGolpe(
     if (!solapan(caja, e.caja)) continue;
     g.tocados.add(e);
     salida.alcanzados++;
+    salida.tocados.push(e);
     if (danarEnemigo(e, dano, desdeX)) salida.muertos.push(e);
   }
   return salida;

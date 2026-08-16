@@ -111,6 +111,8 @@ export interface OpcionesBarra {
   alCambiar(): void;
   /** Estaciones de crafteo al alcance, para filtrar las recetas. */
   estaciones(): ReadonlySet<number>;
+  /** Aviso sonoro de que una receta ha salido. Opcional: los tests no suenan. */
+  alFabricar?(): void;
 }
 
 export function crearBarra(
@@ -291,6 +293,7 @@ export function crearBarra(
           if (craftear(inventario, receta, opciones.estaciones())) {
             pintar();
             opciones.alCambiar();
+            opciones.alFabricar?.();
           }
         });
       }

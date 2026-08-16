@@ -155,9 +155,9 @@ Corazones, daño, invulnerabilidad temporal, knockback, muerte y respawn en el p
 Agua y lava con flujo celular por celdas, evaluación perezosa solo en celdas activas; física de nadar y aliento; lava que quema; biomas (bosque, desierto, nieve) con tiles, paleta y enemigos propios.
 **DoD**: un cubo de agua fluye y se estabiliza; se puede nadar; los biomas se distinguen a simple vista.
 
-### Fase 10 — Pulido y audio (M)
-Partículas (polvo al minar, chapoteos), efectos de sonido y música sintetizados con WebAudio, sacudida de cámara, transiciones de menú, ajustes (volumen, escala de la interfaz).
-**DoD**: el juego parece un juego terminado, no una demo técnica.
+### Fase 10 — Pulido, sprites y audio (M) ✅
+Sprites de píxel generados por código para el personaje y los cinco enemigos, con ciclo de paso y poses; texturas de tile por familia; briznas de hierba y copas redondeadas; fondo de montañas con parallax, nubes y astro; partículas; sacudida de cámara; efectos de sonido con WebAudio y panel de ajustes.
+**DoD**: el juego parece un juego terminado, no una demo técnica. ✅
 
 ### Fase 11 — Controles táctiles (M)
 Joystick virtual, botones de acción, minar con toque, interfaz adaptada a pantalla pequeña, viewport bloqueado como en tus otros juegos.
