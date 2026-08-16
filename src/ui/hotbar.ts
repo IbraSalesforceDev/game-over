@@ -1,3 +1,4 @@
+import { crearIconos, LADO_ICONO } from '../render/iconos';
 import { estaVacia, RANURAS_BARRA, TOTAL_RANURAS, type Inventario } from '../items/inventory';
 import { defObjeto, NADA } from '../items/items';
 import { craftear, recetasVisibles, sePuedeCraftear } from '../items/recipes';
@@ -34,8 +35,10 @@ const ESTILO = `
 }
 .ranura:hover { border-color: #5a6979; }
 .ranura.activa { border-color: #e8b64c; background: rgba(232,182,76,.14); }
-.ranura .icono { position: absolute; inset: 7px; border: 1px solid rgba(0,0,0,.45); }
-.ranura .icono.herramienta { inset: 9px 15px; border-radius: 1px; }
+/* El icono es un canvas de 20x20 estirado; el renderizado pixelado es lo que
+   conserva el pixel art al ampliarlo: sin él el navegador lo interpola. */
+.ranura .icono { position: absolute; inset: 5px; width: auto; height: auto;
+  image-rendering: pixelated; }
 .ranura .cant {
   position: absolute; right: 2px; bottom: 1px; font-size: 10px;
   color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000;
@@ -57,8 +60,9 @@ const ESTILO = `
 
 #en-mano {
   position: fixed; z-index: 60; width: 30px; height: 30px; margin: -15px 0 0 -15px;
-  pointer-events: none; display: none; border: 1px solid rgba(0,0,0,.5);
+  pointer-events: none; display: none;
   font: 10px ui-monospace, monospace; color: #fff;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.6));
 }
 #en-mano.lleno { display: block; }
 #en-mano span { position: absolute; right: 1px; bottom: -2px; text-shadow: 0 1px 2px #000; }
@@ -80,7 +84,7 @@ const ESTILO = `
 }
 #crafteo .receta:hover { border-color: #5a6979; }
 #crafteo .receta.no { opacity: .38; cursor: not-allowed; }
-#crafteo .receta .muestra { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.5); flex: none; }
+#crafteo .receta .muestra { width: 24px; height: 24px; flex: none; image-rendering: pixelated; }
 #crafteo .receta .texto { flex: 1; min-width: 0; }
 #crafteo .receta .coste { color: #6d7a8a; font-size: 10px; }
 #crafteo .nota { color: #6d7a8a; line-height: 1.5; }
@@ -102,7 +106,7 @@ export interface Barra {
 
 interface RanuraDom {
   raiz: HTMLElement;
-  icono: HTMLElement;
+  icono: HTMLCanvasElement;
   cant: HTMLElement;
 }
 
@@ -123,6 +127,7 @@ export function crearBarra(
   const estilo = document.createElement('style');
   estilo.textContent = ESTILO;
   document.head.appendChild(estilo);
+  const iconos = crearIconos();
 
   let seleccion = 0;
   let abierto = false;
@@ -154,8 +159,12 @@ export function crearBarra(
 
   const cursor = document.createElement('div');
   cursor.id = 'en-mano';
+  const lienzoCursor = document.createElement('canvas');
+  lienzoCursor.width = LADO_ICONO;
+  lienzoCursor.height = LADO_ICONO;
+  lienzoCursor.style.cssText = 'width:100%;height:100%;image-rendering:pixelated';
   const cursorCant = document.createElement('span');
-  cursor.appendChild(cursorCant);
+  cursor.append(lienzoCursor, cursorCant);
 
   const domsInv: RanuraDom[] = [];
   const domsCofre: RanuraDom[] = [];
@@ -202,8 +211,10 @@ export function crearBarra(
   ): RanuraDom {
     const raiz = document.createElement('div');
     raiz.className = 'ranura';
-    const icono = document.createElement('div');
+    const icono = document.createElement('canvas');
     icono.className = 'icono';
+    icono.width = LADO_ICONO;
+    icono.height = LADO_ICONO;
     const cant = document.createElement('div');
     cant.className = 'cant';
     raiz.append(icono, cant);
@@ -248,8 +259,7 @@ export function crearBarra(
     const vacia = !r || estaVacia(r);
     const def = defObjeto(r?.objeto ?? NADA);
     d.icono.style.display = vacia ? 'none' : 'block';
-    d.icono.style.background = def.color;
-    d.icono.className = `icono${def.tipo === 'herramienta' ? ' herramienta' : ''}`;
+    if (!vacia) iconos.pintarEn(d.icono, r!.objeto);
     d.cant.textContent = !vacia && r!.cantidad > 1 ? String(r!.cantidad) : '';
     d.raiz.classList.toggle('activa', activa);
     d.raiz.title = vacia ? '' : `${def.nombre} ×${r!.cantidad}`;
@@ -268,9 +278,11 @@ export function crearBarra(
       const fila = document.createElement('div');
       fila.className = `receta${puede ? '' : ' no'}`;
 
-      const muestra = document.createElement('div');
+      const muestra = document.createElement('canvas');
       muestra.className = 'muestra';
-      muestra.style.background = defObjeto(receta.resultado).color;
+      muestra.width = LADO_ICONO;
+      muestra.height = LADO_ICONO;
+      iconos.pintarEn(muestra, receta.resultado);
 
       const texto = document.createElement('div');
       texto.className = 'texto';
@@ -324,7 +336,7 @@ export function crearBarra(
 
     cursor.classList.toggle('lleno', enMano.objeto !== NADA);
     if (enMano.objeto !== NADA) {
-      cursor.style.background = defObjeto(enMano.objeto).color;
+      iconos.pintarEn(lienzoCursor, enMano.objeto);
       cursorCant.textContent = enMano.cantidad > 1 ? String(enMano.cantidad) : '';
     }
 

@@ -38,7 +38,11 @@ export function crearEstadoDebug(): EstadoDebug {
   return {
     fps: 0,
     msFrame: 0,
-    activo: true,
+    // Apagado de fábrica. Estuvo encendido mientras el overlay era la única
+    // forma de ver qué hacía la física, pero recibir a quien abre el juego con
+    // catorce líneas de diagnóstico y la caja de colisión pintada encima del
+    // personaje es enseñar el andamio en vez de la casa.
+    activo: false,
     hitbox: true,
     chunks: false,
     chunksVivos: 0,

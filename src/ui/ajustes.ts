@@ -49,6 +49,9 @@ function guardar(p: Preferencias): void {
 
 const ESTILO = `
 #ajustes-boton {
+  /* La capa de interfaz no recibe punteros para no robarle el clic al mundo:
+     cada control que sí deba responder tiene que reactivarlos por su cuenta. */
+  pointer-events: auto;
   position: fixed; left: 14px; bottom: 14px; z-index: 60;
   width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
   background: rgba(13,17,23,.72); border: 1px solid #2b3440; color: #c9d4e0;
@@ -57,6 +60,7 @@ const ESTILO = `
 }
 #ajustes-boton:hover { background: rgba(30,38,48,.9); transform: translateY(-1px); }
 #ajustes {
+  pointer-events: auto;
   position: fixed; left: 14px; bottom: 56px; z-index: 60; width: 244px;
   background: rgba(13,17,23,.93); border: 1px solid #2b3440; border-radius: 10px;
   padding: 14px; display: none; color: #c9d4e0;

@@ -5,6 +5,7 @@ import { Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
 import { crearAudio } from './engine/audio';
 import { crearAjustes } from './ui/ajustes';
+import { crearAyuda } from './ui/ayuda';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
@@ -265,6 +266,7 @@ async function arrancar(): Promise<void> {
   const aviso = crearAviso(capaUI);
   const audio = crearAudio();
   const opciones = crearAjustes(capaUI, audio);
+  const ayuda = crearAyuda(capaUI);
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
 
@@ -358,7 +360,9 @@ async function arrancar(): Promise<void> {
   entrada.alPulsar('Escape', () => {
     barra.cerrar();
     opciones.cerrar();
+    ayuda.cerrar();
   });
+  entrada.alPulsar('KeyH', () => ayuda.alternar());
   for (let i = 0; i < 10; i++) {
     entrada.alPulsar(`Digit${(i + 1) % 10}`, () => barra.seleccionar(i));
   }
