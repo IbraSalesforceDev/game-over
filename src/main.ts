@@ -28,11 +28,11 @@ import {
 import { leerOpciones, prepararEscenario } from './world/escenario';
 import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
-import { equipoInicial, mejorPico } from './items/equipo';
+import { equipoInicial, potenciaEnMano } from './items/equipo';
 import { defObjeto, dropDePared, dropDeTile } from './items/items';
 import { estacionesCerca } from './items/recipes';
 import { Contenedores } from './world/contenedores';
-import { AIRE, COFRE, defTile } from './world/tiles';
+import { AIRE, COFRE, defTile, esEstacion } from './world/tiles';
 import { Particulas } from './render/particles';
 import {
   actualizarDrop,
@@ -45,9 +45,16 @@ import { actualizarEnemigos, botinDe, ENEMIGOS, type Enemigo } from './entities/
 import { crearGolpe, lanzarGolpe, resolverGolpe, tickGolpe } from './entities/combat';
 import { crearSalud, golpear, revivir, tickSalud, VIDA_MAXIMA } from './entities/salud';
 import { apagar, crearAliento, reiniciarAliento, tickAliento } from './entities/aliento';
+import {
+  comer,
+  crearHambre,
+  HAMBRE_MAXIMA,
+  reiniciarHambre,
+  tickHambre,
+} from './entities/hambre';
 import { SimuladorLiquidos, sumersion } from './world/liquids';
 import { puedeUsarCubo, usarCubo } from './items/cubo';
-import { esCubo } from './items/items';
+import { esComida, esCubo } from './items/items';
 import {
   biomaEn,
   intentarAparicion,
@@ -161,6 +168,7 @@ function partidaNueva(
       inventario: equipoInicial().aDatos(),
       cofres: [],
       vida: VIDA_MAXIMA,
+      hambre: HAMBRE_MAXIMA,
     },
   };
 }
@@ -254,6 +262,9 @@ async function arrancar(): Promise<void> {
   const salud = crearSalud(VIDA_MAXIMA);
   if (partida.estado.vida > 0) salud.vida = Math.min(VIDA_MAXIMA, partida.estado.vida);
   const aliento = crearAliento();
+  const hambre = crearHambre(
+    partida.estado.hambre > 0 ? partida.estado.hambre : HAMBRE_MAXIMA,
+  );
   const golpe = crearGolpe();
   // Al abrir un mundo guardado el líquido está quieto en el array pero la
   // simulación no sabe que existe: hay que despertarlo o el agua se quedaría
@@ -263,6 +274,7 @@ async function arrancar(): Promise<void> {
   const panelVida = crearPanelVida(capaUI);
   panelVida.refrescar(salud);
   panelVida.refrescarAliento(aliento);
+  panelVida.refrescarHambre(hambre);
   const aviso = crearAviso(capaUI);
   const audio = crearAudio();
   const opciones = crearAjustes(capaUI, audio);
@@ -311,6 +323,7 @@ async function arrancar(): Promise<void> {
       cofres.limpiar();
       partida.estado.cofres = cofres.aDatos();
       partida.estado.vida = salud.vida;
+      partida.estado.hambre = Math.round(hambre.nivel);
       partida.estado.capaPared = capa === 'pared';
       partida.estado.minutos = reloj.minutos;
 
@@ -420,6 +433,14 @@ async function arrancar(): Promise<void> {
     tickSalud(salud);
     tickGolpe(golpe);
 
+    // El hambre gasta más si se está haciendo algo: correr, saltar o picar.
+    const activo =
+      Math.abs(jugador.caja.vx) > 0.6 || !jugador.caja.enSuelo || picado.progreso > 0;
+    const rh = tickHambre(hambre, salud, jugador.caja, activo);
+    if (rh.curado || rh.danado) panelVida.refrescar(salud);
+    if (rh.danado) aviso.mostrar('Tienes hambre', true);
+    panelVida.refrescarHambre(hambre);
+
     // El golpe activo alcanza a quien toque, una vez por mandoble.
     const r = resolverGolpe(golpe, jugador.caja, enemigos);
     for (const tocado of r.tocados) {
@@ -503,6 +524,8 @@ async function arrancar(): Promise<void> {
       reaparecer(jugador);
       revivir(salud);
       reiniciarAliento(aliento);
+      reiniciarHambre(hambre);
+      panelVida.refrescarHambre(hambre);
       particulas.limpiar();
       panelVida.mostrarMuerte(true, 'Vuelves al punto de aparición.');
       window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
@@ -542,7 +565,33 @@ async function arrancar(): Promise<void> {
 
     const enMano = barra.objetoActivo();
     const tileEnMano = defObjeto(enMano).tile;
-    const potencia = mejorPico(inventario);
+    const potencia = potenciaEnMano(enMano);
+
+    // Comer va con el clic derecho, igual que usar cualquier otra cosa. No hace
+    // falta apuntar a ningún sitio: se come donde uno esté.
+    if (esComida(enMano)) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      const usar = puntero.der && !derAnterior;
+      derAnterior = puntero.der;
+      if (!usar) return;
+      const def = defObjeto(enMano);
+      if (comer(hambre, salud, def.saciedad ?? 0, def.curacion ?? 0)) {
+        inventario.sacarDe(barra.seleccion, 1);
+        barra.refrescar(capa);
+        panelVida.refrescar(salud);
+        panelVida.refrescarHambre(hambre);
+        audio.sonar('recoger', 0.6);
+        particulas.emitir(
+          jugador.caja.x + jugador.caja.ancho / 2,
+          jugador.caja.y + 12,
+          { cantidad: 6, color: def.color, dispersion: 1.2, vida: 22, tam: 2 },
+        );
+      } else {
+        aviso.mostrar('Ya estás lleno');
+      }
+      return;
+    }
 
     // El cubo actúa con el clic derecho, como colocar: el gesto es "poner algo
     // ahí", aunque lo que se ponga sea agua. Y con el izquierdo, recoger.
@@ -662,6 +711,23 @@ async function arrancar(): Promise<void> {
       const abierto = barra.cofreAbierto;
       if (abierto && abierto.tx === tx && abierto.ty === ty) barra.cerrar();
       else barra.abrirCofre(cofres.obtener(tx, ty), tx, ty);
+      derAnterior = puntero.der;
+      return;
+    }
+
+    // Y una estación se abre igual, con su lista de recetas en grande. Antes
+    // había que acordarse de acercarse y abrir el inventario; hacer clic en la
+    // mesa es lo que intenta todo el mundo la primera vez.
+    const tileAqui = mundo.getTile(tx, ty);
+    if (
+      puntero.der &&
+      !derAnterior &&
+      esEstacion(tileAqui) &&
+      enAlcance(jugador.caja, tx, ty)
+    ) {
+      const abierto = barra.tallerAbierto;
+      if (abierto && abierto.tx === tx && abierto.ty === ty) barra.cerrar();
+      else barra.abrirTaller(defTile(tileAqui).nombre, tx, ty);
       derAnterior = puntero.der;
       return;
     }
@@ -855,6 +921,7 @@ async function arrancar(): Promise<void> {
         golpe,
         particulas,
         sumergido: sumergidoAhora,
+        enMano: barra.objetoActivo(),
       });
 
       debug.fps = bucle.fps;

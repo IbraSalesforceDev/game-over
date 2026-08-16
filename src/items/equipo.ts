@@ -1,6 +1,6 @@
 import { ANTORCHA } from '../world/tiles';
 import { Inventario } from './inventory';
-import { defObjeto, esHerramienta, ESPADA_MADERA, PICO_COBRE } from './items';
+import { defObjeto, esHerramienta, ESPADA_MADERA, PICO_MADERA } from './items';
 
 /**
  * Equipo con el que empieza una partida y consultas sobre herramientas.
@@ -13,7 +13,7 @@ import { defObjeto, esHerramienta, ESPADA_MADERA, PICO_COBRE } from './items';
  * primera cueva no dependa de haber talado un árbol antes.
  */
 
-export const PICO_INICIAL = PICO_COBRE;
+export const PICO_INICIAL = PICO_MADERA;
 export const ESPADA_INICIAL = ESPADA_MADERA;
 export const ANTORCHA_INICIAL = 20;
 
@@ -26,13 +26,21 @@ export function equipoInicial(): Inventario {
 }
 
 /**
- * Potencia del mejor pico que lleve encima, 0 si no lleva ninguno.
+ * Potencia de picado de lo que se lleva en la mano. 0 si eso no es un pico.
  *
- * Se usa el mejor y no el seleccionado a propósito: obligar a cambiar de ranura
- * entre picar y colocar convierte cada túnel en un baile de teclas sin aportar
- * nada. La herramienta sigue importando —hace falta tenerla, y una mejor pica
- * más rápido—, pero no estorba.
+ * Antes se usaba el mejor pico del inventario estuviera donde estuviera, para
+ * ahorrar el baile de teclas entre picar y construir. Se ha cambiado porque el
+ * efecto secundario era peor que el problema: con una antorcha en la mano se
+ * picaba exactamente igual de rápido que con el pico, así que la herramienta
+ * dejaba de verse. Ahora manda la mano, como en Terraria, y de paso el objeto
+ * que se sostiene significa algo.
  */
+export function potenciaEnMano(objeto: number): number {
+  if (!esHerramienta(objeto)) return 0;
+  return defObjeto(objeto).potencia ?? 0;
+}
+
+/** El mejor pico que lleve encima. Solo para avisos de interfaz. */
 export function mejorPico(inventario: Inventario): number {
   let mejor = 0;
   for (const r of inventario.ranuras) {

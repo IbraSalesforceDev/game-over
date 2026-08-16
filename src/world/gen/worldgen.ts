@@ -418,7 +418,10 @@ function sembrarMinerales(
 ): void {
   const receta = [
     { id: COBRE, desde: 0.06, hasta: 0.55, densidad: 0.055, tamano: [6, 16] },
-    { id: HIERRO, desde: 0.18, hasta: 0.75, densidad: 0.04, tamano: [5, 13] },
+    // El hierro sube un poco y se hace más frecuente: es la puerta al yunque, y
+    // con ella cerrada toda la rama de herramientas buenas queda fuera de
+    // alcance por mala suerte de exploración.
+    { id: HIERRO, desde: 0.1, hasta: 0.75, densidad: 0.058, tamano: [6, 15] },
     { id: PLATA, desde: 0.42, hasta: 0.92, densidad: 0.024, tamano: [4, 11] },
     { id: ORO, desde: 0.62, hasta: 1.0, densidad: 0.014, tamano: [3, 9] },
   ] as const;

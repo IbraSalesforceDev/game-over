@@ -5,7 +5,7 @@ import type { MotorLuz } from '../world/lighting';
 import { TAMANO_DROP, type Drop } from '../entities/drop';
 import type { Enemigo } from '../entities/enemies';
 import { cajaGolpe, type Golpe } from '../entities/combat';
-import { defObjeto } from '../items/items';
+import { defObjeto, NADA } from '../items/items';
 import type { Capa, Picado } from '../world/edit';
 import { durezaObjetivo, etapaGrieta } from '../world/edit';
 import { MINIMO } from '../world/liquids';
@@ -14,6 +14,7 @@ import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
 import { CacheChunks, CHUNK_RENDER } from './chunkCache';
 import { Fondo } from './fondo';
+import { crearIconos, type Iconos } from './iconos';
 import type { Particulas } from './particles';
 import {
   crearSprites,
@@ -55,6 +56,8 @@ export interface Escena {
   particulas: Particulas;
   /** Fracción del jugador bajo líquido, para elegir la pose de nado. */
   sumergido: number;
+  /** Objeto que el jugador lleva en la mano, para dibujárselo. */
+  enMano: number;
 }
 
 export class Renderer {
@@ -64,6 +67,7 @@ export class Renderer {
   private readonly tileset: Tileset;
   private readonly sprites: Sprites;
   private readonly fondo = new Fondo();
+  private readonly iconos: Iconos = crearIconos();
   private dpr = 1;
   private lienzoLuz: HTMLCanvasElement | null = null;
   private ctxLuz: CanvasRenderingContext2D | null = null;
@@ -347,7 +351,14 @@ export class Renderer {
     return { pose, frame: Math.floor(this.animAvance) };
   }
 
-  private jugador(j: Jugador, alpha: number, ox: number, oy: number, sumergido: number): void {
+  private jugador(
+    j: Jugador,
+    alpha: number,
+    ox: number,
+    oy: number,
+    sumergido: number,
+    enMano: number,
+  ): void {
     const { ctx, camara } = this;
     // Interpolación entre el tick anterior y el actual: el movimiento se ve
     // fluido aunque la simulación vaya a 60 fijos.
@@ -364,6 +375,23 @@ export class Renderer {
       ox + Math.round((wx + JUGADOR_OFF_X) * u),
       oy + Math.round((wy + JUGADOR_OFF_Y) * u),
       u,
+    );
+
+    // Lo que se lleva en la mano se ve. Es la confirmación visual de que el
+    // objeto seleccionado importa: desde que la velocidad de picado depende de
+    // la mano, ver el pico ahí es la mitad de la explicación de por qué con la
+    // antorcha no se avanza.
+    if (enMano === NADA) return;
+    const lado = 13;
+    // La mano del brazo delantero, en coordenadas de la caja física.
+    const manoX = j.caja.mirando > 0 ? wx + 14 : wx + j.caja.ancho - 14 - lado;
+    const manoY = wy + 18;
+    this.iconos.dibujar(
+      ctx,
+      enMano,
+      ox + Math.round(manoX * u),
+      oy + Math.round(manoY * u),
+      lado * u,
     );
   }
 
@@ -615,7 +643,7 @@ export class Renderer {
       const c = e.jugador.caja;
       this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy);
     }
-    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido);
+    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido, e.enMano);
     this.golpe(e.golpe, e.jugador, ox, oy);
     // Las partículas van delante de los cuerpos pero detrás del agua: los
     // cascotes que caen a un lago tienen que verse a través de él.

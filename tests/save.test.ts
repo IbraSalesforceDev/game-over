@@ -28,6 +28,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     ],
     cofres: [],
     vida: 80,
+    hambre: 72,
     ...parcial,
   };
 }
@@ -114,7 +115,11 @@ describe('empaquetado', () => {
    * final el mismo bloque RLE. Se calcula por tamaños en vez de a ojo para que
    * no haya que retocarlo cada vez que el formato crece.
    */
-  function cuerpoAntiguo(m: Mundo, e: EstadoPartida, version: 1 | 2 | 3): Uint8Array {
+  function cuerpoAntiguo(
+    m: Mundo,
+    e: EstadoPartida,
+    version: 1 | 2 | 3 | 4 | 5 | 6,
+  ): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
     const campoMinutos = 2;
@@ -122,14 +127,21 @@ describe('empaquetado', () => {
     // Solo se construyen cuerpos antiguos sin cofres, que es el caso real.
     const campoCofres = 2;
     const campoVida = 2;
+    const campoHambre = 2;
 
     const actual = serializar(m, e);
-    const inicioRle = comun + campoMinutos + campoInventario + campoCofres + campoVida;
+    const inicioRle =
+      comun + campoMinutos + campoInventario + campoCofres + campoVida + campoHambre;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
     if (version >= 2) extra += campoMinutos;
     if (version >= 3) extra += campoInventario;
+    if (version >= 4) extra += campoCofres;
+    if (version >= 5) extra += campoVida;
+    // El hambre nunca: es del formato 7, y aquí solo se construyen cuerpos
+    // anteriores. Recortarla es justo lo que hace que el lector antiguo
+    // encuentre el RLE donde lo espera.
 
     const salida = new Uint8Array(comun + extra + rle.length);
     salida.set(actual.subarray(0, comun + extra), 0);
@@ -186,9 +198,16 @@ describe('empaquetado', () => {
 
   it('un mundo del formato 5 se abre seco, que es como estaba', () => {
     const m = mundoDePrueba();
-    const bytes = serializar(m, estado());
-    const { mundo } = deserializar(bytes, 5);
+    m.setLiquido(5, 10, 255);
+    const { mundo } = deserializar(cuerpoAntiguo(m, estado(), 5), 5);
     expect(mundo.liquido.every((v) => v === 0)).toBe(true);
+  });
+
+  it('un mundo del formato 6 se abre con el estómago lleno', () => {
+    const m = mundoDePrueba();
+    const { estado: leido } = deserializar(cuerpoAntiguo(m, estado(), 6), 6);
+    // 0 significa "sin dato": quien lo carga lo interpreta como lleno.
+    expect(leido.hambre).toBe(0);
   });
 
   it('rechaza un mundo de una versión futura', async () => {

@@ -61,15 +61,19 @@ export function especiesPosibles(
   const bajoTierra = tyJugador > ctx.superficieTy + PROFUNDIDAD_PELIGRO;
   if (bajoTierra) return ['slime', 'murcielago', 'zombi'];
 
-  // En la superficie manda el bioma. El escarabajo sale también de día: el
-  // desierto no descansa, y es lo que hace que cruzarlo pese.
+  // En la superficie manda el bioma. Los animales salen de día en todos menos
+  // en el desierto: son la fuente de comida, así que tienen que estar donde el
+  // jugador pasa el rato, no escondidos en un rincón del mapa.
   if (ctx.bioma === 'desierto') return ctx.esNoche ? ['escarabajo', 'zombi'] : ['escarabajo'];
-  if (ctx.bioma === 'nieve') return ctx.esNoche ? ['lobo', 'zombi'] : ['slime'];
+  if (ctx.bioma === 'nieve') {
+    return ctx.esNoche ? ['lobo', 'zombi'] : ['conejo', 'conejo', 'slime'];
+  }
 
   if (ctx.esNoche) return ['zombi', 'slime'];
-  // De día en el bosque solo hay slimes, y pocos: el mundo tiene que dejarte
-  // construir tranquilo en algún momento.
-  return ['slime'];
+  // De día en el bosque hay caza y algún slime. La proporción va por
+  // repetición en la lista, que es la forma más simple de dar peso sin montar
+  // una tabla de probabilidades para cinco entradas.
+  return ['conejo', 'conejo', 'jabali', 'slime'];
 }
 
 /**

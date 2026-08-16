@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
-import { GEL, HUESO } from '../items/items';
+import { CARNE_CRUDA, GEL, HUESO } from '../items/items';
 import type { Mundo } from '../world/world';
-import { moverX, moverY, type Caja } from './physics';
+import { moverX, moverY, solapaSolido, type Caja } from './physics';
 import { crearSalud, golpear, tickSalud, type Salud } from './salud';
 
 /**
@@ -15,7 +15,14 @@ import { crearSalud, golpear, tickSalud, type Salud } from './salud';
  * El daño es por contacto: no hay proyectiles todavía.
  */
 
-export type Especie = 'slime' | 'zombi' | 'murcielago' | 'escarabajo' | 'lobo';
+export type Especie =
+  | 'slime'
+  | 'zombi'
+  | 'murcielago'
+  | 'escarabajo'
+  | 'lobo'
+  | 'conejo'
+  | 'jabali';
 
 export interface DefEnemigo {
   readonly nombre: string;
@@ -32,6 +39,11 @@ export interface DefEnemigo {
   readonly botinMax: number;
   /** Solo aparece de noche en la superficie. */
   readonly nocturno: boolean;
+  /**
+   * No ataca: huye. Los animales existen para dar de comer, no para pelear, y
+   * un conejo que te muerde por acercarte sería un enemigo con orejas.
+   */
+  readonly pasivo?: boolean;
 }
 
 export const ENEMIGOS: Record<Especie, DefEnemigo> = {
@@ -90,6 +102,37 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     botin: GEL,
     botinMax: 2,
     nocturno: false,
+  },
+  // --- Animales ---------------------------------------------------------
+  // Sueltan comida y no hacen daño. El conejo es rápido y da poco; el jabalí
+  // aguanta más y da de comer para un buen rato, pero hay que perseguirlo.
+  conejo: {
+    nombre: 'conejo',
+    vida: 12,
+    dano: 0,
+    ancho: 16,
+    alto: 14,
+    color: '#c9b79c',
+    colorOscuro: '#8a7a63',
+    vuela: false,
+    botin: CARNE_CRUDA,
+    botinMax: 1,
+    nocturno: false,
+    pasivo: true,
+  },
+  jabali: {
+    nombre: 'jabalí',
+    vida: 38,
+    dano: 0,
+    ancho: 28,
+    alto: 20,
+    color: '#6b5344',
+    colorOscuro: '#42332a',
+    vuela: false,
+    botin: CARNE_CRUDA,
+    botinMax: 3,
+    nocturno: false,
+    pasivo: true,
   },
   lobo: {
     nombre: 'lobo de hielo',
@@ -180,6 +223,31 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
   e.reloj++;
 
   switch (e.especie) {
+    case 'conejo':
+      // Da saltitos alejándose. Rápido y corto: se le puede alcanzar, pero hay
+      // que perseguirlo, no basta con andar hacia él.
+      if (c.enSuelo) {
+        c.vx *= 0.86;
+        const cerca = Math.abs(dx) < 130;
+        if (cerca && e.reloj > 26) {
+          e.reloj = 0;
+          c.vy = -4.6;
+          c.vx = -dir * 2.6;
+          c.mirando = -dir as 1 | -1;
+        }
+      }
+      break;
+
+    case 'jabali':
+      // Trota alejándose sin saltar, y solo cuando el jugador está encima.
+      if (Math.abs(dx) < 150) {
+        c.vx += (-dir * 1.9 - c.vx) * 0.1;
+        c.mirando = -dir as 1 | -1;
+      } else {
+        c.vx *= 0.9;
+      }
+      break;
+
     case 'escarabajo':
       // Anda pegado al suelo, más rápido que un zombi pero sin saltar: un
       // escalón lo detiene, y esa es la forma de quitárselo de encima.
@@ -254,7 +322,19 @@ export function moverEnemigo(mundo: Mundo, e: Enemigo): void {
   );
   let enSuelo = false;
   for (let i = 0; i < pasos; i++) {
-    if (moverX(mundo, c, c.vx / pasos)) c.vx = 0;
+    const xAntes = c.x;
+    const apoyado = c.enSuelo || enSuelo;
+    if (moverX(mundo, c, c.vx / pasos)) {
+      // Los que andan suben un escalón de un tile, igual que el jugador. Sin
+      // esto, un slime se queda dando saltitos contra el primer desnivel del
+      // terreno hasta que el jugador se aburre y se va: no es un enemigo, es un
+      // mueble. Los que vuelan no lo necesitan.
+      if (!def.vuela && apoyado && subirEscalon(mundo, c, c.vx / pasos, xAntes)) {
+        // Ha subido: se conserva la velocidad y se sigue.
+      } else {
+        c.vx = 0;
+      }
+    }
     const r = moverY(mundo, c, c.vy / pasos, false);
     if (r.colision) {
       if (r.suelo) enSuelo = true;
@@ -262,6 +342,30 @@ export function moverEnemigo(mundo: Mundo, e: Enemigo): void {
     }
   }
   c.enSuelo = enSuelo;
+}
+
+/**
+ * Intenta salvar un escalón de un tile. Devuelve true si ha cabido.
+ *
+ * Es la misma idea que la del jugador pero escrita aquí porque la del jugador
+ * vive detrás de sus ajustes de física, que los enemigos no tienen: se levanta
+ * la caja un tile, se comprueba que no se mete en un techo y se reintenta el
+ * movimiento horizontal.
+ */
+function subirEscalon(mundo: Mundo, c: Caja, dx: number, xAntes: number): boolean {
+  const xChoque = c.x;
+  const yAntes = c.y;
+
+  c.x = xAntes;
+  c.y = yAntes - TILE;
+  if (solapaSolido(mundo, c) || moverX(mundo, c, dx)) {
+    c.x = xChoque;
+    c.y = yAntes;
+    return false;
+  }
+  // Encajar sobre el escalón en el mismo tick, para que no quede flotando.
+  if (!moverY(mundo, c, TILE / 2, false).colision) moverY(mundo, c, TILE / 2, false);
+  return true;
 }
 
 /** ¿Se solapan las dos cajas? Es toda la detección de contacto que hace falta. */
@@ -315,8 +419,9 @@ export function actualizarEnemigos(
     // dando zancadas en el sitio.
     e.animReloj += ENEMIGOS[e.especie].vuela ? 1 : Math.min(1, Math.abs(e.caja.vx) * 0.6 + 0.12);
 
-    if (solapan(e.caja, jugador) && saludJugador.invulnerable <= 0) {
-      salida.danoAlJugador = Math.max(salida.danoAlJugador, ENEMIGOS[e.especie].dano);
+    const def = ENEMIGOS[e.especie];
+    if (!def.pasivo && solapan(e.caja, jugador) && saludJugador.invulnerable <= 0) {
+      salida.danoAlJugador = Math.max(salida.danoAlJugador, def.dano);
     }
 
     if (e.salud.muerto) {

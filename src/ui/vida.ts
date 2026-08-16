@@ -1,4 +1,5 @@
 import { ALIENTO_MAXIMO, type Aliento } from '../entities/aliento';
+import { HAMBRE_MAXIMA, UMBRAL_HAMBRIENTO, UMBRAL_SACIADO, type Hambre } from '../entities/hambre';
 import { corazones, type Salud } from '../entities/salud';
 
 /**
@@ -23,8 +24,24 @@ const ESTILO = `
   background: linear-gradient(180deg, #ff6b6b 0%, #c0392b 100%);
   display: block;
 }
+#hambre {
+  position: fixed; right: 14px; top: 38px; z-index: 45; display: flex; gap: 3px;
+  pointer-events: none;
+}
+#hambre .trozo {
+  width: 20px; height: 10px; background: #241a12; border: 1px solid #120c08;
+  position: relative;
+}
+#hambre .trozo i {
+  position: absolute; left: 0; bottom: 0; width: 100%; display: block;
+  background: linear-gradient(180deg, #d9a441 0%, #a86b23 100%);
+}
+/* Saciado y hambriento se avisan con el color de la barra entera: son las dos
+   franjas en las que pasa algo, y un número no se lee de reojo. */
+#hambre.saciado .trozo i { background: linear-gradient(180deg, #9bd96b 0%, #4f9330 100%); }
+#hambre.vacio .trozo i { background: linear-gradient(180deg, #e0703c 0%, #a3341c 100%); }
 #aliento {
-  position: fixed; right: 14px; top: 38px; z-index: 45; width: 128px; height: 8px;
+  position: fixed; right: 14px; top: 56px; z-index: 45; width: 128px; height: 8px;
   background: #0d1a24; border: 1px solid #071016; display: none; pointer-events: none;
 }
 #aliento.visible { display: block; }
@@ -48,6 +65,8 @@ const ESTILO = `
 
 export interface PanelVida {
   refrescar(s: Salud): void;
+  /** Medidor de hambre, en cinco trozos como los corazones. */
+  refrescarHambre(h: Hambre): void;
   /** Medidor de aire. Se esconde solo cuando los pulmones están llenos. */
   refrescarAliento(a: Aliento): void;
   mostrarMuerte(visible: boolean, texto?: string): void;
@@ -61,6 +80,18 @@ export function crearPanelVida(contenedor: HTMLElement): PanelVida {
   const panel = document.createElement('div');
   panel.id = 'vida';
 
+  const hambre = document.createElement('div');
+  hambre.id = 'hambre';
+  const trozosHambre: HTMLElement[] = [];
+  for (let i = 0; i < 5; i++) {
+    const t = document.createElement('div');
+    t.className = 'trozo';
+    const relleno = document.createElement('i');
+    t.appendChild(relleno);
+    hambre.appendChild(t);
+    trozosHambre.push(relleno);
+  }
+
   const aliento = document.createElement('div');
   aliento.id = 'aliento';
   const alientoRelleno = document.createElement('i');
@@ -73,7 +104,7 @@ export function crearPanelVida(contenedor: HTMLElement): PanelVida {
   const detalle = document.createElement('div');
   muerte.append(titulo, detalle);
 
-  contenedor.append(panel, aliento, muerte);
+  contenedor.append(panel, hambre, aliento, muerte);
 
   const iconos: HTMLElement[] = [];
   let ultimoTotal = -1;
@@ -101,6 +132,16 @@ export function crearPanelVida(contenedor: HTMLElement): PanelVida {
       // Parpadeo mientras dura la invulnerabilidad: informa de que los golpes
       // no entran sin escribir nada en pantalla.
       panel.style.opacity = s.invulnerable > 0 && s.invulnerable % 10 < 5 ? '0.45' : '1';
+    },
+    refrescarHambre(h) {
+      const pct = h.nivel / HAMBRE_MAXIMA;
+      trozosHambre.forEach((relleno, i) => {
+        const desde = i / trozosHambre.length;
+        const parte = Math.max(0, Math.min(1, (pct - desde) * trozosHambre.length));
+        relleno.style.height = `${Math.round(parte * 100)}%`;
+      });
+      hambre.classList.toggle('saciado', h.nivel >= UMBRAL_SACIADO);
+      hambre.classList.toggle('vacio', h.nivel <= UMBRAL_HAMBRIENTO);
     },
     refrescarAliento(a) {
       // Con los pulmones llenos el medidor estorba: solo aparece cuando hay

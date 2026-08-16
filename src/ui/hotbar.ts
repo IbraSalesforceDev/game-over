@@ -88,6 +88,19 @@ const ESTILO = `
 #crafteo .receta .texto { flex: 1; min-width: 0; }
 #crafteo .receta .coste { color: #6d7a8a; font-size: 10px; }
 #crafteo .nota { color: #6d7a8a; line-height: 1.5; }
+
+/* Modo taller: el mismo panel, pero abierto en grande y en el centro. Se
+   reutiliza en vez de duplicarlo porque la lista de recetas y su lógica de
+   "puedo pagarla" ya estaban aquí; lo único que cambia es cuánto sitio ocupa. */
+#crafteo.taller {
+  right: auto; left: 50%; transform: translateX(-50%);
+  bottom: 300px; width: min(94vw, 620px); max-height: 46vh;
+  border-color: #6a5426; background: rgba(22,19,13,.96);
+}
+#crafteo.taller .lista {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 4px;
+}
+#crafteo.taller .receta { margin: 0; }
 `;
 
 export interface Barra {
@@ -99,6 +112,10 @@ export interface Barra {
   /** Cofre abierto ahora mismo, o null. */
   readonly cofreAbierto: { tx: number; ty: number } | null;
   abrirCofre(inv: Inventario, tx: number, ty: number): void;
+  /** Estación abierta ahora mismo, o null. */
+  readonly tallerAbierto: { tx: number; ty: number } | null;
+  /** Abre la estación con su lista de recetas en grande. */
+  abrirTaller(titulo: string, tx: number, ty: number): void;
   cerrar(): void;
   objetoActivo(): number;
   refrescar(capa?: Capa): void;
@@ -132,6 +149,8 @@ export function crearBarra(
   let seleccion = 0;
   let abierto = false;
   let cofre: { inv: Inventario; tx: number; ty: number } | null = null;
+  /** Estación abierta a pantalla completa, o null si es el panel pequeño. */
+  let taller: { titulo: string; tx: number; ty: number } | null = null;
   let capaActual: Capa = 'bloque';
   /** Pila que el jugador lleva en el puntero mientras reorganiza. */
   const enMano = { objeto: NADA, cantidad: 0 };
@@ -269,8 +288,14 @@ export function crearBarra(
     panelCrafteo.innerHTML = '';
     const titulo = document.createElement('h3');
     const estaciones = opciones.estaciones();
-    titulo.textContent = 'Fabricar';
+    titulo.textContent = taller ? taller.titulo : 'Fabricar';
     panelCrafteo.appendChild(titulo);
+
+    // En modo taller las recetas van en rejilla de dos columnas; en el panel
+    // pequeño, una debajo de otra.
+    const lista = document.createElement('div');
+    lista.className = 'lista';
+    panelCrafteo.appendChild(lista);
 
     const recetas = recetasVisibles(estaciones);
     for (const receta of recetas) {
@@ -309,7 +334,7 @@ export function crearBarra(
           }
         });
       }
-      panelCrafteo.appendChild(fila);
+      lista.appendChild(fila);
     }
 
     const nota = document.createElement('div');
@@ -367,7 +392,9 @@ export function crearBarra(
     if (!v) {
       soltarMano();
       cerrarCofre();
+      taller = null;
     }
+    panelCrafteo.classList.toggle('taller', v && taller !== null);
     pintar();
   }
 
@@ -396,6 +423,13 @@ export function crearBarra(
     },
     get cofreAbierto() {
       return cofre ? { tx: cofre.tx, ty: cofre.ty } : null;
+    },
+    get tallerAbierto() {
+      return taller ? { tx: taller.tx, ty: taller.ty } : null;
+    },
+    abrirTaller(titulo, tx, ty) {
+      taller = { titulo, tx, ty };
+      abrirPaneles(true);
     },
     abrirCofre(inv, tx, ty) {
       cerrarCofre();

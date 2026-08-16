@@ -31,8 +31,10 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       horno al añadirse los muebles nuevos.
  *   6 — se añade la capa de líquidos (fase 9). Los mundos anteriores se abren
  *       secos, que es exactamente como estaban.
+ *   7 — se añade el hambre. Los mundos anteriores se abren con el estómago
+ *       lleno, que es lo justo: se guardaron en un juego donde no existía.
  */
-export const VERSION_FORMATO = 6;
+export const VERSION_FORMATO = 7;
 
 export interface EstadoJugador {
   x: number;
@@ -59,6 +61,8 @@ export interface EstadoPartida {
   cofres: readonly DatosCofre[];
   /** Vida del jugador; formato 5. 0 significa "al máximo". */
   vida: number;
+  /** Hambre del jugador; formato 7. 0 significa "al máximo". */
+  hambre: number;
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -248,6 +252,7 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
     }
   }
   e.u16(Math.max(0, Math.round(estado.vida))); // formato 5
+  e.u16(Math.max(0, Math.round(estado.hambre))); // formato 7
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -291,6 +296,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     inventario: [],
     cofres: [],
     vida: 0,
+    hambre: 0,
   };
   if (version >= 3) {
     const n = l.u16();
@@ -317,6 +323,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     estado.cofres = cofres;
   }
   if (version >= 5) estado.vida = l.u16();
+  if (version >= 7) estado.hambre = l.u16();
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

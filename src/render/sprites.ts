@@ -303,7 +303,14 @@ function atlasJugador(): HTMLCanvasElement {
 
 // --- Enemigos ---------------------------------------------------------------
 
-export type EspecieSprite = 'slime' | 'zombi' | 'murcielago' | 'escarabajo' | 'lobo';
+export type EspecieSprite =
+  | 'slime'
+  | 'zombi'
+  | 'murcielago'
+  | 'escarabajo'
+  | 'lobo'
+  | 'conejo'
+  | 'jabali';
 
 interface Molde {
   ancho: number;
@@ -457,6 +464,83 @@ const MOLDES: Record<EspecieSprite, Molde> = {
       px(ctx, cx + 11, cy - 3, 3, 1, patas.oscuro);
       px(ctx, cx + 11, cy + 2, 3, 1, patas.oscuro);
       px(ctx, cx + 9, cy - 1, 2, 2, '#ffcf5a');
+    },
+  },
+
+  conejo: {
+    ancho: 22,
+    alto: 20,
+    frames: 6,
+    offX: -3,
+    offY: -6,
+    pintar(ctx, ox, oy, f) {
+      const pelo = tono('#c9b79c', 24, 34);
+      const cx = ox + 11;
+      const cy = oy + 13;
+      // El conejo se recoge y se estira: no anda, da saltos, y el sprite tiene
+      // que contarlo aunque la física ya lo haga.
+      const t = (f / 6) * Math.PI * 2;
+      const salto = Math.sin(t);
+      const rx = 6 + salto * 0.8;
+      const ry = 4.5 - salto * 0.6;
+
+      // Patas traseras, largas y por detrás.
+      px(ctx, cx - 6, cy + 2 - salto, 4, 4, pelo.oscuro);
+      px(ctx, cx + 2, cy + 3, 3, 3, pelo.base);
+
+      elipse(ctx, cx, cy, rx, ry, pelo.base);
+      elipse(ctx, cx - 1, cy - 1, rx - 2, ry - 1.5, pelo.claro);
+      // Cola: una bolita blanca detrás, que es lo que hace que se lea conejo.
+      elipse(ctx, cx - rx, cy - 1, 2, 2, '#f4efe6');
+
+      // Cabeza y orejas.
+      elipse(ctx, cx + 5, cy - 3, 3.5, 3, pelo.base);
+      px(ctx, cx + 3, cy - 10, 2, 6, pelo.base);
+      px(ctx, cx + 6, cy - 11, 2, 7, pelo.claro);
+      px(ctx, cx + 7, cy - 3, 2, 2, '#3a2a24');
+      px(ctx, cx + 8, cy - 1, 1, 1, '#e6a8a8');
+    },
+  },
+
+  jabali: {
+    ancho: 34,
+    alto: 26,
+    frames: 6,
+    offX: -3,
+    offY: -6,
+    pintar(ctx, ox, oy, f) {
+      const pelo = tono('#6b5344', 22, 28);
+      const cerda = tono('#3a2c24', 18, 18);
+      const cx = ox + 17;
+      const cy = oy + 14;
+      const t = (f / 6) * Math.PI * 2;
+      const paso = Math.round(Math.sin(t) * 2);
+
+      for (const [dx, fase] of [
+        [-9, 1],
+        [-6, -1],
+        [4, -1],
+        [7, 1],
+      ] as const) {
+        const off = paso * fase;
+        px(ctx, cx + dx, cy + 5, 3, 6 - Math.abs(off) * 0.5, cerda.base);
+        px(ctx, cx + dx - 1, cy + 10 - Math.abs(off) * 0.5, 4, 2, cerda.oscuro);
+      }
+
+      elipse(ctx, cx - 1, cy, 12, 7, pelo.base);
+      elipse(ctx, cx - 2, cy - 1.5, 9, 4.5, pelo.claro);
+      // Crin de cerdas erizadas por el lomo.
+      for (let i = -8; i <= 4; i += 2) px(ctx, cx + i, cy - 9, 1, 3, cerda.base);
+      // Cabeza baja y hocico, que es la silueta del jabalí.
+      elipse(ctx, cx + 10, cy + 1, 5, 5, pelo.base);
+      px(ctx, cx + 14, cy + 2, 4, 4, pelo.claro);
+      px(ctx, cx + 17, cy + 3, 1, 2, '#2a1f1a');
+      // Colmillos hacia arriba.
+      px(ctx, cx + 15, cy, 1, 3, '#f0ead8');
+      px(ctx, cx + 13, cy - 1, 1, 2, '#f0ead8');
+      px(ctx, cx + 11, cy - 2, 2, 2, '#2a1f1a');
+      // Rabito.
+      px(ctx, cx - 13, cy - 3, 3, 2, pelo.oscuro);
     },
   },
 

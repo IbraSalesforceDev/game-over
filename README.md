@@ -67,7 +67,8 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | `W`, `↑` o `Espacio` | Saltar (mantener = salto más alto) |
 | `S` o `↓` + salto | Bajar por una plataforma |
 | Clic izquierdo | Minar, golpear si llevas un arma, o llenar el cubo |
-| Clic derecho | Colocar lo que lleves en la mano, o vaciar el cubo |
+| Clic derecho | Colocar, comer, vaciar el cubo, o abrir cofre y estación |
+| `H` | Panel de controles |
 | `1`–`0` o rueda | Elegir ranura de la barra |
 | `E` | Abrir inventario y panel de fabricación |
 | Clic derecho en un cofre | Abrirlo |
@@ -88,8 +89,9 @@ Los bloques ya no son infinitos: lo que minas cae al suelo, un imán lo acerca
 cuando pasas cerca y se apila en el inventario; colocar gasta lo que llevas. La
 hierba suelta tierra, los árboles sueltan madera y los minerales en bruto no se
 pueden colocar — son material para la fase de crafteo. Sin pico no se puede
-minar, y uno mejor pica más rápido: se usa siempre el mejor que lleves encima,
-para no tener que cambiar de ranura entre picar y construir.
+minar, y uno mejor pica más rápido: manda el que llevas en la mano, así que la
+herramienta que sostienes significa algo — y se te ve en la mano mientras la
+llevas. La progresión es madera, piedra, cobre, hierro, plata y oro.
 
 Con el inventario abierto se coge una pila con un clic, va pegada al puntero y
 se suelta con otro clic. La barra rápida son las diez primeras ranuras del
@@ -100,7 +102,15 @@ cualquier hora. Los golpes hacen daño por contacto y dan unos fotogramas de
 invulnerabilidad: sin ellos, quedarse pegado a un enemigo mata al instante. Al
 morir se reaparece en el punto de origen con la vida llena.
 
-Se empieza con pico, espada de madera y antorchas. Los enemigos sueltan gel y
+Hay hambre. Baja sola —un depósito lleno da para unos doce minutos— y más
+deprisa si corres, saltas o picas. Por encima del 90 % se regenera vida poco a
+poco, y regenerar gasta comida de más: comer bien es la cura, y curarse cuesta.
+Por debajo del 15 % se empieza a perder vida, despacio, con tiempo de sobra para
+buscar algo. La comida sale de los animales: conejos que dan saltos para
+escaparse y jabalíes que trotan, ninguno de los dos ataca. La carne cruda sacia
+poco; pasada por el horno alimenta el doble y además cura.
+
+Se empieza con pico de madera, espada de madera y antorchas. Los enemigos sueltan gel y
 huesos, y el gel hace que las antorchas cundan mucho más. Una espada mejor pega
 más fuerte pero se recupera más despacio.
 
@@ -121,7 +131,9 @@ bioma se deduce del suelo que pisas, no de un mapa guardado, así que un desiert
 construido a mano también trae escarabajos.
 
 Fabricar necesita estar cerca de la estación: con las manos solo salen
-antorchas y la mesa de trabajo; la mesa desbloquea cofres, hornos y yunques; el
+antorchas y la mesa de trabajo. Un clic derecho sobre la mesa, el horno o el
+yunque abre su propio panel con todas sus recetas en grande; el inventario
+mantiene su lista pequeña al lado para lo de siempre. La mesa desbloquea cofres, hornos y yunques; el
 horno funde mineral en lingotes y el yunque los convierte en picos mejores. El
 panel enseña también lo que todavía no puedes pagar, en gris — saber que existe
 un pico de oro es lo que empuja a bajar a buscarlo. Un cofre no se puede romper

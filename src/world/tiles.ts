@@ -58,7 +58,10 @@ export const TILES: readonly DefTile[] = [
   { nombre: 'madera', solido: true, plataforma: false, dureza: 30, color: '#8a5f33' },
   { nombre: 'plataforma', solido: false, plataforma: true, dureza: 15, color: '#a07545' },
   { nombre: 'cobre', solido: true, plataforma: false, dureza: 55, color: '#b06a3b' },
-  { nombre: 'hierro', solido: true, plataforma: false, dureza: 70, color: '#a3968a' },
+  // El hierro tira a cálido a propósito. Con el gris pardo de antes, sobre la
+  // roca gris de la textura de mineral, una veta era invisible: se cruzaba por
+  // delante sin verla.
+  { nombre: 'hierro', solido: true, plataforma: false, dureza: 70, color: '#d2a76b' },
   { nombre: 'plata', solido: true, plataforma: false, dureza: 85, color: '#c2ccd6' },
   { nombre: 'oro', solido: true, plataforma: false, dureza: 100, color: '#dcb13a' },
   // Los árboles no frenan: en Terraria se atraviesan, y así no hay que

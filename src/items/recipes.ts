@@ -4,8 +4,14 @@ import { ANTORCHA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, 
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
+  CARNE_ASADA,
+  CARNE_CRUDA,
   CUBO,
   ESPADA_COBRE,
+  ESPADA_PIEDRA,
+  PICO_COBRE,
+  PICO_MADERA,
+  PICO_PIEDRA,
   ESPADA_HIERRO,
   ESPADA_MADERA,
   GEL,
@@ -98,6 +104,36 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 1,
     estacion: MESA,
   },
+  // La rama de piedra existe para que el primer salto de herramienta llegue en
+  // los primeros minutos y no dependa de bajar a buscar cobre: se empieza con
+  // pico de madera y la piedra está literalmente bajo los pies.
+  {
+    id: 'pico-madera',
+    ingredientes: [[MADERA, 12]],
+    resultado: PICO_MADERA,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'pico-piedra',
+    ingredientes: [
+      [PIEDRA, 20],
+      [MADERA, 5],
+    ],
+    resultado: PICO_PIEDRA,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'espada-piedra',
+    ingredientes: [
+      [PIEDRA, 14],
+      [MADERA, 4],
+    ],
+    resultado: ESPADA_PIEDRA,
+    cantidad: 1,
+    estacion: MESA,
+  },
   {
     id: 'yunque',
     ingredientes: [[LINGOTE_HIERRO, 5]],
@@ -107,6 +143,13 @@ export const RECETAS: readonly Receta[] = [
   },
 
   // --- Horno: fundir mineral ---
+  {
+    id: 'carne-asada',
+    ingredientes: [[CARNE_CRUDA, 1]],
+    resultado: CARNE_ASADA,
+    cantidad: 1,
+    estacion: HORNO,
+  },
   {
     id: 'lingote-cobre',
     ingredientes: [[COBRE, 3]],
@@ -137,6 +180,16 @@ export const RECETAS: readonly Receta[] = [
   },
 
   // --- Yunque: herramientas ---
+  {
+    id: 'pico-cobre',
+    ingredientes: [
+      [LINGOTE_COBRE, 10],
+      [MADERA, 4],
+    ],
+    resultado: PICO_COBRE,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
   {
     id: 'pico-hierro',
     ingredientes: [

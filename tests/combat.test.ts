@@ -141,8 +141,10 @@ describe('enemigos', () => {
   it('cada especie tiene vida, daño y botín', () => {
     for (const def of Object.values(ENEMIGOS)) {
       expect(def.vida).toBeGreaterThan(0);
-      expect(def.dano).toBeGreaterThan(0);
       expect(def.botinMax).toBeGreaterThan(0);
+      // Los animales no hacen daño: están para dar de comer, no para pelear.
+      if (def.pasivo) expect(def.dano).toBe(0);
+      else expect(def.dano).toBeGreaterThan(0);
     }
   });
 
@@ -333,9 +335,15 @@ describe('golpe cuerpo a cuerpo', () => {
 });
 
 describe('aparición de enemigos', () => {
-  it('de día en la superficie solo salen slimes', () => {
-    const especies = especiesPosibles({ esNoche: false, superficieTy: SUELO , bioma: 'bosque' }, SUELO - 2);
-    expect(especies).toEqual(['slime']);
+  it('de día en la superficie sale caza, no amenazas', () => {
+    const especies = especiesPosibles(
+      { esNoche: false, superficieTy: SUELO, bioma: 'bosque' },
+      SUELO - 2,
+    );
+    // De día el bosque es sitio de caza: animales y algún slime, nada que
+    // ataque por su cuenta.
+    expect(especies).toContain('conejo');
+    expect(especies).not.toContain('zombi');
   });
 
   it('de noche en la superficie salen zombis', () => {

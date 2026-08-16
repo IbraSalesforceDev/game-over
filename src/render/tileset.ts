@@ -191,8 +191,17 @@ function pintarBase(
             // Pepitas: bolas del color del mineral repartidas por la roca.
             const d = Math.hypot(px - 5 - v * 2, py - 6 - ((v * 3) % 5));
             const d2 = Math.hypot(px - 11 + v, py - 11 + ((v * 2) % 4));
-            if (d < 2.6 + fino || d2 < 2.1 + fino * 0.8) {
-              ctx.fillStyle = css(rgb(color, fino > 0.6 ? 26 : fino < 0.25 ? -22 : 0, escala));
+            if (d < 2.9 + fino || d2 < 2.4 + fino * 0.8) {
+              // Pepita con brillo marcado: el contraste dentro de la propia
+              // pepita es lo que hace que la veta salte a la vista desde el
+              // otro extremo de una caverna a media luz.
+              ctx.fillStyle = css(rgb(color, fino > 0.62 ? 40 : fino < 0.22 ? -30 : 4, escala));
+              ctx.fillRect(ox + px, oy + py, 1, 1);
+              continue;
+            }
+            // Halo oscuro alrededor de la pepita, que la despega de la roca.
+            if (d < 3.9 || d2 < 3.4) {
+              ctx.fillStyle = css(rgb(fondo, -26, escala));
               ctx.fillRect(ox + px, oy + py, 1, 1);
               continue;
             }
