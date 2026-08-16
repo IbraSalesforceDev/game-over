@@ -205,12 +205,33 @@ function armaduraIcono(hueco: Hueco): Dibujo {
       px(ctx, ox + 5, oy + 15, 10, 2, t.oscuro);
       return;
     }
-    // Grebas: dos perneras separadas colgando de una cintura.
-    bloque(ctx, ox + 4, oy + 3, 12, 4, t);
-    px(ctx, ox + 4, oy + 3, 12, 1, t.claro);
-    for (const dx of [4, 11]) {
-      bloque(ctx, ox + dx, oy + 7, 5, 10, t);
-      px(ctx, ox + dx, oy + 16, 5, 1, t.oscuro);
+    if (hueco === 'piernas') {
+      // Grebas: dos perneras separadas colgando de una cintura.
+      bloque(ctx, ox + 4, oy + 3, 12, 4, t);
+      px(ctx, ox + 4, oy + 3, 12, 1, t.claro);
+      for (const dx of [4, 11]) {
+        bloque(ctx, ox + dx, oy + 7, 5, 10, t);
+        px(ctx, ox + dx, oy + 16, 5, 1, t.oscuro);
+      }
+      return;
+    }
+    if (hueco === 'pies') {
+      // Botas: caña corta y puntera adelantada, las dos juntas.
+      for (const dx of [2, 11]) {
+        bloque(ctx, ox + dx, oy + 6, 5, 7, t);
+        px(ctx, ox + dx, oy + 6, 5, 1, t.claro);
+        bloque(ctx, ox + dx, oy + 12, 7, 4, t);
+        px(ctx, ox + dx, oy + 15, 7, 1, t.oscuro);
+      }
+      return;
+    }
+    // Guantes: dos manoplas con el pulgar marcado.
+    for (const dx of [2, 11]) {
+      bloque(ctx, ox + dx, oy + 5, 6, 8, t);
+      px(ctx, ox + dx, oy + 5, 6, 1, t.claro);
+      // Pulgar: un saliente de dos píxeles al lado de dentro.
+      px(ctx, ox + dx + (dx === 2 ? 6 : -1), oy + 8, 1, 3, t.base);
+      px(ctx, ox + dx, oy + 13, 6, 2, t.oscuro);
     }
   };
 }
@@ -219,6 +240,8 @@ const ICONOS_ARMADURA: Record<Hueco, Dibujo> = {
   cabeza: armaduraIcono('cabeza'),
   torso: armaduraIcono('torso'),
   piernas: armaduraIcono('piernas'),
+  pies: armaduraIcono('pies'),
+  manos: armaduraIcono('manos'),
 };
 
 /** Pala: mango largo y una hoja ancha y plana abajo. */

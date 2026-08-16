@@ -22,6 +22,7 @@ export type Eleccion =
       tamano: NombreTamano;
       nombre: string;
       dificultad: number;
+      hardcore: boolean;
     }
   | { tipo: 'cargar'; meta: MetaMundo };
 
@@ -68,6 +69,16 @@ const ESTILO = `
 }
 #menu .resumen-dif b { color: #e8b64c; font-weight: normal; }
 #menu .aviso-dif { color: #b08a4a; }
+#menu label.hardcore {
+  flex-direction: row; align-items: center; gap: 6px; padding-bottom: 7px;
+  color: #d8cfc0; cursor: pointer;
+}
+#menu label.hardcore input { accent-color: #a33a3a; cursor: pointer; }
+#menu .sello {
+  margin-left: 8px; padding: 1px 6px; font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; border: 1px solid #7a3630; color: #e0857a;
+}
+#menu .sello.caido { background: #3a1c1a; color: #ffb3aa; }
 #menu .pie { margin-top: 22px; color: #55606d; font-size: 10px; line-height: 1.7; }
 `;
 
@@ -174,6 +185,16 @@ export function mostrarMenu(
       sDif.value = String(DIFICULTAD_POR_DEFECTO);
       lDif.appendChild(sDif);
 
+      // El hardcore va aparte de la dificultad porque son dos ejes distintos:
+      // se puede querer un mundo tranquilo del que no se pueda volver.
+      const lHardcore = document.createElement('label');
+      lHardcore.className = 'hardcore';
+      const iHardcore = document.createElement('input');
+      iHardcore.type = 'checkbox';
+      const textoHardcore = document.createElement('span');
+      textoHardcore.textContent = 'Hardcore';
+      lHardcore.append(iHardcore, textoHardcore);
+
       const resumenDif = document.createElement('div');
       resumenDif.className = 'resumen-dif';
       const pintarResumen = (): void => {
@@ -182,10 +203,14 @@ export function mostrarMenu(
           d.id >= 7
             ? ' <span class="aviso-dif">No se puede cambiar después.</span>'
             : '';
-        resumenDif.innerHTML = `<b>${d.nombre}</b> — ${d.resumen}${extra}`;
+        const hc = iHardcore.checked
+          ? ' <span class="aviso-dif">Hardcore: al morir, el mundo se cierra.</span>'
+          : '';
+        resumenDif.innerHTML = `<b>${d.nombre}</b> — ${d.resumen}${extra}${hc}`;
       };
       pintarResumen();
       sDif.addEventListener('change', pintarResumen);
+      iHardcore.addEventListener('change', pintarResumen);
 
       const crear = document.createElement('button');
       crear.className = 'principal';
@@ -197,10 +222,11 @@ export function mostrarMenu(
           tamano: sTam.value as NombreTamano,
           nombre: iNombre.value.trim() || 'Mi mundo',
           dificultad: Number(sDif.value),
+          hardcore: iHardcore.checked,
         }),
       );
 
-      campos.append(lNombre, lSemilla, lTam, lDif, crear, resumenDif);
+      campos.append(lNombre, lSemilla, lTam, lDif, lHardcore, crear, resumenDif);
       caja.appendChild(campos);
 
       // --- Mundos guardados ---
@@ -231,6 +257,12 @@ export function mostrarMenu(
         const nombre = document.createElement('div');
         nombre.className = 'nombre';
         nombre.textContent = meta.nombre;
+        if (meta.hardcore) {
+          const sello = document.createElement('span');
+          sello.className = meta.caido ? 'sello caido' : 'sello';
+          sello.textContent = meta.caido ? 'caído' : 'hardcore';
+          nombre.appendChild(sello);
+        }
         const detalle = document.createElement('div');
         detalle.className = 'detalle';
         detalle.textContent =
@@ -240,7 +272,8 @@ export function mostrarMenu(
 
         const jugar = document.createElement('button');
         jugar.className = 'principal';
-        jugar.textContent = 'Jugar';
+        // Un hardcore caído se abre para verlo, no para seguir jugándolo.
+        jugar.textContent = meta.caido ? 'Ver' : 'Jugar';
         jugar.addEventListener('click', () => cerrar({ tipo: 'cargar', meta }));
 
         const borrar = document.createElement('button');

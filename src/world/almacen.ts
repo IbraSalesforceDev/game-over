@@ -21,6 +21,15 @@ export interface MetaMundo {
   /** Tamaño del blob guardado. */
   bytes: number;
   version: number;
+  /**
+   * Mundo hardcore, y si ya se murió en él.
+   *
+   * Van en la ficha y no solo dentro del guardado porque el menú tiene que
+   * poder decirlo sin abrir el mundo entero: son opcionales para que las fichas
+   * escritas antes de que existiera el modo se sigan leyendo.
+   */
+  hardcore?: boolean;
+  caido?: boolean;
 }
 
 export interface SaveAdapter {

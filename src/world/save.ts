@@ -41,8 +41,10 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       siempre.
  *  10 — se añade la armadura puesta. Los mundos anteriores se abren desnudos,
  *       que es como se guardaron.
+ *  11 — se añade el modo hardcore y si ya se ha muerto en él. Los mundos
+ *       anteriores se abren en modo normal, con sus muertes ya perdonadas.
  */
-export const VERSION_FORMATO = 10;
+export const VERSION_FORMATO = 11;
 
 export interface EstadoJugador {
   x: number;
@@ -80,6 +82,10 @@ export interface EstadoPartida {
    * poder subirla y bajarla a mitad de partida vaciaría de sentido elegirla.
    */
   dificultad: number;
+  /** El mundo se creó en hardcore; formato 11. */
+  hardcore: boolean;
+  /** Ya se ha muerto en hardcore: el mundo queda cerrado; formato 11. */
+  hardcoreMuerto: boolean;
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -279,6 +285,11 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
     e.u16(objeto);
     e.u16(Math.min(65535, cantidad));
   }
+  // Formato 11: hardcore y si ya se ha muerto en él, en un solo byte de bits.
+  // Va el último a propósito: cada campo nuevo se añade al final para que un
+  // lector de una versión anterior encuentre todo lo suyo donde lo espera, y
+  // meterlo en medio rompería esa propiedad para todos los campos posteriores.
+  e.u8((estado.hardcore ? 1 : 0) | (estado.hardcoreMuerto ? 2 : 0));
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -326,6 +337,8 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     vidaMax: 0,
     hambre: 0,
     dificultad: DIFICULTAD_POR_DEFECTO,
+    hardcore: false,
+    hardcoreMuerto: false,
   };
   if (version >= 3) {
     const n = l.u16();
@@ -360,6 +373,11 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     const ranuras: [number, number][] = [];
     for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
     estado.equipo = ranuras;
+  }
+  if (version >= 11) {
+    const bits = l.u8();
+    estado.hardcore = (bits & 1) !== 0;
+    estado.hardcoreMuerto = (bits & 2) !== 0;
   }
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);

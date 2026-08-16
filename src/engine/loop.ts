@@ -3,6 +3,8 @@ import { MAX_TICKS_POR_FRAME, TICK } from '../core/constants';
 export interface Bucle {
   arrancar(): void;
   parar(): void;
+  /** Pinta un solo frame, sin arrancar el bucle. */
+  arrancarUnFrame(): void;
   /** Milisegundos del último frame, para el overlay de debug. */
   readonly msFrame: number;
   readonly fps: number;
@@ -72,6 +74,14 @@ export function crearBucle(
     parar() {
       corriendo = false;
       cancelAnimationFrame(handle);
+    },
+    /**
+     * Pinta un frame y se queda ahí. Para abrir un mundo que ya no se juega
+     * —un hardcore en el que se murió— y verlo tal y como quedó.
+     */
+    arrancarUnFrame() {
+      if (corriendo) return;
+      requestAnimationFrame(() => render(0));
     },
     get msFrame() {
       return msFrame;

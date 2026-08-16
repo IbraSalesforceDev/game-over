@@ -105,6 +105,16 @@ export const MAPA_4 = 107;
 export const MAPA_5 = 108;
 export const PEDERNAL = 109;
 export const VIDRIO = 110;
+// Botas y guantes: los dos huecos que faltaban. Van en cuatro metales, como el
+// resto de la armadura.
+export const BOTAS_COBRE = 111;
+export const GUANTES_COBRE = 112;
+export const BOTAS_HIERRO = 113;
+export const GUANTES_HIERRO = 114;
+export const BOTAS_PLATA = 115;
+export const GUANTES_PLATA = 116;
+export const BOTAS_ORO = 117;
+export const GUANTES_ORO = 118;
 
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
@@ -147,9 +157,9 @@ export type TipoObjeto =
  * completando el juego: llevar el casco de cobre y el peto de hierro tiene que
  * ser un estado posible, no un error.
  */
-export type Hueco = 'cabeza' | 'torso' | 'piernas';
+export type Hueco = 'cabeza' | 'torso' | 'piernas' | 'pies' | 'manos';
 
-export const HUECOS: readonly Hueco[] = ['cabeza', 'torso', 'piernas'];
+export const HUECOS: readonly Hueco[] = ['cabeza', 'torso', 'piernas', 'pies', 'manos'];
 
 export interface DefObjeto {
   readonly nombre: string;
@@ -271,11 +281,15 @@ const PIEZAS: readonly [string, Hueco, number][] = [
   ['casco', 'cabeza', 1],
   ['peto', 'torso', 1.8],
   ['grebas', 'piernas', 1.3],
+  // Botas y guantes defienden poco: son las piezas de remate, las que se
+  // forjan cuando ya sobra metal, no las que deciden si sobrevives.
+  ['botas', 'pies', 0.7],
+  ['guantes', 'manos', 0.6],
 ];
 
 /** Un juego completo de armadura de un metal. */
 function juegoArmadura(
-  ids: readonly [number, number, number],
+  ids: readonly number[],
   metal: string,
   color: string,
   base: number,
@@ -361,10 +375,30 @@ const ENTRADAS: [number, DefObjeto][] = [
   // catorce de cada golpe, que ante un zombi de dieciocho es mucho pero no lo
   // vuelve inofensivo. Una armadura que anula el daño convierte el combate en
   // un trámite y la exploración en un paseo.
-  ...juegoArmadura([CASCO_COBRE, PETO_COBRE, GREBAS_COBRE], 'cobre', '#b06a3b', 1),
-  ...juegoArmadura([CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO], 'hierro', '#a3968a', 2),
-  ...juegoArmadura([CASCO_PLATA, PETO_PLATA, GREBAS_PLATA], 'plata', '#c2ccd6', 3),
-  ...juegoArmadura([CASCO_ORO, PETO_ORO, GREBAS_ORO], 'oro', '#dcb13a', 4),
+  ...juegoArmadura(
+    [CASCO_COBRE, PETO_COBRE, GREBAS_COBRE, BOTAS_COBRE, GUANTES_COBRE],
+    'cobre',
+    '#b06a3b',
+    1,
+  ),
+  ...juegoArmadura(
+    [CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO, BOTAS_HIERRO, GUANTES_HIERRO],
+    'hierro',
+    '#a3968a',
+    2,
+  ),
+  ...juegoArmadura(
+    [CASCO_PLATA, PETO_PLATA, GREBAS_PLATA, BOTAS_PLATA, GUANTES_PLATA],
+    'plata',
+    '#c2ccd6',
+    3,
+  ),
+  ...juegoArmadura(
+    [CASCO_ORO, PETO_ORO, GREBAS_ORO, BOTAS_ORO, GUANTES_ORO],
+    'oro',
+    '#dcb13a',
+    4,
+  ),
   // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
   // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
   [

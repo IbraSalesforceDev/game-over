@@ -196,6 +196,7 @@ function partidaNueva(
   guardable: boolean,
   minutos = HORA_POR_DEFECTO,
   nivel = DIFICULTAD_POR_DEFECTO,
+  hardcore = false,
 ): Partida {
   return {
     mundo: gen.mundo,
@@ -223,6 +224,8 @@ function partidaNueva(
       vidaMax: VIDA_MAXIMA,
       hambre: HAMBRE_MAXIMA,
       dificultad: nivel,
+      hardcore,
+      hardcoreMuerto: false,
     },
   };
 }
@@ -246,6 +249,7 @@ async function elegirPartida(
       !op.lab,
       op.minutos ?? HORA_POR_DEFECTO,
       op.dificultad,
+      op.hardcore,
     );
   }
 
@@ -262,6 +266,7 @@ async function elegirPartida(
       true,
       op.minutos ?? HORA_POR_DEFECTO,
       eleccion.dificultad,
+      eleccion.hardcore,
     );
   }
 
@@ -460,6 +465,8 @@ async function arrancar(): Promise<void> {
         jugado: partida.estado.jugado,
         bytes: bytes.length,
         version: VERSION_FORMATO,
+        hardcore: partida.estado.hardcore,
+        caido: partida.estado.hardcoreMuerto,
       };
       await almacen.guardar(partida.id, meta, bytes);
       ultimoGuardado = Date.now();
@@ -767,6 +774,19 @@ async function arrancar(): Promise<void> {
       // El motivo se lee antes de revivir: `revivir` lo borra, y si se leyera
       // después la pantalla de muerte diría siempre lo mismo.
       const motivo = TEXTO_MOTIVO[salud.motivo];
+
+      // En hardcore no se reaparece: se acaba. El mundo no se borra —tirar
+      // horas de construcción por un despiste sería otra cosa— pero queda
+      // cerrado, y lo que se guarda es el momento de la muerte.
+      if (partida.estado.hardcore) {
+        partida.estado.hardcoreMuerto = true;
+        bucle.parar();
+        particulas.limpiar();
+        panelVida.mostrarMuerte(true, `${motivo} Fin de la partida.`);
+        void guardar('manual');
+        return;
+      }
+
       reaparecer(jugador);
       revivir(salud);
       reiniciarAliento(aliento);
@@ -1384,7 +1404,16 @@ async function arrancar(): Promise<void> {
   );
 
   progreso(100, 'Listo');
-  bucle.arrancar();
+  // Un mundo hardcore en el que ya se murió se abre para mirarlo, no para
+  // jugarlo: se pinta un frame y ahí se queda. Sin esto se podría seguir
+  // jugando tras la muerte con solo recargar la página, y el modo entero
+  // dejaría de significar nada.
+  if (partida.estado.hardcoreMuerto) {
+    bucle.arrancarUnFrame();
+    panelVida.mostrarMuerte(true, 'Aquí se acabó esta partida.');
+  } else {
+    bucle.arrancar();
+  }
   setTimeout(ocultarCargador, 250);
 }
 

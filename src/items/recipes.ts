@@ -34,6 +34,14 @@ import {
   CASCO_ORO,
   PETO_ORO,
   GREBAS_ORO,
+  BOTAS_COBRE,
+  GUANTES_COBRE,
+  BOTAS_HIERRO,
+  GUANTES_HIERRO,
+  BOTAS_PLATA,
+  GUANTES_PLATA,
+  BOTAS_ORO,
+  GUANTES_ORO,
   ARCO,
   FLECHA,
   PALA_HIERRO,
@@ -386,11 +394,11 @@ function mapas(): Receta[] {
  * barato— es el mismo en los cuatro metales, así que sale de un bucle.
  */
 function armaduras(): Receta[] {
-  const juegos: [string, number, [number, number, number]][] = [
-    ['cobre', LINGOTE_COBRE, [CASCO_COBRE, PETO_COBRE, GREBAS_COBRE]],
-    ['hierro', LINGOTE_HIERRO, [CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO]],
-    ['plata', LINGOTE_PLATA, [CASCO_PLATA, PETO_PLATA, GREBAS_PLATA]],
-    ['oro', LINGOTE_ORO, [CASCO_ORO, PETO_ORO, GREBAS_ORO]],
+  const juegos: [string, number, number[]][] = [
+    ['cobre', LINGOTE_COBRE, [CASCO_COBRE, PETO_COBRE, GREBAS_COBRE, BOTAS_COBRE, GUANTES_COBRE]],
+    ['hierro', LINGOTE_HIERRO, [CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO, BOTAS_HIERRO, GUANTES_HIERRO]],
+    ['plata', LINGOTE_PLATA, [CASCO_PLATA, PETO_PLATA, GREBAS_PLATA, BOTAS_PLATA, GUANTES_PLATA]],
+    ['oro', LINGOTE_ORO, [CASCO_ORO, PETO_ORO, GREBAS_ORO, BOTAS_ORO, GUANTES_ORO]],
   ];
   // Un juego entero cuesta 45 lingotes: bastante más que el pico del mismo
   // metal, para que vestirse sea una decisión y no el siguiente paso obvio.
@@ -398,6 +406,8 @@ function armaduras(): Receta[] {
     ['casco', 12],
     ['peto', 20],
     ['grebas', 13],
+    ['botas', 8],
+    ['guantes', 7],
   ];
   const salida: Receta[] = [];
   for (const [metal, lingoteId, ids] of juegos) {

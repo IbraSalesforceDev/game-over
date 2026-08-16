@@ -123,6 +123,25 @@ export const DIFICULTADES: readonly NivelDificultad[] = [
 
 export const DIFICULTAD_POR_DEFECTO = 3;
 
+/**
+ * Modo hardcore: morir una vez acaba la partida.
+ *
+ * Va aparte de la dificultad y no como un nivel más porque son dos ejes
+ * distintos: se puede querer un mundo tranquilo del que no se pueda volver, o
+ * uno brutal en el que reaparecer sin castigo. Y porque el hardcore no cambia
+ * cuánto pega nada — cambia qué pasa después.
+ *
+ * El mundo no se borra al morir: se marca. Borrarlo sin preguntar sería tirar
+ * horas de construcción por un despiste, y lo que da sentido al hardcore es que
+ * quede constancia de hasta dónde llegaste, no que desaparezca el rastro.
+ */
+export interface Hardcore {
+  /** El mundo se creó en hardcore. */
+  activo: boolean;
+  /** Ya se ha muerto: el mundo queda de solo lectura. */
+  muerto: boolean;
+}
+
 /** Nivel por id, con normal como red de seguridad ante un guardado raro. */
 export function dificultad(id: number): NivelDificultad {
   return DIFICULTADES[id] ?? DIFICULTADES[DIFICULTAD_POR_DEFECTO]!;

@@ -36,9 +36,9 @@ import { TIERRA, YUNQUE } from '../src/world/tiles';
  */
 
 describe('las piezas', () => {
-  it('hay tres huecos y tres ranuras', () => {
-    expect(HUECOS).toHaveLength(3);
-    expect(RANURAS_EQUIPO).toBe(3);
+  it('hay cinco huecos y cinco ranuras', () => {
+    expect(HUECOS).toHaveLength(5);
+    expect(RANURAS_EQUIPO).toBe(5);
     HUECOS.forEach((h, i) => expect(indiceDeHueco(h)).toBe(i));
   });
 
@@ -62,12 +62,12 @@ describe('las piezas', () => {
     }
   });
 
-  it('las doce piezas se forjan en el yunque', () => {
+  it('las veinte piezas se forjan en el yunque', () => {
+    // Cinco huecos por cuatro metales.
     const recetas = RECETAS.filter((r) => esArmadura(r.resultado));
-    expect(recetas).toHaveLength(12);
+    expect(recetas).toHaveLength(20);
     for (const r of recetas) expect(r.estacion).toBe(YUNQUE);
-    // Ninguna se repite: doce ids distintos.
-    expect(new Set(recetas.map((r) => r.resultado)).size).toBe(12);
+    expect(new Set(recetas.map((r) => r.resultado)).size).toBe(20);
   });
 
   it('el juego completo cuesta más que el pico del mismo metal', () => {

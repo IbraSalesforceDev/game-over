@@ -175,6 +175,8 @@ const ETIQUETA_HUECO: Record<Hueco, string> = {
   cabeza: 'casco',
   torso: 'peto',
   piernas: 'grebas',
+  pies: 'botas',
+  manos: 'guantes',
 };
 
 export function crearBarra(

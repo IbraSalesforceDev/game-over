@@ -52,6 +52,7 @@ export interface OpcionesEscenario {
  */
 export interface OpcionesArranque extends OpcionesEscenario {
   dificultad: number;
+  hardcore: boolean;
 }
 
 /** Dificultad de la URL. Fuera de rango o ilegible, la de siempre. */
@@ -83,6 +84,7 @@ export function leerOpciones(busqueda: string): OpcionesArranque {
     minutos: leerHora(p.get('hora')),
     columna: Number.isFinite(columna) && columna > 0 ? Math.floor(columna) : null,
     dificultad: leerDificultad(p.get('dif')),
+    hardcore: p.get('hardcore') === '1',
   };
 }
 

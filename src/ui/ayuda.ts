@@ -38,6 +38,7 @@ const GRUPOS: Grupo[] = [
       ['Azada', 'Clic der. sobre hierba o tierra: la deja labrada'],
       ['Caña', 'Crece en las orillas · 3 caña → papel · 2 papel → mapa'],
       ['Biomas', 'Cada uno tira de un metal: cobre, hierro, plata y oro'],
+      ['Lava', 'Quema a todos · el agua la apaga y deja obsidiana'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],
     ],
