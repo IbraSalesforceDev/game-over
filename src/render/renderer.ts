@@ -573,14 +573,27 @@ export class Renderer {
     ctx.globalAlpha = 0.35 + 0.4 * (1 - avance);
     ctx.fillStyle = defObjeto(g.arma).color;
     // El arco se abre a medida que avanza el golpe: da sensación de barrido
-    // sin necesidad de sprites de animación.
-    const alto = caja.alto * (0.35 + 0.65 * avance);
-    ctx.fillRect(
-      ox + Math.round(caja.x * z),
-      oy + Math.round((caja.y + (caja.alto - alto) / 2) * z),
-      caja.ancho * z,
-      alto * z,
-    );
+    // sin necesidad de sprites de animación. Se abre a lo ancho o a lo alto
+    // según por dónde haya salido el mandoble, para que el gesto se lea igual
+    // apuntando al lado que apuntando al techo.
+    const apertura = 0.35 + 0.65 * avance;
+    if (g.sentido === 'lado') {
+      const alto = caja.alto * apertura;
+      ctx.fillRect(
+        ox + Math.round(caja.x * z),
+        oy + Math.round((caja.y + (caja.alto - alto) / 2) * z),
+        caja.ancho * z,
+        alto * z,
+      );
+    } else {
+      const ancho = caja.ancho * apertura;
+      ctx.fillRect(
+        ox + Math.round((caja.x + (caja.ancho - ancho) / 2) * z),
+        oy + Math.round(caja.y * z),
+        ancho * z,
+        caja.alto * z,
+      );
+    }
     ctx.restore();
   }
 

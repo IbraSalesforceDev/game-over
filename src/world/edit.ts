@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants';
 import type { Caja } from '../entities/physics';
-import { AIRE, defTile, esPlataforma, esSolido } from './tiles';
+import { AIRE, defTile, esPlataforma, esSolido, nivelPicoTile } from './tiles';
 import type { Mundo } from './world';
 
 /**
@@ -73,7 +73,16 @@ export function tieneApoyo(mundo: Mundo, tx: number, ty: number): boolean {
 export interface Resultado {
   ok: boolean;
   /** Motivo del rechazo, para que el HUD pueda explicarlo. */
-  motivo?: 'alcance' | 'ocupado' | 'vacio' | 'jugador' | 'limites' | 'nada';
+  motivo?:
+    | 'alcance'
+    | 'ocupado'
+    | 'vacio'
+    | 'jugador'
+    | 'limites'
+    | 'nada'
+    | 'herramienta';
+  /** Nivel de pico que pedía el tile, cuando el motivo es 'herramienta'. */
+  nivelPedido?: number;
 }
 
 const OK: Resultado = { ok: true };
@@ -126,18 +135,29 @@ export function puedeColocarPared(
   return apoyo ? OK : { ok: false, motivo: 'vacio' };
 }
 
+/**
+ * ¿Se puede empezar a picar aquí con la herramienta que se lleva?
+ *
+ * `nivel` es el nivel del objeto en la mano: 0 son las manos, 1 el pico de
+ * madera, y así hasta el de oro. Es la única puerta del sistema de niveles —
+ * `avanzarPicado` no lo comprueba porque el bucle llama aquí antes cada tick, y
+ * duplicar la regla en dos sitios es la forma segura de que se desincronicen.
+ */
 export function puedeMinar(
   mundo: Mundo,
   caja: Caja,
   tx: number,
   ty: number,
   capa: Capa,
+  nivel = Infinity,
 ): Resultado {
   if (!mundo.dentro(tx, ty)) return { ok: false, motivo: 'limites' };
   // Minar no tiene techo: si algo llegó ahí arriba, se puede quitar.
   if (!enAlcance(caja, tx, ty)) return { ok: false, motivo: 'alcance' };
   const id = capa === 'bloque' ? mundo.getTile(tx, ty) : mundo.getPared(tx, ty);
   if (id === AIRE) return { ok: false, motivo: 'nada' };
+  const pedido = nivelPicoTile(id);
+  if (pedido > nivel) return { ok: false, motivo: 'herramienta', nivelPedido: pedido };
   return OK;
 }
 

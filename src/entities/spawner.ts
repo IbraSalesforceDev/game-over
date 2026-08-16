@@ -23,6 +23,26 @@ export const INTERVALO_INTENTO = 40;
 /** Profundidad, en tiles bajo la superficie, a partir de la cual siempre hay peligro. */
 export const PROFUNDIDAD_PELIGRO = 28;
 
+/**
+ * Luz por encima de la cual no aparece nada hostil.
+ *
+ * Una antorcha vale 255 y pierde 14 por tile, así que este umbral dibuja un
+ * círculo seguro de unos doce tiles a su alrededor. Es la regla que convierte
+ * alumbrar la base en una decisión: hasta ahora poner antorchas solo servía
+ * para ver, y los zombis salían igual dentro de casa.
+ */
+export const UMBRAL_LUZ_HOSTIL = 90;
+
+/**
+ * Cuánto se debilita lo hostil que sale de día.
+ *
+ * De día se supone que el mundo está tranquilo: lo que se cuela por una cueva
+ * abierta o baja de la montaña no debería pegar como el zombi de las tres de la
+ * madrugada. En vez de prohibirlo —y dejar el día completamente vacío— sale con
+ * la mitad larga de sus fuerzas.
+ */
+export const FUERZA_DIURNA = 0.6;
+
 export type BiomaLocal = 'bosque' | 'desierto' | 'nieve';
 
 export interface ContextoAparicion {
@@ -32,6 +52,17 @@ export interface ContextoAparicion {
   superficieTy: number;
   /** Bioma donde está el jugador. */
   bioma: BiomaLocal;
+  /**
+   * Luz del sitio candidato, 0-255. Sin ella se supone oscuridad, que es lo
+   * que hacía el juego antes de que las antorchas espantaran nada.
+   */
+  luzEn?: (tx: number, ty: number) => number;
+}
+
+/** ¿Esta especie viene a hacer daño? Los animales, no. */
+export function esHostil(especie: Especie): boolean {
+  const def = ENEMIGOS[especie];
+  return !def.pasivo && def.dano > 0;
 }
 
 /**
@@ -152,7 +183,20 @@ export function intentarAparicion(
     : buscarSitio(mundo, tx, tyJugador, ENEMIGOS[especie].alto, rng);
   if (!sitio) return null;
 
-  const e = crearEnemigo(especie, sitio.x, sitio.y);
+  // La luz solo frena a lo hostil: un conejo puede pastar a pleno sol, y
+  // espantar la caza con antorchas dejaría al jugador sin comer.
+  if (ctx.luzEn && esHostil(especie)) {
+    const luz = ctx.luzEn(
+      Math.floor(sitio.x / TILE),
+      Math.floor((sitio.y + ENEMIGOS[especie].alto / 2) / TILE),
+    );
+    if (luz > UMBRAL_LUZ_HOSTIL) return null;
+  }
+
+  // De día lo hostil sale mermado; de noche, entero.
+  const fuerza = esHostil(especie) && !ctx.esNoche ? FUERZA_DIURNA : 1;
+
+  const e = crearEnemigo(especie, sitio.x, sitio.y, fuerza);
   enemigos.push(e);
   return e;
 }

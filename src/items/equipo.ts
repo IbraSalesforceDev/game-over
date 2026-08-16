@@ -1,6 +1,12 @@
 import { ANTORCHA } from '../world/tiles';
 import { Inventario } from './inventory';
-import { defObjeto, esHerramienta, ESPADA_MADERA, PICO_MADERA } from './items';
+import {
+  defObjeto,
+  esHerramienta,
+  ESPADA_MADERA,
+  nivelHerramienta,
+  PICO_MADERA,
+} from './items';
 
 /**
  * Equipo con el que empieza una partida y consultas sobre herramientas.
@@ -26,7 +32,18 @@ export function equipoInicial(): Inventario {
 }
 
 /**
- * Potencia de picado de lo que se lleva en la mano. 0 si eso no es un pico.
+ * Potencia con la que pican las manos desnudas.
+ *
+ * No es cero: quedarse sin pico no puede ser quedarse encerrado, y la tierra,
+ * la hierba, la arena, la nieve, las hojas y la madera son cosas que se apartan
+ * a manotazos. Es lo bastante baja —menos de la mitad que el pico de madera—
+ * como para que nadie prefiera cavar así teniendo herramienta. Lo que las manos
+ * no pueden es *entrar en la piedra*: eso lo decide el nivel, no la potencia.
+ */
+export const POTENCIA_MANO = 24;
+
+/**
+ * Potencia de picado de lo que se lleva en la mano.
  *
  * Antes se usaba el mejor pico del inventario estuviera donde estuviera, para
  * ahorrar el baile de teclas entre picar y construir. Se ha cambiado porque el
@@ -36,8 +53,13 @@ export function equipoInicial(): Inventario {
  * que se sostiene significa algo.
  */
 export function potenciaEnMano(objeto: number): number {
-  if (!esHerramienta(objeto)) return 0;
-  return defObjeto(objeto).potencia ?? 0;
+  if (!esHerramienta(objeto)) return POTENCIA_MANO;
+  return defObjeto(objeto).potencia ?? POTENCIA_MANO;
+}
+
+/** Nivel de la herramienta en la mano. Las manos son nivel 0. */
+export function nivelEnMano(objeto: number): number {
+  return nivelHerramienta(objeto);
 }
 
 /** El mejor pico que lleve encima. Solo para avisos de interfaz. */

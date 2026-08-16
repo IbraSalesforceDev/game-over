@@ -86,6 +86,8 @@ export interface DefObjeto {
   readonly tile?: number;
   /** Potencia de picado, si es un pico. */
   readonly potencia?: number;
+  /** Nivel de la herramienta: qué tiles puede romper. */
+  readonly nivel?: number;
   /** Daño por golpe, si es un arma. */
   readonly dano?: number;
   /** Ticks entre golpes, si es un arma. */
@@ -118,8 +120,14 @@ function lingote(id: number, nombre: string, color: string): [number, DefObjeto]
   return [id, { nombre, tipo: 'material', color, maxPila: PILA }];
 }
 
-function pico(id: number, nombre: string, color: string, potencia: number): [number, DefObjeto] {
-  return [id, { nombre, tipo: 'herramienta', color, maxPila: 1, potencia }];
+function pico(
+  id: number,
+  nombre: string,
+  color: string,
+  potencia: number,
+  nivel: number,
+): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'herramienta', color, maxPila: 1, potencia, nivel }];
 }
 
 function espada(
@@ -170,12 +178,12 @@ const ENTRADAS: [number, DefObjeto][] = [
   lingote(LINGOTE_HIERRO, 'lingote de hierro', '#b6aca0'),
   lingote(LINGOTE_PLATA, 'lingote de plata', '#d6dee8'),
   lingote(LINGOTE_ORO, 'lingote de oro', '#eec84a'),
-  pico(PICO_MADERA, 'pico de madera', '#8a5f33', 55),
-  pico(PICO_PIEDRA, 'pico de piedra', '#8d8d97', 85),
-  pico(PICO_COBRE, 'pico de cobre', '#b06a3b', 100),
-  pico(PICO_HIERRO, 'pico de hierro', '#a3968a', 160),
-  pico(PICO_PLATA, 'pico de plata', '#c2ccd6', 220),
-  pico(PICO_ORO, 'pico de oro', '#dcb13a', 300),
+  pico(PICO_MADERA, 'pico de madera', '#8a5f33', 55, 1),
+  pico(PICO_PIEDRA, 'pico de piedra', '#8d8d97', 85, 2),
+  pico(PICO_COBRE, 'pico de cobre', '#b06a3b', 100, 3),
+  pico(PICO_HIERRO, 'pico de hierro', '#a3968a', 160, 4),
+  pico(PICO_PLATA, 'pico de plata', '#c2ccd6', 220, 5),
+  pico(PICO_ORO, 'pico de oro', '#dcb13a', 300, 6),
   lingote(GEL, 'gel', '#79c8e0'),
   lingote(HUESO, 'hueso', '#e2ddcb'),
   // Más daño cuesta más lentitud: una espada de hierro pega fuerte pero se
@@ -218,6 +226,32 @@ export function esColocable(id: number): boolean {
 
 export function esHerramienta(id: number): boolean {
   return defObjeto(id).tipo === 'herramienta';
+}
+
+/** Nivel de la herramienta que se lleva. 0 son las manos. */
+export function nivelHerramienta(id: number): number {
+  return defObjeto(id).nivel ?? 0;
+}
+
+/** Picos por nivel, para poder decir en voz alta cuál falta. */
+const PICO_DE_NIVEL: readonly number[] = [
+  NADA,
+  PICO_MADERA,
+  PICO_PIEDRA,
+  PICO_COBRE,
+  PICO_HIERRO,
+  PICO_PLATA,
+  PICO_ORO,
+];
+
+/**
+ * Nombre del pico más humilde que rompe un tile de este nivel. Se usa en el
+ * aviso al fallar: "necesitas un pico de piedra" enseña el siguiente paso,
+ * mientras que un cursor rojo sin más solo dice que algo no va.
+ */
+export function nombrePicoDeNivel(nivel: number): string {
+  const id = PICO_DE_NIVEL[Math.min(nivel, PICO_DE_NIVEL.length - 1)] ?? NADA;
+  return id === NADA ? 'un pico' : defObjeto(id).nombre;
 }
 
 export function esArma(id: number): boolean {

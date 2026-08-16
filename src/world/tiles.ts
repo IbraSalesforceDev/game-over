@@ -56,22 +56,31 @@ export interface DefTile {
    * anticiparse en vez de en un suelo pintado de azul.
    */
   readonly agarre?: number;
+  /**
+   * Nivel de pico que hace falta para romperlo.
+   *
+   * 0 se saca con las manos, 1 pide pico de madera o mejor, y así. Es lo que
+   * convierte la cadena de herramientas en una cadena de verdad: sin esto se
+   * podía llegar al oro con el pico de madera, solo que despacio, y entonces
+   * fabricar uno mejor era una comodidad y no un requisito.
+   */
+  readonly nivelPico?: number;
 }
 
 export const TILES: readonly DefTile[] = [
   { nombre: 'aire', solido: false, plataforma: false, dureza: 0, color: '#000000' },
   { nombre: 'tierra', solido: true, plataforma: false, dureza: 20, color: '#6b4b2a' },
   { nombre: 'hierba', solido: true, plataforma: false, dureza: 20, color: '#4c8b3a' },
-  { nombre: 'piedra', solido: true, plataforma: false, dureza: 45, color: '#6e6e78' },
+  { nombre: 'piedra', solido: true, plataforma: false, dureza: 45, color: '#6e6e78', nivelPico: 1 },
   { nombre: 'madera', solido: true, plataforma: false, dureza: 30, color: '#8a5f33' },
   { nombre: 'plataforma', solido: false, plataforma: true, dureza: 15, color: '#a07545' },
-  { nombre: 'cobre', solido: true, plataforma: false, dureza: 55, color: '#b06a3b' },
+  { nombre: 'cobre', solido: true, plataforma: false, dureza: 55, color: '#b06a3b', nivelPico: 2 },
   // El hierro tira a cálido a propósito. Con el gris pardo de antes, sobre la
   // roca gris de la textura de mineral, una veta era invisible: se cruzaba por
   // delante sin verla.
-  { nombre: 'hierro', solido: true, plataforma: false, dureza: 70, color: '#d2a76b' },
-  { nombre: 'plata', solido: true, plataforma: false, dureza: 85, color: '#c2ccd6' },
-  { nombre: 'oro', solido: true, plataforma: false, dureza: 100, color: '#dcb13a' },
+  { nombre: 'hierro', solido: true, plataforma: false, dureza: 70, color: '#d2a76b', nivelPico: 2 },
+  { nombre: 'plata', solido: true, plataforma: false, dureza: 85, color: '#c2ccd6', nivelPico: 4 },
+  { nombre: 'oro', solido: true, plataforma: false, dureza: 100, color: '#dcb13a', nivelPico: 4 },
   // Los árboles no frenan: en Terraria se atraviesan, y así no hay que
   // resolver colisiones absurdas contra una rama.
   { nombre: 'tronco', solido: false, plataforma: false, dureza: 25, color: '#5a4028' },
@@ -90,15 +99,15 @@ export const TILES: readonly DefTile[] = [
   // ponerlos en un pasillo estrecho sin quedarte encerrado.
   { nombre: 'mesa de trabajo', solido: false, plataforma: true, dureza: 18, color: '#a3743c' },
   { nombre: 'horno', solido: false, plataforma: false, dureza: 30, color: '#7a6a5c', luz: 150 },
-  { nombre: 'yunque', solido: false, plataforma: true, dureza: 40, color: '#4a4a52' },
+  { nombre: 'yunque', solido: false, plataforma: true, dureza: 40, color: '#4a4a52', nivelPico: 1 },
   { nombre: 'cofre', solido: false, plataforma: false, dureza: 22, color: '#a37b3c' },
   // La arena es blanda, la arenisca es la piedra del desierto y el cactus no
   // frena, como los árboles.
   { nombre: 'arena', solido: true, plataforma: false, dureza: 14, color: '#d9c07a', agarre: 1.5 },
-  { nombre: 'arenisca', solido: true, plataforma: false, dureza: 40, color: '#b39457' },
+  { nombre: 'arenisca', solido: true, plataforma: false, dureza: 40, color: '#b39457', nivelPico: 1 },
   { nombre: 'cactus', solido: false, plataforma: false, dureza: 18, color: '#4f8a4a' },
   { nombre: 'nieve', solido: true, plataforma: false, dureza: 16, color: '#e6eef5' },
-  { nombre: 'hielo', solido: true, plataforma: false, dureza: 35, color: '#a9d6ec', agarre: 0.18 },
+  { nombre: 'hielo', solido: true, plataforma: false, dureza: 35, color: '#a9d6ec', agarre: 0.18, nivelPico: 1 },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -120,6 +129,11 @@ export function esPlataforma(id: number): boolean {
 /** ¿Es una estación de crafteo? */
 export function esEstacion(id: number): boolean {
   return (ESTACIONES as readonly number[]).includes(id);
+}
+
+/** Nivel de pico necesario. 0 = se saca con las manos. */
+export function nivelPicoTile(id: number): number {
+  return defTile(id).nivelPico ?? 0;
 }
 
 /** Agarre del tile: multiplica la fricción del suelo. 1 si no dice nada. */

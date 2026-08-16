@@ -203,6 +203,49 @@ export class MotorLuz {
     }
   }
 
+  /**
+   * Luz aproximada de un punto cualquiera del mundo, esté o no en la ventana.
+   *
+   * La aparición de enemigos necesita saber si un sitio está iluminado, y ese
+   * sitio cae a treinta tiles del jugador, casi siempre fuera del buffer. Usar
+   * `nivel()` ahí devolvería cero —oscuro— y los zombis brotarían justo al
+   * borde de la pantalla dentro de una casa bien alumbrada, que es exactamente
+   * lo que se quiere evitar.
+   *
+   * No es la propagación de verdad: mide la distancia en línea recta al emisor
+   * más cercano en lugar de rodear las paredes, así que en un pasillo en L
+   * cuenta luz que no llegaría. A cambio cuesta un barrido de 17×17 en vez de
+   * un flood fill, y para decidir si sale un zombi sobra.
+   */
+  luzEstimada(tx: number, ty: number, luzSolar: number): number {
+    let mejor = 0;
+    const { mundo } = this;
+
+    // Sol: si desde aquí se ve el cielo, manda el sol y no hace falta más.
+    if (tx >= 0 && tx < mundo.ancho && ty < (this.alturaCielo[tx] ?? 0)) {
+      mejor = Math.round(255 * luzSolar);
+      if (mejor >= 255) return mejor;
+    }
+
+    // Antorchas, hornos y lava de alrededor, con la caída del aire.
+    const RADIO = 8;
+    for (let dy = -RADIO; dy <= RADIO; dy++) {
+      for (let dx = -RADIO; dx <= RADIO; dx++) {
+        const x = tx + dx;
+        const y = ty + dy;
+        const emision =
+          mundo.esLava(x, y) && mundo.getLiquido(x, y) > 0
+            ? LUZ_LAVA
+            : emisionLuz(mundo.getTile(x, y));
+        if (emision <= 0) continue;
+        const distancia = Math.hypot(dx, dy);
+        const aqui = emision - distancia * CAIDA_AIRE;
+        if (aqui > mejor) mejor = aqui;
+      }
+    }
+    return Math.max(LUZ_MINIMA, Math.round(mejor));
+  }
+
   /** Nivel de luz de un tile del mundo, 0-255. Fuera de la ventana, 0. */
   nivel(tx: number, ty: number): number {
     const x = tx - this.tx0;

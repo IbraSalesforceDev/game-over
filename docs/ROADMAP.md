@@ -163,6 +163,73 @@ Sprites de píxel generados por código para el personaje y los cinco enemigos, 
 Joystick virtual, botones de acción, minar con toque, interfaz adaptada a pantalla pequeña, viewport bloqueado como en tus otros juegos.
 **DoD**: jugable en móvil sin teclado.
 
+### Bloques posteriores (la lista larga)
+
+Después de la fase 10 la lista de peticiones creció más que las fases, así que
+se reparte en siete bloques. El criterio es que cada bloque se pueda jugar al
+terminarlo: no se abre uno nuevo dejando el anterior a medias.
+
+- **Bloque 1 — Errores y manejo** ✅ · el cofre ya no se traga objetos, daño por
+  caída, la oscuridad tiene suelo, techo de construcción, menú de pausa, ayuda,
+  ajustes, menú de depuración en Alt+D+F3, F3 coordenadas y F6 diagnóstico,
+  hambre y animales, mesa de trabajo con panel propio, rozamiento de arena y
+  hielo, la pantalla de muerte dice de qué has muerto.
+- **Bloque 2 — Progresión y combate** (en curso) · niveles de herramienta ✅,
+  minar con las manos ✅, apuntar el mandoble con el ratón ✅, la luz espanta a
+  lo hostil ✅, enemigos diurnos debilitados ✅; pendiente: diez niveles de
+  dificultad al crear el mundo, esqueleto, serpiente y momia, arco y flechas,
+  pala y azada, armadura, más vida, recetas de cobre, plata y oro.
+- **Bloque 3 — Mundo** · selva junto al agua, mares pequeños con fondo de arena,
+  montañas de piedra, bosques en grupos, taiga solo en la nieve, un segundo
+  árbol de bosque, minerales por bioma, grava, menos lagos, tamaños de mundo de
+  pequeño a enorme, fondos teñidos por bioma.
+- **Bloque 4 — Cultivo y vida** · camas para pasar la noche, semillas, trigo,
+  zanahorias, caña de azúcar → papel → mapa, brotes de las hojas, vidrio de la
+  arena, plumas, pedernal.
+- **Bloque 5 — Fortaleza y jefe** · estructura en la capa de piedra, altar (5
+  huesos, 50 lingotes de oro y plata, 100 gel y una reliquia antigua que suelta
+  cualquier hostil al 3 %), jefe final, espada mejor que la de hierro y una
+  esencia guardada para más adelante.
+- **Bloque 6 — Audio y remate** · sonido de rotura por material, sonidos de
+  ataque, gruñidos, muerte de enemigos, descripciones de objetos, iconos más
+  detallados, opciones de gráficos y resolución.
+- **Bloque 7 — Migración de mundos** · ver abajo.
+
+### Bloque 7 — Migración de mundos (M)
+
+El formato de guardado ya sube de versión solo: `deserializar` lee cada campo
+según la versión del fichero y `empaquetar` reescribe siempre en el formato
+actual, así que un mundo del formato 1 se abre hoy y queda guardado como 7 en el
+primer autoguardado. Eso funciona desde la fase 4 y no hay nada que hacer.
+
+Lo que no está resuelto es la **migración de contenido**: un mundo creado antes
+de la fase 9 no tiene desierto, ni nieve, ni lagos, no porque su fichero sea
+viejo sino porque el terreno está escrito tile a tile y esos biomas nunca se
+generaron. Meterlos a posteriori significa reescribir cientos de columnas de
+superficie, y ahí es donde puede estar lo que el jugador haya construido.
+
+El problema de fondo es que no se guarda **quién** puso cada tile. Sin eso, una
+migración no puede distinguir la piedra que puso la generación de la que puso el
+jugador, y cualquier regeneración es una apuesta.
+
+Por orden de riesgo:
+
+1. **Versión visible en el menú**, con un aviso del tipo "anterior a los
+   biomas". `MetaMundo` ya guarda la versión; solo falta pintarla. Riesgo cero.
+2. **Bit de "tocado por el jugador"** en `flags`, que tiene sitio de sobra. No
+   arregla los mundos de hoy, pero es lo que hace posibles todas las migraciones
+   futuras — y cada partida jugada sin él es una partida que no se podrá migrar.
+   Es la pieza importante y la más barata.
+3. **Re-sembrar minerales** solo sobre piedra sin tocar. Seguro: no toca aire,
+   ni tierra, ni madera, así que no puede comerse una construcción.
+4. **Regenerar biomas y lagos** en zonas sin tocar. Solo tiene sentido una vez
+   exista el bit del punto 2, y aun así con confirmación explícita y copia de
+   seguridad del mundo antes de tocarlo.
+
+**DoD**: el menú dice de qué versión es cada mundo; los mundos nuevos marcan lo
+que toca el jugador; existe una acción de "poner al día los minerales" que no
+puede romper nada.
+
 ### Fase 12 (opcional) — Supabase (M)
 `SupabaseSaveAdapter`: auth por email/OAuth, tabla `worlds` con RLS por usuario, blob en Storage, resolución de conflictos por marca de tiempo, y modo invitado que sigue usando IndexedDB.
 **DoD**: inicias sesión en otro dispositivo y tu mundo está ahí.

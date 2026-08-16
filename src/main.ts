@@ -30,8 +30,8 @@ import {
 import { leerOpciones, prepararEscenario } from './world/escenario';
 import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
-import { equipoInicial, potenciaEnMano } from './items/equipo';
-import { defObjeto, dropDePared, dropDeTile } from './items/items';
+import { equipoInicial, nivelEnMano, potenciaEnMano } from './items/equipo';
+import { defObjeto, dropDePared, dropDeTile, nombrePicoDeNivel } from './items/items';
 import { estacionesCerca } from './items/recipes';
 import { Contenedores } from './world/contenedores';
 import { AIRE, COFRE, defTile, esEstacion } from './world/tiles';
@@ -44,7 +44,13 @@ import {
   type Drop,
 } from './entities/drop';
 import { actualizarEnemigos, botinDe, crearEnemigo, ENEMIGOS, type Enemigo } from './entities/enemies';
-import { crearGolpe, lanzarGolpe, resolverGolpe, tickGolpe } from './entities/combat';
+import {
+  crearGolpe,
+  lanzarGolpe,
+  resolverGolpe,
+  sentidoDeVector,
+  tickGolpe,
+} from './entities/combat';
 import {
   crearSalud,
   curar,
@@ -504,6 +510,21 @@ async function arrancar(): Promise<void> {
 
   /** Estado del botón derecho en el tick anterior, para detectar el flanco. */
   let derAnterior = false;
+
+  /**
+   * Ticks de espera antes de repetir el aviso de "te falta pico".
+   *
+   * Sin esto el aviso se reescribiría sesenta veces por segundo mientras se
+   * mantiene el clic sobre la piedra: se ve igual, pero es tocar el DOM en cada
+   * tick por nada.
+   */
+  let esperaAvisoPico = 0;
+
+  function avisarHerramienta(nivelPedido: number): void {
+    if (esperaAvisoPico > 0) return;
+    esperaAvisoPico = 90;
+    aviso.mostrar(`Necesitas ${nombrePicoDeNivel(nivelPedido)} o mejor`);
+  }
   /** Ticks hasta el próximo intento de aparición de enemigos. */
   let relojAparicion = 0;
 
@@ -626,6 +647,7 @@ async function arrancar(): Promise<void> {
         esNoche: reloj.esNoche,
         superficieTy: motorLuz.alturaCielo[txJugador] ?? 0,
         bioma: biomaEn(mundo, txJugador, tyJugador),
+        luzEn: (tx, ty) => motorLuz.luzEstimada(tx, ty, reloj.luzSolar),
       });
     }
 
@@ -651,6 +673,7 @@ async function arrancar(): Promise<void> {
     const enMano = barra.objetoActivo();
     const tileEnMano = defObjeto(enMano).tile;
     const potencia = potenciaEnMano(enMano);
+    const nivel = nivelEnMano(enMano);
 
     // Comer va con el clic derecho, igual que usar cualquier otra cosa. No hace
     // falta apuntar a ningún sitio: se come donde uno esté.
@@ -703,7 +726,14 @@ async function arrancar(): Promise<void> {
     // Con un arma en la mano el clic izquierdo golpea; con cualquier otra cosa,
     // pica. Es lo que hace que elegir el arma signifique algo.
     if (puntero.izq && esArma(enMano)) {
-      lanzarGolpe(golpe, enMano, jugador.caja.mirando);
+      // El mandoble sale hacia donde apunta el ratón. Se mide desde el pecho,
+      // no desde los pies: apuntando al suelo justo delante, el vector desde
+      // los pies casi no baja y el golpe saldría de lado.
+      const sentido = sentidoDeVector(
+        wx - (jugador.caja.x + jugador.caja.ancho / 2),
+        wy - (jugador.caja.y + jugador.caja.alto * 0.4),
+      );
+      lanzarGolpe(golpe, enMano, jugador.caja.mirando, sentido);
       reiniciarPicado(picado);
       objetivo.valido = false;
       derAnterior = puntero.der;
@@ -714,9 +744,13 @@ async function arrancar(): Promise<void> {
     // pulsar nada, enseña si ahí se puede construir.
     let previo;
     if (puntero.izq) {
-      previo = potencia > 0
-        ? puedeMinar(mundo, jugador.caja, tx, ty, capa)
-        : { ok: false as const };
+      previo = puedeMinar(mundo, jugador.caja, tx, ty, capa, nivel);
+      // Que el bloque pida más pico del que llevas es el único rechazo que hay
+      // que explicar: los demás (fuera de alcance, ahí no hay nada) se leen
+      // solos mirando la pantalla, y este no.
+      if (previo.motivo === 'herramienta') {
+        avisarHerramienta(previo.nivelPedido ?? 1);
+      }
     } else if (tileEnMano === undefined) {
       previo = { ok: false as const };
     } else {
@@ -1033,6 +1067,7 @@ async function arrancar(): Promise<void> {
   const bucle = crearBucle(
     () => {
       reloj.avanzar(TICK);
+      if (esperaAvisoPico > 0) esperaAvisoPico--;
       editar();
       const sumergido = actualizarLiquidos();
       const enSueloAntes = jugador.caja.enSuelo;

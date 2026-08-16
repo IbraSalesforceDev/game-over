@@ -6,6 +6,7 @@ import {
   lanzarGolpe,
   puedeGolpear,
   resolverGolpe,
+  sentidoDeVector,
   tickGolpe,
   TICKS_GOLPE,
 } from '../src/entities/combat';
@@ -415,5 +416,63 @@ describe('aparición de enemigos', () => {
       intentarAparicion(m, enemigos, jugador, { esNoche: true, superficieTy: SUELO , bioma: 'bosque' });
     }
     expect(enemigos.filter((e) => e.vivo).length).toBeLessThanOrEqual(TOPE_ENEMIGOS);
+  });
+});
+
+describe('apuntar el mandoble con el ratón', () => {
+  it('el ratón cerca de la horizontal deja el golpe de lado', () => {
+    expect(sentidoDeVector(60, 0)).toBe('lado');
+    expect(sentidoDeVector(-60, 0)).toBe('lado');
+    // Treinta grados hacia abajo siguen siendo un golpe horizontal: si no, dar
+    // al slime que viene por el suelo pediría el ratón perfectamente a nivel.
+    expect(sentidoDeVector(60, 34)).toBe('lado');
+  });
+
+  it('apuntar claramente arriba o abajo cambia el sentido', () => {
+    expect(sentidoDeVector(0, -60)).toBe('arriba');
+    expect(sentidoDeVector(0, 60)).toBe('abajo');
+    expect(sentidoDeVector(20, -60)).toBe('arriba');
+    expect(sentidoDeVector(-20, 60)).toBe('abajo');
+  });
+
+  it('apuntar al propio jugador no rompe nada', () => {
+    expect(sentidoDeVector(0, 0)).toBe('lado');
+  });
+
+  it('la caja sale por encima o por debajo según el sentido', () => {
+    const j = jugadorEn(10);
+
+    const arriba = crearGolpe();
+    lanzarGolpe(arriba, ESPADA_MADERA, 1, 'arriba');
+    const cA = cajaGolpe(arriba, j)!;
+    expect(cA.y + cA.alto).toBeLessThanOrEqual(j.y + 0.001);
+
+    const abajo = crearGolpe();
+    lanzarGolpe(abajo, ESPADA_MADERA, 1, 'abajo');
+    const cB = cajaGolpe(abajo, j)!;
+    expect(cB.y).toBeGreaterThanOrEqual(j.y + j.alto - 0.001);
+
+    // Ambas quedan centradas en el jugador: el sentido manda sobre hacia dónde
+    // se mira, porque mirando a la derecha se puede pegar hacia arriba.
+    for (const c of [cA, cB]) {
+      expect(c.x + c.ancho / 2).toBeCloseTo(j.x + j.ancho / 2, 5);
+      expect(c.ancho).toBeGreaterThan(j.ancho);
+    }
+  });
+
+  it('el golpe hacia arriba alcanza al que está encima y no al de al lado', () => {
+    const j = jugadorEn(10);
+    const encima = crearEnemigo('slime', j.x, j.y - 20);
+    const alLado = crearEnemigo('slime', j.x + j.ancho + 10, j.y);
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'arriba');
+    const r = resolverGolpe(g, j, [encima, alLado]);
+    expect(r.tocados).toEqual([encima]);
+  });
+
+  it('sin decir nada el golpe sigue saliendo de lado, como siempre', () => {
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_MADERA, 1);
+    expect(g.sentido).toBe('lado');
   });
 });

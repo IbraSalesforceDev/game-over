@@ -168,12 +168,25 @@ export interface Enemigo {
    * hace que el sprite parpadee entre frames.
    */
   animReloj: number;
+  /**
+   * Multiplica la vida y el daño de la especie.
+   *
+   * Existe para que el mismo zombi pueda ser una molestia de mediodía y una
+   * amenaza de madrugada sin duplicar la tabla de especies. La dificultad del
+   * mundo y la hora entran por aquí.
+   */
+  fuerza: number;
 }
 
 const GRAVEDAD = 0.4;
 const VEL_TERMINAL = 10;
 
-export function crearEnemigo(especie: Especie, wx: number, wy: number): Enemigo {
+export function crearEnemigo(
+  especie: Especie,
+  wx: number,
+  wy: number,
+  fuerza = 1,
+): Enemigo {
   const def = ENEMIGOS[especie];
   return {
     especie,
@@ -194,7 +207,7 @@ export function crearEnemigo(especie: Especie, wx: number, wy: number): Enemigo 
       yInicioCaida: wy,
       ultimaCaida: 0,
     },
-    salud: crearSalud(def.vida),
+    salud: crearSalud(Math.max(1, Math.round(def.vida * fuerza))),
     reloj: Math.floor(Math.random() * 60),
     olvidado: 0,
     vivo: true,
@@ -202,7 +215,15 @@ export function crearEnemigo(especie: Especie, wx: number, wy: number): Enemigo 
     // Desfase inicial al azar: si no, todos los slimes de la pantalla se
     // aplastan a la vez y se ve la maquinaria.
     animReloj: Math.floor(Math.random() * 60),
+    fuerza,
   };
+}
+
+/** Daño por contacto de este enemigo concreto, ya escalado. */
+export function danoDe(e: Enemigo): number {
+  const def = ENEMIGOS[e.especie];
+  if (def.pasivo || def.dano <= 0) return 0;
+  return Math.max(1, Math.round(def.dano * e.fuerza));
 }
 
 /** Centro de una caja, que es lo que usan todas las decisiones de la IA. */
@@ -421,7 +442,7 @@ export function actualizarEnemigos(
 
     const def = ENEMIGOS[e.especie];
     if (!def.pasivo && solapan(e.caja, jugador) && saludJugador.invulnerable <= 0) {
-      salida.danoAlJugador = Math.max(salida.danoAlJugador, def.dano);
+      salida.danoAlJugador = Math.max(salida.danoAlJugador, danoDe(e));
     }
 
     if (e.salud.muerto) {

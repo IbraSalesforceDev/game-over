@@ -28,7 +28,9 @@ const GRUPOS: Grupo[] = [
     titulo: 'Actuar',
     filas: [
       ['Clic izq.', 'Minar · golpear con arma · llenar cubo'],
-      ['Clic der.', 'Colocar · abrir cofre · vaciar cubo'],
+      ['Clic der.', 'Colocar · abrir cofre · vaciar cubo · comer'],
+      ['Ratón', 'Apunta el mandoble: al lado, arriba o abajo'],
+      ['Pico', 'Cada bloque pide su nivel: piedra → madera, oro → hierro'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],
     ],
