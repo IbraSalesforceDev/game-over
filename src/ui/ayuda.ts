@@ -31,6 +31,7 @@ const GRUPOS: Grupo[] = [
       ['Clic der.', 'Colocar · abrir cofre · vaciar cubo · comer'],
       ['Ratón', 'Apunta el mandoble: al lado, arriba o abajo'],
       ['Pico', 'Cada bloque pide su nivel: piedra → madera, oro → hierro'],
+      ['Cristal de vida', 'Brilla en las cuevas · clic der. sube un corazón'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],
     ],

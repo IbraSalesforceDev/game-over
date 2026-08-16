@@ -8,6 +8,7 @@ import {
   AIRE,
   ARENA,
   CACTUS,
+  CRISTAL_VIDA,
   esSolido,
   HIERBA,
   MINERALES,
@@ -308,5 +309,25 @@ describe('líquidos del mundo generado', () => {
     for (let i = 0; i < 400 && sim.paso() > 0; i++);
     const despues = mundo.liquido.reduce((a, v) => a + v, 0);
     expect(despues).toBeGreaterThan(antes * 0.85);
+  });
+
+  it('los cristales de vida salen bajo tierra, en el suelo y en seco', () => {
+    const { mundo, superficie } = generarMundo(OP);
+    let cuantos = 0;
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getTile(tx, ty) !== CRISTAL_VIDA) continue;
+        cuantos++;
+        // Nunca a la vista desde la superficie.
+        expect(ty).toBeGreaterThan(superficie[tx]! + 20);
+        // Siempre apoyado en algo macizo y con hueco encima.
+        expect(esSolido(mundo.getTile(tx, ty + 1))).toBe(true);
+        expect(mundo.getTile(tx, ty - 1)).toBe(AIRE);
+        expect(mundo.getLiquido(tx, ty)).toBe(0);
+      }
+    }
+    // Bastantes para llegar al tope de vida, pero no una alfombra.
+    expect(cuantos).toBeGreaterThanOrEqual(5);
+    expect(cuantos).toBeLessThan(mundo.ancho / 40);
   });
 });

@@ -3,6 +3,7 @@ import {
   ARENA,
   ARENISCA,
   CACTUS,
+  CRISTAL_VIDA,
   COBRE,
   COFRE,
   HIELO,
@@ -64,6 +65,7 @@ export const ESPADA_PIEDRA = 82;
 export const CARNE_CRUDA = 83;
 export const CARNE_ASADA = 84;
 export const BAYAS = 85;
+export const CRISTAL = 86;
 
 /**
  * Identificadores que tenían las herramientas antes de moverse al rango 64+.
@@ -75,7 +77,14 @@ export const IDS_ANTIGUOS: Readonly<Record<number, number>> = {
   15: PICO_HIERRO,
 };
 
-export type TipoObjeto = 'bloque' | 'herramienta' | 'arma' | 'material' | 'cubo' | 'comida';
+export type TipoObjeto =
+  | 'bloque'
+  | 'herramienta'
+  | 'arma'
+  | 'material'
+  | 'cubo'
+  | 'comida'
+  | 'cristal';
 
 export interface DefObjeto {
   readonly nombre: string;
@@ -206,6 +215,12 @@ const ENTRADAS: [number, DefObjeto][] = [
   comida(CARNE_CRUDA, 'carne cruda', '#c2504f', 18, 0),
   comida(CARNE_ASADA, 'carne asada', '#9b5a2c', 42, 14),
   comida(BAYAS, 'bayas', '#c23a5e', 12, 3),
+  // El cristal de vida no se coloca de vuelta: se consume. Si se pudiera poner
+  // y volver a picar sería una fuente infinita de vida máxima.
+  [
+    CRISTAL,
+    { nombre: 'cristal de vida', tipo: 'cristal', color: '#e0538f', maxPila: 99 },
+  ],
 ];
 
 /** Array disperso: hay hueco entre el último tile y el 64, y no pasa nada. */
@@ -266,6 +281,10 @@ export function esComida(id: number): boolean {
   return defObjeto(id).tipo === 'comida';
 }
 
+export function esCristal(id: number): boolean {
+  return defObjeto(id).tipo === 'cristal';
+}
+
 export function maxPila(id: number): number {
   return defObjeto(id).maxPila;
 }
@@ -278,6 +297,8 @@ export function migrarId(id: number): number {
 /** Qué suelta un tile al romperse. NADA si no suelta nada. */
 export function dropDeTile(tile: number): number {
   switch (tile) {
+    case CRISTAL_VIDA:
+      return CRISTAL;
     case HIERBA:
       return TIERRA;
     case TRONCO:

@@ -5,6 +5,7 @@ import { puedeMinar } from '../src/world/edit';
 import {
   ANTORCHA,
   ARENA,
+  CRISTAL_VIDA,
   COBRE,
   HIELO,
   HIERBA,
@@ -17,6 +18,7 @@ import {
   PLATA,
   TIERRA,
   TRONCO,
+  emisionLuz,
   nivelPicoTile,
 } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
@@ -27,6 +29,10 @@ import {
   potenciaEnMano,
 } from '../src/items/equipo';
 import {
+  CRISTAL,
+  dropDeTile,
+  esColocable,
+  esCristal,
   ESPADA_HIERRO,
   PICO_COBRE,
   PICO_HIERRO,
@@ -39,6 +45,14 @@ import {
   nivelHerramienta,
   nombrePicoDeNivel,
 } from '../src/items/items';
+import {
+  ampliarVida,
+  crearSalud,
+  VIDA_MAXIMA,
+  VIDA_POR_CRISTAL,
+  VIDA_TOPE,
+} from '../src/entities/salud';
+import { UMBRAL_LUZ_HOSTIL } from '../src/entities/spawner';
 
 /**
  * Niveles de herramienta.
@@ -182,5 +196,55 @@ describe('nombres de los picos', () => {
   it('un nivel disparatado no rompe el aviso', () => {
     expect(nombrePicoDeNivel(99)).toBe('pico de oro');
     expect(nombrePicoDeNivel(0)).toBe('un pico');
+  });
+});
+
+describe('cristales de vida', () => {
+  it('cada uno sube un corazón y cura lo que sube', () => {
+    const s = crearSalud(VIDA_MAXIMA);
+    s.vida = 30;
+    expect(ampliarVida(s)).toBe(true);
+    expect(s.vidaMax).toBe(VIDA_MAXIMA + VIDA_POR_CRISTAL);
+    // La barra no puede quedar más vacía que antes por usar un cristal.
+    expect(s.vida).toBe(30 + VIDA_POR_CRISTAL);
+  });
+
+  it('deja de servir al llegar al tope, y entonces no se gasta', () => {
+    const s = crearSalud(VIDA_MAXIMA);
+    while (ampliarVida(s)) {
+      /* subir hasta donde se pueda */
+    }
+    expect(s.vidaMax).toBe(VIDA_TOPE);
+    expect(ampliarVida(s)).toBe(false);
+  });
+
+  it('el tope se alcanza con un puñado de cristales, no con cien', () => {
+    const cuantos = (VIDA_TOPE - VIDA_MAXIMA) / VIDA_POR_CRISTAL;
+    expect(cuantos).toBeGreaterThan(2);
+    expect(cuantos).toBeLessThanOrEqual(8);
+  });
+
+  it('el último cristal no se pasa del tope', () => {
+    const s = crearSalud(VIDA_TOPE - 5);
+    ampliarVida(s);
+    expect(s.vidaMax).toBe(VIDA_TOPE);
+    expect(s.vida).toBeLessThanOrEqual(s.vidaMax);
+  });
+
+  it('el tile pide pico de piedra y suelta el objeto, no el tile', () => {
+    expect(nivelPicoTile(CRISTAL_VIDA)).toBe(2);
+    expect(rompe(CRISTAL_VIDA, PICO_MADERA)).toBe(false);
+    expect(rompe(CRISTAL_VIDA, PICO_PIEDRA)).toBe(true);
+    expect(dropDeTile(CRISTAL_VIDA)).toBe(CRISTAL);
+  });
+
+  it('el cristal no se puede volver a colocar: se consume', () => {
+    // Si se pudiera poner y repicar sería vida máxima infinita.
+    expect(esColocable(CRISTAL)).toBe(false);
+    expect(esCristal(CRISTAL)).toBe(true);
+  });
+
+  it('el tile ilumina, para que se vea al fondo de una galería', () => {
+    expect(emisionLuz(CRISTAL_VIDA)).toBeGreaterThan(UMBRAL_LUZ_HOSTIL);
   });
 });

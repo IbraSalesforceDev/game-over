@@ -6,6 +6,7 @@ import {
   ARENISCA,
   CACTUS,
   COBRE,
+  CRISTAL_VIDA,
   HIELO,
   HIERBA,
   HIERRO,
@@ -378,6 +379,35 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillRect(ox, oy, TILE, 1);
       ctx.fillStyle = css(rgb(plat.color, -40));
       ctx.fillRect(ox, oy + 4, TILE, 1);
+    }
+  }
+
+  // Cristal de vida: un rombo que sobresale del suelo, con un núcleo brillante.
+  // Se pinta a mano en vez de dejarlo como bloque de tierra porque tiene que
+  // reconocerse desde el otro extremo de una galería.
+  ctx.clearRect(0, CRISTAL_VIDA * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (CRISTAL_VIDA * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      const alto = 11 + (v % 2);
+      const base = oy + TILE - 1;
+      for (let i = 0; i < alto; i++) {
+        // Ancho en punta arriba y abajo, más gordo en el centro del rombo.
+        const t = i / (alto - 1);
+        const ancho = Math.max(1, Math.round(7 * (1 - Math.abs(t - 0.55) * 2)));
+        const x = ox + 8 - Math.ceil(ancho / 2);
+        ctx.fillStyle = i < alto * 0.4 ? '#f07fb0' : '#c53d78';
+        ctx.fillRect(x, base - i, ancho, 1);
+      }
+      ctx.fillStyle = '#ffd0e4';
+      ctx.fillRect(ox + 6, base - alto + 3, 1, 4);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(ox + 8, base - Math.round(alto * 0.55), 1, 2);
+      // Esquirlas sueltas a los lados: el cristal parece haber crecido ahí.
+      ctx.fillStyle = '#c53d78';
+      ctx.fillRect(ox + 3 + (v % 2), base - 3, 2, 4);
+      ctx.fillRect(ox + 11, base - 2, 2, 3);
     }
   }
 

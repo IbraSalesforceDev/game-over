@@ -36,8 +36,11 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  *       lleno, que es lo justo: se guardaron en un juego donde no existía.
  *   8 — se añade la dificultad del mundo. Los mundos anteriores se abren en
  *       normal, que es la dificultad con la que se jugaron.
+ *   9 — se añade la vida máxima, que ya no es fija: los cristales de vida la
+ *       suben. Los mundos anteriores se abren con los cinco corazones de
+ *       siempre.
  */
-export const VERSION_FORMATO = 8;
+export const VERSION_FORMATO = 9;
 
 export interface EstadoJugador {
   x: number;
@@ -64,6 +67,8 @@ export interface EstadoPartida {
   cofres: readonly DatosCofre[];
   /** Vida del jugador; formato 5. 0 significa "al máximo". */
   vida: number;
+  /** Techo de vida del jugador; formato 9. 0 significa "el de siempre". */
+  vidaMax: number;
   /** Hambre del jugador; formato 7. 0 significa "al máximo". */
   hambre: number;
   /**
@@ -262,6 +267,7 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   e.u16(Math.max(0, Math.round(estado.vida))); // formato 5
   e.u16(Math.max(0, Math.round(estado.hambre))); // formato 7
   e.u8(Math.max(0, Math.min(255, Math.round(estado.dificultad)))); // formato 8
+  e.u16(Math.max(0, Math.round(estado.vidaMax))); // formato 9
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -305,6 +311,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     inventario: [],
     cofres: [],
     vida: 0,
+    vidaMax: 0,
     hambre: 0,
     dificultad: DIFICULTAD_POR_DEFECTO,
   };
@@ -335,6 +342,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   if (version >= 5) estado.vida = l.u16();
   if (version >= 7) estado.hambre = l.u16();
   if (version >= 8) estado.dificultad = l.u8();
+  if (version >= 9) estado.vidaMax = l.u16();
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

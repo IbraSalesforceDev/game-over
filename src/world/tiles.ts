@@ -26,6 +26,7 @@ export const ARENISCA = 18;
 export const CACTUS = 19;
 export const NIEVE = 20;
 export const HIELO = 21;
+export const CRISTAL_VIDA = 22;
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
 export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
@@ -108,6 +109,19 @@ export const TILES: readonly DefTile[] = [
   { nombre: 'cactus', solido: false, plataforma: false, dureza: 18, color: '#4f8a4a' },
   { nombre: 'nieve', solido: true, plataforma: false, dureza: 16, color: '#e6eef5' },
   { nombre: 'hielo', solido: true, plataforma: false, dureza: 35, color: '#a9d6ec', agarre: 0.18, nivelPico: 1 },
+  // El cristal de vida. Ilumina bastante a propósito: encontrarlo en una cueva
+  // a oscuras tiene que ser un "¿qué es esa luz rosa de ahí abajo?", no un
+  // tile más que se pica sin mirar. Pide pico de piedra, así que la primera
+  // ampliación de vida va detrás de la primera herramienta de verdad.
+  {
+    nombre: 'cristal de vida',
+    solido: false,
+    plataforma: false,
+    dureza: 40,
+    color: '#e0538f',
+    luz: 190,
+    nivelPico: 2,
+  },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */

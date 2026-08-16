@@ -4,6 +4,7 @@ import {
   ARENISCA,
   CACTUS,
   COBRE,
+  CRISTAL_VIDA,
   HIELO,
   HIERBA,
   HIERRO,
@@ -131,6 +132,7 @@ export function* generarMundoPasos(
   // --- 3. Minerales -------------------------------------------------------
   yield { pct: 72, texto: 'Sembrando minerales…' };
   sembrarMinerales(mundo, superficie, c, rng);
+  sembrarCristales(mundo, superficie, c, rng);
 
   // --- 4. Líquidos --------------------------------------------------------
   //
@@ -457,6 +459,43 @@ function sembrarMinerales(
         ty += rng.entero(-1, 1);
       }
     }
+  }
+}
+
+/**
+ * Cristales de vida en el suelo de las cuevas.
+ *
+ * No van dentro de la roca como el mineral, sino apoyados en el suelo de una
+ * caverna: son la recompensa de explorar, no de excavar a ciegas. Y como
+ * iluminan, el que esté al fondo de una galería se ve antes de llegar, que es
+ * exactamente el anzuelo que se busca.
+ *
+ * La densidad es baja a propósito —uno cada cien columnas de mundo— porque cada
+ * uno vale un corazón permanente y solo hacen falta cinco para llegar al tope.
+ */
+function sembrarCristales(
+  mundo: Mundo,
+  superficie: Int32Array,
+  c: Capas,
+  rng: Rng,
+): void {
+  const cuantos = Math.max(6, Math.floor(mundo.ancho / 100));
+  let puestos = 0;
+  // Muchos más intentos que cristales: la mayoría caen en roca maciza.
+  for (let intento = 0; intento < cuantos * 260 && puestos < cuantos; intento++) {
+    const tx = rng.entero(4, mundo.ancho - 5);
+    // Nunca cerca de la superficie: un cristal a la vista desde el spawn se
+    // recoge sin haber bajado a ninguna cueva.
+    const techo = superficie[tx]! + 30;
+    if (techo >= c.fondo - 4) continue;
+    const ty = rng.entero(techo, c.fondo - 3);
+    if (mundo.getTile(tx, ty) !== AIRE) continue;
+    if (mundo.getTile(tx, ty - 1) !== AIRE) continue;
+    if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
+    // Ni dentro de un charco: se colocan en seco.
+    if (mundo.getLiquido(tx, ty) > 0) continue;
+    mundo.setTile(tx, ty, CRISTAL_VIDA);
+    puestos++;
   }
 }
 

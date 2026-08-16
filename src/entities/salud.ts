@@ -13,6 +13,16 @@ import type { Caja } from './physics';
 export const VIDA_POR_CORAZON = 20;
 export const VIDA_MAXIMA = 100;
 
+/**
+ * Techo de vida máxima y cuánto sube cada cristal.
+ *
+ * Cinco corazones de partida y hasta diez: el doble de aguante, no diez veces
+ * más. Un tope alto convertiría la exploración en farmeo de cristales, y lo que
+ * interesa es que subir de cinco a seis se note de verdad en la primera cueva.
+ */
+export const VIDA_TOPE = 200;
+export const VIDA_POR_CRISTAL = VIDA_POR_CORAZON;
+
 /** Ticks de invulnerabilidad tras recibir un golpe. */
 export const TICKS_INVULNERABLE = 45;
 
@@ -61,6 +71,20 @@ export function crearSalud(vidaMax = VIDA_MAXIMA): Salud {
     muerto: false,
     motivo: 'desconocido',
   };
+}
+
+/**
+ * Sube el techo de vida y cura lo que sube. Devuelve false si ya estaba al tope
+ * —el cristal no se gasta si no hace nada.
+ */
+export function ampliarVida(s: Salud, cuanto = VIDA_POR_CRISTAL): boolean {
+  if (s.vidaMax >= VIDA_TOPE) return false;
+  const antes = s.vidaMax;
+  s.vidaMax = Math.min(VIDA_TOPE, s.vidaMax + cuanto);
+  // La vida sube con el techo: si no, usar un cristal dejaría la barra más
+  // vacía que antes y se leería como un castigo.
+  s.vida += s.vidaMax - antes;
+  return true;
 }
 
 export function tickSalud(s: Salud): void {

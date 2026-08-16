@@ -53,6 +53,7 @@ import {
   tickGolpe,
 } from './entities/combat';
 import {
+  ampliarVida,
   crearSalud,
   curar,
   danoDeCaida,
@@ -61,6 +62,7 @@ import {
   TEXTO_MOTIVO,
   tickSalud,
   VIDA_MAXIMA,
+  VIDA_TOPE,
 } from './entities/salud';
 import { apagar, crearAliento, reiniciarAliento, tickAliento } from './entities/aliento';
 import {
@@ -72,7 +74,7 @@ import {
 } from './entities/hambre';
 import { SimuladorLiquidos, sumersion } from './world/liquids';
 import { puedeUsarCubo, usarCubo } from './items/cubo';
-import { esComida, esCubo } from './items/items';
+import { esComida, esCristal, esCubo } from './items/items';
 import {
   biomaEn,
   intentarAparicion,
@@ -187,6 +189,7 @@ function partidaNueva(
       inventario: equipoInicial().aDatos(),
       cofres: [],
       vida: VIDA_MAXIMA,
+      vidaMax: VIDA_MAXIMA,
       hambre: HAMBRE_MAXIMA,
       dificultad: nivel,
     },
@@ -286,8 +289,10 @@ async function arrancar(): Promise<void> {
   const enemigos: Enemigo[] = [];
   const particulas = new Particulas();
   const cofres = Contenedores.desdeDatos(mundo.ancho, partida.estado.cofres);
-  const salud = crearSalud(VIDA_MAXIMA);
-  if (partida.estado.vida > 0) salud.vida = Math.min(VIDA_MAXIMA, partida.estado.vida);
+  const salud = crearSalud(
+    Math.max(VIDA_MAXIMA, Math.min(VIDA_TOPE, partida.estado.vidaMax || VIDA_MAXIMA)),
+  );
+  if (partida.estado.vida > 0) salud.vida = Math.min(salud.vidaMax, partida.estado.vida);
   const aliento = crearAliento();
   const hambre = crearHambre(
     partida.estado.hambre > 0 ? partida.estado.hambre : HAMBRE_MAXIMA,
@@ -398,6 +403,7 @@ async function arrancar(): Promise<void> {
       cofres.limpiar();
       partida.estado.cofres = cofres.aDatos();
       partida.estado.vida = salud.vida;
+      partida.estado.vidaMax = salud.vidaMax;
       partida.estado.hambre = Math.round(hambre.nivel);
       partida.estado.capaPared = capa === 'pared';
       partida.estado.minutos = reloj.minutos;
@@ -692,6 +698,30 @@ async function arrancar(): Promise<void> {
     const tileEnMano = defObjeto(enMano).tile;
     const potencia = potenciaEnMano(enMano);
     const nivel = nivelEnMano(enMano);
+
+    // El cristal de vida se usa como la comida: clic derecho, donde uno esté.
+    if (esCristal(enMano)) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      const usar = puntero.der && !derAnterior;
+      derAnterior = puntero.der;
+      if (!usar) return;
+      if (ampliarVida(salud)) {
+        inventario.sacarDe(barra.seleccion, 1);
+        barra.refrescar(capa);
+        panelVida.refrescar(salud);
+        aviso.mostrar(`Vida máxima ${salud.vidaMax}`);
+        audio.sonar('recoger', 1.5);
+        particulas.emitir(
+          jugador.caja.x + jugador.caja.ancho / 2,
+          jugador.caja.y + jugador.caja.alto / 2,
+          { cantidad: 18, color: '#e0538f', dispersion: 2, empujeY: -1.2, vida: 34, tam: 3 },
+        );
+      } else {
+        aviso.mostrar('Ya tienes toda la vida que se puede tener');
+      }
+      return;
+    }
 
     // Comer va con el clic derecho, igual que usar cualquier otra cosa. No hace
     // falta apuntar a ningún sitio: se come donde uno esté.

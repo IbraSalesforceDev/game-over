@@ -6,6 +6,7 @@ import {
   defObjeto,
   esArma,
   esColocable,
+  esCristal,
   esHerramienta,
   IDS_OBJETO,
   NADA,
@@ -139,11 +140,40 @@ const mueble: Dibujo = (ctx, ox, oy, color) => {
   px(ctx, ox + 13, oy + 17, 3, 3, t.oscuro);
 };
 
+/**
+ * Cristal de vida: un rombo facetado con un corazón dentro.
+ *
+ * Es el único objeto del catálogo que sube una estadística para siempre, y por
+ * eso no puede parecerse a un montoncito de mineral: hay que reconocerlo en la
+ * ranura sin leer el nombre.
+ */
+const cristalIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 34, 40);
+  // Rombo por filas: ancho creciente hasta el centro y decreciente después.
+  for (let i = 0; i < 9; i++) {
+    const w = 3 + i * 2;
+    px(ctx, ox + 10 - w / 2, oy + 2 + i, w, 1, i < 3 ? t.claro : t.base);
+  }
+  for (let i = 0; i < 8; i++) {
+    const w = 17 - i * 2;
+    px(ctx, ox + 10 - w / 2, oy + 11 + i, w, 1, t.oscuro);
+  }
+  // Faceta iluminada del lado izquierdo y destello arriba.
+  px(ctx, ox + 6, oy + 6, 2, 6, t.claro);
+  px(ctx, ox + 9, oy + 3, 2, 2, '#ffffff');
+  // Corazón: dos bultos y una punta, en cuatro píxeles.
+  px(ctx, ox + 7, oy + 9, 2, 2, '#ffd6e6');
+  px(ctx, ox + 11, oy + 9, 2, 2, '#ffd6e6');
+  px(ctx, ox + 8, oy + 10, 4, 2, '#ffd6e6');
+  px(ctx, ox + 9, oy + 12, 2, 1, '#ffd6e6');
+};
+
 /** Elige el dibujo que le toca a cada objeto. */
 function dibujoDe(id: number): Dibujo {
   if (id === ANTORCHA) return antorchaIcono;
   if (id === MESA || id === HORNO || id === YUNQUE || id === COFRE) return mueble;
   if (id === CUBO || id === CUBO_AGUA || id === CUBO_LAVA) return cuboIcono;
+  if (esCristal(id)) return cristalIcono;
   if (esHerramienta(id)) return picoIcono;
   if (esArma(id)) return espadaIcono;
   if (esColocable(id)) return bloqueIcono;

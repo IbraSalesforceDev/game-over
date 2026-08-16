@@ -29,6 +29,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     ],
     cofres: [],
     vida: 80,
+    vidaMax: 140,
     hambre: 72,
     dificultad: 5,
     ...parcial,
@@ -120,7 +121,7 @@ describe('empaquetado', () => {
   function cuerpoAntiguo(
     m: Mundo,
     e: EstadoPartida,
-    version: 1 | 2 | 3 | 4 | 5 | 6 | 7,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8,
   ): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
@@ -131,6 +132,7 @@ describe('empaquetado', () => {
     const campoVida = 2;
     const campoHambre = 2;
     const campoDificultad = 1;
+    const campoVidaMax = 2;
 
     const actual = serializar(m, e);
     const inicioRle =
@@ -140,7 +142,8 @@ describe('empaquetado', () => {
       campoCofres +
       campoVida +
       campoHambre +
-      campoDificultad;
+      campoDificultad +
+      campoVidaMax;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
@@ -149,7 +152,8 @@ describe('empaquetado', () => {
     if (version >= 4) extra += campoCofres;
     if (version >= 5) extra += campoVida;
     if (version >= 7) extra += campoHambre;
-    // La dificultad nunca: es del formato 8, y aquí solo se construyen cuerpos
+    if (version >= 8) extra += campoDificultad;
+    // La vida máxima nunca: es del formato 9, y aquí solo se construyen cuerpos
     // anteriores. Recortarla es justo lo que hace que el lector antiguo
     // encuentre el RLE donde lo espera.
 
@@ -169,6 +173,17 @@ describe('empaquetado', () => {
     expect(leido.inventario).toEqual([]);
     expect(leido.semilla).toBe(e.semilla);
     expect(mundo.tileId).toEqual(m.tileId);
+  });
+
+  it('un mundo del formato 8 se abre con los cinco corazones de siempre', () => {
+    const m = new Mundo(4, 4);
+    m.rellenar(0, 2, 3, 3, PIEDRA);
+    const e = estado();
+
+    const { estado: leido } = deserializar(cuerpoAntiguo(m, e, 8), 8);
+    // 0 significa "el de siempre": nunca se jugó con cristales de vida.
+    expect(leido.vidaMax).toBe(0);
+    expect(leido.dificultad).toBe(e.dificultad);
   });
 
   it('un mundo del formato 7 se abre en dificultad normal', () => {
