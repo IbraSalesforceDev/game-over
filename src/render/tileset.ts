@@ -7,6 +7,8 @@ import {
   BARRO,
   CACTUS,
   CANA,
+  OBSIDIANA,
+  VIDRIO,
   COBRE,
   CRISTAL_VIDA,
   GRAVA,
@@ -132,6 +134,7 @@ function texturaDe(id: number): Textura {
     // La grava es roca partida: el grano de la piedra le va mejor que el de la
     // tierra, aunque se cave a paladas.
     case GRAVA:
+    case OBSIDIANA:
       return 'piedra';
     case HOJAS:
     case HOJAS_JUNGLA:
@@ -402,6 +405,28 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillRect(ox, oy, TILE, 1);
       ctx.fillStyle = css(rgb(plat.color, -40));
       ctx.fillRect(ox, oy + 4, TILE, 1);
+    }
+  }
+
+  // Vidrio: casi transparente, con un marco fino y un brillo en diagonal. No se
+  // deja como bloque macizo porque una ventana tiene que dejar ver que hay algo
+  // detrás, aunque el juego no pinte de verdad a través de ella.
+  ctx.clearRect(0, VIDRIO * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (VIDRIO * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      ctx.fillStyle = 'rgba(188,216,228,0.22)';
+      ctx.fillRect(ox, oy, TILE, TILE);
+      ctx.fillStyle = 'rgba(216,238,248,0.55)';
+      ctx.fillRect(ox, oy, TILE, 1);
+      ctx.fillRect(ox, oy, 1, TILE);
+      ctx.fillStyle = 'rgba(120,158,176,0.5)';
+      ctx.fillRect(ox, oy + TILE - 1, TILE, 1);
+      ctx.fillRect(ox + TILE - 1, oy, 1, TILE);
+      // Brillo en diagonal, desplazado por variante.
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 6; i++) ctx.fillRect(ox + 3 + i + (v % 3), oy + 9 - i, 1, 1);
     }
   }
 

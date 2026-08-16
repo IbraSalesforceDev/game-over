@@ -1,4 +1,12 @@
-import { esSolido } from './tiles';
+import { esSolido, OBSIDIANA } from './tiles';
+
+/** Los cuatro vecinos en cruz. En diagonal dos líquidos no se tocan. */
+const VECINOS: readonly (readonly [number, number])[] = [
+  [0, -1],
+  [0, 1],
+  [-1, 0],
+  [1, 0],
+];
 import { Mundo } from './world';
 
 /**
@@ -35,6 +43,11 @@ const FLUJO_MAX = 96;
 const TOPE_POR_PASO = 6000;
 
 export class SimuladorLiquidos {
+  /**
+   * Coladas apagadas en el último paso, para que el bucle pueda invalidar el
+   * chunk y la luz sin que el simulador sepa nada de render.
+   */
+  readonly apagados: { tx: number; ty: number }[] = [];
   /** Celdas por revisar en el próximo paso, como índice plano del mundo. */
   private activas = new Set<number>();
   private siguientes = new Set<number>();
@@ -84,6 +97,7 @@ export class SimuladorLiquidos {
     let cambios = 0;
     let procesadas = 0;
 
+    this.apagados.length = 0;
     this.siguientes.clear();
 
     for (const i of this.activas) {
@@ -109,6 +123,18 @@ export class SimuladorLiquidos {
       }
 
       const lava = mundo.esLava(tx, ty);
+
+      // 0. Agua contra lava: obsidiana.
+      //
+      // Va lo primero del tick porque el resto del paso mueve líquido, y una
+      // celda que va a apagarse no debe repartirse antes. Es lo que convierte
+      // el cubo de agua en la herramienta para cruzar una colada, y de paso
+      // impide el truco de tapar la lava con agua para pasar por encima: lo que
+      // queda es un bloque que pide pico de hierro.
+      if (this.apagar(tx, ty, lava)) {
+        cambios++;
+        continue;
+      }
 
       // 1. Caer.
       if (this.puedeFluir(tx, ty + 1)) {
@@ -179,6 +205,37 @@ export class SimuladorLiquidos {
     const { mundo } = this;
     if (!mundo.dentro(tx, ty)) return false;
     return !esSolido(mundo.getTile(tx, ty));
+  }
+
+  /**
+   * Si esta celda de lava toca agua (o al revés), las dos se convierten en
+   * piedra: obsidiana donde estaba la lava, y el agua se gasta.
+   *
+   * Solo mira los cuatro vecinos en cruz. En diagonal no: dos coladas que se
+   * cruzan de esquina no se tocan de verdad, y con las diagonales incluidas una
+   * gota de agua a un tile en diagonal apagaba media cueva.
+   */
+  private apagar(tx: number, ty: number, lava: boolean): boolean {
+    const { mundo } = this;
+    for (const [dx, dy] of VECINOS) {
+      const nx = tx + dx;
+      const ny = ty + dy;
+      if (!mundo.dentro(nx, ny)) continue;
+      if (mundo.getLiquido(nx, ny) === 0) continue;
+      if (mundo.esLava(nx, ny) === lava) continue;
+
+      // La lava es la que se vuelve piedra; el agua simplemente se consume.
+      const [lx, ly] = lava ? [tx, ty] : [nx, ny];
+      const [ax, ay] = lava ? [nx, ny] : [tx, ty];
+      mundo.setLiquido(lx, ly, 0);
+      mundo.setLiquido(ax, ay, 0);
+      mundo.setTile(lx, ly, OBSIDIANA);
+      this.marcarVecinas(tx, ty);
+      this.marcarVecinas(nx, ny);
+      this.apagados.push({ tx: lx, ty: ly });
+      return true;
+    }
+    return false;
   }
 
   /** Agua y lava no se mezclan: una celda solo acepta líquido de su tipo. */

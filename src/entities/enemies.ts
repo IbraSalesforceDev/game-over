@@ -216,6 +216,8 @@ export interface Enemigo {
    * hace que el sprite parpadee entre frames.
    */
   animReloj: number;
+  /** Ticks hasta la próxima quemadura de lava. */
+  quemadura: number;
   /**
    * Multiplica la vida y el daño de la especie.
    *
@@ -263,6 +265,7 @@ export function crearEnemigo(
     // Desfase inicial al azar: si no, todos los slimes de la pantalla se
     // aplastan a la vez y se ve la maquinaria.
     animReloj: Math.floor(Math.random() * 60),
+    quemadura: 1,
     fuerza,
   };
 }
@@ -476,6 +479,17 @@ export function solapan(a: Caja, b: Caja): boolean {
   );
 }
 
+/**
+ * Daño de lava por tick a un enemigo, y cada cuántos ticks.
+ *
+ * La lava no mata de un toque a nadie —ni al jugador ni a los bichos— porque
+ * una muerte instantánea no es un peligro, es una trampa: no da tiempo a
+ * reaccionar y lo único que enseña es a no acercarse nunca. Quemándose se puede
+ * salir a tiempo, y a un slime le da para dos segundos de agonía.
+ */
+export const DANO_LAVA_ENEMIGO = 14;
+export const INTERVALO_LAVA_ENEMIGO = 22;
+
 export interface ResultadoEnemigos {
   /** Daño que han hecho al jugador este tick. */
   danoAlJugador: number;
@@ -513,6 +527,25 @@ export function actualizarEnemigos(
 
     pensar(e, objetivo);
     moverEnemigo(mundo, e);
+
+    // La lava quema a todo el mundo. Es lo que hace que una colada sea un
+    // accidente del terreno y no un adorno naranja: se puede usar de trampa, y
+    // un zombi que te persigue puede acabar dentro.
+    if (enLava(mundo, e.caja)) {
+      if (--e.quemadura <= 0) {
+        e.quemadura = INTERVALO_LAVA_ENEMIGO;
+        golpear(
+          e.salud,
+          e.caja,
+          DANO_LAVA_ENEMIGO,
+          e.caja.x + e.caja.ancho / 2,
+          0,
+          false,
+        );
+      }
+    } else {
+      e.quemadura = 1;
+    }
     // La animación corre con lo que se mueve: un bicho parado no debe seguir
     // dando zancadas en el sitio.
     e.animReloj += ENEMIGOS[e.especie].vuela ? 1 : Math.min(1, Math.abs(e.caja.vx) * 0.6 + 0.12);
@@ -533,6 +566,22 @@ export function actualizarEnemigos(
   }
 
   return salida;
+}
+
+/** ¿La mitad de abajo de esta caja está metida en lava? */
+function enLava(mundo: Mundo, c: Caja): boolean {
+  const tx0 = Math.floor(c.x / TILE);
+  const tx1 = Math.floor((c.x + c.ancho - 1) / TILE);
+  // Se mira desde la cintura para abajo: rozar la superficie con la cabeza al
+  // saltar por encima no debería quemar.
+  const ty0 = Math.floor((c.y + c.alto * 0.5) / TILE);
+  const ty1 = Math.floor((c.y + c.alto - 1) / TILE);
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      if (mundo.getLiquido(tx, ty) > 0 && mundo.esLava(tx, ty)) return true;
+    }
+  }
+  return false;
 }
 
 /** Aplica daño a un enemigo desde una posición. Devuelve true si ha muerto. */

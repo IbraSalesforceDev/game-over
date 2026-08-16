@@ -22,6 +22,7 @@ import {
   CANA,
   GRAVA,
   HIERBA_JUNGLA,
+  OBSIDIANA,
   HOJAS_JUNGLA,
   HOJAS_PINO,
   TRONCO_ABEDUL,
@@ -30,6 +31,7 @@ import {
   TIERRA_LABRADA,
   TILES,
   TRONCO,
+  VIDRIO as VIDRIO_TILE,
   YUNQUE,
 } from '../world/tiles';
 
@@ -101,6 +103,8 @@ export const MAPA_2 = 105;
 export const MAPA_3 = 106;
 export const MAPA_4 = 107;
 export const MAPA_5 = 108;
+export const PEDERNAL = 109;
+export const VIDRIO = 110;
 
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
@@ -331,6 +335,13 @@ const ENTRADAS: [number, DefObjeto][] = [
   deTile(TRONCO_ABEDUL),
   deTile(HOJAS_PINO),
   deTile(GRAVA),
+  deTile(OBSIDIANA),
+  // El vidrio no es un tile del generador: solo existe si alguien funde arena,
+  // así que se declara aquí con su propio nombre en vez de salir de `deTile`.
+  [
+    VIDRIO,
+    { nombre: 'vidrio', tipo: 'bloque', color: '#bcd8e4', maxPila: PILA, tile: VIDRIO_TILE },
+  ],
   // Los cubos no se apilan: llevar diez cubos de agua sería llevar un lago en
   // el bolsillo, y el viaje de ida y vuelta hasta el líquido es justo lo que
   // hace que mover agua cueste algo.
@@ -399,6 +410,7 @@ const ENTRADAS: [number, DefObjeto][] = [
   ],
   [FLECHA, { nombre: 'flecha', tipo: 'municion', color: '#b8a882', maxPila: PILA }],
   lingote(PAPEL, 'papel', '#e6e0cc'),
+  lingote(PEDERNAL, 'pedernal', '#5a5f68'),
   ...MAPAS.map((id, i): [number, DefObjeto] => [
     id,
     {
@@ -527,6 +539,14 @@ export function migrarId(id: number): number {
   return IDS_ANTIGUOS[id] ?? id;
 }
 
+/**
+ * Con qué probabilidad una palada de grava deja pedernal en vez de grava.
+ *
+ * Una de cada cuatro: con menos, hacer un puñado de flechas de sílex sería una
+ * tarde entera; con más, la grava dejaría de ser un bloque de construcción.
+ */
+export const PROBABILIDAD_PEDERNAL = 0.25;
+
 /** Qué suelta un tile al romperse. NADA si no suelta nada. */
 export function dropDeTile(tile: number): number {
   switch (tile) {
@@ -535,6 +555,9 @@ export function dropDeTile(tile: number): number {
     // Labrar no crea material nuevo: al romperla vuelve tierra.
     case TIERRA_LABRADA:
       return TIERRA;
+    // La grava se desmorona: a veces deja pedernal en vez del bloque.
+    case GRAVA:
+      return Math.random() < PROBABILIDAD_PEDERNAL ? PEDERNAL : GRAVA;
     case HIERBA:
       return TIERRA;
     // La selva tiene su propio suelo: al romper su hierba sale barro, no tierra.

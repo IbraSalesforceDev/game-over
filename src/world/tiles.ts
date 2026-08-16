@@ -37,6 +37,8 @@ export const HOJAS_JUNGLA = 28;
 export const TRONCO_ABEDUL = 29;
 export const HOJAS_PINO = 30;
 export const GRAVA = 31;
+export const OBSIDIANA = 32;
+export const VIDRIO = 33;
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
 export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
@@ -176,6 +178,20 @@ export const TILES: readonly DefTile[] = [
   { nombre: 'hojas de pino', solido: false, plataforma: false, dureza: 8, color: '#2c5c3e' },
   // La grava se desmorona a paladas y es de donde saldrá el pedernal.
   { nombre: 'grava', solido: true, plataforma: false, dureza: 22, color: '#7b7772', blando: true },
+  // Obsidiana: lo que queda cuando el agua toca la lava. Es lo más duro del
+  // juego y pide pico de hierro, así que una colada apagada a lo bruto deja un
+  // tapón que no se quita hasta bien entrada la partida.
+  {
+    nombre: 'obsidiana',
+    solido: true,
+    plataforma: false,
+    dureza: 150,
+    color: '#241d33',
+    nivelPico: 4,
+  },
+  // Vidrio: sólido pero no tapa el cielo, así que una ventana deja pasar la luz
+  // del sol. Es la única razón de que exista.
+  { nombre: 'vidrio', solido: true, plataforma: false, dureza: 10, color: '#bcd8e4' },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -221,5 +237,9 @@ export function emisionLuz(id: number): number {
 
 /** ¿Este tile tapa el cielo? Un bloque macizo sí; una antorcha o una hoja, no. */
 export function tapaCielo(id: number): boolean {
+  // El vidrio es la excepción: es macizo para andar por encima y para que el
+  // agua no lo cruce, pero no corta el sol. Sin esto una casa con ventanas
+  // estaría igual de oscura que una sin ellas, y el vidrio no serviría de nada.
+  if (id === VIDRIO) return false;
   return esSolido(id) || esPlataforma(id);
 }

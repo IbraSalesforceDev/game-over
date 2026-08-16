@@ -1111,6 +1111,25 @@ async function arrancar(): Promise<void> {
   function actualizarLiquidos(): number {
     const antes = liquidos.pendientes;
     liquidos.paso();
+    // Una colada apagada deja obsidiana: hay que repintar el chunk y rehacer la
+    // luz, porque donde había lava alumbrando ahora hay un bloque macizo.
+    for (const { tx, ty } of liquidos.apagados) {
+      renderer.cache.invalidar(tx, ty);
+      motorLuz.invalidar(tx);
+      particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
+        cantidad: 10,
+        color: '#d8d8e0',
+        forma: 'humo',
+        dispersion: 1.2,
+        empujeY: -1.4,
+        vida: 40,
+        tam: 3,
+      });
+    }
+    if (liquidos.apagados.length > 0) {
+      motorLuz.marcarSucio();
+      audio.sonar('quemar', 0.7);
+    }
     const s = sumersion(mundo, jugador.caja, TILE);
     if (s.lava || (antes > 0 && hayLavaCerca())) motorLuz.marcarSucio();
 

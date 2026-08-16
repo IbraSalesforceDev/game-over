@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, CANA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, CANA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -40,6 +40,8 @@ import {
   AZADA,
   PAPEL,
   MAPAS,
+  PEDERNAL,
+  VIDRIO,
 } from './items';
 
 /**
@@ -173,6 +175,18 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 5,
     estacion: MESA,
   },
+  // Las de pedernal pegan más y salen de más en más: es lo que hace que la
+  // grava del río valga la pena.
+  {
+    id: 'flechas-pedernal',
+    ingredientes: [
+      [MADERA, 1],
+      [PEDERNAL, 1],
+    ],
+    resultado: FLECHA,
+    cantidad: 8,
+    estacion: MESA,
+  },
   {
     id: 'yunque',
     ingredientes: [[LINGOTE_HIERRO, 5]],
@@ -186,6 +200,15 @@ export const RECETAS: readonly Receta[] = [
     id: 'carne-asada',
     ingredientes: [[CARNE_CRUDA, 1]],
     resultado: CARNE_ASADA,
+    cantidad: 1,
+    estacion: HORNO,
+  },
+  // El vidrio sale del horno como los lingotes: fundir arena es exactamente el
+  // mismo gesto que fundir mineral.
+  {
+    id: 'vidrio',
+    ingredientes: [[ARENA, 2]],
+    resultado: VIDRIO,
     cantidad: 1,
     estacion: HORNO,
   },

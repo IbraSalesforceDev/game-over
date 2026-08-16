@@ -12,8 +12,15 @@ import {
   tickAliento,
 } from '../src/entities/aliento';
 import { crearSalud } from '../src/entities/salud';
+import {
+  actualizarEnemigos,
+  crearEnemigo,
+  DANO_LAVA_ENEMIGO,
+  ENEMIGOS,
+  INTERVALO_LAVA_ENEMIGO,
+} from '../src/entities/enemies';
 import { MINIMO, SimuladorLiquidos, sumersion } from '../src/world/liquids';
-import { PIEDRA } from '../src/world/tiles';
+import { defTile, nivelPicoTile, OBSIDIANA, PIEDRA } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
 const SUELO = 20;
@@ -127,15 +134,45 @@ describe('simulación', () => {
     expect(m.getLiquido(10, 10)).toBe(0);
   });
 
-  it('agua y lava no se mezclan', () => {
+  it('el agua apaga la lava y deja obsidiana', () => {
     const m = cuenco();
     const sim = new SimuladorLiquidos(m);
     m.setLiquido(10, SUELO - 1, 255, true);
     sim.verter(10, 10, 255, false);
     estabilizar(sim);
-    // La celda de lava sigue siendo lava y sigue llena.
-    expect(m.esLava(10, SUELO - 1)).toBe(true);
-    expect(m.getLiquido(10, SUELO - 1)).toBe(255);
+    // Donde estaba la lava queda un bloque, y no queda líquido de ninguno de
+    // los dos: el agua se gasta apagándola.
+    expect(m.getTile(10, SUELO - 1)).toBe(OBSIDIANA);
+    expect(m.getLiquido(10, SUELO - 1)).toBe(0);
+  });
+
+  it('la obsidiana solo sale donde estaba la lava, no donde estaba el agua', () => {
+    const m = cuenco();
+    const sim = new SimuladorLiquidos(m);
+    m.setLiquido(10, SUELO - 1, 255, true);
+    m.setLiquido(11, SUELO - 1, 255, false);
+    sim.despertarTodo();
+    estabilizar(sim);
+    expect(m.getTile(10, SUELO - 1)).toBe(OBSIDIANA);
+    expect(m.getTile(11, SUELO - 1)).not.toBe(OBSIDIANA);
+  });
+
+  it('dos celdas de agua juntas no se apagan entre ellas', () => {
+    const m = cuenco();
+    const sim = new SimuladorLiquidos(m);
+    m.setLiquido(10, SUELO - 1, 255, false);
+    m.setLiquido(11, SUELO - 1, 255, false);
+    sim.despertarTodo();
+    estabilizar(sim);
+    expect(m.getTile(10, SUELO - 1)).not.toBe(OBSIDIANA);
+    expect(totalLiquido(m)).toBeGreaterThan(0);
+  });
+
+  it('la obsidiana es lo más duro y pide pico de hierro', () => {
+    // Si se pudiera picar con el de madera, apagar una colada con un cubo de
+    // agua saldría gratis y la lava dejaría de ser un obstáculo.
+    expect(nivelPicoTile(OBSIDIANA)).toBeGreaterThanOrEqual(4);
+    expect(defTile(OBSIDIANA).dureza).toBeGreaterThan(defTile(PIEDRA).dureza);
   });
 
   it('no crea líquido de la nada al repartirse', () => {
@@ -316,5 +353,52 @@ describe('aliento', () => {
     }
     expect(s.vida).toBeLessThan(trasLava);
     expect(a.ardiendo).toBe(0);
+  });
+});
+
+describe('la lava quema a todo el mundo', () => {
+  it('un enemigo metido en lava pierde vida', () => {
+    const m = cuenco();
+    m.setLiquido(10, SUELO - 1, 255, true);
+    m.setLiquido(11, SUELO - 1, 255, true);
+    const e = crearEnemigo('zombi', 10 * TILE, (SUELO - 3) * TILE);
+    const salud = crearSalud(100);
+    const caja = crearCaja(30 * TILE, 5 * TILE, 26, 46);
+    const antes = e.salud.vida;
+    for (let i = 0; i < INTERVALO_LAVA_ENEMIGO * 3; i++) {
+      actualizarEnemigos(m, [e], caja, salud);
+    }
+    expect(e.salud.vida).toBeLessThan(antes);
+  });
+
+  it('no mata de un toque: da tiempo a salir', () => {
+    const m = cuenco();
+    m.setLiquido(10, SUELO - 1, 255, true);
+    const e = crearEnemigo('zombi', 10 * TILE, (SUELO - 3) * TILE);
+    const salud = crearSalud(100);
+    const caja = crearCaja(30 * TILE, 5 * TILE, 26, 46);
+    actualizarEnemigos(m, [e], caja, salud);
+    expect(e.salud.muerto).toBe(false);
+    expect(DANO_LAVA_ENEMIGO).toBeLessThan(ENEMIGOS.zombi.vida);
+  });
+
+  it('fuera de la lava no se quema nadie', () => {
+    const m = cuenco();
+    const e = crearEnemigo('zombi', 10 * TILE, (SUELO - 3) * TILE);
+    const salud = crearSalud(100);
+    const caja = crearCaja(30 * TILE, 5 * TILE, 26, 46);
+    for (let i = 0; i < 200; i++) actualizarEnemigos(m, [e], caja, salud);
+    expect(e.salud.vida).toBe(e.salud.vidaMax);
+  });
+
+  it('el agua no quema', () => {
+    const m = cuenco();
+    m.setLiquido(10, SUELO - 1, 255, false);
+    m.setLiquido(11, SUELO - 1, 255, false);
+    const e = crearEnemigo('slime', 10 * TILE, (SUELO - 3) * TILE);
+    const salud = crearSalud(100);
+    const caja = crearCaja(30 * TILE, 5 * TILE, 26, 46);
+    for (let i = 0; i < 200; i++) actualizarEnemigos(m, [e], caja, salud);
+    expect(e.salud.vida).toBe(e.salud.vidaMax);
   });
 });
