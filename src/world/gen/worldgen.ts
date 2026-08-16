@@ -878,6 +878,19 @@ function plantarArbol(
 }
 
 /**
+ * Planta un árbol de bosque en un punto concreto, con su semilla propia.
+ *
+ * Lo usa el brote al crecer. Va aquí y no en el módulo de cultivo porque el
+ * árbol que sale de un brote tiene que ser el mismo que planta el generador —si
+ * fueran dos funciones distintas, un bosque replantado se vería distinto del
+ * original y nadie sabría por qué.
+ */
+export function plantarArbolEn(mundo: Mundo, tx: number, ty: number): void {
+  const rng = crearRngRico(Math.floor(Math.random() * 0xffffffff));
+  plantarArbol(mundo, tx, ty, rng, rng.suerte(0.25) ? TRONCO_ABEDUL : TRONCO);
+}
+
+/**
  * Pino: alto, estrecho y cónico. Solo en la nieve.
  *
  * No usa `lobuloHojas` porque un pino no es una bola: lo que lo hace pino es el

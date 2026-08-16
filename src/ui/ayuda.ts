@@ -39,6 +39,8 @@ const GRUPOS: Grupo[] = [
       ['Caña', 'Crece en las orillas · 3 caña → papel · 2 papel → mapa'],
       ['Biomas', 'Cada uno tira de un metal: cobre, hierro, plata y oro'],
       ['Lava', 'Quema a todos · el agua la apaga y deja obsidiana'],
+      ['Semillas', 'Salen de segar hierba · clic der. sobre tierra labrada'],
+      ['Cama', 'Clic der. de noche: se duerme hasta el amanecer'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],
     ],

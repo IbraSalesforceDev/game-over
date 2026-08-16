@@ -1,5 +1,5 @@
 import { TILE } from '../core/constants';
-import { CARNE_CRUDA, GEL, HUESO } from '../items/items';
+import { CARNE_CRUDA, GEL, HUESO, PLUMA } from '../items/items';
 import type { Mundo } from '../world/world';
 import { moverX, moverY, solapaSolido, type Caja } from './physics';
 import { crearSalud, golpear, tickSalud, type Salud } from './salud';
@@ -25,7 +25,8 @@ export type Especie =
   | 'jabali'
   | 'esqueleto'
   | 'serpiente'
-  | 'momia';
+  | 'momia'
+  | 'gallina';
 
 export interface DefEnemigo {
   readonly nombre: string;
@@ -182,6 +183,22 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     botinMax: 2,
     nocturno: true,
   },
+  // La gallina existe por las plumas: sin ellas no hay flechas de verdad, y
+  // atarlas a un animal que hay que perseguir es mejor que dejarlas en un cofre.
+  gallina: {
+    nombre: 'gallina',
+    vida: 8,
+    dano: 0,
+    ancho: 14,
+    alto: 14,
+    color: '#f0ece0',
+    colorOscuro: '#b8ae98',
+    vuela: false,
+    botin: PLUMA,
+    botinMax: 3,
+    nocturno: false,
+    pasivo: true,
+  },
   lobo: {
     nombre: 'lobo de hielo',
     vida: 50,
@@ -295,6 +312,20 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
   e.reloj++;
 
   switch (e.especie) {
+    case 'gallina':
+      // Corretea a saltitos cortos y se aleja poco: una gallina que huye como
+      // un conejo sería imposible de coger, y coger gallinas es el punto.
+      if (c.enSuelo) {
+        c.vx *= 0.8;
+        if (Math.abs(dx) < 90 && e.reloj > 34) {
+          e.reloj = 0;
+          c.vy = -3.2;
+          c.vx = -dir * 1.5;
+          c.mirando = -dir as 1 | -1;
+        }
+      }
+      break;
+
     case 'conejo':
       // Da saltitos alejándose. Rápido y corto: se le puede alcanzar, pero hay
       // que perseguirlo, no basta con andar hacia él.

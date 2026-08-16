@@ -5,8 +5,11 @@ import {
   ANTORCHA,
   ARENISCA,
   BARRO,
+  BROTE,
   CACTUS,
+  CAMA,
   CANA,
+  CULTIVOS,
   OBSIDIANA,
   VIDRIO,
   COBRE,
@@ -405,6 +408,76 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillRect(ox, oy, TILE, 1);
       ctx.fillStyle = css(rgb(plat.color, -40));
       ctx.fillRect(ox, oy + 4, TILE, 1);
+    }
+  }
+
+  // Cultivos: tallos verticales que crecen y se doran. Cada etapa es más alta
+  // y más clara que la anterior, así que de un vistazo se sabe si toca cosechar
+  // sin tener que acercarse a mirar.
+  for (const cultivo of CULTIVOS) {
+    const etapas = cultivo.ultima - cultivo.primera + 1;
+    for (let paso = 0; paso < etapas; paso++) {
+      const id = cultivo.primera + paso;
+      const base = TILES[id]!.color;
+      ctx.clearRect(0, id * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+      for (let m = 0; m < MASCARAS; m++) {
+        const oy = (id * MASCARAS + m) * TILE;
+        for (let v = 0; v < VARIANTES; v++) {
+          const ox = v * TILE;
+          const alto = 4 + paso * 4;
+          // Cuatro tallos por tile, a alturas ligeramente distintas.
+          for (let i = 0; i < 4; i++) {
+            const x = ox + 2 + i * 4 + (v % 2);
+            const h = alto - ((i + v) % 2);
+            ctx.fillStyle = base;
+            ctx.fillRect(x, oy + TILE - h, 2, h);
+            ctx.fillStyle = css(rgb(base, 26));
+            ctx.fillRect(x, oy + TILE - h, 1, h);
+            // La espiga solo en la última etapa: es la señal de "ya".
+            if (paso === etapas - 1) {
+              ctx.fillStyle = css(rgb(base, 48));
+              ctx.fillRect(x - 1, oy + TILE - h - 2, 4, 3);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Cama: colchón claro, manta y un cabecero de madera.
+  ctx.clearRect(0, CAMA * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (CAMA * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      ctx.fillStyle = '#6b4a2c';
+      ctx.fillRect(ox, oy + 12, TILE, 4);
+      ctx.fillStyle = '#a8434a';
+      ctx.fillRect(ox, oy + 6, TILE, 6);
+      ctx.fillStyle = '#c25a60';
+      ctx.fillRect(ox, oy + 6, TILE, 1);
+      ctx.fillStyle = '#e8e2d4';
+      ctx.fillRect(ox + 1, oy + 4, 6, 3);
+      ctx.fillStyle = '#8a5f33';
+      ctx.fillRect(ox, oy + 2, 2, 12);
+      ctx.fillRect(ox + TILE - 2, oy + 8, 2, 6);
+    }
+  }
+
+  // Brote: dos hojitas sobre un tallo corto.
+  ctx.clearRect(0, BROTE * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (BROTE * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      ctx.fillStyle = '#6b4a2c';
+      ctx.fillRect(ox + 7 + (v % 2), oy + 8, 2, 8);
+      ctx.fillStyle = '#4f9a3a';
+      ctx.fillRect(ox + 3 + (v % 2), oy + 6, 4, 3);
+      ctx.fillRect(ox + 9 + (v % 2), oy + 5, 4, 3);
+      ctx.fillStyle = '#68b84a';
+      ctx.fillRect(ox + 3 + (v % 2), oy + 6, 4, 1);
+      ctx.fillRect(ox + 9 + (v % 2), oy + 5, 4, 1);
     }
   }
 

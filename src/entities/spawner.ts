@@ -131,7 +131,7 @@ function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] 
       : ['escarabajo', 'serpiente'];
   }
   if (ctx.bioma === 'nieve') {
-    return ctx.esNoche ? ['lobo', 'zombi'] : ['conejo', 'conejo', 'slime'];
+    return ctx.esNoche ? ['lobo', 'zombi'] : ['conejo', 'conejo', 'gallina', 'slime'];
   }
   // La selva está viva a todas horas: es lo que la hace incómoda de cruzar.
   // Hay caza —jabalíes— pero también serpientes de día y zombis de noche.
@@ -145,7 +145,7 @@ function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] 
   // De día en el bosque hay caza y algún slime. La proporción va por
   // repetición en la lista, que es la forma más simple de dar peso sin montar
   // una tabla de probabilidades para cinco entradas.
-  return ['conejo', 'conejo', 'jabali', 'slime'];
+  return ['conejo', 'conejo', 'gallina', 'gallina', 'jabali', 'slime'];
 }
 
 /**

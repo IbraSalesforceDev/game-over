@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, CANA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, CAMA, CANA, COBRE, esEstacion, HIERRO, HORNO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -50,6 +50,9 @@ import {
   MAPAS,
   PEDERNAL,
   VIDRIO,
+  PAN,
+  TRIGO,
+  PLUMA,
 } from './items';
 
 /**
@@ -183,6 +186,18 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 5,
     estacion: MESA,
   },
+  // La cama: madera y gel de relleno. Con ella se pasa la noche de un tirón, así
+  // que se paga con lo que sobra de la primera noche que se aguanta despierto.
+  {
+    id: 'cama',
+    ingredientes: [
+      [MADERA, 12],
+      [GEL, 8],
+    ],
+    resultado: CAMA,
+    cantidad: 1,
+    estacion: MESA,
+  },
   // Las de pedernal pegan más y salen de más en más: es lo que hace que la
   // grava del río valga la pena.
   {
@@ -195,6 +210,19 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 8,
     estacion: MESA,
   },
+  // Con pluma vuelan derechas: doce por tirada, que es lo que convierte una
+  // tarde de perseguir gallinas en un carcaj lleno.
+  {
+    id: 'flechas-pluma',
+    ingredientes: [
+      [MADERA, 1],
+      [PEDERNAL, 1],
+      [PLUMA, 1],
+    ],
+    resultado: FLECHA,
+    cantidad: 12,
+    estacion: MESA,
+  },
   {
     id: 'yunque',
     ingredientes: [[LINGOTE_HIERRO, 5]],
@@ -204,6 +232,13 @@ export const RECETAS: readonly Receta[] = [
   },
 
   // --- Horno: fundir mineral ---
+  {
+    id: 'pan',
+    ingredientes: [[TRIGO, 3]],
+    resultado: PAN,
+    cantidad: 1,
+    estacion: HORNO,
+  },
   {
     id: 'carne-asada',
     ingredientes: [[CARNE_CRUDA, 1]],

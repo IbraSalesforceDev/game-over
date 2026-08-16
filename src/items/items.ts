@@ -19,6 +19,8 @@ import {
   PLATA,
   PLATAFORMA,
   BARRO,
+  BROTE,
+  CAMA,
   CANA,
   GRAVA,
   HIERBA_JUNGLA,
@@ -29,6 +31,14 @@ import {
   TRONCO_JUNGLA,
   TIERRA,
   TIERRA_LABRADA,
+  TRIGO_0,
+  TRIGO_1,
+  TRIGO_2,
+  TRIGO_3,
+  ZANAHORIA_0,
+  ZANAHORIA_1,
+  ZANAHORIA_2,
+  ZANAHORIA_3,
   TILES,
   TRONCO,
   VIDRIO as VIDRIO_TILE,
@@ -115,6 +125,11 @@ export const BOTAS_PLATA = 115;
 export const GUANTES_PLATA = 116;
 export const BOTAS_ORO = 117;
 export const GUANTES_ORO = 118;
+export const SEMILLAS = 119;
+export const SEMILLAS_ZANAHORIA = 120;
+export const TRIGO = 121;
+export const PAN = 122;
+export const PLUMA = 123;
 
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
@@ -148,7 +163,8 @@ export type TipoObjeto =
   | 'armadura'
   | 'arco'
   | 'municion'
-  | 'mapa';
+  | 'mapa'
+  | 'semilla';
 
 /**
  * Dónde se lleva puesta una pieza de armadura.
@@ -202,6 +218,8 @@ export interface DefObjeto {
   readonly velocidad?: number;
   /** Nivel del mapa, si es un mapa: 1 el más pequeño. */
   readonly nivelMapa?: number;
+  /** Primera etapa del cultivo que planta, si es una semilla. */
+  readonly siembra?: number;
 }
 
 const PILA = 999;
@@ -445,6 +463,36 @@ const ENTRADAS: [number, DefObjeto][] = [
   [FLECHA, { nombre: 'flecha', tipo: 'municion', color: '#b8a882', maxPila: PILA }],
   lingote(PAPEL, 'papel', '#e6e0cc'),
   lingote(PEDERNAL, 'pedernal', '#5a5f68'),
+  lingote(PLUMA, 'pluma', '#e8e4d8'),
+  lingote(TRIGO, 'trigo', '#d8c855'),
+  // Las semillas no son comida ni bloque: son su propio tipo, porque lo que
+  // hacen —plantar sobre tierra labrada— no lo hace nada más.
+  [
+    SEMILLAS,
+    {
+      nombre: 'semillas de trigo',
+      tipo: 'semilla',
+      color: '#c8bd6a',
+      maxPila: PILA,
+      siembra: TRIGO_0,
+    },
+  ],
+  [
+    SEMILLAS_ZANAHORIA,
+    {
+      nombre: 'semillas de zanahoria',
+      tipo: 'semilla',
+      color: '#e08a3a',
+      maxPila: PILA,
+      siembra: ZANAHORIA_0,
+    },
+  ],
+  deTile(CAMA),
+  deTile(BROTE),
+  comida(PAN, 'pan', '#c9a163', 40, 8),
+  // La zanahoria se come tal cual, sin pasar por el horno: es la comida que
+  // arregla una tarde mala sin tener que montar cocina.
+  comida(ZANAHORIA_3, 'zanahoria', '#e08a3a', 22, 4),
   ...MAPAS.map((id, i): [number, DefObjeto] => [
     id,
     {
@@ -531,6 +579,15 @@ export function esAzada(id: number): boolean {
   return defObjeto(id).azada === true;
 }
 
+export function esSemilla(id: number): boolean {
+  return defObjeto(id).tipo === 'semilla';
+}
+
+/** Qué cultivo planta esta semilla, o NADA si no es una semilla. */
+export function siembraDe(id: number): number {
+  return defObjeto(id).siembra ?? NADA;
+}
+
 export function esMapa(id: number): boolean {
   return defObjeto(id).tipo === 'mapa';
 }
@@ -581,6 +638,17 @@ export function migrarId(id: number): number {
  */
 export const PROBABILIDAD_PEDERNAL = 0.25;
 
+/**
+ * Con qué probabilidad la hierba suelta semillas en vez de tierra, y las hojas
+ * sueltan un brote.
+ *
+ * Bajas las dos: cavar un prado entero no puede ser la forma normal de
+ * conseguir comida, y un bosque que suelta un brote por hoja se replanta solo.
+ * Con estas, un rato de segar da para empezar un huerto.
+ */
+export const PROBABILIDAD_SEMILLA = 0.12;
+export const PROBABILIDAD_BROTE = 0.06;
+
 /** Qué suelta un tile al romperse. NADA si no suelta nada. */
 export function dropDeTile(tile: number): number {
   switch (tile) {
@@ -589,10 +657,26 @@ export function dropDeTile(tile: number): number {
     // Labrar no crea material nuevo: al romperla vuelve tierra.
     case TIERRA_LABRADA:
       return TIERRA;
+    // Un cultivo maduro da su fruto; uno a medias, solo la semilla de vuelta.
+    case TRIGO_3:
+      return TRIGO;
+    case ZANAHORIA_3:
+      return ZANAHORIA_3;
+    case TRIGO_0:
+    case TRIGO_1:
+    case TRIGO_2:
+      return SEMILLAS;
+    case ZANAHORIA_0:
+    case ZANAHORIA_1:
+    case ZANAHORIA_2:
+      return SEMILLAS_ZANAHORIA;
     // La grava se desmorona: a veces deja pedernal en vez del bloque.
     case GRAVA:
       return Math.random() < PROBABILIDAD_PEDERNAL ? PEDERNAL : GRAVA;
     case HIERBA:
+      if (Math.random() < PROBABILIDAD_SEMILLA) {
+        return Math.random() < 0.5 ? SEMILLAS : SEMILLAS_ZANAHORIA;
+      }
       return TIERRA;
     // La selva tiene su propio suelo: al romper su hierba sale barro, no tierra.
     case HIERBA_JUNGLA:
@@ -604,10 +688,16 @@ export function dropDeTile(tile: number): number {
     case TRONCO_JUNGLA:
     case TRONCO_ABEDUL:
       return MADERA;
+    // Las hojas casi nunca dan nada, pero de vez en cuando sueltan un brote:
+    // es lo que hace que talar un bosque no sea talarlo para siempre.
     case HOJAS:
     case HOJAS_JUNGLA:
     case HOJAS_PINO:
-      return NADA;
+      return Math.random() < PROBABILIDAD_BROTE ? BROTE : NADA;
+    // La hierba da tierra casi siempre y semillas de vez en cuando. Es la única
+    // forma de empezar a cultivar, y por eso está en el bloque más común del
+    // mundo en vez de escondida en un cofre.
+
     // El cactus se lleva como madera del desierto: sirve para lo mismo.
     case CACTUS:
       return MADERA;

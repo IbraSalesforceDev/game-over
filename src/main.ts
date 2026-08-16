@@ -2,7 +2,7 @@ import { TICK, TILE } from './core/constants';
 import { dificultad, DIFICULTAD_POR_DEFECTO } from './core/dificultad';
 import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
-import { Reloj } from './engine/time';
+import { AMANECER, Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
 import { crearAudio } from './engine/audio';
 import { crearAjustes } from './ui/ajustes';
@@ -30,6 +30,8 @@ import {
   type Capa,
 } from './world/edit';
 import { leerOpciones, prepararEscenario } from './world/escenario';
+import { puedeSembrar, tickCultivos } from './world/cultivo';
+import { plantarArbolEn } from './world/gen/worldgen';
 import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
 import { equipoInicial, nivelEnMano, potenciaContra } from './items/equipo';
@@ -39,6 +41,7 @@ import { estacionesCerca } from './items/recipes';
 import { Contenedores } from './world/contenedores';
 import {
   AIRE,
+  CAMA,
   COFRE,
   defTile,
   esEstacion,
@@ -96,6 +99,8 @@ import {
   alcanceDeMapa,
   esArco,
   esAzada,
+  esSemilla,
+  siembraDe,
   esComida,
   esCristal,
   esCubo,
@@ -629,6 +634,15 @@ async function arrancar(): Promise<void> {
     aviso.mostrar('No te quedan flechas');
   }
 
+  /** Ticks de espera antes de repetir el aviso de dónde se puede sembrar. */
+  let esperaAvisoSiembra = 0;
+
+  function avisarSiembra(): void {
+    if (esperaAvisoSiembra > 0) return;
+    esperaAvisoSiembra = 90;
+    aviso.mostrar('Las semillas van sobre tierra labrada');
+  }
+
   function avisarHerramienta(nivelPedido: number): void {
     if (esperaAvisoPico > 0) return;
     esperaAvisoPico = 90;
@@ -658,6 +672,20 @@ async function arrancar(): Promise<void> {
     });
     sacudir(2.4);
     audio.sonar('golpe', 0.7);
+  }
+
+  /** Lo plantado crece alrededor del jugador; los brotes se hacen árboles. */
+  function actualizarCultivos(): void {
+    const crecidos = tickCultivos(
+      mundo,
+      Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),
+      Math.floor((jugador.caja.y + jugador.caja.alto / 2) / TILE),
+    );
+    for (const c of crecidos) {
+      if (c.arbol) plantarArbolEn(mundo, c.tx, c.ty);
+      renderer.cache.invalidar(c.tx, c.ty);
+      motorLuz.invalidar(c.tx);
+    }
   }
 
   /** Enemigos, golpes y vida: todo lo que puede matar o morir en un tick. */
@@ -838,6 +866,26 @@ async function arrancar(): Promise<void> {
     // lo que separa una pala de un pico rápido.
     const tileApuntado = capa === 'bloque' ? mundo.getTile(tx, ty) : mundo.getPared(tx, ty);
     const potencia = potenciaContra(enMano, tileApuntado);
+
+    // Sembrar: clic derecho sobre el hueco que hay encima de tierra labrada.
+    if (esSemilla(enMano)) {
+      const sitio = enAlcance(jugador.caja, tx, ty) && puedeSembrar(mundo, tx, ty);
+      objetivo.valido = sitio;
+      reiniciarPicado(picado);
+      const usar = puntero.der && !derAnterior;
+      derAnterior = puntero.der;
+      if (!usar) return;
+      if (!sitio) {
+        avisarSiembra();
+        return;
+      }
+      mundo.setTile(tx, ty, siembraDe(enMano));
+      renderer.cache.invalidar(tx, ty);
+      inventario.sacarDe(barra.seleccion, 1);
+      barra.refrescar(capa);
+      audio.sonar('recoger', 1.3);
+      return;
+    }
 
     // La azada labra con el clic derecho: no rompe nada, cambia el tile por
     // tierra labrada. Es el sustrato donde se sembrará más adelante.
@@ -1083,6 +1131,25 @@ async function arrancar(): Promise<void> {
       if (abierto && abierto.tx === tx && abierto.ty === ty) barra.cerrar();
       else barra.abrirCofre(cofres.obtener(tx, ty), tx, ty);
       derAnterior = puntero.der;
+      return;
+    }
+
+    // La cama pasa la noche de un tirón. De día no hace nada: dormir para
+    // saltarse el día sería saltarse el juego.
+    if (puntero.der && !derAnterior && mundo.getTile(tx, ty) === CAMA) {
+      derAnterior = puntero.der;
+      if (!enAlcance(jugador.caja, tx, ty)) return;
+      if (!reloj.esNoche) {
+        aviso.mostrar('Solo se duerme de noche');
+        return;
+      }
+      reloj.ir(AMANECER + 10);
+      motorLuz.marcarSucio();
+      // Al despertar no hay nadie: los bichos de la noche se van con ella.
+      for (const e of enemigos) e.vivo = false;
+      limpiarEnemigos(enemigos);
+      aviso.mostrar('Has dormido hasta el amanecer');
+      audio.sonar('recoger', 0.6);
       return;
     }
 
@@ -1344,6 +1411,7 @@ async function arrancar(): Promise<void> {
       reloj.avanzar(TICK);
       if (esperaAvisoPico > 0) esperaAvisoPico--;
       if (esperaAvisoFlechas > 0) esperaAvisoFlechas--;
+      if (esperaAvisoSiembra > 0) esperaAvisoSiembra--;
       editar();
       const sumergido = actualizarLiquidos();
       const enSueloAntes = jugador.caja.enSuelo;
@@ -1352,6 +1420,7 @@ async function arrancar(): Promise<void> {
       efectosDelJugador(enSueloAntes, sumergido);
       sumergidoAhora = sumergido;
       actualizarDrops();
+      actualizarCultivos();
       actualizarCombate();
       particulas.actualizar(mundo);
       if (opciones.sacudidaActiva) renderer.camara.tickSacudida();

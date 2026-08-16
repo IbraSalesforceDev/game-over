@@ -75,6 +75,14 @@ export class Reloj {
     this.minutos = minutosIniciales % 1440;
   }
 
+  /**
+   * Salta a una hora concreta. Lo usa la cama: dormir no es acelerar el reloj,
+   * es ponerlo en el amanecer de golpe.
+   */
+  ir(minuto: number): void {
+    this.minutos = ((minuto % 1440) + 1440) % 1440;
+  }
+
   avanzar(segundos: number): void {
     this.minutos = (this.minutos + this.velocidad * segundos) % 1440;
   }

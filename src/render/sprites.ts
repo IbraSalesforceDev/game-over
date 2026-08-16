@@ -313,7 +313,8 @@ export type EspecieSprite =
   | 'jabali'
   | 'esqueleto'
   | 'serpiente'
-  | 'momia';
+  | 'momia'
+  | 'gallina';
 
 interface Molde {
   ancho: number;
@@ -665,6 +666,46 @@ const MOLDES: Record<EspecieSprite, Molde> = {
         px(ctx, ox + 34, yc - 1, 1, 1, '#e2402c');
         px(ctx, ox + 34, yc + 1, 1, 1, '#e2402c');
       }
+    },
+  },
+
+  gallina: {
+    ancho: 20,
+    alto: 18,
+    frames: 6,
+    offX: -3,
+    offY: -4,
+    pintar(ctx, ox, oy, f) {
+      const pluma = tono('#f0ece0', 12, 26);
+      const cx = ox + 10;
+      const cy = oy + 11;
+      const t = (f / 6) * Math.PI * 2;
+      const paso = Math.round(Math.sin(t) * 2);
+
+      // Patas finas y amarillas, alternando.
+      for (const [dx, fase] of [
+        [-2, 1],
+        [3, -1],
+      ] as const) {
+        const off = paso * fase;
+        px(ctx, cx + dx, cy + 3, 1, 4 - Math.abs(off) * 0.5, '#d8a02c');
+        px(ctx, cx + dx - 1, cy + 6 - Math.abs(off) * 0.5, 3, 1, '#d8a02c');
+      }
+
+      elipse(ctx, cx, cy, 6, 5, pluma.base);
+      elipse(ctx, cx - 1, cy - 1, 4.5, 3.5, pluma.claro);
+      // Ala pegada al costado: un óvalo algo más oscuro rompe la mancha blanca.
+      elipse(ctx, cx - 1, cy + 1, 3, 2.2, pluma.oscuro);
+      // Cola en abanico, tres plumas hacia atrás y arriba.
+      for (let i = 0; i < 3; i++) px(ctx, cx - 8 - i, cy - 2 - i, 3, 2, pluma.base);
+
+      // Cabeza, cresta, pico y barbilla: sin la cresta roja es una paloma.
+      elipse(ctx, cx + 5, cy - 5, 3, 3, pluma.base);
+      px(ctx, cx + 4, cy - 9, 2, 2, '#d63b3b');
+      px(ctx, cx + 6, cy - 10, 2, 2, '#d63b3b');
+      px(ctx, cx + 8, cy - 5, 3, 2, '#e8a12c');
+      px(ctx, cx + 6, cy - 2, 2, 2, '#d63b3b');
+      px(ctx, cx + 6, cy - 6, 1, 1, '#20242a');
     },
   },
 

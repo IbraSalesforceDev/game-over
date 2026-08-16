@@ -11,8 +11,20 @@ import {
   NADA,
   PICO_HIERRO,
   PICO_MADERA,
+  SEMILLAS,
+  SEMILLAS_ZANAHORIA,
 } from '../src/items/items';
-import { ANTORCHA, COBRE, HIERBA, HOJAS, MADERA, PIEDRA, TIERRA, TRONCO } from '../src/world/tiles';
+import {
+  ANTORCHA,
+  BROTE,
+  COBRE,
+  HIERBA,
+  HOJAS,
+  MADERA,
+  PIEDRA,
+  TIERRA,
+  TRONCO,
+} from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
 describe('catálogo de objetos', () => {
@@ -43,8 +55,33 @@ describe('lo que suelta cada tile', () => {
     expect(dropDeTile(TRONCO)).toBe(MADERA);
   });
 
-  it('las hojas no sueltan nada', () => {
-    expect(dropDeTile(HOJAS)).toBe(NADA);
+  it('las hojas casi nunca sueltan nada, y a veces un brote', () => {
+    // Es aleatorio, así que se muestrea: lo que se comprueba es que la mayoría
+    // no dé nada y que el brote salga alguna vez. Sin el brote, talar un bosque
+    // sería talarlo para siempre.
+    let nada = 0;
+    let brotes = 0;
+    for (let i = 0; i < 3000; i++) {
+      const d = dropDeTile(HOJAS);
+      if (d === NADA) nada++;
+      else if (d === BROTE) brotes++;
+      else throw new Error(`las hojas no deberían soltar ${d}`);
+    }
+    expect(brotes).toBeGreaterThan(0);
+    expect(nada).toBeGreaterThan(brotes * 5);
+  });
+
+  it('la hierba da tierra casi siempre y semillas de vez en cuando', () => {
+    let tierra = 0;
+    let semillas = 0;
+    for (let i = 0; i < 3000; i++) {
+      const d = dropDeTile(HIERBA);
+      if (d === TIERRA) tierra++;
+      else if (d === SEMILLAS || d === SEMILLAS_ZANAHORIA) semillas++;
+      else throw new Error(`la hierba no debería soltar ${d}`);
+    }
+    expect(semillas).toBeGreaterThan(0);
+    expect(tierra).toBeGreaterThan(semillas * 3);
   });
 
   it('el resto se suelta a sí mismo', () => {

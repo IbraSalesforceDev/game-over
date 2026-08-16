@@ -39,6 +39,44 @@ export const HOJAS_PINO = 30;
 export const GRAVA = 31;
 export const OBSIDIANA = 32;
 export const VIDRIO = 33;
+// Bloque 4: cama y cultivos. Las cuatro etapas de cada cultivo van seguidas
+// para poder pasar de una a la siguiente sumando uno.
+export const CAMA = 34;
+export const TRIGO_0 = 35;
+export const TRIGO_1 = 36;
+export const TRIGO_2 = 37;
+export const TRIGO_3 = 38;
+export const ZANAHORIA_0 = 39;
+export const ZANAHORIA_1 = 40;
+export const ZANAHORIA_2 = 41;
+export const ZANAHORIA_3 = 42;
+export const BROTE = 43;
+
+/**
+ * Cultivos: primera etapa, última y qué se planta con qué semilla.
+ *
+ * Se declara como rangos y no como lista suelta porque crecer es literalmente
+ * `id + 1`: guardar la etapa en el propio id ahorra una capa entera de estado
+ * por tile, y el guardado se lleva los cultivos sin enterarse.
+ */
+export const CULTIVOS: readonly { primera: number; ultima: number }[] = [
+  { primera: TRIGO_0, ultima: TRIGO_3 },
+  { primera: ZANAHORIA_0, ultima: ZANAHORIA_3 },
+];
+
+/** ¿Es un cultivo? Devuelve el rango al que pertenece, o null. */
+export function cultivoDe(id: number): { primera: number; ultima: number } | null {
+  for (const c of CULTIVOS) {
+    if (id >= c.primera && id <= c.ultima) return c;
+  }
+  return null;
+}
+
+/** ¿Está este cultivo listo para cosechar? */
+export function cultivoMaduro(id: number): boolean {
+  const c = cultivoDe(id);
+  return c !== null && id === c.ultima;
+}
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
 export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
@@ -192,6 +230,18 @@ export const TILES: readonly DefTile[] = [
   // Vidrio: sólido pero no tapa el cielo, así que una ventana deja pasar la luz
   // del sol. Es la única razón de que exista.
   { nombre: 'vidrio', solido: true, plataforma: false, dureza: 10, color: '#bcd8e4' },
+  // La cama no frena, como el resto de muebles: ponerla en un pasillo estrecho
+  // no debe dejarte encerrado.
+  { nombre: 'cama', solido: false, plataforma: true, dureza: 20, color: '#a8434a' },
+  { nombre: 'trigo (creciendo)', solido: false, plataforma: false, dureza: 4, color: '#7a8a3a' },
+  { nombre: 'trigo (creciendo)', solido: false, plataforma: false, dureza: 4, color: '#93a63f' },
+  { nombre: 'trigo (creciendo)', solido: false, plataforma: false, dureza: 4, color: '#b9b249' },
+  { nombre: 'trigo', solido: false, plataforma: false, dureza: 4, color: '#d8c855' },
+  { nombre: 'zanahoria (creciendo)', solido: false, plataforma: false, dureza: 4, color: '#3f7a34' },
+  { nombre: 'zanahoria (creciendo)', solido: false, plataforma: false, dureza: 4, color: '#468a37' },
+  { nombre: 'zanahoria (creciendo)', solido: false, plataforma: false, dureza: 4, color: '#4c9a3a' },
+  { nombre: 'zanahoria', solido: false, plataforma: false, dureza: 4, color: '#54a83e' },
+  { nombre: 'brote', solido: false, plataforma: false, dureza: 4, color: '#4f9a3a' },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */

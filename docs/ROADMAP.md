@@ -186,12 +186,12 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
   ✅, taiga solo en la nieve ✅, abedul como segundo árbol de bosque ✅, minerales
   por bioma ✅, grava ✅, menos lagos ✅, fondos teñidos por bioma ✅. **Bloque
   cerrado.**
-- **Bloque 4 — Cultivo, lava y vida** · camas para pasar la noche, semillas,
-  trigo, zanahorias, brotes de las hojas, vidrio de la arena, plumas, pedernal;
-  la lava quema a todo el mundo —jugador y bichos— y hace daño en vez de matar
-  de un toque; agua y lava se convierten en obsidiana al tocarse; botas y
-  guantes; modo hardcore. (La caña, el papel y el mapa se adelantaron al
-  bloque 2.)
+- **Bloque 4 — Cultivo, lava y vida** ✅ · camas ✅, semillas, trigo y
+  zanahorias ✅, brotes de las hojas ✅, vidrio de la arena ✅, plumas ✅,
+  pedernal ✅, la lava quema a todo el mundo y hace daño en vez de matar de un
+  toque ✅, agua y lava dan obsidiana ✅, botas y guantes ✅, modo hardcore ✅
+  (guardado v11). **Bloque cerrado.** (La caña, el papel y el mapa se
+  adelantaron al bloque 2.)
 - **Bloque 5 — Fortaleza y jefe** · estructura en la capa de piedra, altar (5
   huesos, 50 lingotes de oro y plata, 100 gel y una reliquia antigua que suelta
   cualquier hostil al 3 %), jefe final, espada mejor que la de hierro y una
