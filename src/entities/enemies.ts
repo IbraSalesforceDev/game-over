@@ -706,6 +706,48 @@ export function esJefe(especie: Especie): boolean {
 }
 
 /**
+ * Con qué voz se queja cada especie.
+ *
+ * Los animales callan. No es un olvido: el conejo y la gallina están para dar
+ * de comer, y un prado en el que todo cacarea sin parar cansa a los dos
+ * minutos. Lo que se quiere de las voces es que la cueva suene habitada y que
+ * un gruñido a la espalda haga girarse antes de que el zombi llegue.
+ */
+const VOCES_ESPECIE: Partial<Record<Especie, VozEnemigo>> = {
+  zombi: 'gruñido',
+  momia: 'gruñido',
+  esqueleto: 'huesos',
+  murcielago: 'chillido',
+  serpiente: 'chillido',
+  slime: 'gorgoteo',
+  escarabajo: 'gorgoteo',
+  lobo: 'aullido',
+  guardian: 'rugido',
+};
+
+export type VozEnemigo =
+  | 'gruñido'
+  | 'huesos'
+  | 'chillido'
+  | 'gorgoteo'
+  | 'aullido'
+  | 'rugido';
+
+/** La voz de una especie, o null si es de las que no hablan. */
+export function vozDe(especie: Especie): VozEnemigo | null {
+  return VOCES_ESPECIE[especie] ?? null;
+}
+
+/**
+ * Probabilidad por tick de que un bicho cercano diga algo.
+ *
+ * Una entre setecientas: sale a una queja cada doce segundos por bicho. Con
+ * tres o cuatro alrededor es un ruido de fondo constante pero no continuo, que
+ * es justo el punto en el que una cueva da mal rollo sin llegar a molestar.
+ */
+export const PROBABILIDAD_VOZ = 1 / 700;
+
+/**
  * Con qué probabilidad un hostil suelta la reliquia que pide el altar.
  *
  * Tres de cada cien. Es poco por bicho y mucho por partida: matando lo que uno

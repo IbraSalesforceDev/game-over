@@ -15,15 +15,36 @@
  * que no vuelve a arrancar.
  */
 
+/**
+ * De qué está hecho lo que suena.
+ *
+ * Cada material tiene su golpe y su rotura, y son doce voces en vez de dos
+ * porque es la diferencia entre picar un mundo y picar una hoja de cálculo:
+ * hasta ahora la piedra, el tronco y la veta de oro sonaban exactamente igual,
+ * y el oído es lo primero que nota que un juego es de mentira.
+ */
+export type MaterialAudio = 'piedra' | 'tierra' | 'madera' | 'metal' | 'planta' | 'vidrio';
+
 export type Efecto =
   | 'picar'
   | 'romper'
+  | `picar-${MaterialAudio}`
+  | `romper-${MaterialAudio}`
   | 'colocar'
   | 'saltar'
   | 'aterrizar'
   | 'golpe'
+  | 'espadazo'
+  | 'flechazo'
   | 'dano'
   | 'muerte'
+  | 'muerte-bicho'
+  | 'gruñido'
+  | 'huesos'
+  | 'chillido'
+  | 'gorgoteo'
+  | 'aullido'
+  | 'rugido'
   | 'recoger'
   | 'craftear'
   | 'chapoteo'
@@ -62,14 +83,65 @@ const VOCES: Record<Efecto, Voz> = {
   craftear: { onda: 'triangle', desde: 520, hasta: 980, duracion: 0.18, volumen: 0.16, ruido: 0.1, corte: 1400 },
   chapoteo: { onda: null, desde: 0, hasta: 0, duracion: 0.26, volumen: 0.2, ruido: 1, corte: 1300 },
   quemar: { onda: 'sawtooth', desde: 120, hasta: 70, duracion: 0.3, volumen: 0.22, ruido: 0.85, corte: 900 },
+
+  // --- Picar y romper, material a material ---------------------------------
+  //
+  // Lo que distingue un material de otro para el oído es sobre todo el corte
+  // del filtro: la tierra se lleva todo lo agudo por delante y suena a
+  // "pom", el metal deja pasar los armónicos altos y tintinea, y la planta es
+  // ruido puro sin nota, porque una hoja al partirse no tiene tono ninguno.
+  'picar-tierra': { onda: 'sine', desde: 150, hasta: 70, duracion: 0.07, volumen: 0.1, ruido: 0.85, corte: 700 },
+  'romper-tierra': { onda: 'sine', desde: 180, hasta: 55, duracion: 0.18, volumen: 0.2, ruido: 0.95, corte: 620 },
+  'picar-piedra': { onda: 'square', desde: 210, hasta: 95, duracion: 0.06, volumen: 0.1, ruido: 0.7, corte: 2400 },
+  'romper-piedra': { onda: 'triangle', desde: 300, hasta: 80, duracion: 0.2, volumen: 0.22, ruido: 0.85, corte: 3000 },
+  'picar-madera': { onda: 'square', desde: 265, hasta: 155, duracion: 0.07, volumen: 0.11, ruido: 0.45, corte: 1400 },
+  'romper-madera': { onda: 'triangle', desde: 330, hasta: 120, duracion: 0.19, volumen: 0.21, ruido: 0.55, corte: 1600 },
+  'picar-metal': { onda: 'triangle', desde: 620, hasta: 390, duracion: 0.08, volumen: 0.1, ruido: 0.3, corte: 4400 },
+  'romper-metal': { onda: 'triangle', desde: 900, hasta: 300, duracion: 0.24, volumen: 0.19, ruido: 0.28, corte: 5400 },
+  'picar-planta': { onda: null, desde: 0, hasta: 0, duracion: 0.07, volumen: 0.09, ruido: 1, corte: 5200 },
+  'romper-planta': { onda: null, desde: 0, hasta: 0, duracion: 0.16, volumen: 0.16, ruido: 1, corte: 6000 },
+  'picar-vidrio': { onda: 'sine', desde: 950, hasta: 700, duracion: 0.06, volumen: 0.09, ruido: 0.4, corte: 6000 },
+  'romper-vidrio': { onda: 'triangle', desde: 1600, hasta: 480, duracion: 0.26, volumen: 0.2, ruido: 0.8, corte: 8000 },
+
+  // --- Armas ---------------------------------------------------------------
+  // Los dos son solo aire: un mandoble no tiene nota, y darle una lo convierte
+  // en un láser. Lo que los separa es el corte —la espada barre más grave que
+  // la flecha— y la duración.
+  espadazo: { onda: null, desde: 0, hasta: 0, duracion: 0.14, volumen: 0.13, ruido: 1, corte: 3200 },
+  flechazo: { onda: null, desde: 0, hasta: 0, duracion: 0.1, volumen: 0.11, ruido: 1, corte: 5200 },
+
+  // --- Voces de los bichos --------------------------------------------------
+  // La muerte de un bicho no es la del jugador: más corta y menos grave, para
+  // que no parezca que ha pasado algo malo cada vez que matas un slime.
+  'muerte-bicho': { onda: 'sawtooth', desde: 300, hasta: 60, duracion: 0.34, volumen: 0.2, ruido: 0.5, corte: 1200 },
+  gruñido: { onda: 'sawtooth', desde: 130, hasta: 78, duracion: 0.36, volumen: 0.13, ruido: 0.45, corte: 700 },
+  huesos: { onda: 'square', desde: 95, hasta: 70, duracion: 0.2, volumen: 0.11, ruido: 0.9, corte: 1700 },
+  chillido: { onda: 'sine', desde: 1450, hasta: 880, duracion: 0.12, volumen: 0.09, ruido: 0.2, corte: 4200 },
+  gorgoteo: { onda: 'sine', desde: 230, hasta: 120, duracion: 0.2, volumen: 0.1, ruido: 0.5, corte: 700 },
+  aullido: { onda: 'sawtooth', desde: 430, hasta: 250, duracion: 0.5, volumen: 0.13, ruido: 0.15, corte: 1200 },
+  rugido: { onda: 'sawtooth', desde: 92, hasta: 44, duracion: 0.8, volumen: 0.28, ruido: 0.5, corte: 520 },
 };
 
 /** Ticks mínimos entre dos disparos del mismo efecto. */
 const ANTIRREBOTE: Partial<Record<Efecto, number>> = {
   picar: 70,
+  'picar-tierra': 70,
+  'picar-piedra': 70,
+  'picar-madera': 70,
+  'picar-metal': 70,
+  'picar-planta': 70,
+  'picar-vidrio': 70,
   recoger: 45,
   chapoteo: 200,
   quemar: 260,
+  // Las voces de los bichos se cortan entre ellas: con cinco zombis alrededor
+  // y sin antirrebote, lo que se oye no son cinco zombis sino una sirena.
+  gruñido: 700,
+  huesos: 700,
+  chillido: 500,
+  gorgoteo: 700,
+  aullido: 1400,
+  rugido: 1800,
 };
 
 export interface Audio {

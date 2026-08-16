@@ -661,6 +661,95 @@ export function maxPila(id: number): number {
   return defObjeto(id).maxPila;
 }
 
+/**
+ * Qué es cada cosa y para qué sirve.
+ *
+ * Una tabla aparte y no un campo más de `DefObjeto` porque la mayoría de las
+ * entradas del catálogo se construyen con funciones —`pico`, `espada`,
+ * `juegoArmadura`— y meterles un texto a cada una habría significado pasar
+ * veinte descripciones por parámetro para que solo cambiara una palabra.
+ *
+ * Solo se escribe lo que no se deduce mirando el icono. Un bloque de tierra no
+ * necesita que nadie le explique qué es; una pala, un altar o una brújula sí,
+ * porque su gracia está en algo que no se ve.
+ */
+const DESCRIPCIONES: Readonly<Record<number, string>> = {
+  [PICO_MADERA]: 'El primer pico. Con él se saca piedra, y con la piedra todo lo demás.',
+  [PALA_HIERRO]: 'Vuela cavando tierra, arena y nieve. Contra la piedra es un desastre.',
+  [AZADA]: 'Clic derecho sobre hierba o tierra: la deja labrada para sembrar.',
+  [ARCO]: 'Clic izquierdo hacia donde apunte el ratón. Gasta una flecha por disparo.',
+  [FLECHA]: 'Munición del arco. Se clava en el terreno y se puede recoger.',
+  [CUBO]: 'Recoge y vierte líquidos. La única forma de mover un lago.',
+  [CUBO_AGUA]: 'Vertido sobre lava la apaga y deja obsidiana.',
+  [CUBO_LAVA]: 'Quema a todo lo que toque, incluido a ti.',
+  [CRISTAL]: 'Clic derecho: sube un corazón la vida máxima. Para siempre.',
+  [PAPEL]: 'Sale de la caña de azúcar. Es lo que hace falta para los mapas.',
+  [PEDERNAL]: 'Salta al cavar grava. Hace flechas mucho mejores.',
+  [PLUMA]: 'La sueltan las gallinas. Con ella las flechas vuelan derechas.',
+  [SEMILLAS]: 'Se planta sobre tierra labrada. Da trigo.',
+  [SEMILLAS_ZANAHORIA]: 'Se planta sobre tierra labrada. Da zanahorias.',
+  [TRIGO]: 'Tres en el horno hacen un pan.',
+  [GEL]: 'Lo sueltan los slimes. Alarga muchísimo las antorchas.',
+  [HUESO]: 'Lo sueltan los muertos que andan. El altar pide cinco.',
+  [BRUJULA]:
+    'Llevándola encima, la aguja señala la estructura más cercana y el mapa las marca todas.',
+  [RELIQUIA]:
+    'No sirve para nada salvo para el altar de la fortaleza. La suelta cualquier hostil, de tarde en tarde.',
+  [ESENCIA]:
+    'Late. No hace nada todavía: está guardada para lo que venga en la próxima actualización.',
+  [ESPADA_GUARDIAN]:
+    'Forjada con lo que quedó del guardián. Pega más y llega más lejos que ninguna otra.',
+  [VIDRIO]: 'Se funde de arena. Deja pasar la luz del sol.',
+};
+
+/** Descripciones por tipo, para lo que no tiene una escrita a mano. */
+const DESCRIPCION_POR_TIPO: Readonly<Record<TipoObjeto, string>> = {
+  bloque: 'Se coloca en el mundo. Clic derecho.',
+  herramienta: 'Herramienta. Clic izquierdo para trabajar.',
+  arma: 'Clic izquierdo para golpear. El ratón apunta el mandoble.',
+  material: 'Material de fabricación.',
+  cubo: 'Recoge y vierte líquidos.',
+  comida: 'Clic derecho para comer.',
+  cristal: 'Clic derecho para usarlo.',
+  armadura: 'Se pone en su hueco del inventario.',
+  arco: 'Arma a distancia. Gasta munición.',
+  municion: 'Munición.',
+  mapa: 'Se abre con M. Enseña el terreno de alrededor.',
+  semilla: 'Se planta sobre tierra labrada.',
+  brujula: 'Señala lo que hay construido en este mundo.',
+};
+
+/** Qué es este objeto, en una frase. */
+export function descripcionDe(id: number): string {
+  return DESCRIPCIONES[id] ?? DESCRIPCION_POR_TIPO[defObjeto(id).tipo];
+}
+
+/**
+ * Los números del objeto en una línea.
+ *
+ * Se genera del catálogo en vez de escribirse: así el día que la espada de
+ * hierro pase de 26 a 24 de daño, la ficha no se queda mintiendo.
+ */
+export function resumenDe(id: number): string {
+  const d = defObjeto(id);
+  const partes: string[] = [];
+  if (d.dano !== undefined) partes.push(`daño ${d.dano}`);
+  if (d.alcance !== undefined) partes.push(`alcance ${d.alcance}`);
+  if (d.cadencia !== undefined) partes.push(`cada ${(d.cadencia / 60).toFixed(2)} s`);
+  if (d.municion !== undefined) partes.push(`gasta ${defObjeto(d.municion).nombre}`);
+  if (d.potencia !== undefined && d.potencia > 0) partes.push(`potencia ${d.potencia}`);
+  if (d.nivel !== undefined && d.nivel > 0) partes.push(`nivel ${d.nivel}`);
+  if (d.defensa !== undefined) partes.push(`defensa ${d.defensa}`);
+  if (d.hueco !== undefined) partes.push(d.hueco);
+  if (d.saciedad !== undefined && d.saciedad > 0) partes.push(`sacia ${d.saciedad}`);
+  if (d.curacion !== undefined && d.curacion > 0) partes.push(`cura ${d.curacion}`);
+  if (d.nivelMapa !== undefined) {
+    const alcance = ALCANCE_MAPA[d.nivelMapa - 1] ?? 0;
+    partes.push(Number.isFinite(alcance) ? `${alcance} tiles alrededor` : 'el mundo entero');
+  }
+  return partes.join(' · ');
+}
+
 /** Traduce un id guardado por una versión anterior del formato. */
 export function migrarId(id: number): number {
   return IDS_ANTIGUOS[id] ?? id;

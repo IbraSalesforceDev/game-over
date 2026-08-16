@@ -43,7 +43,13 @@ import { plantarArbolEn } from './world/gen/worldgen';
 import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
 import { equipoInicial, nivelEnMano, potenciaContra } from './items/equipo';
-import { cabeEnEquipo, crearEquipo, danoTrasArmadura, defensaTotal } from './items/equipado';
+import {
+  cabeEnEquipo,
+  coloresEquipo,
+  crearEquipo,
+  danoTrasArmadura,
+  defensaTotal,
+} from './items/equipado';
 import { defObjeto, dropDePared, dropDeTile, nombrePicoDeNivel } from './items/items';
 import { estacionesCerca } from './items/recipes';
 import { Contenedores, type DatosCofre } from './world/contenedores';
@@ -55,6 +61,7 @@ import {
   defTile,
   esEstacion,
   HIERBA,
+  materialDe,
   TIERRA,
   TIERRA_LABRADA,
 } from './world/tiles';
@@ -74,7 +81,9 @@ import {
   esJefe,
   MITAD_JEFE,
   OBJETO_RELIQUIA,
+  PROBABILIDAD_VOZ,
   sueltaReliquia,
+  vozDe,
   type Enemigo,
 } from './entities/enemies';
 import {
@@ -153,6 +162,9 @@ const INTERVALO_AUTOGUARDADO = 30_000;
 
 /** Lo que la azada puede convertir en tierra labrada. */
 const LABRABLES: readonly number[] = [HIERBA, TIERRA];
+
+/** Hasta dónde se oye a un bicho quejarse, en píxeles de mundo. */
+const RADIO_VOZ = 26 * TILE;
 
 /** Ticks entre tandas de esqueletos mientras el guardián está enfurecido. */
 const INTERVALO_ESBIRROS = 420;
@@ -405,7 +417,10 @@ async function arrancar(): Promise<void> {
   panelVida.refrescarHambre(hambre);
   const aviso = crearAviso(capaUI);
   const audio = crearAudio();
-  const opciones = crearAjustes(capaUI, audio);
+  const opciones = crearAjustes(capaUI, audio, (g) => renderer.aplicarGraficos(g));
+  // Los ajustes guardados se aplican al arrancar, no solo al tocarlos: si no,
+  // quien eligió jugar a ×2 vería la primera partida a otro zoom cada vez.
+  renderer.aplicarGraficos(opciones.graficos);
   const ayuda = crearAyuda(capaUI);
   const mapa = crearMapa(capaUI);
   const brujula = crearBrujula(capaUI);
@@ -758,6 +773,8 @@ async function arrancar(): Promise<void> {
   let relojAparicion = 0;
   /** Ticks hasta la próxima tanda de esbirros del guardián. */
   let relojEsbirros = 0;
+  /** El rugido de la segunda fase ya ha sonado en esta pelea. */
+  let furiaAnunciada = false;
 
   /**
    * Un enemigo muere: suelta su botín, revienta en partículas y suena.
@@ -779,7 +796,7 @@ async function arrancar(): Promise<void> {
       tam: 3,
     });
     sacudir(grande ? 9 : 2.4);
-    audio.sonar(grande ? 'muerte' : 'golpe', grande ? 0.6 : 0.7);
+    audio.sonar(grande ? 'muerte' : 'muerte-bicho', grande ? 0.6 : 0.85 + Math.random() * 0.4);
     if (grande) caerJefe();
   }
 
@@ -852,10 +869,11 @@ async function arrancar(): Promise<void> {
     );
     enemigos.push(nuevo);
     jefe = nuevo;
+    furiaAnunciada = false;
 
     aviso.mostrar('Algo despierta bajo la fortaleza');
     sacudir(9);
-    audio.sonar('quemar', 0.4);
+    audio.sonar('rugido', 0.75);
     particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
       cantidad: 60,
       color: '#c79bf0',
@@ -887,6 +905,14 @@ async function arrancar(): Promise<void> {
       jefe.salud.vidaMax,
       furioso,
     );
+    // El rugido de la segunda fase suena una sola vez, al cruzar la mitad: es
+    // el aviso de que a partir de aquí la pelea es otra.
+    if (furioso && !furiaAnunciada) {
+      furiaAnunciada = true;
+      audio.sonar('rugido', 1.15);
+      sacudir(6);
+      aviso.mostrar('El guardián se enfurece', true);
+    }
     if (!furioso) return;
     if (--relojEsbirros > 0) return;
     relojEsbirros = INTERVALO_ESBIRROS;
@@ -901,6 +927,29 @@ async function arrancar(): Promise<void> {
           nivelDif.fuerza,
         ),
       );
+    }
+  }
+
+  /**
+   * De vez en cuando, un bicho cercano se queja.
+   *
+   * Solo los que se ven o casi: el sonido no tiene panorámica ni distancia, así
+   * que un gruñido de un zombi a ochenta tiles se oiría igual de fuerte que el
+   * del que tienes encima y no significaría nada. Limitándolo a los de cerca,
+   * la queja es información: hay algo ahí al lado.
+   */
+  function vocesDeLosBichos(): void {
+    const cx = jugador.caja.x + jugador.caja.ancho / 2;
+    const cy = jugador.caja.y + jugador.caja.alto / 2;
+    for (const e of enemigos) {
+      if (!e.vivo) continue;
+      if (Math.random() >= PROBABILIDAD_VOZ) continue;
+      const voz = vozDe(e.especie);
+      if (!voz) continue;
+      const dx = e.caja.x + e.caja.ancho / 2 - cx;
+      const dy = e.caja.y + e.caja.alto / 2 - cy;
+      if (Math.hypot(dx, dy) > RADIO_VOZ) continue;
+      audio.sonar(voz, 0.85 + Math.random() * 0.3);
     }
   }
 
@@ -1054,6 +1103,8 @@ async function arrancar(): Promise<void> {
       panelVida.mostrarMuerte(true, motivo);
       window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
     }
+
+    vocesDeLosBichos();
 
     // Va después de repartir muertos y antes de limpiar: así la barra ya sabe
     // que el guardián ha caído en el mismo tick en que cae.
@@ -1250,7 +1301,7 @@ async function arrancar(): Promise<void> {
           (def.dano ?? 0) * trucos.danoMultiplicador,
         ),
       );
-      audio.sonar('golpe', 1.5);
+      audio.sonar('flechazo', 0.92 + Math.random() * 0.2);
       return;
     }
 
@@ -1264,6 +1315,10 @@ async function arrancar(): Promise<void> {
         wx - (jugador.caja.x + jugador.caja.ancho / 2),
         wy - (jugador.caja.y + jugador.caja.alto * 0.4),
       );
+      // El silbido solo suena cuando el golpe sale de verdad: `lanzarGolpe`
+      // no hace nada si el arma aún está en su cadencia, y un silbido por cada
+      // clic mantenido convertiría la espada en una batidora.
+      if (puedeGolpear(golpe)) audio.sonar('espadazo', 0.9 + Math.random() * 0.25);
       lanzarGolpe(golpe, enMano, jugador.caja.mirando, sentido);
       reiniciarPicado(picado);
       objetivo.valido = false;
@@ -1317,7 +1372,10 @@ async function arrancar(): Promise<void> {
           capa === 'bloque'
             ? defTile(mundo.getTile(tx, ty)).color
             : defTile(mundo.getPared(tx, ty)).color;
-        if (picado.progreso > 0) audio.sonar('picar', 0.8 + Math.random() * 0.5);
+        // El material lo pone el tile, no la herramienta: picar un tronco con
+        // el pico de oro sigue sonando a madera.
+        const material = materialDe(capa === 'bloque' ? mundo.getTile(tx, ty) : mundo.getPared(tx, ty));
+        if (picado.progreso > 0) audio.sonar(`picar-${material}`, 0.85 + Math.random() * 0.35);
         if (picado.progreso > 0 && Math.random() < 0.35) {
           particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
             cantidad: 1,
@@ -1345,7 +1403,7 @@ async function arrancar(): Promise<void> {
             tam: 3,
           });
           sacudir(0.9);
-          audio.sonar('romper', 0.85 + Math.random() * 0.3);
+          audio.sonar(`romper-${material}`, 0.88 + Math.random() * 0.28);
           soltar(drops, soltado, tx, ty);
           if (soltado === COFRE) cofres.borrar(tx, ty);
           const abierto = barra.cofreAbierto;
@@ -1696,6 +1754,7 @@ async function arrancar(): Promise<void> {
         particulas,
         sumergido: sumergidoAhora,
         enMano: barra.objetoActivo(),
+        armadura: coloresEquipo(equipo),
       bioma: biomaEn(
         mundo,
         Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),

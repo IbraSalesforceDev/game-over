@@ -203,10 +203,16 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
   mapa ✅, más cabañas abandonadas en la superficie y minas abandonadas en la
   caverna para que la aguja tenga a qué apuntar desde el primer día ✅
   (guardado v12). **Bloque cerrado.**
-- **Bloque 6 — Audio y remate** · sonido de rotura por material, sonidos de
-  ataque, gruñidos, muerte de enemigos, descripciones de objetos, iconos más
-  detallados, opciones de gráficos y resolución, **la armadura puesta se ve en
-  el personaje**, **zoom configurable** y **más oscuridad**.
+- **Bloque 6 — Audio y remate** ✅ · sonido de rotura y de picado por material,
+  doce voces nuevas en vez de dos ✅; silbido de la espada y de la flecha ✅;
+  gruñidos, huesos, chillidos, aullidos y el rugido del guardián ✅; muerte de
+  enemigo con voz propia ✅; ficha de objeto al pasar el ratón, con sus números
+  sacados del catálogo y una explicación escrita ✅; once iconos con forma
+  propia —hueso, gel, pluma, trigo, papel, pedernal, semillas, carne, pan,
+  bayas y zanahoria— que hasta ahora eran el mismo montoncito ✅; sección de
+  gráficos en los ajustes con zoom, oscuridad y resolución ✅; **la armadura
+  puesta se ve en el personaje**, pieza a pieza y en los cuatro metales ✅.
+  **Bloque cerrado.**
 - **Bloque 7 — Migración de mundos** · ver abajo.
 
 ### Bloque 7 — Migración de mundos (M)

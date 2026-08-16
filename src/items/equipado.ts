@@ -1,5 +1,5 @@
 import { Inventario } from './inventory';
-import { defensaDe, esArmadura, huecoDe, HUECOS, NADA, type Hueco } from './items';
+import { defensaDe, defObjeto, esArmadura, huecoDe, HUECOS, NADA, type Hueco } from './items';
 
 /**
  * Armadura puesta.
@@ -45,6 +45,21 @@ export function defensaTotal(equipo: Inventario): number {
     if (r.cantidad > 0) total += defensaDe(r.objeto);
   }
   return total;
+}
+
+/**
+ * Los colores de lo que se lleva puesto, hueco a hueco.
+ *
+ * Es lo único que el render necesita saber de la armadura: la forma de cada
+ * pieza la pone el sprite y no cambia entre metales. Devuelve un array del
+ * tamaño de `HUECOS` con el color de cada pieza, o null donde no haya nada.
+ */
+export function coloresEquipo(equipo: Inventario): (string | null)[] {
+  return HUECOS.map((_, i) => {
+    const r = equipo.ranuras[i];
+    if (!r || r.cantidad <= 0 || !esArmadura(r.objeto)) return null;
+    return defObjeto(r.objeto).color;
+  });
 }
 
 /**

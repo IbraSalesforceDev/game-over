@@ -19,9 +19,54 @@ interface Preferencias {
   volumen: number;
   silenciado: boolean;
   sacudida: boolean;
+  /** Zoom de la cámara: 0 es el adaptativo, 2-4 lo fija a mano. */
+  zoom: number;
+  /** Índice dentro de `OSCURIDADES`. */
+  oscuridad: number;
+  /** Índice dentro de `RESOLUCIONES`. */
+  resolucion: number;
 }
 
-const POR_DEFECTO: Preferencias = { volumen: 0.55, silenciado: false, sacudida: true };
+/**
+ * Los tres escalones de oscuridad.
+ *
+ * El número es el suelo de luz: por debajo de él no baja ni el rincón más
+ * hondo. Hasta ahora estaba fijo en 34, que resultaba ser bastante generoso —
+ * una cueva sin una sola antorcha se veía perfectamente, y la antorcha pasaba
+ * a ser decoración. Con 14 hay que llevar luz, y con 4 hay que llevar mucha.
+ *
+ * El valor de siempre sigue disponible como "suave": bajar la oscuridad de un
+ * juego ya empezado sin dejar volver atrás sería cambiarle la partida a quien
+ * la tuviera a medias.
+ */
+export const OSCURIDADES: readonly { nombre: string; suelo: number }[] = [
+  { nombre: 'suave', suelo: 34 },
+  { nombre: 'oscura', suelo: 14 },
+  { nombre: 'boca de lobo', suelo: 4 },
+];
+
+/**
+ * Resolución de dibujo, como tope del devicePixelRatio.
+ *
+ * En un portátil justo de fuerza, bajar a "rápida" es la diferencia entre 60 y
+ * 30 fotogramas, y en pixel art se nota mucho menos que en un juego 3D: los
+ * bordes ya son escalones a propósito.
+ */
+export const RESOLUCIONES: readonly { nombre: string; dpr: number }[] = [
+  { nombre: 'rápida', dpr: 0.75 },
+  { nombre: 'normal', dpr: 1 },
+  { nombre: 'nítida', dpr: 2 },
+];
+
+const POR_DEFECTO: Preferencias = {
+  volumen: 0.55,
+  silenciado: false,
+  sacudida: true,
+  zoom: 0,
+  // Por defecto, oscura: es lo que hace que una antorcha valga para algo.
+  oscuridad: 1,
+  resolucion: 2,
+};
 
 function cargar(): Preferencias {
   try {
@@ -32,11 +77,19 @@ function cargar(): Preferencias {
       volumen: typeof p.volumen === 'number' ? Math.max(0, Math.min(1, p.volumen)) : POR_DEFECTO.volumen,
       silenciado: p.silenciado === true,
       sacudida: p.sacudida !== false,
+      zoom: [0, 2, 3, 4].includes(p.zoom ?? -1) ? p.zoom! : POR_DEFECTO.zoom,
+      oscuridad: enRango(p.oscuridad, OSCURIDADES.length, POR_DEFECTO.oscuridad),
+      resolucion: enRango(p.resolucion, RESOLUCIONES.length, POR_DEFECTO.resolucion),
     };
   } catch {
     // Un localStorage bloqueado no puede tumbar el arranque del juego.
     return { ...POR_DEFECTO };
   }
+}
+
+/** Un índice guardado que sigue siendo válido, o el de por defecto. */
+function enRango(v: unknown, largo: number, defecto: number): number {
+  return typeof v === 'number' && v >= 0 && v < largo ? Math.floor(v) : defecto;
 }
 
 function guardar(p: Preferencias): void {
@@ -82,16 +135,36 @@ const ESTILO = `
 }
 #ajustes .interruptor.on { background: #2a3a2a; border-color: #4c8b3a; color: #b8e0a8; }
 #ajustes .pie { color: #6b7684; font-size: 10px; line-height: 1.5; margin-top: 4px; }
+#ajustes h3.seccion {
+  margin-top: 16px; border-top: 1px solid #222a34; padding-top: 12px; color: #8fb6d6;
+}
+#ajustes select {
+  flex: 1.4; min-width: 0; background: #171d25; color: #c9d4e0;
+  border: 1px solid #2b3440; border-radius: 6px; padding: 3px 5px;
+  font: 11px ui-monospace, monospace;
+}
 `;
+
+/** Lo que el render necesita de estos ajustes, ya traducido a números. */
+export interface Graficos {
+  zoom: number;
+  dpr: number;
+  oscuridad: number;
+}
 
 export interface PanelAjustes {
   alternar(): void;
   cerrar(): void;
   readonly abierto: boolean;
   readonly sacudidaActiva: boolean;
+  readonly graficos: Graficos;
 }
 
-export function crearAjustes(contenedor: HTMLElement, audio: Audio): PanelAjustes {
+export function crearAjustes(
+  contenedor: HTMLElement,
+  audio: Audio,
+  alCambiarGraficos: (g: Graficos) => void = () => {},
+): PanelAjustes {
   const prefs = cargar();
   audio.volumen = prefs.volumen;
   audio.silenciado = prefs.silenciado;
@@ -122,6 +195,28 @@ export function crearAjustes(contenedor: HTMLElement, audio: Audio): PanelAjuste
       <label>Sacudida</label>
       <span class="interruptor" id="aj-shake"></span>
     </div>
+    <h3 class="seccion">Gráficos</h3>
+    <div class="fila">
+      <label for="aj-zoom">Zoom</label>
+      <select id="aj-zoom">
+        <option value="0">automático</option>
+        <option value="2">×2 (se ve más)</option>
+        <option value="3">×3</option>
+        <option value="4">×4 (se ve menos)</option>
+      </select>
+    </div>
+    <div class="fila">
+      <label for="aj-osc">Oscuridad</label>
+      <select id="aj-osc">${OSCURIDADES.map(
+        (o, i) => `<option value="${i}">${o.nombre}</option>`,
+      ).join('')}</select>
+    </div>
+    <div class="fila">
+      <label for="aj-res">Resolución</label>
+      <select id="aj-res">${RESOLUCIONES.map(
+        (r, i) => `<option value="${i}">${r.nombre}</option>`,
+      ).join('')}</select>
+    </div>
     <div class="pie">El panel de físicas sigue en F4.</div>
   `;
 
@@ -131,6 +226,17 @@ export function crearAjustes(contenedor: HTMLElement, audio: Audio): PanelAjuste
   const valor = panel.querySelector<HTMLElement>('#aj-vol-val')!;
   const mute = panel.querySelector<HTMLElement>('#aj-mute')!;
   const shake = panel.querySelector<HTMLElement>('#aj-shake')!;
+  const selZoom = panel.querySelector<HTMLSelectElement>('#aj-zoom')!;
+  const selOsc = panel.querySelector<HTMLSelectElement>('#aj-osc')!;
+  const selRes = panel.querySelector<HTMLSelectElement>('#aj-res')!;
+
+  function graficos(): Graficos {
+    return {
+      zoom: prefs.zoom,
+      dpr: RESOLUCIONES[prefs.resolucion]!.dpr,
+      oscuridad: OSCURIDADES[prefs.oscuridad]!.suelo,
+    };
+  }
 
   function pintar(): void {
     rango.value = String(Math.round(prefs.volumen * 100));
@@ -140,7 +246,30 @@ export function crearAjustes(contenedor: HTMLElement, audio: Audio): PanelAjuste
     shake.textContent = prefs.sacudida ? 'sí' : 'no';
     shake.classList.toggle('on', prefs.sacudida);
     boton.textContent = prefs.silenciado || prefs.volumen === 0 ? '🔇' : '⚙';
+    selZoom.value = String(prefs.zoom);
+    selOsc.value = String(prefs.oscuridad);
+    selRes.value = String(prefs.resolucion);
   }
+
+  /** Un cambio de gráficos: se guarda, se repinta y se avisa al render. */
+  function cambiarGraficos(): void {
+    guardar(prefs);
+    pintar();
+    alCambiarGraficos(graficos());
+  }
+
+  selZoom.addEventListener('change', () => {
+    prefs.zoom = Number(selZoom.value);
+    cambiarGraficos();
+  });
+  selOsc.addEventListener('change', () => {
+    prefs.oscuridad = Number(selOsc.value);
+    cambiarGraficos();
+  });
+  selRes.addEventListener('change', () => {
+    prefs.resolucion = Number(selRes.value);
+    cambiarGraficos();
+  });
 
   rango.addEventListener('input', () => {
     prefs.volumen = Number(rango.value) / 100;
@@ -180,6 +309,9 @@ export function crearAjustes(contenedor: HTMLElement, audio: Audio): PanelAjuste
     },
     get sacudidaActiva() {
       return prefs.sacudida;
+    },
+    get graficos() {
+      return graficos();
     },
   };
 }

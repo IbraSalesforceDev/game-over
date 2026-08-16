@@ -304,6 +304,64 @@ export function esBlando(id: number): boolean {
   return defTile(id).blando === true;
 }
 
+/**
+ * De qué suena hecho un bloque.
+ *
+ * No es lo mismo que su textura ni que su dureza: la grava se pinta con el
+ * grano de la piedra y se cava a paladas, pero suena a tierra. Es una tabla
+ * corta y aparte precisamente porque la agrupación que le va bien al oído no
+ * es ninguna de las que ya existen.
+ */
+export type MaterialSonido = 'piedra' | 'tierra' | 'madera' | 'metal' | 'planta' | 'vidrio';
+
+const MATERIAL_SONIDO: Readonly<Record<number, MaterialSonido>> = {
+  [TIERRA]: 'tierra',
+  [HIERBA]: 'tierra',
+  [HIERBA_JUNGLA]: 'tierra',
+  [BARRO]: 'tierra',
+  [ARENA]: 'tierra',
+  [NIEVE]: 'tierra',
+  [GRAVA]: 'tierra',
+  [TIERRA_LABRADA]: 'tierra',
+  [PIEDRA]: 'piedra',
+  [ARENISCA]: 'piedra',
+  [OBSIDIANA]: 'piedra',
+  [LADRILLO]: 'piedra',
+  [ALTAR]: 'piedra',
+  [MADERA]: 'madera',
+  [TRONCO]: 'madera',
+  [TRONCO_JUNGLA]: 'madera',
+  [TRONCO_ABEDUL]: 'madera',
+  [PLATAFORMA]: 'madera',
+  [MESA]: 'madera',
+  [COFRE]: 'madera',
+  [CAMA]: 'madera',
+  [CACTUS]: 'planta',
+  [HOJAS]: 'planta',
+  [HOJAS_JUNGLA]: 'planta',
+  [HOJAS_PINO]: 'planta',
+  [CANA]: 'planta',
+  [BROTE]: 'planta',
+  [COBRE]: 'metal',
+  [HIERRO]: 'metal',
+  [PLATA]: 'metal',
+  [ORO]: 'metal',
+  [YUNQUE]: 'metal',
+  [HORNO]: 'piedra',
+  [VIDRIO]: 'vidrio',
+  [HIELO]: 'vidrio',
+  [CRISTAL_VIDA]: 'vidrio',
+};
+
+/** Material sonoro de un tile. Lo que no está en la tabla suena a piedra. */
+export function materialDe(id: number): MaterialSonido {
+  const m = MATERIAL_SONIDO[id];
+  if (m) return m;
+  // Los cultivos son muchos ids seguidos y todos suenan igual; ponerlos uno a
+  // uno en la tabla sería ocho entradas para decir lo mismo.
+  return cultivoDe(id) !== null ? 'planta' : 'piedra';
+}
+
 /** Agarre del tile: multiplica la fricción del suelo. 1 si no dice nada. */
 export function agarreTile(id: number): number {
   return defTile(id).agarre ?? 1;

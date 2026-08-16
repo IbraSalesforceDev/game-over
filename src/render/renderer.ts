@@ -21,6 +21,7 @@ import {
   crearSprites,
   JUGADOR_OFF_X,
   JUGADOR_OFF_Y,
+  type ClaveArmadura,
   type Pose,
   type Sprites,
 } from './sprites';
@@ -60,6 +61,8 @@ export interface Escena {
   sumergido: number;
   /** Objeto que el jugador lleva en la mano, para dibujárselo. */
   enMano: number;
+  /** Armadura puesta: un color por hueco, en el orden de `HUECOS`. */
+  armadura: ClaveArmadura;
   /** Bioma donde está el jugador, para teñir las montañas del fondo. */
   bioma: BiomaFondo;
 }
@@ -84,6 +87,20 @@ export class Renderer {
   private animAvance = 0;
   private ultimoMs = 0;
 
+  /**
+   * Ajustes de gráficos, que vienen del panel de opciones.
+   *
+   * Viven como campos y no como parámetros del constructor porque se cambian
+   * en caliente: quien mueve el deslizador del zoom espera ver el efecto
+   * mientras lo mueve, no en la siguiente partida.
+   */
+  /** Zoom elegido a mano, o 0 para el adaptativo de siempre. */
+  private zoomFijo = 0;
+  /** Tope del devicePixelRatio. Bajarlo es jugar a menos resolución. */
+  private topeDpr = 2;
+  /** Suelo de luz: cuanto más bajo, más cerrada la oscuridad de las cuevas. */
+  private suelo = LUZ_MINIMA;
+
   constructor(private readonly lienzo: HTMLCanvasElement) {
     const ctx = lienzo.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Este navegador no soporta canvas 2D');
@@ -98,7 +115,7 @@ export class Renderer {
   redimensionar(): void {
     // Capamos el DPR: en pantallas 3x el coste se dispara sin ganancia visible
     // en un juego de pixel art.
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.dpr = Math.min(window.devicePixelRatio || 1, this.topeDpr);
     const w = Math.floor(this.lienzo.clientWidth * this.dpr);
     const h = Math.floor(this.lienzo.clientHeight * this.dpr);
     if (this.lienzo.width !== w || this.lienzo.height !== h) {
@@ -108,8 +125,26 @@ export class Renderer {
     this.ctx.imageSmoothingEnabled = false;
     // Zoom adaptativo: apuntamos a unos 44 tiles de ancho de vista, que es la
     // escala a la que se lee bien el terreno sin marearse.
-    this.camara.zoom = Math.min(4, Math.max(2, Math.round(w / (44 * TILE))));
+    this.camara.zoom =
+      this.zoomFijo > 0
+        ? this.zoomFijo
+        : Math.min(4, Math.max(2, Math.round(w / (44 * TILE))));
     this.camara.redimensionar(w, h);
+  }
+
+  /**
+   * Aplica los ajustes de gráficos y rehace lo que dependa de ellos.
+   *
+   * El tinte anterior se borra a mano: la imagen de luz solo se recalcula
+   * cuando cambia el tinte del reloj, así que sin esto cambiar la oscuridad no
+   * se notaría hasta el siguiente amanecer.
+   */
+  aplicarGraficos(op: { zoom: number; dpr: number; oscuridad: number }): void {
+    this.zoomFijo = op.zoom;
+    this.topeDpr = op.dpr;
+    this.suelo = op.oscuridad;
+    this.tinteAnterior = '';
+    this.redimensionar();
   }
 
   get anchoCanvas(): number {
@@ -268,7 +303,7 @@ export class Renderer {
       for (let i = 0; i < buf.length; i++) {
         // El suelo de luz se aplica aquí y no en el buffer para no ensuciar la
         // propagación: lo que se ilumina es el volcado a pantalla, no el cálculo.
-        const l = Math.max(LUZ_MINIMA, buf[i]!) / 255;
+        const l = Math.max(this.suelo, buf[i]!) / 255;
         const j = i * 4;
         datos[j] = r * l;
         datos[j + 1] = g * l;
@@ -368,6 +403,7 @@ export class Renderer {
     oy: number,
     sumergido: number,
     enMano: number,
+    armadura: ClaveArmadura,
   ): void {
     const { ctx, camara } = this;
     // Interpolación entre el tick anterior y el actual: el movimiento se ve
@@ -385,6 +421,7 @@ export class Renderer {
       ox + Math.round((wx + JUGADOR_OFF_X) * u),
       oy + Math.round((wy + JUGADOR_OFF_Y) * u),
       u,
+      armadura,
     );
 
     // Lo que se lleva en la mano se ve. Es la confirmación visual de que el
@@ -701,7 +738,7 @@ export class Renderer {
       const c = e.jugador.caja;
       this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy);
     }
-    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido, e.enMano);
+    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido, e.enMano, e.armadura);
     this.golpe(e.golpe, e.jugador, ox, oy);
     // Las partículas van delante de los cuerpos pero detrás del agua: los
     // cascotes que caen a un lago tienen que verse a través de él.

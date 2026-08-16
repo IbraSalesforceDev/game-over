@@ -85,7 +85,34 @@ interface Humanoide {
   mirada: 'normal' | 'muerta';
   /** Melena larga por detrás. */
   melena: boolean;
+  /** Piezas puestas, si lleva alguna. */
+  armadura?: Armadura;
 }
+
+/**
+ * La armadura que se ve puesta, hueco a hueco.
+ *
+ * Es un tono por hueco y nada más: ni forma ni material. La forma de cada
+ * pieza está fija —un casco es un casco— y lo único que cambia entre el cobre
+ * y el oro es el color, así que las cinco piezas de los cuatro metales salen
+ * de un solo juego de dibujos. Añadir un metal nuevo mañana es añadir un
+ * color, no veinte sprites.
+ */
+export interface Armadura {
+  cabeza: Tono | null;
+  torso: Tono | null;
+  piernas: Tono | null;
+  pies: Tono | null;
+  manos: Tono | null;
+}
+
+const SIN_ARMADURA: Armadura = {
+  cabeza: null,
+  torso: null,
+  piernas: null,
+  pies: null,
+  manos: null,
+};
 
 /**
  * Versión "al fondo" de un tono.
@@ -117,33 +144,59 @@ function dibujarHumanoide(
   const botaAtras = atras(h.bota);
   const pielAtras = atras(h.piel);
 
+  const arm = h.armadura ?? SIN_ARMADURA;
+  /** El tono de una pieza en el plano que toque, o null si no se lleva. */
+  const pieza = (t: Tono | null, delante: boolean): Tono | null =>
+    t === null ? null : delante ? t : atras(t);
+
   /** Una pierna completa: muslo, pantorrilla y bota. */
   const pierna = (dx: number, dy: number, delante: boolean): void => {
     const t = delante ? h.pantalon : pantalonAtras;
-    const b = delante ? h.bota : botaAtras;
+    const grebas = pieza(arm.piernas, delante);
+    const b = pieza(arm.pies, delante) ?? (delante ? h.bota : botaAtras);
     const px0 = cx + dx;
     // Todo en enteros: con medios píxeles, el bloque y su brillo redondean cada
     // uno por su lado y queda una raya suelta bajo la bota.
     const acorta = Math.round(Math.abs(dy) * 0.5);
     const py = y + 27 + acorta;
     const alto = 11 - acorta;
-    bloque(ctx, px0, py, 5, alto, t);
+    bloque(ctx, px0, py, 5, alto, grebas ?? t);
+    // Las grebas no tapan la pierna entera: se ve el pantalón por debajo. Una
+    // placa que llega hasta la bota deja la pierna como un tubo y se pierde el
+    // ciclo de paso, que es lo que da vida al sprite.
+    if (grebas) {
+      px(ctx, px0, py + alto - 3, 5, 3, t.base);
+      px(ctx, px0, py, 5, 1, grebas.claro);
+      px(ctx, px0 + 4, py + 1, 1, alto - 4, grebas.oscuro);
+    }
     // La bota se adelanta o se retrasa con la zancada, y siempre acaba a la
     // misma altura: es lo que hace que el paso parezca un paso y no un salto
     // en el sitio.
     bloque(ctx, px0 + dy, py + alto - 1, 6, 4, b);
+    // Las botas de metal llevan puntera: sin ella, una bota de plata se
+    // confunde con una bota de cuero muy iluminada.
+    if (arm.pies) px(ctx, px0 + dy, py + alto - 1, 6, 1, b.claro);
   };
 
   /** Un brazo: manga y mano. */
   const brazo = (dx: number, dy: number, delante: boolean): void => {
     const t = delante ? h.camisa : camisaAtras;
     const piel = delante ? h.piel : pielAtras;
+    const hombrera = pieza(arm.torso, delante);
+    const guante = pieza(arm.manos, delante);
     const px0 = cx + dx;
     const py = y + 16 + dy;
     bloque(ctx, px0, py, 4, 9, t);
+    // Hombrera: el peto también viste el hombro, que es lo que hace que se lea
+    // como una armadura y no como un peto de cartón colgado del pecho.
+    if (hombrera) {
+      bloque(ctx, px0 - 1, py - 1, 6, 5, hombrera);
+      px(ctx, px0 - 1, py - 1, 6, 1, hombrera.claro);
+    }
     // Puño más oscuro: separa la manga de la mano sin dibujar un dedo.
     px(ctx, px0, py + 8, 4, 1, t.oscuro);
-    bloque(ctx, px0, py + 9, 4, 4, piel);
+    bloque(ctx, px0, py + 9, 4, 4, guante ?? piel);
+    if (guante) px(ctx, px0, py + 9, 4, 1, guante.claro);
   };
 
   // --- Plano de atrás ---
@@ -158,6 +211,22 @@ function dibujarHumanoide(
   // Costado en sombra: un torso plano de trece píxeles de ancho se ve como un
   // cartel, y esta franja le da la vuelta al pecho.
   px(ctx, cx + 4, y + 15, 3, 12, mezclar(h.camisa.base, h.camisa.oscuro, 0.6));
+
+  // Peto, por encima de la camisa. Deja asomar el cuello y la cintura para que
+  // el torso no se convierta en un rectángulo liso de metal.
+  if (arm.torso) {
+    const p = arm.torso;
+    bloque(ctx, cx - 6, y + 15, 13, 12, p);
+    px(ctx, cx - 6, y + 15, 13, 1, p.claro);
+    px(ctx, cx + 4, y + 16, 3, 10, p.oscuro);
+    // Esternón: una arista vertical por el centro del pecho.
+    px(ctx, cx - 1, y + 16, 1, 10, p.claro);
+    // Remaches, tres por lado.
+    for (const ry of [17, 20, 23]) {
+      px(ctx, cx - 5, y + ry, 1, 1, p.oscuro);
+      px(ctx, cx + 2, y + ry, 1, 1, p.oscuro);
+    }
+  }
   // Cuello: dos píxeles de piel en sombra bajo la barbilla. Sin esto la cabeza
   // se apoya directamente en la camisa y parece atornillada.
   px(ctx, cx - 3, y + 13, 6, 2, h.piel.oscuro);
@@ -201,6 +270,27 @@ function dibujarHumanoide(
   // Brillo del pelo: sin él la mata se ve como un casco de plástico.
   px(ctx, cx - 5, y, 7, 1, h.pelo.claro);
   px(ctx, cx - 6, y + 1, 3, 1, h.pelo.claro);
+
+  // --- Casco, por encima del pelo ---
+  //
+  // Va después del pelo y antes del brazo delantero. Tapa la mata y las sienes
+  // pero deja la cara: un casco cerrado convierte al personaje en un muñeco sin
+  // expresión, y con veintiséis píxeles de ancho la cara es lo único que
+  // permite saber hacia dónde mira.
+  if (arm.cabeza) {
+    const c = arm.cabeza;
+    bloque(ctx, cx - 8, y - 2, 16, 8, c);
+    px(ctx, cx - 8, y - 2, 16, 1, c.claro);
+    // Carrilleras: bajan por delante de las orejas, a los dos lados.
+    bloque(ctx, cx - 8, y + 6, 3, 6, c);
+    bloque(ctx, cx + 5, y + 6, 3, 5, c);
+    // Nasal: la tira que baja por el centro entre los dos ojos.
+    px(ctx, cx - 2, y + 5, 2, 5, c.base);
+    px(ctx, cx - 2, y + 5, 1, 5, c.claro);
+    // Cimera: una cresta corta que le da altura a la silueta.
+    px(ctx, cx - 3, y - 4, 6, 2, c.oscuro);
+    px(ctx, cx - 3, y - 4, 6, 1, c.base);
+  }
 
   // --- Plano de delante ---
   // El brazo asoma un par de píxeles por fuera del torso: metido del todo se
@@ -271,9 +361,26 @@ function posturaJugador(pose: Pose, f: number): Partial<Humanoide> {
   }
 }
 
-function atlasJugador(): HTMLCanvasElement {
+/**
+ * Cómo se identifica un juego de armadura puesto: cinco colores o vacío, en el
+ * orden cabeza, torso, piernas, pies, manos. Es también la clave de la caché.
+ */
+export type ClaveArmadura = readonly (string | null)[];
+
+export const ARMADURA_DESNUDA: ClaveArmadura = [null, null, null, null, null];
+
+function armaduraDeClave(clave: ClaveArmadura): Armadura {
+  const t = (i: number): Tono | null => {
+    const color = clave[i];
+    return color ? tono(color, 30, 38) : null;
+  };
+  return { cabeza: t(0), torso: t(1), piernas: t(2), pies: t(3), manos: t(4) };
+}
+
+function atlasJugador(clave: ClaveArmadura = ARMADURA_DESNUDA): HTMLCanvasElement {
   const c = lienzo(JUGADOR_W * MAX_FRAMES, JUGADOR_H * POSES.length);
   const ctx = contexto(c);
+  const armadura = armaduraDeClave(clave);
 
   POSES.forEach((pose, fila) => {
     for (let f = 0; f < FRAMES[pose]; f++) {
@@ -292,6 +399,7 @@ function atlasJugador(): HTMLCanvasElement {
         brazoDelantero: [0, 0],
         brazoTrasero: [0, 0],
         bob: 0,
+        armadura,
         ...posturaJugador(pose, f),
       });
       contornear(ctx, ox, oy, JUGADOR_W, JUGADOR_H);
@@ -849,7 +957,10 @@ function atlasEnemigo(molde: Molde): HTMLCanvasElement {
 }
 
 export interface Sprites {
-  /** Pinta al jugador. `mirando` -1 voltea el sprite. */
+  /**
+   * Pinta al jugador. `mirando` -1 voltea el sprite y `armadura` dice qué
+   * lleva puesto: cinco colores o vacíos, en el orden de `HUECOS`.
+   */
   jugador(
     ctx: CanvasRenderingContext2D,
     pose: Pose,
@@ -858,6 +969,7 @@ export interface Sprites {
     sx: number,
     sy: number,
     escala: number,
+    armadura?: ClaveArmadura,
   ): void;
   enemigo(
     ctx: CanvasRenderingContext2D,
@@ -873,7 +985,27 @@ export interface Sprites {
 }
 
 export function crearSprites(): Sprites {
-  const jugador = atlasJugador();
+  /**
+   * Un atlas por juego de armadura, generado la primera vez que se ve.
+   *
+   * Precalcularlos todos serían 5⁵ = 3.125 atlas por si acaso; generarlos en
+   * cada frame sería repintar doscientos sprites sesenta veces por segundo.
+   * Con la caché se paga uno —medio milisegundo— cada vez que alguien se pone
+   * o se quita una pieza, y nada el resto del tiempo. Una partida normal no
+   * pasa de una docena de combinaciones.
+   */
+  const atlasPorArmadura = new Map<string, HTMLCanvasElement>();
+
+  function atlasDe(clave: ClaveArmadura): HTMLCanvasElement {
+    const k = clave.map((c) => c ?? '').join('|');
+    let atlas = atlasPorArmadura.get(k);
+    if (!atlas) {
+      atlas = atlasJugador(clave);
+      atlasPorArmadura.set(k, atlas);
+    }
+    return atlas;
+  }
+
   const enemigos = new Map<EspecieSprite, HTMLCanvasElement>();
   for (const especie of Object.keys(MOLDES) as EspecieSprite[]) {
     enemigos.set(especie, atlasEnemigo(MOLDES[especie]));
@@ -912,12 +1044,12 @@ export function crearSprites(): Sprites {
   }
 
   return {
-    jugador(ctx, pose, frame, mirando, sx, sy, escala) {
+    jugador(ctx, pose, frame, mirando, sx, sy, escala, armadura = ARMADURA_DESNUDA) {
       const fila = POSES.indexOf(pose);
       const f = ((frame % FRAMES[pose]) + FRAMES[pose]) % FRAMES[pose];
       copiar(
         ctx,
-        jugador,
+        atlasDe(armadura),
         f * JUGADOR_W,
         fila * JUGADOR_H,
         JUGADOR_W,

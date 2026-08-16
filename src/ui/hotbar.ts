@@ -1,4 +1,5 @@
 import { crearIconos, LADO_ICONO } from '../render/iconos';
+import { crearFicha } from './ficha';
 import { estaVacia, RANURAS_BARRA, TOTAL_RANURAS, type Inventario } from '../items/inventory';
 import { defObjeto, HUECOS, NADA, type Hueco } from '../items/items';
 import { cabeEnEquipo, defensaTotal } from '../items/equipado';
@@ -358,6 +359,30 @@ export function crearBarra(
     cursor.style.top = `${e.clientY}px`;
   });
 
+  // --- La ficha del objeto ---
+  //
+  // Un solo par de escuchas delegadas en toda la interfaz en vez de dos por
+  // ranura: hay sesenta ranuras entre mochila, cofre y equipo, y algunas se
+  // crean y se destruyen al abrir cofres.
+  const ficha = crearFicha(contenedor, iconos);
+
+  function anclaDe(destino: EventTarget | null): HTMLElement | null {
+    return destino instanceof HTMLElement ? destino.closest('[data-objeto]') : null;
+  }
+
+  contenedor.addEventListener('pointerover', (e) => {
+    const el = anclaDe(e.target);
+    const id = Number(el?.dataset.objeto ?? 0);
+    if (el && id > 0) ficha.mostrar(id, el);
+    else ficha.ocultar();
+  });
+  contenedor.addEventListener('pointerout', (e) => {
+    if (!anclaDe(e.relatedTarget)) ficha.ocultar();
+  });
+  // Al coger un objeto la ranura cambia de contenido bajo el ratón, y una
+  // ficha que se queda describiendo lo que ya no está confunde más que ayuda.
+  contenedor.addEventListener('pointerdown', () => ficha.ocultar());
+
   function pintarRanura(d: RanuraDom, inv: Inventario, i: number, activa: boolean): void {
     const r = inv.ranuras[i];
     const vacia = !r || estaVacia(r);
@@ -366,6 +391,11 @@ export function crearBarra(
     if (!vacia) iconos.pintarEn(d.icono, r!.objeto);
     d.cant.textContent = !vacia && r!.cantidad > 1 ? String(r!.cantidad) : '';
     d.raiz.classList.toggle('activa', activa);
+    // El objeto viaja en el propio nodo: la ficha se pinta con un solo
+    // listener delegado en la capa de interfaz, y así funciona igual en la
+    // mochila, en el cofre y en el equipo sin repetir escuchas por ranura.
+    if (vacia) delete d.raiz.dataset.objeto;
+    else d.raiz.dataset.objeto = String(r!.objeto);
     d.raiz.title = vacia ? '' : `${def.nombre} ×${r!.cantidad}`;
   }
 
@@ -387,6 +417,9 @@ export function crearBarra(
       const puede = sePuedeCraftear(inventario, receta, estaciones);
       const fila = document.createElement('div');
       fila.className = `receta${puede ? '' : ' no'}`;
+      // La ficha también sale sobre las recetas, y ahí es donde más falta
+      // hace: es el sitio donde se ven objetos que todavía no se tienen.
+      fila.dataset.objeto = String(receta.resultado);
 
       const muestra = document.createElement('canvas');
       muestra.className = 'muestra';

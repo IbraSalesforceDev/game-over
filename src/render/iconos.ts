@@ -1,4 +1,4 @@
-import { ANTORCHA, COFRE, defTile, HORNO, MESA, YUNQUE } from '../world/tiles';
+import { ANTORCHA, COFRE, defTile, HORNO, MESA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
 import {
   ARCO,
   CUBO,
@@ -13,9 +13,20 @@ import {
   esHerramienta,
   esMapa,
   esPala,
+  esSemilla,
+  BAYAS,
+  CARNE_ASADA,
+  CARNE_CRUDA,
   ESENCIA,
   FLECHA,
+  GEL,
+  HUESO,
+  PAN,
+  PAPEL,
+  PEDERNAL,
+  PLUMA,
   RELIQUIA,
+  TRIGO,
   huecoDe,
   type Hueco,
   IDS_OBJETO,
@@ -377,6 +388,164 @@ const esenciaIcono: Dibujo = (ctx, ox, oy, color) => {
   px(ctx, ox + 6, oy + 6, 1, 10, 'rgba(255,255,255,0.55)');
 };
 
+/**
+ * Los que hasta ahora eran "tres piedrecitas".
+ *
+ * `materialIcono` valía mientras los materiales eran cuatro minerales, pero el
+ * catálogo pasó de veinte objetos a ciento veintiocho y el resultado era un
+ * inventario en el que el hueso, la pluma, el trigo, el papel y el gel eran
+ * exactamente el mismo montoncito en cinco colores. Dar forma propia a lo que
+ * se recoge a menudo es lo que convierte la mochila en algo que se lee de un
+ * vistazo en vez de leerse ranura a ranura.
+ */
+
+/** Hueso: dos nudillos y una caña, en diagonal. */
+const huesoIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 20, 30);
+  for (let i = 0; i < 9; i++) px(ctx, ox + 6 + i, oy + 12 - i, 3, 3, t.base);
+  for (const [bx, by] of [
+    [4, 12],
+    [13, 3],
+  ] as const) {
+    elipse(ctx, ox + bx, oy + by + 1, 2.6, 2.6, t.base);
+    elipse(ctx, ox + bx + 2.5, oy + by + 3.5, 2.6, 2.6, t.base);
+    elipse(ctx, ox + bx, oy + by, 1.6, 1.6, t.claro);
+  }
+};
+
+/** Gel: una gota de gelatina con brillo y núcleo. */
+const gelIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 34, 40);
+  elipse(ctx, ox + 10, oy + 12, 7.5, 6, t.base);
+  elipse(ctx, ox + 10, oy + 10.5, 6, 4.5, t.claro);
+  // La punta de arriba es lo que la convierte en gota y no en canica.
+  px(ctx, ox + 9, oy + 3, 3, 4, t.base);
+  px(ctx, ox + 9, oy + 3, 1, 4, t.claro);
+  elipse(ctx, ox + 7.5, oy + 10, 1.8, 1.4, '#ffffff');
+  elipse(ctx, ox + 11, oy + 13, 2, 1.6, t.oscuro);
+};
+
+/** Pluma: raquis y barbas, curvada. */
+const plumaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 18, 34);
+  for (let i = 0; i < 15; i++) {
+    px(ctx, ox + 4 + Math.round(i * 0.7), oy + 17 - i, 1, 1, t.oscuro);
+  }
+  for (let i = 2; i < 13; i++) {
+    const x = ox + 4 + Math.round(i * 0.7);
+    const ancho = Math.round(4 - Math.abs(i - 7) * 0.35);
+    px(ctx, x - ancho, oy + 17 - i, ancho, 1, t.base);
+    px(ctx, x - ancho, oy + 17 - i, 1, 1, t.claro);
+  }
+};
+
+/** Trigo: un tallo con la espiga en dos hileras de granos. */
+const trigoIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 26, 36);
+  px(ctx, ox + 9, oy + 9, 2, 10, t.oscuro);
+  for (let i = 0; i < 5; i++) {
+    const y = oy + 3 + i * 2;
+    px(ctx, ox + 6, y, 3, 2, t.base);
+    px(ctx, ox + 11, y + 1, 3, 2, t.base);
+    px(ctx, ox + 6, y, 3, 1, t.claro);
+  }
+  px(ctx, ox + 9, oy + 1, 2, 3, t.claro);
+};
+
+/** Papel: una hoja con renglones y la esquina doblada. */
+const papelIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 14, 26);
+  bloque(ctx, ox + 4, oy + 2, 12, 16, t);
+  px(ctx, ox + 4, oy + 2, 12, 1, t.claro);
+  for (const y of [6, 9, 12, 15]) px(ctx, ox + 6, oy + y, 8, 1, t.oscuro);
+  // Esquina doblada: sin ella, es un rectángulo blanco.
+  px(ctx, ox + 12, oy + 2, 4, 4, t.oscuro);
+  px(ctx, ox + 13, oy + 2, 3, 3, t.claro);
+};
+
+/** Semillas: tres pepitas con un brote asomando. */
+const semillaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 26, 34);
+  for (const [sx, sy] of [
+    [5, 12],
+    [10, 14],
+    [13, 10],
+  ] as const) {
+    elipse(ctx, ox + sx, oy + sy, 2.6, 3.4, t.base);
+    px(ctx, ox + sx - 1, oy + sy - 2, 1, 2, t.claro);
+  }
+  px(ctx, ox + 10, oy + 4, 1, 5, '#5aa03a');
+  px(ctx, ox + 7, oy + 3, 3, 2, '#6fbf46');
+  px(ctx, ox + 11, oy + 2, 3, 2, '#6fbf46');
+};
+
+/** Pedernal: una lasca angulosa con el filo iluminado. */
+const pedernalIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 30, 38);
+  ctx.fillStyle = t.base;
+  ctx.beginPath();
+  ctx.moveTo(ox + 4, oy + 13);
+  ctx.lineTo(ox + 9, oy + 3);
+  ctx.lineTo(ox + 16, oy + 8);
+  ctx.lineTo(ox + 12, oy + 17);
+  ctx.closePath();
+  ctx.fill();
+  px(ctx, ox + 8, oy + 4, 5, 1, t.claro);
+  px(ctx, ox + 5, oy + 12, 5, 1, t.oscuro);
+  px(ctx, ox + 10, oy + 7, 2, 6, t.claro);
+};
+
+/** Carne: un muslo con su hueso asomando. */
+const carneIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 26, 34);
+  elipse(ctx, ox + 8, oy + 12, 6, 6, t.base);
+  elipse(ctx, ox + 6.5, oy + 10.5, 3.5, 3, t.claro);
+  for (let i = 0; i < 6; i++) px(ctx, ox + 11 + i, oy + 8 - i, 2, 2, '#e8e2d0');
+  px(ctx, ox + 15, oy + 2, 3, 2, '#f4f0e4');
+  px(ctx, ox + 17, oy + 4, 2, 3, '#f4f0e4');
+};
+
+/** Pan: una hogaza con tres cortes en la corteza. */
+const panIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 24, 34);
+  elipse(ctx, ox + 10, oy + 12, 8, 5.5, t.base);
+  elipse(ctx, ox + 10, oy + 10.5, 7, 4, t.claro);
+  for (const dx of [-4, 0, 4]) {
+    px(ctx, ox + 9 + dx, oy + 8, 3, 1, t.oscuro);
+    px(ctx, ox + 8 + dx, oy + 9, 3, 1, t.oscuro);
+  }
+  px(ctx, ox + 3, oy + 15, 14, 1, mezclar(t.oscuro, '#000000', 0.35));
+};
+
+/** Bayas: un racimo de tres con su hojita. */
+const bayasIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 30, 38);
+  for (const [bx, by, r] of [
+    [7, 13, 4],
+    [13, 12, 3.4],
+    [10, 8, 3.2],
+  ] as const) {
+    elipse(ctx, ox + bx, oy + by, r, r, t.base);
+    elipse(ctx, ox + bx - r * 0.35, oy + by - r * 0.35, r * 0.35, r * 0.3, t.claro);
+  }
+  px(ctx, ox + 10, oy + 3, 1, 3, '#4f7a2a');
+  px(ctx, ox + 11, oy + 2, 4, 2, '#6aa83a');
+};
+
+/** Zanahoria: cono naranja con anillos y hojas arriba. */
+const zanahoriaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 28, 36);
+  for (let i = 0; i < 13; i++) {
+    const ancho = Math.max(1, Math.round(7 - i * 0.5));
+    px(ctx, ox + 10 - Math.ceil(ancho / 2), oy + 6 + i, ancho, 1, t.base);
+  }
+  for (const y of [8, 11, 14]) px(ctx, ox + 7, oy + y, 5, 1, t.oscuro);
+  px(ctx, ox + 8, oy + 7, 1, 9, t.claro);
+  px(ctx, ox + 9, oy + 2, 2, 4, '#4f8a2a');
+  px(ctx, ox + 6, oy + 1, 3, 3, '#6ab040');
+  px(ctx, ox + 12, oy + 1, 3, 3, '#6ab040');
+};
+
 /** Elige el dibujo que le toca a cada objeto. */
 function dibujoDe(id: number): Dibujo {
   if (id === ANTORCHA) return antorchaIcono;
@@ -389,6 +558,17 @@ function dibujoDe(id: number): Dibujo {
   if (esBrujula(id)) return brujulaIcono;
   if (id === RELIQUIA) return reliquiaIcono;
   if (id === ESENCIA) return esenciaIcono;
+  if (id === HUESO) return huesoIcono;
+  if (id === GEL) return gelIcono;
+  if (id === PLUMA) return plumaIcono;
+  if (id === TRIGO) return trigoIcono;
+  if (id === PAPEL) return papelIcono;
+  if (id === PEDERNAL) return pedernalIcono;
+  if (esSemilla(id)) return semillaIcono;
+  if (id === CARNE_CRUDA || id === CARNE_ASADA) return carneIcono;
+  if (id === PAN) return panIcono;
+  if (id === BAYAS) return bayasIcono;
+  if (id === ZANAHORIA_3) return zanahoriaIcono;
   const hueco = huecoDe(id);
   if (hueco) return ICONOS_ARMADURA[hueco];
   if (esPala(id)) return palaIcono;
