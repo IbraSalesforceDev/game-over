@@ -29,6 +29,14 @@ export const HIELO = 21;
 export const CRISTAL_VIDA = 22;
 export const TIERRA_LABRADA = 23;
 export const CANA = 24;
+// Bloque 3: selva, taiga, un segundo árbol de bosque y grava.
+export const BARRO = 25;
+export const HIERBA_JUNGLA = 26;
+export const TRONCO_JUNGLA = 27;
+export const HOJAS_JUNGLA = 28;
+export const TRONCO_ABEDUL = 29;
+export const HOJAS_PINO = 30;
+export const GRAVA = 31;
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
 export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
@@ -37,7 +45,12 @@ export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
 export const MINERALES = [COBRE, HIERRO, PLATA, ORO] as const;
 
 /** Suelos de superficie de cada bioma; se usan para vestir el terreno. */
-export const SUELOS_BIOMA = [HIERBA, ARENA, NIEVE] as const;
+export const SUELOS_BIOMA = [HIERBA, ARENA, NIEVE, HIERBA_JUNGLA] as const;
+
+/** Todo lo que es tronco, de cualquier árbol. */
+export const TRONCOS = [TRONCO, TRONCO_JUNGLA, TRONCO_ABEDUL] as const;
+/** Todo lo que es copa, de cualquier árbol. */
+export const COPAS = [HOJAS, HOJAS_JUNGLA, HOJAS_PINO] as const;
 
 export interface DefTile {
   readonly nombre: string;
@@ -152,6 +165,17 @@ export const TILES: readonly DefTile[] = [
     dureza: 6,
     color: '#8fc44a',
   },
+  // --- Selva, taiga, abedul y grava --------------------------------------
+  // El barro es la tierra de la selva: más oscura y más blanda, para que al
+  // cavar se note que se está en otro sitio antes incluso de mirar el cielo.
+  { nombre: 'barro', solido: true, plataforma: false, dureza: 16, color: '#4a3524', blando: true },
+  { nombre: 'hierba de selva', solido: true, plataforma: false, dureza: 18, color: '#2f7a2a', blando: true },
+  { nombre: 'tronco de selva', solido: false, plataforma: false, dureza: 34, color: '#4a3a22' },
+  { nombre: 'hojas de selva', solido: false, plataforma: false, dureza: 8, color: '#2b6b28' },
+  { nombre: 'tronco de abedul', solido: false, plataforma: false, dureza: 24, color: '#d8d2c4' },
+  { nombre: 'hojas de pino', solido: false, plataforma: false, dureza: 8, color: '#2c5c3e' },
+  // La grava se desmorona a paladas y es de donde saldrá el pedernal.
+  { nombre: 'grava', solido: true, plataforma: false, dureza: 22, color: '#7b7772', blando: true },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */

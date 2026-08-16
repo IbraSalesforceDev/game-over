@@ -4,9 +4,17 @@ import {
   AIRE,
   ANTORCHA,
   ARENISCA,
+  BARRO,
   CACTUS,
+  CANA,
   COBRE,
   CRISTAL_VIDA,
+  GRAVA,
+  HIERBA_JUNGLA,
+  HOJAS_JUNGLA,
+  HOJAS_PINO,
+  TRONCO_ABEDUL,
+  TRONCO_JUNGLA,
   TIERRA_LABRADA,
   HIELO,
   HIERBA,
@@ -111,13 +119,23 @@ function texturaDe(id: number): Textura {
       return 'piedra';
     case MADERA:
     case TRONCO:
+    case TRONCO_JUNGLA:
+    case TRONCO_ABEDUL:
     case MESA:
       return 'madera';
     // La labrada usa el mismo grano que la tierra; lo que la distingue son los
     // surcos que se le pintan encima.
     case TIERRA_LABRADA:
+    case BARRO:
+    case HIERBA_JUNGLA:
       return 'tierra';
+    // La grava es roca partida: el grano de la piedra le va mejor que el de la
+    // tierra, aunque se cave a paladas.
+    case GRAVA:
+      return 'piedra';
     case HOJAS:
+    case HOJAS_JUNGLA:
+    case HOJAS_PINO:
     case CACTUS:
       return 'hojas';
     case COBRE:
@@ -384,6 +402,35 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillRect(ox, oy, TILE, 1);
       ctx.fillStyle = css(rgb(plat.color, -40));
       ctx.fillRect(ox, oy + 4, TILE, 1);
+    }
+  }
+
+  // Caña de azúcar: un tallo estrecho con nudos, no un bloque. Con la textura
+  // de tierra en verde claro, un cañaveral se veía como un muro de césped
+  // flotando en la orilla.
+  ctx.clearRect(0, CANA * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (CANA * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      // El tallo se desplaza un píxel según la variante: una hilera de cañas
+      // perfectamente alineadas se ve como una reja.
+      const x = ox + 6 + (v % 3);
+      ctx.fillStyle = '#6ea832';
+      ctx.fillRect(x, oy, 4, TILE);
+      ctx.fillStyle = '#a2d858';
+      ctx.fillRect(x, oy, 1, TILE);
+      ctx.fillStyle = '#4c7a22';
+      ctx.fillRect(x + 3, oy, 1, TILE);
+      // Nudos: dos rayas horizontales por tile.
+      ctx.fillStyle = '#3d6419';
+      ctx.fillRect(x, oy + 4 + (v % 2), 4, 1);
+      ctx.fillRect(x, oy + 11, 4, 1);
+      // Una hoja saliendo a un lado, alternando.
+      ctx.fillStyle = '#88c445';
+      const lado = v % 2 === 0 ? x - 3 : x + 4;
+      ctx.fillRect(lado, oy + 6, 3, 1);
+      ctx.fillRect(lado + (v % 2 === 0 ? 0 : 2), oy + 7, 1, 1);
     }
   }
 

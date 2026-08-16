@@ -181,10 +181,11 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
   vida ✅ (guardado v9), armadura de cobre, hierro, plata y oro ✅ (guardado
   v10), arco y flechas ✅, pala y azada ✅, caña → papel → mapa ampliable con la
   tecla M ✅. **Bloque cerrado.**
-- **Bloque 3 — Mundo** · tamaños de mundo de pequeño a enorme ✅; pendiente:
-  selva junto al agua, mares pequeños con fondo de arena, montañas de piedra,
-  bosques en grupos, taiga solo en la nieve, un segundo árbol de bosque,
-  minerales por bioma, grava, menos lagos, fondos teñidos por bioma.
+- **Bloque 3 — Mundo** · tamaños de mundo de pequeño a enorme ✅, selva junto al
+  agua ✅, mares con fondo de arena ✅, montañas de piedra con la roca a la vista
+  ✅, taiga solo en la nieve ✅, abedul como segundo árbol de bosque ✅, minerales
+  por bioma ✅, grava ✅, menos lagos ✅, fondos teñidos por bioma ✅. **Bloque
+  cerrado.**
 - **Bloque 4 — Cultivo y vida** · camas para pasar la noche, semillas, trigo,
   zanahorias, brotes de las hojas, vidrio de la arena, plumas, pedernal. (La
   caña, el papel y el mapa se adelantaron al bloque 2.)

@@ -5,7 +5,15 @@ import {
   hayHostiles,
   type NivelDificultad,
 } from '../core/dificultad';
-import { ARENA, ARENISCA, esSolido, HIELO, NIEVE } from '../world/tiles';
+import {
+  ARENA,
+  ARENISCA,
+  BARRO,
+  esSolido,
+  HIELO,
+  HIERBA_JUNGLA,
+  NIEVE,
+} from '../world/tiles';
 import type { Mundo } from '../world/world';
 import { crearEnemigo, ENEMIGOS, type Enemigo, type Especie } from './enemies';
 import type { Caja } from './physics';
@@ -49,7 +57,7 @@ export const UMBRAL_LUZ_HOSTIL = 90;
  */
 export const FUERZA_DIURNA = 0.6;
 
-export type BiomaLocal = 'bosque' | 'desierto' | 'nieve';
+export type BiomaLocal = 'bosque' | 'desierto' | 'nieve' | 'jungla';
 
 export interface ContextoAparicion {
   /** Es de noche en el mundo. */
@@ -87,6 +95,7 @@ export function biomaEn(mundo: Mundo, tx: number, ty: number): BiomaLocal {
     const id = mundo.getTile(tx, ty + d);
     if (id === ARENA || id === ARENISCA) return 'desierto';
     if (id === NIEVE || id === HIELO) return 'nieve';
+    if (id === HIERBA_JUNGLA || id === BARRO) return 'jungla';
     if (esSolido(id)) return 'bosque';
   }
   return 'bosque';
@@ -123,6 +132,13 @@ function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] 
   }
   if (ctx.bioma === 'nieve') {
     return ctx.esNoche ? ['lobo', 'zombi'] : ['conejo', 'conejo', 'slime'];
+  }
+  // La selva está viva a todas horas: es lo que la hace incómoda de cruzar.
+  // Hay caza —jabalíes— pero también serpientes de día y zombis de noche.
+  if (ctx.bioma === 'jungla') {
+    return ctx.esNoche
+      ? ['zombi', 'zombi', 'serpiente', 'slime']
+      : ['jabali', 'serpiente', 'slime'];
   }
 
   if (ctx.esNoche) return ['zombi', 'slime'];

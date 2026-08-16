@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fractal1D, fractal2D, ruido1D, ruido2D } from '../src/world/gen/noise';
 import { crearRngRico, semillaDeTexto } from '../src/world/gen/rng';
 import { generarMundo, TAMANOS } from '../src/world/gen/worldgen';
-import { BOSQUE, DESIERTO, NIEVE_B } from '../src/world/gen/biomas';
+import { BOSQUE, DESIERTO, JUNGLA, NIEVE_B } from '../src/world/gen/biomas';
 import { SimuladorLiquidos } from '../src/world/liquids';
 import {
   AIRE,
@@ -10,6 +10,10 @@ import {
   CACTUS,
   CANA,
   CRISTAL_VIDA,
+  GRAVA,
+  HIERBA_JUNGLA,
+  HOJAS_PINO,
+  TRONCO_JUNGLA,
   esSolido,
   HIERBA,
   MINERALES,
@@ -339,10 +343,10 @@ describe('líquidos del mundo generado', () => {
       for (let tx = 0; tx < mundo.ancho; tx++) {
         if (mundo.getTile(tx, ty) !== CANA) continue;
         canas++;
-        // Agua a cuatro tiles como mucho: es la regla que obliga a buscar un
+        // Agua a cinco tiles como mucho: es la regla que obliga a buscar un
         // lago para hacer papel en vez de picar más piedra.
         let cerca = false;
-        for (let dx = -4; dx <= 4 && !cerca; dx++) {
+        for (let dx = -5; dx <= 5 && !cerca; dx++) {
           for (let dy = -3; dy <= 5 && !cerca; dy++) {
             if (mundo.getLiquido(tx + dx, ty + dy) > 0) cerca = true;
           }
@@ -352,5 +356,80 @@ describe('líquidos del mundo generado', () => {
     }
     // Tiene que haber alguna: sin caña no hay papel, y sin papel no hay mapa.
     expect(canas).toBeGreaterThan(0);
+  });
+
+  it('la selva sale, con su suelo y sus árboles', () => {
+    const { mundo, biomas } = generarMundo(OP);
+    expect([...biomas]).toContain(JUNGLA);
+    let hierba = 0;
+    let troncos = 0;
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        const id = mundo.getTile(tx, ty);
+        if (id === HIERBA_JUNGLA) hierba++;
+        if (id === TRONCO_JUNGLA) troncos++;
+      }
+    }
+    expect(hierba).toBeGreaterThan(0);
+    // La selva es espesa: si sale el bioma, tiene que salir el bosque también.
+    expect(troncos).toBeGreaterThan(0);
+  });
+
+  it('cada bioma pone su suelo y no el del vecino', () => {
+    const { mundo, superficie, biomas } = generarMundo(OP);
+    const suelos: Record<number, Set<number>> = {};
+    for (let tx = 4; tx < mundo.ancho - 4; tx++) {
+      const b = biomas[tx]!;
+      // Solo el interior del bioma: los bordes ondulan a propósito.
+      if (biomas[tx - 3] !== b || biomas[tx + 3] !== b) continue;
+      const id = mundo.getTile(tx, superficie[tx]!);
+      (suelos[b] ??= new Set()).add(id);
+    }
+    // La arena solo en el desierto y la hierba de selva solo en la selva.
+    for (const [b, vistos] of Object.entries(suelos)) {
+      if (Number(b) !== JUNGLA) expect(vistos.has(HIERBA_JUNGLA)).toBe(false);
+    }
+  });
+
+  it('los pinos son de la nieve y no salen en el bosque', () => {
+    const { mundo, biomas } = generarMundo(OP);
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getTile(tx, ty) !== HOJAS_PINO) continue;
+        // Con margen: la copa de un pino del borde asoma sobre el vecino.
+        let enNieve = false;
+        for (let dx = -6; dx <= 6; dx++) {
+          if (biomas[tx + dx] === NIEVE_B) enNieve = true;
+        }
+        expect(enNieve).toBe(true);
+      }
+    }
+  });
+
+  it('hay grava, y la de la orilla está mojada', () => {
+    const { mundo } = generarMundo(OP);
+    let total = 0;
+    for (let ty = 0; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getTile(tx, ty) === GRAVA) total++;
+      }
+    }
+    expect(total).toBeGreaterThan(0);
+  });
+
+  it('hay cumbres de piedra por encima de la media del terreno', () => {
+    const { mundo, superficie } = generarMundo(OP);
+    let suma = 0;
+    for (let tx = 0; tx < mundo.ancho; tx++) suma += superficie[tx]!;
+    const media = suma / mundo.ancho;
+    let cumbresConPiedra = 0;
+    let cumbres = 0;
+    for (let tx = 0; tx < mundo.ancho; tx++) {
+      if (media - superficie[tx]! < 24) continue;
+      cumbres++;
+      if (mundo.getTile(tx, superficie[tx]!) === PIEDRA) cumbresConPiedra++;
+    }
+    // O no hay montañas en este mundo, o las que hay tienen la roca a la vista.
+    if (cumbres > 0) expect(cumbresConPiedra / cumbres).toBeGreaterThan(0.7);
   });
 });

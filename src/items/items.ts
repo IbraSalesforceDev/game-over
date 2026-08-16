@@ -18,7 +18,14 @@ import {
   PIEDRA,
   PLATA,
   PLATAFORMA,
+  BARRO,
   CANA,
+  GRAVA,
+  HIERBA_JUNGLA,
+  HOJAS_JUNGLA,
+  HOJAS_PINO,
+  TRONCO_ABEDUL,
+  TRONCO_JUNGLA,
   TIERRA,
   TIERRA_LABRADA,
   TILES,
@@ -317,6 +324,13 @@ const ENTRADAS: [number, DefObjeto][] = [
   deTile(NIEVE),
   deTile(HIELO),
   deTile(CANA),
+  deTile(BARRO),
+  deTile(HIERBA_JUNGLA),
+  deTile(TRONCO_JUNGLA),
+  deTile(HOJAS_JUNGLA),
+  deTile(TRONCO_ABEDUL),
+  deTile(HOJAS_PINO),
+  deTile(GRAVA),
   // Los cubos no se apilan: llevar diez cubos de agua sería llevar un lago en
   // el bolsillo, y el viaje de ida y vuelta hasta el líquido es justo lo que
   // hace que mover agua cueste algo.
@@ -523,9 +537,19 @@ export function dropDeTile(tile: number): number {
       return TIERRA;
     case HIERBA:
       return TIERRA;
+    // La selva tiene su propio suelo: al romper su hierba sale barro, no tierra.
+    case HIERBA_JUNGLA:
+      return BARRO;
+    // Los tres árboles dan la misma madera. Cambian de aspecto, no de material:
+    // partir el árbol de recetas en tres solo obligaría a talar tres bosques
+    // para fabricar lo mismo.
     case TRONCO:
+    case TRONCO_JUNGLA:
+    case TRONCO_ABEDUL:
       return MADERA;
     case HOJAS:
+    case HOJAS_JUNGLA:
+    case HOJAS_PINO:
       return NADA;
     // El cactus se lleva como madera del desierto: sirve para lo mismo.
     case CACTUS:

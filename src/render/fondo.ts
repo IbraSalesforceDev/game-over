@@ -140,6 +140,23 @@ function tiraNubes(semilla: number): HTMLCanvasElement {
   return c;
 }
 
+/** Biomas que el fondo distingue. Es el mismo nombre que usa el generador. */
+export type BiomaFondo = 'bosque' | 'desierto' | 'nieve' | 'jungla';
+
+/**
+ * Color y fuerza con la que cada bioma tiñe las cordilleras.
+ *
+ * Suave a propósito: el fondo no puede competir con el terreno. Lo que se busca
+ * es que al entrar en el desierto el horizonte se vuelva cálido sin que nadie
+ * sepa decir exactamente qué ha cambiado.
+ */
+const TINTE_BIOMA: Record<BiomaFondo, readonly [string, number]> = {
+  bosque: ['#54708f', 0],
+  desierto: ['#c9a163', 0.45],
+  nieve: ['#dbe8f5', 0.42],
+  jungla: ['#2f6b4a', 0.4],
+};
+
 export class Fondo {
   private readonly capas: Capa[];
   private readonly nubes: HTMLCanvasElement;
@@ -186,6 +203,7 @@ export class Fondo {
     alto: number,
     escala: number,
     ms: number,
+    bioma: BiomaFondo = 'bosque',
   ): void {
     const luz = reloj.luzSolar / 255;
     // De noche el fondo casi desaparece: las montañas se funden con el cielo,
@@ -211,7 +229,13 @@ export class Fondo {
     for (const capa of this.capas) {
       // La bruma de la distancia: cuanto más lejos está la capa, más se mezcla
       // su color con el del cielo. Es niebla atmosférica sin niebla de verdad.
-      const color = mezclar(capa.color, cielo, 0.42 - capa.parallax);
+      // Además de la bruma, el tinte del bioma: las montañas del desierto
+      // tiran a ocre y las de la nieve a azul pálido. Es lo que hace que se
+      // note el cambio de bioma antes de mirar al suelo — y como se aplica al
+      // color y no al lienzo, no cuesta un repintado más.
+      const [tinte, fuerza] = TINTE_BIOMA[bioma];
+      const conBioma = mezclar(capa.color, tinte, fuerza);
+      const color = mezclar(conBioma, cielo, 0.42 - capa.parallax);
       if (color !== capa.colorTenido) {
         tenir(capa.tenida, capa.tira, color);
         capa.colorTenido = color;

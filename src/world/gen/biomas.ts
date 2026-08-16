@@ -12,11 +12,17 @@ import type { Rng } from './rng';
  * El centro del mundo se reserva al bosque porque ahí es donde aparece el
  * jugador: empezar la partida en la lava del desierto o tiritando en la nieve
  * sería empezarla peor.
+ *
+ * Las franjas se reparten en dos lados y se colocan hacia fuera desde el
+ * centro. Cada lado lleva las suyas en fila, así que ir del bosque a la selva
+ * puede obligar a cruzar el desierto entero: es lo que convierte el mapa en un
+ * recorrido y no en un muestrario.
  */
 
 export const BOSQUE = 0;
 export const DESIERTO = 1;
 export const NIEVE_B = 2;
+export const JUNGLA = 3;
 
 export type MapaBiomas = Uint8Array;
 
@@ -27,32 +33,39 @@ export function generarBiomas(ancho: number, semilla: number, rng: Rng): MapaBio
   const mapa = new Uint8Array(ancho);
   const centro = ancho / 2;
 
-  // Uno a cada lado, cara o cruz: así el mundo nunca tiene los dos biomas
-  // pegados y siempre hay que cruzar el bosque para ir de uno a otro.
+  // El desierto y la nieve, uno a cada lado: así el mundo nunca los tiene
+  // pegados y siempre hay que cruzar el bosque para ir de uno a otro. La selva
+  // cae en el lado que le toque, por detrás del que ya esté ahí.
   const desiertoIzquierda = rng.suerte(0.5);
-  const bandas = [
-    { tipo: DESIERTO, izquierda: desiertoIzquierda },
-    { tipo: NIEVE_B, izquierda: !desiertoIzquierda },
-  ];
+  const junglaIzquierda = rng.suerte(0.5);
+  const lados: Record<'izq' | 'der', number[]> = { izq: [], der: [] };
+  lados[desiertoIzquierda ? 'izq' : 'der'].push(DESIERTO);
+  lados[desiertoIzquierda ? 'der' : 'izq'].push(NIEVE_B);
+  lados[junglaIzquierda ? 'izq' : 'der'].push(JUNGLA);
 
-  for (const banda of bandas) {
-    const anchoBanda = Math.floor(ancho * rng.rango(0.13, 0.2));
-    const margen = Math.floor(ancho * 0.04);
-    const libre = centro * (1 - RESERVA_CENTRO * 2) - anchoBanda - margen;
-    const desplazamiento = rng.rango(0, Math.max(0, libre));
-    const borde = centro * RESERVA_CENTRO * 2 + desplazamiento;
-    const inicio = banda.izquierda
-      ? Math.floor(centro - borde - anchoBanda)
-      : Math.floor(centro + borde);
+  for (const [lado, tipos] of Object.entries(lados) as ['izq' | 'der', number[]][]) {
+    const izquierda = lado === 'izq';
+    // Se avanza hacia fuera: cada franja empieza donde acabó la anterior más un
+    // trecho de bosque, para que nunca queden dos biomas pegados.
+    let borde = centro * RESERVA_CENTRO * 2;
+    for (const tipo of tipos) {
+      const anchoBanda = Math.floor(ancho * rng.rango(0.1, 0.16));
+      const hueco = Math.floor(ancho * rng.rango(0.02, 0.05));
+      borde += hueco;
+      const inicio = izquierda
+        ? Math.floor(centro - borde - anchoBanda)
+        : Math.floor(centro + borde);
+      borde += anchoBanda;
 
-    for (let tx = 0; tx < anchoBanda; tx++) {
-      // El borde se desdibuja con ruido: los últimos tiles de arena se meten
-      // entre la hierba y al revés.
-      const x = inicio + tx;
-      if (x < 2 || x >= ancho - 2) continue;
-      const dentro = Math.min(tx, anchoBanda - 1 - tx);
-      const ondulacion = (ruido1D(x / 11, semilla + banda.tipo * 131) - 0.5) * 14;
-      if (dentro + ondulacion > 0) mapa[x] = banda.tipo;
+      for (let tx = 0; tx < anchoBanda; tx++) {
+        // El borde se desdibuja con ruido: los últimos tiles de arena se meten
+        // entre la hierba y al revés.
+        const x = inicio + tx;
+        if (x < 2 || x >= ancho - 2) continue;
+        const dentro = Math.min(tx, anchoBanda - 1 - tx);
+        const ondulacion = (ruido1D(x / 11, semilla + tipo * 131) - 0.5) * 14;
+        if (dentro + ondulacion > 0) mapa[x] = tipo;
+      }
     }
   }
 

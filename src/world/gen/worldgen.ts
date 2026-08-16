@@ -2,12 +2,17 @@ import {
   AIRE,
   ARENA,
   ARENISCA,
+  BARRO,
   CACTUS,
   CANA,
   COBRE,
   CRISTAL_VIDA,
   HIELO,
   HIERBA,
+  HIERBA_JUNGLA,
+  HOJAS_JUNGLA,
+  HOJAS_PINO,
+  GRAVA,
   HIERRO,
   HOJAS,
   NIEVE,
@@ -16,6 +21,8 @@ import {
   PLATA,
   TIERRA,
   TRONCO,
+  TRONCO_ABEDUL,
+  TRONCO_JUNGLA,
 } from '../tiles';
 import { esSolido } from '../tiles';
 import { Mundo } from '../world';
@@ -24,6 +31,7 @@ import {
   DESIERTO,
   distanciaAlBorde,
   generarBiomas,
+  JUNGLA,
   NIEVE_B,
   type MapaBiomas,
 } from './biomas';
@@ -130,6 +138,7 @@ export function* generarMundoPasos(
   // El desierto es una hondonada y la nieve una meseta: hundir y levantar el
   // relieve por bioma hace que se noten desde lejos, antes de pisarlos.
   suavizarRelievePorBioma(superficie, biomas);
+  levantarMontanas(superficie, biomas, rng);
   rellenarCapas(mundo, superficie, biomas, c, semilla);
 
   // --- 2. Cuevas ----------------------------------------------------------
@@ -142,9 +151,11 @@ export function* generarMundoPasos(
   yield { pct: 60, texto: 'Abriendo galerías…' };
   cavarGusanos(mundo, superficie, c, rng);
 
+  pelarCumbres(mundo, superficie, biomas);
+
   // --- 3. Minerales -------------------------------------------------------
   yield { pct: 72, texto: 'Sembrando minerales…' };
-  sembrarMinerales(mundo, superficie, c, rng);
+  sembrarMinerales(mundo, superficie, c, rng, biomas);
   sembrarCristales(mundo, superficie, c, rng);
 
   // --- 4. Líquidos --------------------------------------------------------
@@ -153,6 +164,9 @@ export function* generarMundoPasos(
   // la hierba y los árboles tienen que ver el terreno ya con su orilla.
   yield { pct: 80, texto: 'Llenando lagos y coladas…' };
   llenarLiquidos(mundo, superficie, biomas, c, rng);
+  // Después del agua, no antes: la mitad de la grava va en el fondo de los
+  // lagos y los mares, y antes de llenarlos no hay fondo que forrar.
+  sembrarGrava(mundo, superficie, c, rng, biomas);
 
   // --- 5. Superficie ------------------------------------------------------
   yield { pct: 88, texto: 'Plantando el bosque…' };
@@ -194,7 +208,9 @@ function suavizarRelievePorBioma(superficie: Int32Array, biomas: MapaBiomas): vo
   const desnivel = new Float32Array(ancho);
   for (let tx = 0; tx < ancho; tx++) {
     const b = biomas[tx]!;
-    desnivel[tx] = b === DESIERTO ? 7 : b === NIEVE_B ? -5 : 0;
+    // La selva se hunde: el agua se junta en las hondonadas, y así la selva
+    // acaba siendo el bioma de los charcos sin tener que colocarlos a mano.
+    desnivel[tx] = b === DESIERTO ? 7 : b === NIEVE_B ? -5 : b === JUNGLA ? 6 : 0;
   }
   // Media móvil: es la forma más barata de convertir un escalón en una rampa.
   const suave = new Float32Array(ancho);
@@ -210,10 +226,79 @@ function suavizarRelievePorBioma(superficie: Int32Array, biomas: MapaBiomas): vo
   }
 }
 
+/**
+ * Levanta unas cuantas montañas sobre el relieve base.
+ *
+ * El ruido fractal da colinas, no montañas: sube y baja con la misma amplitud
+ * en todas partes, y lo que sale es un terreno ondulado sin ningún accidente
+ * que destaque. Una montaña es justo eso, un accidente, así que se añaden a
+ * mano: unos pocos picos anchos, con perfil de coseno para que la ladera sea
+ * caminable y no un muro.
+ */
+function levantarMontanas(
+  superficie: Int32Array,
+  biomas: MapaBiomas,
+  rng: Rng,
+): void {
+  const ancho = superficie.length;
+  const cuantas = Math.max(1, Math.floor(ancho / 420));
+  for (let i = 0; i < cuantas; i++) {
+    const cx = rng.entero(60, ancho - 61);
+    // Nada de montañas en el desierto ni en la selva: la duna y la hondonada
+    // son parte de lo que los define.
+    if (biomas[cx] === DESIERTO || biomas[cx] === JUNGLA) continue;
+    const radio = rng.entero(45, 90);
+    const altura = rng.entero(26, 48);
+    for (let dx = -radio; dx <= radio; dx++) {
+      const x = cx + dx;
+      if (x < 2 || x >= ancho - 2) continue;
+      // Coseno alzado: vale 1 en la cumbre y 0 en el borde, sin escalones.
+      const t = (Math.cos((dx / radio) * Math.PI) + 1) / 2;
+      superficie[x] = Math.round(superficie[x]! - altura * t * t);
+    }
+  }
+}
+
+/**
+ * Deja la roca a la vista en las cumbres.
+ *
+ * Una montaña de cuarenta tiles con hierba hasta arriba se ve como una colina
+ * gorda. Lo que la hace montaña es que por encima de cierta altura ya no crece
+ * nada: se cambia la costra de tierra por piedra, con un borde irregular para
+ * que la línea de vegetación no sea una raya horizontal.
+ */
+function pelarCumbres(mundo: Mundo, superficie: Int32Array, biomas: MapaBiomas): void {
+  const ancho = superficie.length;
+  // Altura de referencia: la media del terreno. Por encima de veinte tiles de
+  // esa media, se considera cumbre.
+  let suma = 0;
+  for (let tx = 0; tx < ancho; tx++) suma += superficie[tx]!;
+  const media = suma / ancho;
+  const UMBRAL = 20;
+
+  for (let tx = 0; tx < ancho; tx++) {
+    if (biomas[tx] === DESIERTO) continue;
+    const sobre = media - superficie[tx]!;
+    if (sobre < UMBRAL) continue;
+    // Cuanto más alto, más gruesa la costra de piedra; el ruido rompe la raya.
+    const grosor = Math.round((sobre - UMBRAL) * 0.9 + ruido1D(tx / 7, 991) * 6);
+    for (let d = 0; d < grosor; d++) {
+      const ty = superficie[tx]! + d;
+      const id = mundo.getTile(tx, ty);
+      if (id === AIRE) continue;
+      if (id !== TIERRA && id !== HIERBA && id !== NIEVE) break;
+      mundo.setTile(tx, ty, PIEDRA);
+    }
+  }
+}
+
 /** Suelo, subsuelo y roca de cada bioma. */
 function materialesDe(bioma: number): { suelo: number; subsuelo: number; roca: number } {
   if (bioma === DESIERTO) return { suelo: ARENA, subsuelo: ARENA, roca: ARENISCA };
   if (bioma === NIEVE_B) return { suelo: NIEVE, subsuelo: NIEVE, roca: PIEDRA };
+  // La selva tiene su propio suelo y su propio subsuelo: cavar dos tiles ya
+  // dice en qué bioma estás, sin necesidad de mirar arriba.
+  if (bioma === JUNGLA) return { suelo: HIERBA_JUNGLA, subsuelo: BARRO, roca: PIEDRA };
   return { suelo: HIERBA, subsuelo: TIERRA, roca: PIEDRA };
 }
 
@@ -431,6 +516,7 @@ function sembrarMinerales(
   superficie: Int32Array,
   c: Capas,
   rng: Rng,
+  biomas: MapaBiomas,
 ): void {
   const receta = [
     { id: COBRE, desde: 0.06, hasta: 0.55, densidad: 0.055, tamano: [6, 16] },
@@ -457,6 +543,11 @@ function sembrarMinerales(
         const cy = Math.round(techo + rng.rango(veta.desde, veta.hasta) * rango);
         if (cy <= techo || cy >= c.fondo) continue;
         if (mundo.getTile(cx, cy) !== PIEDRA) continue;
+        // Cada bioma tira de un metal. No es una prohibición sino un peso: la
+        // veta que cae en el bioma equivocado se reintenta unas cuantas veces
+        // antes de plantarse igual, así que se puede encontrar todo en todas
+        // partes, pero bajar por el sitio adecuado se nota.
+        if (intento < 16 && !rng.suerte(pesoDeBioma(veta.id, biomas[cx]!))) continue;
         tx0 = cx;
         ty0 = cy;
         break;
@@ -477,6 +568,55 @@ function sembrarMinerales(
 }
 
 /**
+ * Grava: en el fondo de las masas de agua y en vetas poco profundas.
+ *
+ * Va donde va porque de ella saldrá el pedernal, y buscar pedernal tiene que
+ * llevarte al río, no a la caverna más honda. Se siembra igual que un mineral
+ * —sustituyendo piedra— pero pegada a la superficie, y además se fuerza bajo el
+ * agua, que es donde uno la busca primero.
+ */
+function sembrarGrava(
+  mundo: Mundo,
+  superficie: Int32Array,
+  c: Capas,
+  rng: Rng,
+  biomas: MapaBiomas,
+): void {
+  // Bajo el agua: un par de tiles de fondo, salteados para que no sea una
+  // alfombra uniforme.
+  for (let tx = 2; tx < mundo.ancho - 2; tx++) {
+    if (biomas[tx] === DESIERTO) continue;
+    const sup = superficie[tx]!;
+    if (mundo.getLiquido(tx, sup - 1) === 0) continue;
+    for (let d = 0; d < 3; d++) {
+      if (!rng.suerte(0.45)) continue;
+      const ty = sup + d;
+      const id = mundo.getTile(tx, ty);
+      if (id === TIERRA || id === PIEDRA || id === ARENA) mundo.setTile(tx, ty, GRAVA);
+    }
+  }
+
+  // Y vetas sueltas en la roca de arriba, para el que cave sin pasar por un río.
+  const vetas = Math.max(3, Math.floor(mundo.ancho / 90));
+  for (let v = 0; v < vetas; v++) {
+    for (let intento = 0; intento < 20; intento++) {
+      const cx = rng.entero(3, mundo.ancho - 4);
+      const techo = superficie[cx]! + 8;
+      const ty = rng.entero(techo, Math.max(techo + 1, techo + 60));
+      if (ty >= c.fondo || mundo.getTile(cx, ty) !== PIEDRA) continue;
+      let tx = cx;
+      let y = ty;
+      for (let p = 0, pasos = rng.entero(4, 9); p < pasos; p++) {
+        pintarBlob(mundo, tx, y, rng.rango(1, 2.2), GRAVA);
+        tx += rng.entero(-1, 1);
+        y += rng.entero(-1, 1);
+      }
+      break;
+    }
+  }
+}
+
+/**
  * Caña de azúcar en las orillas.
  *
  * Se planta donde hay suelo con agua a un par de tiles: es la única cosecha del
@@ -488,13 +628,23 @@ function sembrarMinerales(
  */
 function plantarCanas(mundo: Mundo, superficie: Int32Array, rng: Rng): void {
   for (let tx = 3; tx < mundo.ancho - 3; tx++) {
-    if (!rng.suerte(0.35)) continue;
+    if (!rng.suerte(0.6)) continue;
     // Suelo real de la columna, que tras las cuevas ya no es el del relieve.
     let ty = Math.max(0, superficie[tx]! - 8);
     while (ty < mundo.alto && mundo.getTile(tx, ty) === AIRE) ty++;
     if (ty >= mundo.alto - 2) continue;
     const suelo = mundo.getTile(tx, ty);
-    if (suelo !== ARENA && suelo !== HIERBA && suelo !== TIERRA) continue;
+    // La grava y la hierba de selva también valen: si no, justo las orillas
+    // —que es donde la caña tiene sentido— se quedaban sin ninguna.
+    if (
+      suelo !== ARENA &&
+      suelo !== HIERBA &&
+      suelo !== TIERRA &&
+      suelo !== GRAVA &&
+      suelo !== HIERBA_JUNGLA
+    ) {
+      continue;
+    }
     if (mundo.getLiquido(tx, ty - 1) > 0) continue;
     if (!aguaCerca(mundo, tx, ty)) continue;
 
@@ -506,9 +656,9 @@ function plantarCanas(mundo: Mundo, superficie: Int32Array, rng: Rng): void {
   }
 }
 
-/** ¿Hay líquido a tres tiles a los lados de este suelo? */
+/** ¿Hay líquido a cinco tiles a los lados de este suelo? */
 function aguaCerca(mundo: Mundo, tx: number, ty: number): boolean {
-  for (let dx = -3; dx <= 3; dx++) {
+  for (let dx = -5; dx <= 5; dx++) {
     for (let dy = -1; dy <= 2; dy++) {
       if (mundo.getLiquido(tx + dx, ty + dy) > 0 && !mundo.esLava(tx + dx, ty + dy)) {
         return true;
@@ -555,6 +705,24 @@ function sembrarCristales(
   }
 }
 
+/**
+ * Probabilidad de aceptar una veta de este metal en este bioma.
+ *
+ * El desierto es de cobre, la nieve de hierro, la selva de oro y el bosque de
+ * plata. Un mundo donde el mineral está repartido por igual convierte explorar
+ * en dar vueltas: da lo mismo dónde caves, así que no hay razón para cruzar la
+ * arena. Con esto, cada bioma tiene algo que solo él da con soltura.
+ */
+function pesoDeBioma(mineral: number, bioma: number): number {
+  const favorito: Record<number, number> = {
+    [DESIERTO]: COBRE,
+    [NIEVE_B]: HIERRO,
+    [JUNGLA]: ORO,
+    [BOSQUE]: PLATA,
+  };
+  return favorito[bioma] === mineral ? 1 : 0.35;
+}
+
 /** Sustituye piedra por mineral en un círculo. No toca el aire ni la tierra. */
 function pintarBlob(mundo: Mundo, cx: number, cy: number, radio: number, id: number): void {
   const r2 = radio * radio;
@@ -597,14 +765,21 @@ function vestirSuperficie(
   let ultimaPlanta = -99;
   for (let tx = 3; tx < ancho - 3; tx++) {
     const bioma = biomas[tx]!;
-    const separacion = bioma === DESIERTO ? 4 : 5;
+    const separacion = bioma === DESIERTO ? 4 : bioma === JUNGLA ? 3 : 5;
     if (tx - ultimaPlanta < separacion) continue;
     // La densidad ondula a lo largo del mundo: así hay bosquecillos cerrados y
     // claros abiertos, en vez de una hilera regular de árboles hasta el
     // horizonte.
     const espesura = ruido1D(tx / 90, semillaArboles);
     const probabilidad =
-      bioma === DESIERTO ? 0.07 : 0.015 + espesura * espesura * (bioma === NIEVE_B ? 0.11 : 0.16);
+      bioma === DESIERTO
+        ? 0.07
+        // La selva es espesa de verdad: casi el doble que el bosque, y sin el
+        // término de espesura que abre claros. Una selva con claros es un
+        // bosque con hojas más oscuras.
+        : bioma === JUNGLA
+          ? 0.34
+          : 0.015 + espesura * espesura * (bioma === NIEVE_B ? 0.11 : 0.16);
     if (!rng.suerte(probabilidad)) continue;
 
     // Buscar el suelo real de esta columna.
@@ -618,7 +793,11 @@ function vestirSuperficie(
     if (mundo.getLiquido(tx, ty - 1) > 0) continue;
 
     if (bioma === DESIERTO) plantarCactus(mundo, tx, ty - 1, rng);
-    else plantarArbol(mundo, tx, ty - 1, rng);
+    else if (bioma === NIEVE_B) plantarPino(mundo, tx, ty - 1, rng);
+    else if (bioma === JUNGLA) plantarCeiba(mundo, tx, ty - 1, rng);
+    // En el bosque, uno de cada cuatro es un abedul: la mancha clara entre los
+    // troncos oscuros es lo que hace que el bosque deje de verse repetido.
+    else plantarArbol(mundo, tx, ty - 1, rng, rng.suerte(0.25) ? TRONCO_ABEDUL : TRONCO);
     ultimaPlanta = tx;
   }
 }
@@ -647,7 +826,14 @@ function plantarCactus(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void
  * son tres cosas, por este orden: que la base se ensanche, que la copa tenga
  * más de un bulto, y que salgan ramas a media altura para romper la vertical.
  */
-function plantarArbol(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void {
+function plantarArbol(
+  mundo: Mundo,
+  tx: number,
+  tyBase: number,
+  rng: Rng,
+  tronco: number = TRONCO,
+  hoja: number = HOJAS,
+): void {
   // La altura la manda la cámara: se ven unos quince tiles de alto, así que un
   // árbol de catorce deja la copa fuera de pantalla y el jugador solo ve un
   // palo. Entre cinco y nueve cabe entero con su copa.
@@ -657,7 +843,7 @@ function plantarArbol(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void 
   for (let i = 0; i < altura; i++) {
     const ty = tyBase - i;
     if (mundo.getTile(tx, ty) !== AIRE) return;
-    mundo.setTile(tx, ty, TRONCO);
+    mundo.setTile(tx, ty, tronco);
   }
 
   // Ramas: una o dos, en la mitad alta y a lados distintos. Siempre de un solo
@@ -668,29 +854,104 @@ function plantarArbol(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void 
   for (let r = 0; r < ramas; r++) {
     const lado = ladoAnterior === 0 ? (rng.suerte(0.5) ? 1 : -1) : -ladoAnterior;
     ladoAnterior = lado;
-    const ty = tyBase - rng.entero(Math.floor(altura * 0.55), altura - 2);
+    // La rama va en la mitad alta, ya dentro de la copa. Más abajo se quedaba
+    // colgando por fuera de las hojas y el árbol se veía como una cruz.
+    const ty = tyBase - rng.entero(Math.floor(altura * 0.72), altura - 1);
     if (mundo.getTile(tx + lado, ty) !== AIRE) continue;
-    mundo.setTile(tx + lado, ty, TRONCO);
+    mundo.setTile(tx + lado, ty, tronco);
     // Dos lóbulos por rama: uno pasado el extremo y otro justo encima. Con uno
     // solo, las hojas quedaban al lado de la rama y no sobre ella, y lo que se
     // veía era un muñón pelado saliendo del tronco: un poste de la luz.
     const r = rng.rango(2.1, 2.8);
-    lobuloHojas(mundo, tx + lado * 2, ty, r);
-    lobuloHojas(mundo, tx + lado, ty - 2, r * 0.8);
+    lobuloHojas(mundo, tx + lado * 2, ty, r, hoja);
+    lobuloHojas(mundo, tx + lado, ty - 2, r * 0.8, hoja);
   }
 
   // Copa: tres lóbulos solapados, uno central y dos algo más bajos a los lados.
   const cy = tyBase - altura;
   const radio = rng.rango(2.8, 4.4);
-  lobuloHojas(mundo, tx, cy - 1, radio);
-  lobuloHojas(mundo, tx - Math.round(radio * 0.75), cy + 1, radio * 0.72);
-  lobuloHojas(mundo, tx + Math.round(radio * 0.75), cy + 1, radio * 0.72);
+  lobuloHojas(mundo, tx, cy - 1, radio, hoja);
+  lobuloHojas(mundo, tx - Math.round(radio * 0.75), cy + 1, radio * 0.72, hoja);
+  lobuloHojas(mundo, tx + Math.round(radio * 0.75), cy + 1, radio * 0.72, hoja);
   // Y un remate arriba, para que la silueta no acabe plana.
-  lobuloHojas(mundo, tx + (rng.suerte(0.5) ? 1 : -1), cy - 3, radio * 0.55);
+  lobuloHojas(mundo, tx + (rng.suerte(0.5) ? 1 : -1), cy - 3, radio * 0.55, hoja);
+}
+
+/**
+ * Pino: alto, estrecho y cónico. Solo en la nieve.
+ *
+ * No usa `lobuloHojas` porque un pino no es una bola: lo que lo hace pino es el
+ * perfil triangular, y eso sale de pintar filas de anchura decreciente. Con
+ * lóbulos redondos saldría un abeto con sobrepeso.
+ */
+function plantarPino(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void {
+  const altura = rng.entero(7, 12);
+  if (tyBase - altura < 4) return;
+  for (let i = 0; i < altura; i++) {
+    const ty = tyBase - i;
+    if (mundo.getTile(tx, ty) !== AIRE) return;
+    mundo.setTile(tx, ty, TRONCO);
+  }
+  // La copa arranca a un tercio de altura y se estrecha hasta la punta. El
+  // ancho baja de tres a cero con un par de escalones repetidos, que es lo que
+  // da el perfil escalonado de las ramas en vez de un triángulo liso.
+  const desde = Math.floor(altura * 0.32);
+  for (let i = desde; i <= altura + 1; i++) {
+    const t = (i - desde) / (altura + 1 - desde);
+    const ancho = Math.max(0, Math.round(3.4 * (1 - t) - (i % 2 === 0 ? 0 : 0.4)));
+    const ty = tyBase - i;
+    for (let dx = -ancho; dx <= ancho; dx++) {
+      if (mundo.getTile(tx + dx, ty) === AIRE) mundo.setTile(tx + dx, ty, HOJAS_PINO);
+    }
+  }
+}
+
+/**
+ * Ceiba de selva: tronco doble y copa ancha y baja.
+ *
+ * El tronco de dos tiles es lo que la separa de un árbol de bosque a primera
+ * vista, y la copa se solapa con la del vecino a propósito: en la selva se
+ * camina bajo una techumbre continua, no entre árboles sueltos.
+ */
+function plantarCeiba(mundo: Mundo, tx: number, tyBase: number, rng: Rng): void {
+  const altura = rng.entero(6, 11);
+  if (tyBase - altura < 4) return;
+  for (let i = 0; i < altura; i++) {
+    const ty = tyBase - i;
+    if (mundo.getTile(tx, ty) !== AIRE) return;
+    mundo.setTile(tx, ty, TRONCO_JUNGLA);
+    // La segunda columna del tronco solo hasta media altura: arriba el árbol
+    // se afina, como pasa de verdad.
+    if (i < altura * 0.7 && mundo.getTile(tx + 1, ty) === AIRE) {
+      mundo.setTile(tx + 1, ty, TRONCO_JUNGLA);
+    }
+  }
+  const cy = tyBase - altura;
+  const radio = rng.rango(4.2, 6);
+  lobuloHojas(mundo, tx, cy, radio, HOJAS_JUNGLA);
+  lobuloHojas(mundo, tx - Math.round(radio * 0.8), cy + 2, radio * 0.7, HOJAS_JUNGLA);
+  lobuloHojas(mundo, tx + Math.round(radio * 0.9), cy + 2, radio * 0.7, HOJAS_JUNGLA);
+  // Lianas: dos o tres tiras de hojas colgando de la copa. Es el detalle que
+  // dice "selva" desde lejos.
+  for (let l = 0; l < rng.entero(2, 4); l++) {
+    const lx = tx + rng.entero(-Math.round(radio), Math.round(radio));
+    let ly = cy + 3;
+    const largo = rng.entero(2, 6);
+    for (let i = 0; i < largo; i++, ly++) {
+      if (mundo.getTile(lx, ly) !== AIRE) break;
+      mundo.setTile(lx, ly, HOJAS_JUNGLA);
+    }
+  }
 }
 
 /** Bola de hojas. No pisa nada que no sea aire. */
-function lobuloHojas(mundo: Mundo, cx: number, cy: number, radio: number): void {
+function lobuloHojas(
+  mundo: Mundo,
+  cx: number,
+  cy: number,
+  radio: number,
+  hoja: number = HOJAS,
+): void {
   const r2 = radio * radio;
   for (let dy = Math.floor(-radio); dy <= Math.ceil(radio); dy++) {
     for (let dx = Math.floor(-radio); dx <= Math.ceil(radio); dx++) {
@@ -699,7 +960,7 @@ function lobuloHojas(mundo: Mundo, cx: number, cy: number, radio: number): void 
       if (dx * dx + dy * dy * 1.35 > r2) continue;
       const ty = cy + dy;
       if (ty < 1 || ty >= mundo.alto) continue;
-      if (mundo.getTile(cx + dx, ty) === AIRE) mundo.setTile(cx + dx, ty, HOJAS);
+      if (mundo.getTile(cx + dx, ty) === AIRE) mundo.setTile(cx + dx, ty, hoja);
     }
   }
 }
@@ -724,7 +985,10 @@ function llenarLiquidos(
   // Se excavan, no se buscan: el relieve por ruido casi nunca deja una cuenca
   // lo bastante honda como para que quepa un lago, y un mundo entero sin un
   // charco de agua a la vista deja la mitad de la fase escondida bajo tierra.
-  const lagos = Math.max(2, Math.floor(mundo.ancho / 170));
+  // Menos que antes —uno cada 280 columnas en vez de cada 170— porque el mundo
+  // salía moteado de charcos y ninguno se sentía como un hallazgo. Los mares y
+  // la selva ponen el agua que hace falta.
+  const lagos = Math.max(2, Math.floor(mundo.ancho / 280));
   let ultimoLago = -999;
   for (let i = 0; i < lagos; i++) {
     for (let intento = 0; intento < 40; intento++) {
@@ -738,6 +1002,31 @@ function llenarLiquidos(
       if (!terrenoLlano(superficie, tx, radio)) continue;
       excavarLago(mundo, superficie, tx, radio, rng.entero(4, 7));
       ultimoLago = tx;
+      break;
+    }
+  }
+
+  // --- Mares ---
+  //
+  // Anchos y poco profundos, con la cuenca forrada de arena. Un mar no es un
+  // lago grande: lo que lo hace mar es la playa —se entra andando— y que se
+  // vea de lado a lado de la pantalla. Va después de los lagos para poder
+  // pisarlos si coinciden: dos masas de agua solapadas se derraman.
+  const mares = Math.max(1, Math.floor(mundo.ancho / 900));
+  for (let i = 0; i < mares; i++) {
+    for (let intento = 0; intento < 220; intento++) {
+      const tx = rng.entero(60, mundo.ancho - 61);
+      if (biomas[tx] === DESIERTO) continue;
+      const radio = rng.entero(26, 44);
+      // La tolerancia del terreno no se puede aflojar mucho, y eso no es un
+      // detalle de ajuste: la lámina se pone un tile por debajo del punto más
+      // bajo del hueco, así que cada columna se excava desde su superficie
+      // hasta ahí. Si el borde tiene diez tiles de desnivel, esos diez tiles se
+      // vacían en seco y lo que queda es una zanja con paredes verticales, no
+      // una playa. Con tres tiles el corte no se ve; con cinco, sí. Se compensa
+      // probando muchos más sitios en vez de aceptando terreno peor.
+      if (!terrenoLlano(superficie, tx, radio, 3)) continue;
+      excavarLago(mundo, superficie, tx, radio, rng.entero(7, 11), ARENA);
       break;
     }
   }
@@ -772,11 +1061,16 @@ function llenarLiquidos(
 }
 
 /** ¿Todo el hueco del lago, y un poco más, cae dentro de dos tiles de desnivel? */
-function terrenoLlano(superficie: Int32Array, tx: number, radio: number): boolean {
+function terrenoLlano(
+  superficie: Int32Array,
+  tx: number,
+  radio: number,
+  tolerancia = 2,
+): boolean {
   const referencia = superficie[tx]!;
   for (let x = tx - radio - 1; x <= tx + radio + 1; x++) {
     if (x < 0 || x >= superficie.length) return false;
-    if (Math.abs(superficie[x]! - referencia) > 2) return false;
+    if (Math.abs(superficie[x]! - referencia) > tolerancia) return false;
   }
   return true;
 }
@@ -797,6 +1091,7 @@ function excavarLago(
   tx: number,
   radio: number,
   hondura: number,
+  forro: number | null = null,
 ): void {
   // Mayor ty es más bajo: el punto más bajo del hueco es el de mayor ty.
   let masBajo = superficie[tx]!;
@@ -822,6 +1117,14 @@ function excavarLago(
       // tierra. Y así el sol llega hasta la arena del fondo.
       mundo.setPared(x, y, AIRE);
       if (y >= nivel) mundo.setLiquido(x, y, 255);
+    }
+    // Forro de la cuenca: el mar deja playa y fondo de arena, no barro. Se
+    // pinta después de vaciar, sobre el terreno que queda debajo y a los lados,
+    // porque durante el vaciado esos tiles todavía no eran la orilla.
+    if (forro !== null) {
+      for (let y = fondo; y < fondo + 3 && y < mundo.alto; y++) {
+        if (esSolido(mundo.getTile(x, y))) mundo.setTile(x, y, forro);
+      }
     }
     // El suelo real de la columna baja hasta el fondo del lago.
     superficie[x] = fondo;

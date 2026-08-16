@@ -14,7 +14,7 @@ import type { Mundo } from '../world/world';
 import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
 import { CacheChunks, CHUNK_RENDER } from './chunkCache';
-import { Fondo } from './fondo';
+import { Fondo, type BiomaFondo } from './fondo';
 import { crearIconos, type Iconos } from './iconos';
 import type { Particulas } from './particles';
 import {
@@ -60,6 +60,8 @@ export interface Escena {
   sumergido: number;
   /** Objeto que el jugador lleva en la mano, para dibujárselo. */
   enMano: number;
+  /** Bioma donde está el jugador, para teñir las montañas del fondo. */
+  bioma: BiomaFondo;
 }
 
 export class Renderer {
@@ -122,6 +124,9 @@ export class Renderer {
     return this.dpr;
   }
 
+  /** Bioma en el que está el jugador, para teñir el fondo. Lo pone la escena. */
+  private biomaFondo: BiomaFondo = 'bosque';
+
   private cielo(reloj: Reloj): void {
     const { ctx } = this;
     const [alto, medio, bajo] = reloj.colorCielo;
@@ -142,6 +147,7 @@ export class Renderer {
       this.altoCanvas,
       this.dpr,
       performance.now(),
+      this.biomaFondo,
     );
   }
 
@@ -684,6 +690,7 @@ export class Renderer {
     const { tx0, ty0, tx1, ty1 } = this.camara.tilesVisibles();
     const recalculada = e.motorLuz.actualizar(tx0, ty0, tx1, ty1, e.reloj.luzSolar);
 
+    this.biomaFondo = e.bioma;
     this.cielo(e.reloj);
     this.chunks(e.mundo, ox, oy);
     this.picado(e.mundo, e.picado, ox, oy);

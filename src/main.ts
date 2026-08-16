@@ -1343,6 +1343,11 @@ async function arrancar(): Promise<void> {
         particulas,
         sumergido: sumergidoAhora,
         enMano: barra.objetoActivo(),
+      bioma: biomaEn(
+        mundo,
+        Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),
+        Math.floor((jugador.caja.y + jugador.caja.alto) / TILE),
+      ),
       });
 
       debug.fps = bucle.fps;
