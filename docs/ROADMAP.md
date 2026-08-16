@@ -179,7 +179,7 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
   lo hostil ✅, enemigos diurnos debilitados ✅, diez niveles de dificultad al
   crear el mundo ✅ (guardado v8), esqueleto, serpiente y momia ✅, cristales de
   vida ✅ (guardado v9), armadura de cobre, hierro, plata y oro ✅ (guardado
-  v10); pendiente: arco y flechas, pala y azada.
+  v10), arco y flechas ✅; pendiente: pala y azada.
 - **Bloque 3 — Mundo** · tamaños de mundo de pequeño a enorme ✅; pendiente:
   selva junto al agua, mares pequeños con fondo de arena, montañas de piedra,
   bosques en grupos, taiga solo en la nieve, un segundo árbol de bosque,

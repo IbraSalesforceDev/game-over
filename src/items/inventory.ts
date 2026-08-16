@@ -120,6 +120,29 @@ export class Inventario {
     return n;
   }
 
+  /**
+   * Quita hasta `cantidad` unidades de un objeto, mire donde mire.
+   *
+   * Devuelve cuántas ha quitado de verdad. Se vacían primero las pilas más
+   * pequeñas: así el inventario tiende a consolidarse en vez de acabar con
+   * ocho ranuras de una flecha cada una.
+   */
+  quitar(objeto: number, cantidad: number): number {
+    if (objeto === NADA || cantidad <= 0) return 0;
+    const conEsto = this.ranuras
+      .filter((r) => r.objeto === objeto && r.cantidad > 0)
+      .sort((a, b) => a.cantidad - b.cantidad);
+    let restante = cantidad;
+    for (const r of conEsto) {
+      if (restante === 0) break;
+      const saca = Math.min(r.cantidad, restante);
+      r.cantidad -= saca;
+      restante -= saca;
+      if (r.cantidad === 0) r.objeto = NADA;
+    }
+    return cantidad - restante;
+  }
+
   /** Primera ranura que contiene el objeto, o -1. */
   buscar(objeto: number): number {
     return this.ranuras.findIndex((r) => r.objeto === objeto && r.cantidad > 0);

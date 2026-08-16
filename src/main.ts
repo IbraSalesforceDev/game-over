@@ -49,10 +49,18 @@ import { actualizarEnemigos, botinDe, crearEnemigo, ENEMIGOS, type Enemigo } fro
 import {
   crearGolpe,
   lanzarGolpe,
+  puedeGolpear,
   resolverGolpe,
   sentidoDeVector,
   tickGolpe,
 } from './entities/combat';
+import {
+  actualizarFlechas,
+  anadirFlecha,
+  dispararDesde,
+  limpiarFlechas,
+  type Flecha,
+} from './entities/proyectiles';
 import {
   ampliarVida,
   crearSalud,
@@ -75,7 +83,7 @@ import {
 } from './entities/hambre';
 import { SimuladorLiquidos, sumersion } from './world/liquids';
 import { puedeUsarCubo, usarCubo } from './items/cubo';
-import { esComida, esCristal, esCubo } from './items/items';
+import { esArco, esComida, esCristal, esCubo, municionDe } from './items/items';
 import {
   biomaEn,
   intentarAparicion,
@@ -307,6 +315,7 @@ async function arrancar(): Promise<void> {
     partida.estado.hambre > 0 ? partida.estado.hambre : HAMBRE_MAXIMA,
   );
   const golpe = crearGolpe();
+  const flechas: Flecha[] = [];
   /**
    * Dificultad del mundo, fijada al crearlo. Se lee una vez y no cambia: no hay
    * ninguna forma de tocarla desde dentro de la partida, ni siquiera desde el
@@ -554,6 +563,15 @@ async function arrancar(): Promise<void> {
    */
   let esperaAvisoPico = 0;
 
+  /** Ticks de espera antes de repetir el aviso de "no te quedan flechas". */
+  let esperaAvisoFlechas = 0;
+
+  function avisarSinFlechas(): void {
+    if (esperaAvisoFlechas > 0) return;
+    esperaAvisoFlechas = 90;
+    aviso.mostrar('No te quedan flechas');
+  }
+
   function avisarHerramienta(nivelPedido: number): void {
     if (esperaAvisoPico > 0) return;
     esperaAvisoPico = 90;
@@ -561,6 +579,29 @@ async function arrancar(): Promise<void> {
   }
   /** Ticks hasta el próximo intento de aparición de enemigos. */
   let relojAparicion = 0;
+
+  /**
+   * Un enemigo muere: suelta su botín, revienta en partículas y suena.
+   *
+   * Está aparte porque hay dos formas de matar —el mandoble y la flecha— y
+   * duplicar esto era duplicar el botín el día que cambiara la tabla.
+   */
+  function morir(especie: Enemigo['especie'], caja: Enemigo['caja']): void {
+    const b = botinDe(especie);
+    const tx = Math.floor((caja.x + caja.ancho / 2) / TILE);
+    const ty = Math.floor((caja.y + caja.alto / 2) / TILE);
+    drops.push(crearDrop(b.objeto, b.cantidad, tx, ty));
+    particulas.emitir(caja.x + caja.ancho / 2, caja.y + caja.alto / 2, {
+      cantidad: 18,
+      color: ENEMIGOS[especie].color,
+      dispersion: 2.6,
+      empujeY: -1.2,
+      vida: 34,
+      tam: 3,
+    });
+    sacudir(2.4);
+    audio.sonar('golpe', 0.7);
+  }
 
   /** Enemigos, golpes y vida: todo lo que puede matar o morir en un tick. */
   function actualizarCombate(): void {
@@ -596,22 +637,33 @@ async function arrancar(): Promise<void> {
       });
       sacudir(1.4);
     }
-    for (const muerto of r.muertos) {
-      const b = botinDe(muerto.especie);
-      const tx = Math.floor((muerto.caja.x + muerto.caja.ancho / 2) / TILE);
-      const ty = Math.floor((muerto.caja.y + muerto.caja.alto / 2) / TILE);
-      drops.push(crearDrop(b.objeto, b.cantidad, tx, ty));
-      particulas.emitir(muerto.caja.x + muerto.caja.ancho / 2, muerto.caja.y + muerto.caja.alto / 2, {
-        cantidad: 18,
-        color: ENEMIGOS[muerto.especie].color,
-        dispersion: 2.6,
-        empujeY: -1.2,
-        vida: 34,
-        tam: 3,
+    for (const muerto of r.muertos) morir(muerto.especie, muerto.caja);
+
+    // Las flechas van antes que los enemigos: una flecha que mata a un zombi
+    // este tick tiene que impedir que ese zombi pegue en el mismo tick.
+    const rf = actualizarFlechas(mundo, flechas, enemigos);
+    for (const golpeado of rf.impactos) {
+      const c = golpeado.enemigo.caja;
+      particulas.emitir(c.x + c.ancho / 2, c.y + c.alto / 2, {
+        cantidad: 6,
+        color: '#e0d8c0',
+        dispersion: 1.8,
+        vida: 20,
+        tam: 2,
       });
-      sacudir(2.4);
-      audio.sonar('golpe', 0.7);
+      audio.sonar('golpe', 1.2);
+      if (golpeado.muerto) morir(golpeado.enemigo.especie, golpeado.enemigo.caja);
     }
+    for (const donde of rf.clavadas) {
+      particulas.emitir(donde.x, donde.y, {
+        cantidad: 3,
+        color: '#b8a882',
+        dispersion: 1,
+        vida: 14,
+        tam: 1,
+      });
+    }
+    if (flechas.length > 0 && relojAparicion % 30 === 0) limpiarFlechas(flechas);
 
     const res = actualizarEnemigos(mundo, enemigos, jugador.caja, salud);
     if (res.danoAlJugador > 0) {
@@ -783,6 +835,40 @@ async function arrancar(): Promise<void> {
         barra.refrescar(capa);
         motorLuz.marcarSucio();
       }
+      return;
+    }
+
+    // El arco dispara con el clic izquierdo, hacia donde apunte el ratón. Gasta
+    // una flecha del inventario; sin flechas no hace nada más que avisar.
+    if (esArco(enMano)) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      derAnterior = puntero.der;
+      if (!puntero.izq || !puedeGolpear(golpe)) return;
+      const def = defObjeto(enMano);
+      const municion = municionDe(enMano);
+      if (inventario.contar(municion) <= 0) {
+        avisarSinFlechas();
+        return;
+      }
+      inventario.quitar(municion, 1);
+      barra.refrescar(capa);
+      // El golpe se reutiliza solo como reloj de cadencia: el arco no tiene
+      // caja de barrido, así que la animación se apaga en el acto.
+      lanzarGolpe(golpe, enMano, wx < jugador.caja.x ? -1 : 1);
+      golpe.restante = 0;
+      jugador.caja.mirando = wx < jugador.caja.x ? -1 : 1;
+      anadirFlecha(
+        flechas,
+        dispararDesde(
+          jugador.caja,
+          wx,
+          wy,
+          def.velocidad ?? 9,
+          (def.dano ?? 0) * trucos.danoMultiplicador,
+        ),
+      );
+      audio.sonar('golpe', 1.5);
       return;
     }
 
@@ -1138,6 +1224,7 @@ async function arrancar(): Promise<void> {
     () => {
       reloj.avanzar(TICK);
       if (esperaAvisoPico > 0) esperaAvisoPico--;
+      if (esperaAvisoFlechas > 0) esperaAvisoFlechas--;
       editar();
       const sumergido = actualizarLiquidos();
       const enSueloAntes = jugador.caja.enSuelo;
@@ -1172,6 +1259,7 @@ async function arrancar(): Promise<void> {
         drops,
         enemigos,
         golpe,
+      flechas,
         particulas,
         sumergido: sumergidoAhora,
         enMano: barra.objetoActivo(),

@@ -34,6 +34,8 @@ import {
   CASCO_ORO,
   PETO_ORO,
   GREBAS_ORO,
+  ARCO,
+  FLECHA,
 } from './items';
 
 /**
@@ -144,6 +146,27 @@ export const RECETAS: readonly Receta[] = [
     ],
     resultado: ESPADA_PIEDRA,
     cantidad: 1,
+    estacion: MESA,
+  },
+  // El arco entra pronto y barato: es la respuesta a los enemigos que hacen
+  // daño por contacto, y tenerlo detrás del hierro dejaría las primeras noches
+  // sin más opción que la espada.
+  {
+    id: 'arco',
+    ingredientes: [[MADERA, 14]],
+    resultado: ARCO,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  // Cinco por tirada: una a una, fabricar munición sería el juego entero.
+  {
+    id: 'flechas',
+    ingredientes: [
+      [MADERA, 1],
+      [PIEDRA, 1],
+    ],
+    resultado: FLECHA,
+    cantidad: 5,
     estacion: MESA,
   },
   {

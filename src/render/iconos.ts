@@ -1,5 +1,6 @@
 import { ANTORCHA, COFRE, defTile, HORNO, MESA, YUNQUE } from '../world/tiles';
 import {
+  ARCO,
   CUBO,
   CUBO_AGUA,
   CUBO_LAVA,
@@ -8,6 +9,7 @@ import {
   esColocable,
   esCristal,
   esHerramienta,
+  FLECHA,
   huecoDe,
   type Hueco,
   IDS_OBJETO,
@@ -216,12 +218,41 @@ const ICONOS_ARMADURA: Record<Hueco, Dibujo> = {
   piernas: armaduraIcono('piernas'),
 };
 
+/** Arco: el asta curva y la cuerda tensada, en diagonal. */
+const arcoIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 26, 34);
+  // La curva sale de una tabla corta de desplazamientos: dibujar un arco de
+  // circunferencia con `arc()` daría bordes suavizados y aquí no hay antialias.
+  const curva = [0, 1, 2, 3, 3, 3, 2, 1, 0];
+  curva.forEach((dx, i) => {
+    px(ctx, ox + 12 - dx, oy + 3 + i * 2, 2, 2, i < 4 ? t.claro : t.base);
+  });
+  px(ctx, ox + 12, oy + 3, 1, 16, '#e6dcc2');
+  // Puntas del asta.
+  px(ctx, ox + 11, oy + 2, 2, 1, t.oscuro);
+  px(ctx, ox + 11, oy + 18, 2, 1, t.oscuro);
+};
+
+/** Flecha: punta, astil y plumas, en diagonal para que quepa. */
+const flechaIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 24, 30);
+  for (let i = 0; i < 12; i++) px(ctx, ox + 4 + i, oy + 15 - i, 1, 1, t.base);
+  // Punta de piedra.
+  px(ctx, ox + 15, oy + 3, 3, 3, '#8d8d97');
+  px(ctx, ox + 16, oy + 3, 2, 1, '#b4b4bd');
+  // Plumas.
+  px(ctx, ox + 3, oy + 15, 3, 1, '#d8d2c0');
+  px(ctx, ox + 4, oy + 16, 1, 3, '#d8d2c0');
+};
+
 /** Elige el dibujo que le toca a cada objeto. */
 function dibujoDe(id: number): Dibujo {
   if (id === ANTORCHA) return antorchaIcono;
   if (id === MESA || id === HORNO || id === YUNQUE || id === COFRE) return mueble;
   if (id === CUBO || id === CUBO_AGUA || id === CUBO_LAVA) return cuboIcono;
   if (esCristal(id)) return cristalIcono;
+  if (id === ARCO) return arcoIcono;
+  if (id === FLECHA) return flechaIcono;
   const hueco = huecoDe(id);
   if (hueco) return ICONOS_ARMADURA[hueco];
   if (esHerramienta(id)) return picoIcono;

@@ -5,6 +5,7 @@ import { LUZ_MINIMA, type MotorLuz } from '../world/lighting';
 import { TAMANO_DROP, type Drop } from '../entities/drop';
 import type { Enemigo } from '../entities/enemies';
 import { cajaGolpe, type Golpe } from '../entities/combat';
+import { VIDA_CLAVADA, type Flecha } from '../entities/proyectiles';
 import { defObjeto, NADA } from '../items/items';
 import type { Capa, Picado } from '../world/edit';
 import { durezaObjetivo, etapaGrieta } from '../world/edit';
@@ -53,6 +54,7 @@ export interface Escena {
   drops: readonly Drop[];
   enemigos: readonly Enemigo[];
   golpe: Golpe;
+  flechas: readonly Flecha[];
   particulas: Particulas;
   /** Fracción del jugador bajo líquido, para elegir la pose de nado. */
   sumergido: number;
@@ -597,6 +599,39 @@ export class Renderer {
     ctx.restore();
   }
 
+  /**
+   * Flechas: un astil de cuatro píxeles con punta, girado hacia donde vuela.
+   *
+   * Es el único sitio del render donde se rota algo. Rotar pixel art suele
+   * quedar sucio, pero una flecha es tan pequeña —y va tan deprisa— que el
+   * único detalle que se lee es hacia dónde apunta; dibujarla siempre recta
+   * sería peor.
+   */
+  private flechas(lista: readonly Flecha[], ox: number, oy: number): void {
+    if (lista.length === 0) return;
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    for (const f of lista) {
+      if (!f.vivo) continue;
+      // Las clavadas parpadean justo antes de irse: avisa de que se van a
+      // perder sin tener que mirar un contador.
+      if (f.clavada && f.edad > VIDA_CLAVADA - 30 && Math.floor(f.edad / 4) % 2 === 0) {
+        continue;
+      }
+      ctx.save();
+      ctx.translate(ox + f.x * z, oy + f.y * z);
+      ctx.rotate(f.angulo);
+      ctx.fillStyle = '#b8a882';
+      ctx.fillRect(-9 * z, -0.5 * z, 10 * z, z);
+      ctx.fillStyle = '#d8d2c0';
+      ctx.fillRect(-9 * z, -1.5 * z, 3 * z, z);
+      ctx.fillRect(-9 * z, 0.5 * z, 3 * z, z);
+      ctx.fillStyle = '#8d8d97';
+      ctx.fillRect(z, -z, 2 * z, 2 * z);
+      ctx.restore();
+    }
+  }
+
   /** Objetos por el suelo: un cuadradito del color del objeto, balanceándose. */
   private drops(lista: readonly Drop[], ox: number, oy: number): void {
     if (lista.length === 0) return;
@@ -653,6 +688,7 @@ export class Renderer {
     this.chunks(e.mundo, ox, oy);
     this.picado(e.mundo, e.picado, ox, oy);
     this.drops(e.drops, ox, oy);
+    this.flechas(e.flechas, ox, oy);
     this.enemigos(e.enemigos, ox, oy);
     if (e.jugador.caja.enSuelo) {
       const c = e.jugador.caja;

@@ -80,6 +80,8 @@ export const GREBAS_PLATA = 95;
 export const CASCO_ORO = 96;
 export const PETO_ORO = 97;
 export const GREBAS_ORO = 98;
+export const ARCO = 99;
+export const FLECHA = 100;
 
 /**
  * Identificadores que tenían las herramientas antes de moverse al rango 64+.
@@ -99,7 +101,9 @@ export type TipoObjeto =
   | 'cubo'
   | 'comida'
   | 'cristal'
-  | 'armadura';
+  | 'armadura'
+  | 'arco'
+  | 'municion';
 
 /**
  * Dónde se lleva puesta una pieza de armadura.
@@ -137,6 +141,10 @@ export interface DefObjeto {
   readonly hueco?: Hueco;
   /** Daño que descuenta llevándola puesta. */
   readonly defensa?: number;
+  /** Munición que gasta, si es un arma a distancia. */
+  readonly municion?: number;
+  /** Velocidad de salida del proyectil, en píxeles por tick. */
+  readonly velocidad?: number;
 }
 
 const PILA = 999;
@@ -295,6 +303,23 @@ const ENTRADAS: [number, DefObjeto][] = [
   ...juegoArmadura([CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO], 'hierro', '#a3968a', 2),
   ...juegoArmadura([CASCO_PLATA, PETO_PLATA, GREBAS_PLATA], 'plata', '#c2ccd6', 3),
   ...juegoArmadura([CASCO_ORO, PETO_ORO, GREBAS_ORO], 'oro', '#dcb13a', 4),
+  // El arco pega menos por flechazo que la espada de piedra por mandoble, pero
+  // dispara desde lejos. Lo que lo equilibra no es el daño sino la munición:
+  // sin flechas es un palo, y las flechas hay que fabricarlas.
+  [
+    ARCO,
+    {
+      nombre: 'arco',
+      tipo: 'arco',
+      color: '#8a5f33',
+      maxPila: 1,
+      dano: 14,
+      cadencia: 24,
+      municion: FLECHA,
+      velocidad: 9.5,
+    },
+  ],
+  [FLECHA, { nombre: 'flecha', tipo: 'municion', color: '#b8a882', maxPila: PILA }],
 ];
 
 /** Array disperso: hay hueco entre el último tile y el 64, y no pasa nada. */
@@ -361,6 +386,16 @@ export function esCristal(id: number): boolean {
 
 export function esArmadura(id: number): boolean {
   return defObjeto(id).tipo === 'armadura';
+}
+
+/** ¿Es un arma a distancia? */
+export function esArco(id: number): boolean {
+  return defObjeto(id).tipo === 'arco';
+}
+
+/** Munición que gasta este arma, o NADA si no gasta ninguna. */
+export function municionDe(id: number): number {
+  return defObjeto(id).municion ?? NADA;
 }
 
 /** Hueco donde va esta pieza, o null si no es armadura. */
