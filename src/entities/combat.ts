@@ -99,13 +99,14 @@ export function resolverGolpe(
   g: Golpe,
   jugador: Caja,
   enemigos: readonly Enemigo[],
+  multiplicador = 1,
 ): ResultadoGolpe {
   const salida: ResultadoGolpe = { alcanzados: 0, tocados: [], muertos: [] };
   const caja = cajaGolpe(g, jugador);
   if (!caja) return salida;
 
   const def = defObjeto(g.arma);
-  const dano = def.dano ?? 0;
+  const dano = (def.dano ?? 0) * multiplicador;
   if (dano <= 0) return salida;
 
   const desdeX = jugador.x + jugador.ancho / 2;

@@ -16,9 +16,19 @@ import type { Mundo } from './world';
  */
 
 /** Luz que se pierde por tile al atravesar aire. */
-export const CAIDA_AIRE = 18;
+export const CAIDA_AIRE = 14;
 /** Luz que se pierde por tile al atravesar materia. */
-export const CAIDA_SOLIDO = 45;
+export const CAIDA_SOLIDO = 38;
+
+/**
+ * Suelo de luz: por debajo de esto no baja nada.
+ *
+ * Una cueva sin antorchas era negro absoluto —no se veía el personaje, ni el
+ * suelo, ni el bloque que estabas picando—, y eso no es atmósfera, es no poder
+ * jugar. Con este mínimo se distingue la silueta del terreno y poco más: sigue
+ * dando miedo bajar a oscuras, pero se ve dónde pisas.
+ */
+export const LUZ_MINIMA = 34;
 /** Luz que emite una celda llena de lava. */
 export const LUZ_LAVA = 200;
 /** Margen de tiles que se calcula fuera de la pantalla. */
@@ -198,7 +208,7 @@ export class MotorLuz {
     const x = tx - this.tx0;
     const y = ty - this.ty0;
     if (x < 0 || y < 0 || x >= this.ancho || y >= this.alto) return 0;
-    return this.luz[y * this.ancho + x]!;
+    return Math.max(LUZ_MINIMA, this.luz[y * this.ancho + x]!);
   }
 
   get ventana(): { tx0: number; ty0: number; ancho: number; alto: number } {

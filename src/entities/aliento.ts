@@ -81,7 +81,7 @@ export function tickAliento(
       a.proximoAhogo = INTERVALO_AHOGO;
       // Sin invulnerabilidad: el ahogo no es un golpe del que uno se recupere
       // apartándose, y los fotogramas de gracia lo harían inofensivo.
-      if (golpear(s, caja, DANO_AHOGO, caja.x + caja.ancho / 2, 0, false)) {
+      if (golpear(s, caja, DANO_AHOGO, caja.x + caja.ancho / 2, 0, false, 'ahogo')) {
         dano = true;
         motivo = 'ahogo';
       }
@@ -95,7 +95,7 @@ export function tickAliento(
     a.ardiendo = TICKS_ARDIENDO;
     if (--a.proximoFuego <= 0) {
       a.proximoFuego = INTERVALO_LAVA;
-      if (golpear(s, caja, DANO_LAVA, caja.x + caja.ancho / 2, INTERVALO_LAVA, false)) {
+      if (golpear(s, caja, DANO_LAVA, caja.x + caja.ancho / 2, INTERVALO_LAVA, false, 'lava')) {
         dano = true;
         motivo = 'lava';
       }
@@ -104,7 +104,7 @@ export function tickAliento(
     a.ardiendo--;
     if (--a.proximoFuego <= 0) {
       a.proximoFuego = INTERVALO_ARDIENDO;
-      if (golpear(s, caja, DANO_ARDIENDO, caja.x + caja.ancho / 2, INTERVALO_ARDIENDO, false)) {
+      if (golpear(s, caja, DANO_ARDIENDO, caja.x + caja.ancho / 2, INTERVALO_ARDIENDO, false, 'fuego')) {
         dano = true;
         motivo = 'fuego';
       }

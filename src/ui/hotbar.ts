@@ -134,6 +134,14 @@ export interface OpcionesBarra {
   estaciones(): ReadonlySet<number>;
   /** Aviso sonoro de que una receta ha salido. Opcional: los tests no suenan. */
   alFabricar?(): void;
+  /**
+   * Suelta al mundo lo que no ha cabido en ningún sitio.
+   *
+   * Existe porque la alternativa era borrarlo, y borrarlo es lo que hacía que
+   * al cerrar el inventario con el cofre abierto y las cuarenta ranuras llenas
+   * la pila del puntero desapareciera sin más.
+   */
+  alSoltarAlMundo?(objeto: number, cantidad: number): void;
 }
 
 export function crearBarra(
@@ -375,14 +383,24 @@ export function crearBarra(
   }
 
   /** Devuelve al inventario lo que quede en la mano. */
+  /**
+   * Devuelve a su sitio la pila que se lleva en el puntero.
+   *
+   * El orden importa y no es casual: primero el cofre que está abierto —de
+   * donde lo más probable es que venga—, luego el inventario, y lo que aún no
+   * quepa se suelta al suelo. Antes iba directo al inventario y lo que no cabía
+   * se borraba, que es exactamente el caso que se da al ordenar un cofre yendo
+   * cargado: se abre un cofre porque no cabe nada más, así que la rama del
+   * "no cabe" no era un caso raro sino el normal.
+   */
   function soltarMano(): void {
     if (enMano.objeto === NADA) return;
-    const sobra = inventario.anadir(enMano.objeto, enMano.cantidad);
+    let restante = enMano.cantidad;
+    if (cofre) restante = cofre.inv.anadir(enMano.objeto, restante);
+    if (restante > 0) restante = inventario.anadir(enMano.objeto, restante);
+    if (restante > 0) opciones.alSoltarAlMundo?.(enMano.objeto, restante);
     enMano.objeto = NADA;
     enMano.cantidad = 0;
-    // Si no cabe se pierde, pero para eso hace falta tener las 40 ranuras
-    // llenas y algo distinto en la mano: es un caso al que no se llega jugando.
-    void sobra;
   }
 
   function abrirPaneles(v: boolean): void {

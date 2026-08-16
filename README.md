@@ -72,17 +72,26 @@ tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 | `1`–`0` o rueda | Elegir ranura de la barra |
 | `E` | Abrir inventario y panel de fabricación |
 | Clic derecho en un cofre | Abrirlo |
-| `Esc` | Cerrar los paneles |
+| `Esc` | Cerrar paneles; sin nada abierto, menú de pausa |
 | `Tab` | Alternar capa bloque / pared |
 | `R` | Volver al punto de aparición |
 | `F2` | Guardar ahora |
-| `F3` | Overlay de diagnóstico |
+| `F3` | Coordenadas |
+| `F6` | Overlay de diagnóstico completo |
 | `F4` | Panel de constantes de física |
 | `F5` | Rejilla de chunks |
 
+Caer desde alto duele: los primeros nueve tiles salen gratis —saltar es el verbo
+principal del juego y no puede dar miedo— y a partir de ahí sube rápido. Al
+morir, la pantalla dice de qué.
+
+El suelo no se pisa igual en todas partes: la arena agarra más y el hielo casi
+nada, así que un lago helado se cruza anticipando en vez de frenando.
+
 Construir tiene reglas: un bloque necesita apoyo (un vecino o una pared detrás),
-no se puede colocar un macizo dentro del propio jugador, y todo ocurre dentro
-de un alcance de 5,5 tiles. El recuadro del puntero se pone rojo cuando la
+no se puede colocar un macizo dentro del propio jugador, todo ocurre dentro
+de un alcance de 5,5 tiles, y las seis filas de arriba del mundo son techo: ahí
+no se coloca nada, que es lo que impide subirse por encima de la cámara. El recuadro del puntero se pone rojo cuando la
 acción no es posible.
 
 Los bloques ya no son infinitos: lo que minas cae al suelo, un imán lo acerca

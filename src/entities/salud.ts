@@ -20,6 +20,26 @@ export const TICKS_INVULNERABLE = 45;
 export const KNOCKBACK = 4.2;
 export const KNOCKBACK_VERTICAL = 3.4;
 
+/** Por qué se ha recibido el último golpe, para poder contarlo al morir. */
+export type Motivo =
+  | 'golpe'
+  | 'caida'
+  | 'ahogo'
+  | 'lava'
+  | 'fuego'
+  | 'hambre'
+  | 'desconocido';
+
+export const TEXTO_MOTIVO: Record<Motivo, string> = {
+  golpe: 'Te han matado.',
+  caida: 'Has caído desde demasiado alto.',
+  ahogo: 'Te has ahogado.',
+  lava: 'Te ha matado la lava.',
+  fuego: 'Has muerto ardiendo.',
+  hambre: 'Has muerto de hambre.',
+  desconocido: 'Vuelves al punto de aparición.',
+};
+
 export interface Salud {
   vida: number;
   vidaMax: number;
@@ -28,10 +48,19 @@ export interface Salud {
   /** Ticks desde la última vez que recibió daño, para el aviso en pantalla. */
   desdeGolpe: number;
   muerto: boolean;
+  /** Qué le hizo el último daño. Es lo que se cuenta en la pantalla de muerte. */
+  motivo: Motivo;
 }
 
 export function crearSalud(vidaMax = VIDA_MAXIMA): Salud {
-  return { vida: vidaMax, vidaMax, invulnerable: 0, desdeGolpe: 9999, muerto: false };
+  return {
+    vida: vidaMax,
+    vidaMax,
+    invulnerable: 0,
+    desdeGolpe: 9999,
+    muerto: false,
+    motivo: 'desconocido',
+  };
 }
 
 export function tickSalud(s: Salud): void {
@@ -54,11 +83,13 @@ export function golpear(
   fuenteX: number,
   invulnerabilidad = TICKS_INVULNERABLE,
   empuje = true,
+  motivo: Motivo = 'golpe',
 ): boolean {
   if (s.invulnerable > 0 || s.muerto) return false;
   s.vida -= dano;
   s.invulnerable = invulnerabilidad;
   s.desdeGolpe = 0;
+  s.motivo = motivo;
 
   if (empuje) {
     const direccion = caja.x + caja.ancho / 2 < fuenteX ? -1 : 1;
@@ -83,6 +114,23 @@ export function revivir(s: Salud): void {
   s.vida = s.vidaMax;
   s.invulnerable = TICKS_INVULNERABLE * 2;
   s.muerto = false;
+  s.motivo = 'desconocido';
+}
+
+/**
+ * Daño por caída.
+ *
+ * Los primeros tiles salen gratis: sin ese margen, bajar un par de escalones
+ * castigaría, y saltar —que es el verbo principal del juego— daría miedo. A
+ * partir de ahí sube rápido, porque lo que tiene que enseñar la caída es a
+ * medir los saltos largos, no a andar con cuidado.
+ */
+export const CAIDA_SEGURA = 9;
+export const DANO_POR_TILE = 7;
+
+export function danoDeCaida(tiles: number): number {
+  if (tiles <= CAIDA_SEGURA) return 0;
+  return Math.round((tiles - CAIDA_SEGURA) * DANO_POR_TILE);
 }
 
 /** Corazones enteros y la fracción del último, para pintarlos. */

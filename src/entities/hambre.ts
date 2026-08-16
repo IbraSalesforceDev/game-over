@@ -109,7 +109,7 @@ export function tickHambre(
       h.proximoDano = INTERVALO_INANICION;
       // Sin invulnerabilidad y sin empujón: el hambre no es un golpe del que
       // uno se aparte, y darle fotogramas de gracia la haría inofensiva.
-      if (golpear(s, caja, DANO_INANICION, caja.x + caja.ancho / 2, 0, false)) {
+      if (golpear(s, caja, DANO_INANICION, caja.x + caja.ancho / 2, 0, false, 'hambre')) {
         salida.danado = true;
       }
     }

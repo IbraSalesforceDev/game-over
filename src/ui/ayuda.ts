@@ -38,10 +38,11 @@ const GRUPOS: Grupo[] = [
     filas: [
       ['E', 'Inventario y fabricación'],
       ['H', 'Esta ayuda'],
-      ['Esc', 'Cerrar paneles'],
+      ['Esc', 'Cerrar paneles · menú de pausa'],
       ['R', 'Volver al punto de aparición'],
       ['F2', 'Guardar ahora'],
-      ['F3', 'Diagnóstico'],
+      ['F3', 'Coordenadas'],
+      ['F6', 'Diagnóstico completo'],
     ],
   },
 ];

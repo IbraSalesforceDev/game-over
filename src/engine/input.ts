@@ -34,6 +34,15 @@ export interface GestorEntrada {
   finTick(): void;
   /** Se dispara con teclas que no son de movimiento (F3, F4...). */
   alPulsar(codigo: string, fn: () => void): void;
+  /**
+   * ¿Está esa tecla pulsada ahora mismo?
+   *
+   * Hace falta para los acordes: el menú de depuración se abre con Alt+D+F3, y
+   * eso no se puede expresar con un atajo de una sola tecla.
+   */
+  mantenida(codigo: string): boolean;
+  /** ¿Está Alt pulsado? */
+  readonly alt: boolean;
   destruir(): void;
 }
 
@@ -41,6 +50,9 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
   const mantenido: Acciones = { izq: false, der: false, abajo: false, salto: false };
   let saltoPulsado = false;
   const atajos = new Map<string, () => void>();
+  /** Todas las teclas pulsadas ahora mismo, para poder leer acordes. */
+  const pulsadas = new Set<string>();
+  let alt = false;
 
   const salida: Entrada = {
     izq: false,
@@ -51,6 +63,8 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
   };
 
   function onDown(e: KeyboardEvent): void {
+    pulsadas.add(e.code);
+    alt = e.altKey;
     const atajo = atajos.get(e.code);
     if (atajo) {
       e.preventDefault();
@@ -66,6 +80,8 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
   }
 
   function onUp(e: KeyboardEvent): void {
+    pulsadas.delete(e.code);
+    alt = e.altKey;
     const accion = MAPA[e.code];
     if (!accion) return;
     e.preventDefault();
@@ -77,6 +93,8 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
   function onBlur(): void {
     mantenido.izq = mantenido.der = mantenido.abajo = mantenido.salto = false;
     saltoPulsado = false;
+    pulsadas.clear();
+    alt = false;
   }
 
   objetivo.addEventListener('keydown', onDown);
@@ -97,6 +115,10 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
     },
     alPulsar(codigo, fn) {
       atajos.set(codigo, fn);
+    },
+    mantenida: (codigo) => pulsadas.has(codigo),
+    get alt() {
+      return alt;
     },
     destruir() {
       objetivo.removeEventListener('keydown', onDown);

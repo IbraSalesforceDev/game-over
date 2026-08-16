@@ -6,6 +6,8 @@ import { crearPuntero } from './engine/mouse';
 import { crearAudio } from './engine/audio';
 import { crearAjustes } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
+import { crearPausa } from './ui/pausa';
+import { crearDebugMenu, crearTrucos } from './ui/debugmenu';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
@@ -41,9 +43,18 @@ import {
   soltar,
   type Drop,
 } from './entities/drop';
-import { actualizarEnemigos, botinDe, ENEMIGOS, type Enemigo } from './entities/enemies';
+import { actualizarEnemigos, botinDe, crearEnemigo, ENEMIGOS, type Enemigo } from './entities/enemies';
 import { crearGolpe, lanzarGolpe, resolverGolpe, tickGolpe } from './entities/combat';
-import { crearSalud, golpear, revivir, tickSalud, VIDA_MAXIMA } from './entities/salud';
+import {
+  crearSalud,
+  curar,
+  danoDeCaida,
+  golpear,
+  revivir,
+  TEXTO_MOTIVO,
+  tickSalud,
+  VIDA_MAXIMA,
+} from './entities/salud';
 import { apagar, crearAliento, reiniciarAliento, tickAliento } from './entities/aliento';
 import {
   comer,
@@ -279,6 +290,41 @@ async function arrancar(): Promise<void> {
   const audio = crearAudio();
   const opciones = crearAjustes(capaUI, audio);
   const ayuda = crearAyuda(capaUI);
+  const trucos = crearTrucos();
+  const depuracion = crearDebugMenu(capaUI, {
+    trucos,
+    darObjeto: (objeto, n) => {
+      inventario.anadir(objeto, n);
+      barra.refrescar(capa);
+    },
+    generarCriatura: (especie) => {
+      const c = jugador.caja;
+      enemigos.push(crearEnemigo(especie, c.x + c.mirando * 60, c.y - 20));
+    },
+    rellenarVida: () => {
+      curar(salud, salud.vidaMax);
+      panelVida.refrescar(salud);
+    },
+    establecerVidaMaxima: (v) => {
+      salud.vidaMax = v;
+      salud.vida = v;
+      panelVida.refrescar(salud);
+    },
+    vidaMaximaActual: () => salud.vidaMax,
+  });
+  const pausa = crearPausa(capaUI, {
+    nombre: partida.nombre,
+    alReanudar: () => {},
+    alAbrirControles: () => ayuda.alternar(),
+    alAbrirOpciones: () => opciones.alternar(),
+    alSalir: async () => {
+      await guardar('manual');
+      // Recargar es la forma honesta de volver al menú: el arranque entero
+      // —almacén, generación, render— está montado para ejecutarse una vez, y
+      // desmontarlo a mano sería inventarse un ciclo de vida que nadie más usa.
+      window.location.href = window.location.pathname;
+    },
+  });
   const entrada = crearEntrada();
   const puntero = crearPuntero(lienzo);
 
@@ -297,6 +343,12 @@ async function arrancar(): Promise<void> {
     alCambiar: () => reiniciarPicado(picado),
     estaciones: () => estacionesCerca(mundo, jugador.caja),
     alFabricar: () => audio.sonar('craftear'),
+    alSoltarAlMundo: (objeto, cantidad) => {
+      const tx = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
+      const ty = Math.floor((jugador.caja.y + jugador.caja.alto / 2) / TILE);
+      for (let i = 0; i < cantidad; i++) drops.push(crearDrop(objeto, 1, tx, ty));
+      aviso.mostrar('No cabía: lo has soltado al suelo');
+    },
   });
   barra.seleccionar(partida.estado.material);
   barra.refrescar(capa);
@@ -360,7 +412,24 @@ async function arrancar(): Promise<void> {
     });
   }
 
-  entrada.alPulsar('F3', () => (debug.activo = !debug.activo));
+  // F3 son las coordenadas y F6 el volcado completo. El overlay entero era lo
+  // primero que veía quien abría el juego, y saber en qué tile estás no debería
+  // costar catorce líneas de diagnóstico.
+  entrada.alPulsar('F3', () => {
+    // Alt + D + F3 abre la puerta de servicio. Con el acorde completo no se
+    // pisa nunca por accidente, y por eso no hace falta anunciarlo en ningún
+    // menú.
+    if (entrada.alt && entrada.mantenida('KeyD')) {
+      depuracion.alternar();
+      return;
+    }
+    debug.nivel = debug.nivel === 'coordenadas' ? 'nada' : 'coordenadas';
+    debug.activo = debug.nivel !== 'nada';
+  });
+  entrada.alPulsar('F6', () => {
+    debug.nivel = debug.nivel === 'completo' ? 'nada' : 'completo';
+    debug.activo = debug.nivel !== 'nada';
+  });
   entrada.alPulsar('F4', () => tuner.alternar());
   entrada.alPulsar('F5', () => (debug.chunks = !debug.chunks));
   entrada.alPulsar('F2', () => void guardar('manual'));
@@ -370,10 +439,20 @@ async function arrancar(): Promise<void> {
     barra.refrescar(capa);
   });
   entrada.alPulsar('KeyE', () => barra.alternarInventario());
+  // Escape cierra lo que haya abierto y, si no hay nada, abre la pausa. Es el
+  // orden que espera cualquiera: primero deshace, y solo al final ofrece salir.
   entrada.alPulsar('Escape', () => {
-    barra.cerrar();
-    opciones.cerrar();
-    ayuda.cerrar();
+    if (pausa.abierto) {
+      pausa.cerrar();
+      return;
+    }
+    if (ayuda.abierto || opciones.abierto || barra.inventarioAbierto) {
+      barra.cerrar();
+      opciones.cerrar();
+      ayuda.cerrar();
+      return;
+    }
+    pausa.abrir();
   });
   entrada.alPulsar('KeyH', () => ayuda.alternar());
   for (let i = 0; i < 10; i++) {
@@ -430,6 +509,9 @@ async function arrancar(): Promise<void> {
 
   /** Enemigos, golpes y vida: todo lo que puede matar o morir en un tick. */
   function actualizarCombate(): void {
+    // La invulnerabilidad de depuración se renueva cada tick: así ninguna
+    // fuente de daño —golpe, caída, lava, hambre— la puede saltar.
+    if (trucos.invulnerable) salud.invulnerable = 60;
     tickSalud(salud);
     tickGolpe(golpe);
 
@@ -442,7 +524,7 @@ async function arrancar(): Promise<void> {
     panelVida.refrescarHambre(hambre);
 
     // El golpe activo alcanza a quien toque, una vez por mandoble.
-    const r = resolverGolpe(golpe, jugador.caja, enemigos);
+    const r = resolverGolpe(golpe, jugador.caja, enemigos, trucos.danoMultiplicador);
     for (const tocado of r.tocados) {
       // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
       // de que el mandoble ha entrado, que hasta ahora solo decía la barra de
@@ -521,13 +603,16 @@ async function arrancar(): Promise<void> {
       );
       sacudir(8);
       audio.sonar('muerte');
+      // El motivo se lee antes de revivir: `revivir` lo borra, y si se leyera
+      // después la pantalla de muerte diría siempre lo mismo.
+      const motivo = TEXTO_MOTIVO[salud.motivo];
       reaparecer(jugador);
       revivir(salud);
       reiniciarAliento(aliento);
       reiniciarHambre(hambre);
       panelVida.refrescarHambre(hambre);
       particulas.limpiar();
-      panelVida.mostrarMuerte(true, 'Vuelves al punto de aparición.');
+      panelVida.mostrarMuerte(true, motivo);
       window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
     }
 
@@ -678,11 +763,14 @@ async function arrancar(): Promise<void> {
             tam: 2,
           });
         }
-        if (avanzarPicado(mundo, picado, tx, ty, capa, potencia)) {
+        if (avanzarPicado(mundo, picado, tx, ty, capa, potencia * trucos.velocidadMinado)) {
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
           // Abrir un hueco es lo que hace que el agua de al lado se mueva.
           liquidos.activar(tx, ty);
+          // Área de minado del menú de depuración: el tile del centro ya se ha
+          // roto arriba; aquí se barre el resto del cuadrado.
+          if (trucos.radioMinado > 1) romperArea(tx, ty, trucos.radioMinado);
           // El bloque revienta en cascotes de su propio color.
           particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
             cantidad: 14,
@@ -797,6 +885,25 @@ async function arrancar(): Promise<void> {
       audio.sonar('saltar', 0.95 + Math.random() * 0.15);
     }
 
+    // Daño de caída. Va con el aterrizaje porque es el mismo suceso: el polvo
+    // y el golpe salen de la misma altura.
+    if (!enSueloAntes && c.enSuelo) {
+      const dano = danoDeCaida(c.ultimaCaida);
+      if (dano > 0 && golpear(salud, c, dano, c.x + c.ancho / 2, 30, false, 'caida')) {
+        panelVida.refrescar(salud);
+        aviso.mostrar('¡Golpe al caer!', true);
+        audio.sonar('dano', 0.8);
+        particulas.emitir(pies.x, pies.y, {
+          cantidad: 14,
+          color: '#d94f4f',
+          dispersion: 1.8,
+          empujeY: -1,
+          vida: 26,
+          tam: 2,
+        });
+      }
+    }
+
     // Aterrizaje: cuanto más alta la caída, más polvo y más sacude.
     if (!enSueloAntes && c.enSuelo && c.ultimaCaida > 1.5) {
       const fuerza = Math.min(1, c.ultimaCaida / 12);
@@ -869,6 +976,46 @@ async function arrancar(): Promise<void> {
     return '#8a7360';
   }
 
+  /**
+   * Vuelo del menú de depuración: se mueve libre, sin gravedad ni colisiones.
+   *
+   * Atravesar la roca es justo lo que se quiere de un modo de vuelo de pruebas
+   * —bajar a la caverna sin cavar—, así que no se resuelve colisión ninguna.
+   */
+  function volarUnTick(e: ReturnType<typeof entrada.estado>): void {
+    const c = jugador.caja;
+    const v = 6;
+    jugador.xPrev = c.x;
+    jugador.yPrev = c.y;
+    c.vx = (e.der ? v : 0) - (e.izq ? v : 0);
+    c.vy = (e.abajo ? v : 0) - (e.salto ? v : 0);
+    c.x += c.vx;
+    c.y += c.vy;
+    c.enSuelo = false;
+    c.ultimaCaida = 0;
+    c.yInicioCaida = c.y;
+    if (c.vx !== 0) c.mirando = c.vx > 0 ? 1 : -1;
+  }
+
+  /** Rompe un cuadrado de tiles de golpe. Solo lo usa el menú de depuración. */
+  function romperArea(tx: number, ty: number, lado: number): void {
+    const r = Math.floor(lado / 2);
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const x = tx + dx;
+        const y = ty + dy;
+        if (!mundo.dentro(x, y) || mundo.getTile(x, y) === AIRE) continue;
+        const soltado = dropDeTile(mundo.getTile(x, y));
+        mundo.setTile(x, y, AIRE);
+        renderer.cache.invalidar(x, y);
+        motorLuz.invalidar(x);
+        liquidos.activar(x, y);
+        soltar(drops, soltado, x, y);
+      }
+    }
+  }
+
   /** ¿Hay lava en la ventana visible? Solo entonces su movimiento cambia la luz. */
   function hayLavaCerca(): boolean {
     const { tx0, ty0, tx1, ty1 } = renderer.camara.tilesVisibles();
@@ -889,7 +1036,8 @@ async function arrancar(): Promise<void> {
       editar();
       const sumergido = actualizarLiquidos();
       const enSueloAntes = jugador.caja.enSuelo;
-      actualizarJugador(mundo, jugador, entrada.estado(), ajustes, sumergido);
+      if (trucos.volar) volarUnTick(entrada.estado());
+      else actualizarJugador(mundo, jugador, entrada.estado(), ajustes, sumergido);
       efectosDelJugador(enSueloAntes, sumergido);
       sumergidoAhora = sumergido;
       actualizarDrops();

@@ -48,6 +48,14 @@ export interface DefTile {
   readonly color: string;
   /** Luz que emite el tile, en la escala 0-255. 0 = no ilumina. */
   readonly luz?: number;
+  /**
+   * Cuánto agarra el suelo, como factor sobre la fricción normal.
+   *
+   * 1 es tierra. La arena frena más porque el pie se hunde, y el hielo casi no
+   * frena, que es lo que convierte un lago helado en un sitio donde hay que
+   * anticiparse en vez de en un suelo pintado de azul.
+   */
+  readonly agarre?: number;
 }
 
 export const TILES: readonly DefTile[] = [
@@ -74,21 +82,23 @@ export const TILES: readonly DefTile[] = [
     plataforma: false,
     dureza: 5,
     color: '#ffb347',
-    luz: 235,
+    // Sube de 235: con la caída por tile que hay, una antorcha alumbraba unos
+    // ocho tiles y hacía falta plantar una cada dos pasos para ver el túnel.
+    luz: 255,
   },
   // Los muebles no son macizos: se atraviesan, como en Terraria, para poder
   // ponerlos en un pasillo estrecho sin quedarte encerrado.
   { nombre: 'mesa de trabajo', solido: false, plataforma: true, dureza: 18, color: '#a3743c' },
-  { nombre: 'horno', solido: false, plataforma: false, dureza: 30, color: '#7a6a5c', luz: 120 },
+  { nombre: 'horno', solido: false, plataforma: false, dureza: 30, color: '#7a6a5c', luz: 150 },
   { nombre: 'yunque', solido: false, plataforma: true, dureza: 40, color: '#4a4a52' },
   { nombre: 'cofre', solido: false, plataforma: false, dureza: 22, color: '#a37b3c' },
   // La arena es blanda, la arenisca es la piedra del desierto y el cactus no
   // frena, como los árboles.
-  { nombre: 'arena', solido: true, plataforma: false, dureza: 14, color: '#d9c07a' },
+  { nombre: 'arena', solido: true, plataforma: false, dureza: 14, color: '#d9c07a', agarre: 1.5 },
   { nombre: 'arenisca', solido: true, plataforma: false, dureza: 40, color: '#b39457' },
   { nombre: 'cactus', solido: false, plataforma: false, dureza: 18, color: '#4f8a4a' },
   { nombre: 'nieve', solido: true, plataforma: false, dureza: 16, color: '#e6eef5' },
-  { nombre: 'hielo', solido: true, plataforma: false, dureza: 35, color: '#a9d6ec' },
+  { nombre: 'hielo', solido: true, plataforma: false, dureza: 35, color: '#a9d6ec', agarre: 0.18 },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -110,6 +120,11 @@ export function esPlataforma(id: number): boolean {
 /** ¿Es una estación de crafteo? */
 export function esEstacion(id: number): boolean {
   return (ESTACIONES as readonly number[]).includes(id);
+}
+
+/** Agarre del tile: multiplica la fricción del suelo. 1 si no dice nada. */
+export function agarreTile(id: number): number {
+  return defTile(id).agarre ?? 1;
 }
 
 /** Luz que emite el tile, 0 si no ilumina. */

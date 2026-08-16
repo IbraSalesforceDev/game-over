@@ -14,6 +14,16 @@ import type { Mundo } from './world';
 export const ALCANCE = 5.5;
 
 /**
+ * Filas de arriba del mundo donde no se puede construir.
+ *
+ * La cámara se para al llegar al techo pero el jugador seguía subiendo por su
+ * propia escalera hasta salirse de la vista, construyendo a ciegas. En vez de
+ * dejar que la cámara persiga hasta el infinito, el techo es un límite de
+ * verdad: ahí arriba no se coloca nada, así que no hay forma de seguir subiendo.
+ */
+export const TECHO_CONSTRUIBLE = 6;
+
+/**
  * Potencia de referencia: la dureza de un tile son los ticks que tarda en
  * romperse con un pico de potencia 100. La potencia real la pone la
  * herramienta que lleve el jugador.
@@ -68,6 +78,11 @@ export interface Resultado {
 
 const OK: Resultado = { ok: true };
 
+/** ¿Está la posición dentro de la franja donde sí se puede edificar? */
+export function alturaEdificable(ty: number): boolean {
+  return ty >= TECHO_CONSTRUIBLE;
+}
+
 export function puedeColocarBloque(
   mundo: Mundo,
   caja: Caja,
@@ -76,6 +91,7 @@ export function puedeColocarBloque(
   id: number,
 ): Resultado {
   if (!mundo.dentro(tx, ty)) return { ok: false, motivo: 'limites' };
+  if (!alturaEdificable(ty)) return { ok: false, motivo: 'limites' };
   if (!enAlcance(caja, tx, ty)) return { ok: false, motivo: 'alcance' };
   if (mundo.getTile(tx, ty) !== AIRE) return { ok: false, motivo: 'ocupado' };
   // Las plataformas sí se pueden poner bajo los pies: es como se construye
@@ -94,6 +110,7 @@ export function puedeColocarPared(
   ty: number,
 ): Resultado {
   if (!mundo.dentro(tx, ty)) return { ok: false, motivo: 'limites' };
+  if (!alturaEdificable(ty)) return { ok: false, motivo: 'limites' };
   if (!enAlcance(caja, tx, ty)) return { ok: false, motivo: 'alcance' };
   if (mundo.getPared(tx, ty) !== AIRE) return { ok: false, motivo: 'ocupado' };
   const apoyo =
@@ -117,6 +134,7 @@ export function puedeMinar(
   capa: Capa,
 ): Resultado {
   if (!mundo.dentro(tx, ty)) return { ok: false, motivo: 'limites' };
+  // Minar no tiene techo: si algo llegó ahí arriba, se puede quitar.
   if (!enAlcance(caja, tx, ty)) return { ok: false, motivo: 'alcance' };
   const id = capa === 'bloque' ? mundo.getTile(tx, ty) : mundo.getPared(tx, ty);
   if (id === AIRE) return { ok: false, motivo: 'nada' };

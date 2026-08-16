@@ -9,10 +9,22 @@ import type { Camara } from './camera';
  * los tiles consultados y el estado del salto, afinar la física es adivinar.
  */
 
+/**
+ * Qué se enseña del diagnóstico.
+ *
+ * Se separa en dos niveles porque cumplen dos funciones distintas: las
+ * coordenadas son información de juego —saber a qué profundidad estás es parte
+ * de buscar mineral— y el resto es andamiaje de desarrollo. Por eso las
+ * coordenadas van en F3, a mano, y el volcado completo en F6.
+ */
+export type NivelDebug = 'nada' | 'coordenadas' | 'completo';
+
 export interface EstadoDebug {
   fps: number;
   msFrame: number;
   activo: boolean;
+  /** Qué se pinta: nada, solo coordenadas, o el volcado entero. */
+  nivel: NivelDebug;
   hitbox: boolean;
   chunks: boolean;
   /** Lienzos de chunk vivos en la caché. */
@@ -43,6 +55,7 @@ export function crearEstadoDebug(): EstadoDebug {
     // catorce líneas de diagnóstico y la caja de colisión pintada encima del
     // personaje es enseñar el andamio en vez de la casa.
     activo: false,
+    nivel: 'nada',
     hitbox: true,
     chunks: false,
     chunksVivos: 0,
@@ -64,8 +77,24 @@ export function dibujarDebug(
   est: EstadoDebug,
   dpr: number,
 ): void {
-  if (!est.activo) return;
+  if (est.nivel === 'nada') return;
   const c = j.caja;
+
+  // Nivel ligero: solo dónde estás. Es información de juego —saber a qué
+  // profundidad andas es parte de buscar mineral— y por eso va suelta, sin
+  // arrastrar la caja de colisión ni el resto del andamiaje.
+  if (est.nivel === 'coordenadas') {
+    const escala = dpr;
+    const texto = `X ${Math.floor(c.x / TILE)}   Y ${Math.floor(c.y / TILE)}   ${est.hora}`;
+    ctx.font = `${Math.round(12 * escala)}px ui-monospace, monospace`;
+    ctx.textBaseline = 'top';
+    const ancho = ctx.measureText(texto).width + 18 * escala;
+    ctx.fillStyle = 'rgba(13, 17, 23, 0.7)';
+    ctx.fillRect(8 * escala, 8 * escala, ancho, 22 * escala);
+    ctx.fillStyle = '#d8cfc0';
+    ctx.fillText(texto, 17 * escala, 13 * escala);
+    return;
+  }
 
   if (est.chunks) {
     ctx.strokeStyle = 'rgba(232, 182, 76, 0.35)';
@@ -143,7 +172,7 @@ export function dibujarDebug(
     est.segundosDesdeGuardado < 0
       ? 'sin guardado'
       : `guardado hace ${est.segundosDesdeGuardado} s`,
-    `F2 guardar · F3 overlay · F4 constantes · F5 chunks · R reaparecer`,
+    `F3 coords · F6 overlay · F5 chunks · F2 guardar · R reaparecer`,
   ];
 
   const escala = dpr;

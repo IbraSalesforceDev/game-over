@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { css, type Reloj } from '../engine/time';
 import type { Jugador } from '../entities/player';
-import type { MotorLuz } from '../world/lighting';
+import { LUZ_MINIMA, type MotorLuz } from '../world/lighting';
 import { TAMANO_DROP, type Drop } from '../entities/drop';
 import type { Enemigo } from '../entities/enemies';
 import { cajaGolpe, type Golpe } from '../entities/combat';
@@ -258,7 +258,9 @@ export class Renderer {
       const g = tinte[1] * k;
       const b = tinte[2] * k;
       for (let i = 0; i < buf.length; i++) {
-        const l = buf[i]! / 255;
+        // El suelo de luz se aplica aquí y no en el buffer para no ensuciar la
+        // propagación: lo que se ilumina es el volcado a pantalla, no el cálculo.
+        const l = Math.max(LUZ_MINIMA, buf[i]!) / 255;
         const j = i * 4;
         datos[j] = r * l;
         datos[j + 1] = g * l;

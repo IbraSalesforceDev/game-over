@@ -8,7 +8,7 @@ import {
   NOCHE,
   Reloj,
 } from '../src/engine/time';
-import { CAIDA_AIRE, CAIDA_SOLIDO, MotorLuz } from '../src/world/lighting';
+import { CAIDA_AIRE, CAIDA_SOLIDO, LUZ_MINIMA, MotorLuz } from '../src/world/lighting';
 import { AIRE, ANTORCHA, PIEDRA, TIERRA } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
@@ -81,9 +81,11 @@ describe('propagación de la luz', () => {
     expect(unoDentro).toBeGreaterThan(dosDentro);
   });
 
-  it('a suficiente profundidad reina la oscuridad', () => {
+  it('a suficiente profundidad se llega al suelo de luz', () => {
     const motor = motorSobre(mundoBase());
-    expect(motor.nivel(30, SUELO + 12)).toBe(0);
+    // Ya no es negro absoluto: hay un suelo de luz para que se vea dónde se
+    // pisa. Lo que se comprueba es que no llega nada de fuera, no que valga 0.
+    expect(motor.nivel(30, SUELO + 12)).toBe(LUZ_MINIMA);
   });
 
   it('la caída por roca es mayor que por aire', () => {
@@ -116,7 +118,7 @@ describe('antorchas', () => {
     const m = mundoBase();
     m.rellenar(20, SUELO + 15, 40, SUELO + 18, AIRE);
     const sinAntorcha = motorSobre(m).nivel(30, SUELO + 16);
-    expect(sinAntorcha).toBe(0);
+    expect(sinAntorcha).toBe(LUZ_MINIMA);
 
     m.setTile(30, SUELO + 16, ANTORCHA);
     const motor = motorSobre(m);
@@ -131,16 +133,16 @@ describe('antorchas', () => {
     const cerca = motor.nivel(27, SUELO + 16);
     const lejos = motor.nivel(33, SUELO + 16);
     expect(cerca).toBeGreaterThan(lejos);
-    expect(lejos).toBeGreaterThanOrEqual(0);
+    expect(lejos).toBeGreaterThanOrEqual(LUZ_MINIMA);
   });
 
-  it('no atraviesan una pared de roca gruesa', () => {
+  it('no atraviesan una pared de roca gruesa: al otro lado solo queda el mínimo', () => {
     const m = mundoBase();
     m.rellenar(20, SUELO + 15, 24, SUELO + 18, AIRE);
     m.rellenar(35, SUELO + 15, 40, SUELO + 18, AIRE);
     m.setTile(22, SUELO + 16, ANTORCHA);
     const motor = motorSobre(m);
-    expect(motor.nivel(38, SUELO + 16)).toBe(0);
+    expect(motor.nivel(38, SUELO + 16)).toBe(LUZ_MINIMA);
   });
 });
 

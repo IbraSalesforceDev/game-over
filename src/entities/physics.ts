@@ -1,5 +1,5 @@
 import { TILE } from '../core/constants';
-import { esPlataforma, esSolido } from '../world/tiles';
+import { agarreTile, esPlataforma, esSolido } from '../world/tiles';
 import type { Mundo } from '../world/world';
 
 /**
@@ -251,6 +251,23 @@ export function moverY(
   return { colision: false, suelo: false };
 }
 
+/**
+ * Agarre del tile que se está pisando. Si hay varios bajo la caja, gana el que
+ * menos agarra: pisar medio bloque de hielo ya resbala.
+ */
+function agarreDebajo(mundo: Mundo, caja: Caja): number {
+  const ty = Math.floor((caja.y + caja.alto + 0.5) / TILE);
+  const tx0 = Math.floor(caja.x / TILE);
+  const tx1 = Math.floor((caja.x + caja.ancho - EPS) / TILE);
+  let menor = 1;
+  for (let tx = tx0; tx <= tx1; tx++) {
+    const id = mundo.getTile(tx, ty);
+    if (id === 0) continue;
+    menor = Math.min(menor, agarreTile(id));
+  }
+  return menor;
+}
+
 /** ¿Hay suelo justo debajo? Se consulta tras el movimiento vertical. */
 function haySueloDebajo(mundo: Mundo, caja: Caja, atravesar: boolean): boolean {
   const base = caja.y + caja.alto;
@@ -338,7 +355,10 @@ export function actualizarFisica(
     caja.vx += dir * aj.aceleracion * factor;
     if (Math.abs(caja.vx) > velMaxima) caja.vx = velMaxima * Math.sign(caja.vx);
   } else {
-    const frenada = aj.friccion * factor;
+    // El suelo que se pisa decide cuánto se frena: la arena agarra y el hielo
+    // no. Solo cuenta estando apoyado; en el aire no hay nada que agarre.
+    const agarre = caja.enSuelo ? agarreDebajo(mundo, caja) : 1;
+    const frenada = aj.friccion * factor * agarre;
     if (Math.abs(caja.vx) <= frenada) caja.vx = 0;
     else caja.vx -= frenada * Math.sign(caja.vx);
   }
