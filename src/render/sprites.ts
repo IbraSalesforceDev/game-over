@@ -310,7 +310,10 @@ export type EspecieSprite =
   | 'escarabajo'
   | 'lobo'
   | 'conejo'
-  | 'jabali';
+  | 'jabali'
+  | 'esqueleto'
+  | 'serpiente'
+  | 'momia';
 
 interface Molde {
   ancho: number;
@@ -541,6 +544,127 @@ const MOLDES: Record<EspecieSprite, Molde> = {
       px(ctx, cx + 11, cy - 2, 2, 2, '#2a1f1a');
       // Rabito.
       px(ctx, cx - 13, cy - 3, 3, 2, pelo.oscuro);
+    },
+  },
+
+  // Reutiliza el humanoide: cambian los colores y la postura, y encima se le
+  // pintan las costillas y las cuencas por delante. Que comparta esqueleto con
+  // el jugador es lo que hace que el ciclo de paso ya esté resuelto.
+  esqueleto: {
+    ancho: JUGADOR_W,
+    alto: JUGADOR_H,
+    frames: 8,
+    offX: -3,
+    offY: -4,
+    pintar(ctx, ox, oy, f) {
+      const t = (f / 8) * Math.PI * 2;
+      const swing = Math.round(Math.sin(t) * 4);
+      const hueso = tono('#ddd8c4', 16, 40);
+      dibujarHumanoide(ctx, ox, oy, {
+        piel: hueso,
+        pelo: hueso,
+        camisa: hueso,
+        pantalon: hueso,
+        bota: tono('#b9b2a0', 14, 30),
+        mirada: 'muerta',
+        melena: false,
+        brazoDelantero: [-4, 2],
+        brazoTrasero: [-3, 3],
+        piernaDelantera: swing,
+        piernaTrasera: -swing,
+        bob: 0,
+      });
+      // Costillas y cuencas, encima del humanoide ya pintado: son las dos cosas
+      // que separan un esqueleto de un hombre pálido.
+      const cx = ox + 13;
+      for (let i = 0; i < 4; i++) px(ctx, cx - 5, oy + 16 + i * 3, 11, 1, '#8d8877');
+      px(ctx, cx - 1, oy + 15, 2, 12, '#a8a292');
+      px(ctx, cx, oy + 7, 4, 4, '#14181c');
+      px(ctx, cx - 5, oy + 7, 3, 4, '#14181c');
+      // Dientes: dos rayas verticales sobre la mandíbula.
+      px(ctx, cx - 2, oy + 11, 6, 2, '#f2eddd');
+      px(ctx, cx, oy + 11, 1, 2, '#8d8877');
+      px(ctx, cx + 2, oy + 11, 1, 2, '#8d8877');
+    },
+  },
+
+  momia: {
+    ancho: JUGADOR_W,
+    alto: JUGADOR_H,
+    frames: 8,
+    offX: -3,
+    offY: -4,
+    pintar(ctx, ox, oy, f) {
+      const t = (f / 8) * Math.PI * 2;
+      // Arrastra los pies: la zancada es la mitad que la de los demás, y eso ya
+      // se ve como "esta cosa va lenta" sin cambiar nada de la física.
+      const swing = Math.round(Math.sin(t) * 2);
+      const venda = tono('#cfc3a4', 18, 34);
+      dibujarHumanoide(ctx, ox, oy, {
+        piel: venda,
+        pelo: venda,
+        camisa: venda,
+        pantalon: venda,
+        bota: tono('#a89a7c', 16, 26),
+        mirada: 'muerta',
+        melena: false,
+        // Los dos brazos estirados al frente, la pose de momia de toda la vida.
+        brazoDelantero: [-8, 4],
+        brazoTrasero: [-7, 5],
+        piernaDelantera: swing,
+        piernaTrasera: -swing,
+        bob: 1,
+      });
+      // Vendas: rayas en diagonal por el torso y las piernas. Van por encima,
+      // en el tono oscuro del propio vendaje, para que se lean como surcos.
+      const cx = ox + 13;
+      for (let i = 0; i < 5; i++) {
+        px(ctx, cx - 6 + (i % 2), oy + 16 + i * 3, 12, 1, venda.oscuro);
+      }
+      px(ctx, cx - 5, oy + 29, 10, 1, venda.oscuro);
+      px(ctx, cx - 5, oy + 34, 10, 1, venda.oscuro);
+      // Una tira suelta colgando del brazo: el detalle que la hace momia y no
+      // un zombi beige.
+      px(ctx, cx + 8, oy + 26, 2, 6, venda.claro);
+      // Cuencas vacías, más hundidas que las del esqueleto.
+      px(ctx, cx, oy + 7, 4, 3, '#2a2318');
+      px(ctx, cx - 5, oy + 7, 3, 3, '#2a2318');
+    },
+  },
+
+  serpiente: {
+    ancho: 32,
+    alto: 14,
+    frames: 6,
+    offX: -3,
+    offY: -4,
+    pintar(ctx, ox, oy, f) {
+      const piel = tono('#b8a04a', 26, 38);
+      const banda = tono('#6d5c22', 18, 20);
+      const cy = oy + 10;
+      const t = (f / 6) * Math.PI * 2;
+      // El cuerpo es una onda: cada segmento sube y baja con un desfase, y eso
+      // es todo lo que hace falta para que repte en vez de deslizarse.
+      for (let i = 0; i < 9; i++) {
+        const x = ox + 2 + i * 3;
+        const y = cy + Math.round(Math.sin(t + i * 0.8) * 2);
+        const alto = i < 6 ? 4 : 3;
+        px(ctx, x, y - alto / 2, 3, alto, piel.base);
+        px(ctx, x, y - alto / 2, 3, 1, piel.claro);
+        if (i % 2 === 0) px(ctx, x, y, 3, 1, banda.base);
+      }
+      // Cabeza triangular, mirando a la derecha.
+      const yc = cy + Math.round(Math.sin(t) * 2);
+      px(ctx, ox + 26, yc - 3, 5, 6, piel.base);
+      px(ctx, ox + 26, yc - 3, 5, 1, piel.claro);
+      px(ctx, ox + 31, yc - 1, 1, 3, piel.oscuro);
+      px(ctx, ox + 29, yc - 2, 2, 2, '#e2402c');
+      // Lengua bífida, sacada solo en la mitad del ciclo.
+      if (f % 3 === 0) {
+        px(ctx, ox + 32, yc, 3, 1, '#e2402c');
+        px(ctx, ox + 34, yc - 1, 1, 1, '#e2402c');
+        px(ctx, ox + 34, yc + 1, 1, 1, '#e2402c');
+      }
     },
   },
 

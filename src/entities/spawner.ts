@@ -107,12 +107,20 @@ export function especiesPosibles(
 
 function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] {
   const bajoTierra = tyJugador > ctx.superficieTy + PROFUNDIDAD_PELIGRO;
-  if (bajoTierra) return ['slime', 'murcielago', 'zombi'];
+  // El esqueleto solo vive abajo: es lo que hace que la cueva sea otra cosa y
+  // no la superficie con menos luz.
+  if (bajoTierra) return ['slime', 'murcielago', 'zombi', 'esqueleto', 'esqueleto'];
 
   // En la superficie manda el bioma. Los animales salen de día en todos menos
   // en el desierto: son la fuente de comida, así que tienen que estar donde el
   // jugador pasa el rato, no escondidos en un rincón del mapa.
-  if (ctx.bioma === 'desierto') return ctx.esNoche ? ['escarabajo', 'zombi'] : ['escarabajo'];
+  // El desierto tiene los suyos: la serpiente a todas horas —es lo que hace que
+  // cruzar la arena de día tampoco sea gratis— y la momia solo de noche.
+  if (ctx.bioma === 'desierto') {
+    return ctx.esNoche
+      ? ['escarabajo', 'momia', 'momia', 'serpiente']
+      : ['escarabajo', 'serpiente'];
+  }
   if (ctx.bioma === 'nieve') {
     return ctx.esNoche ? ['lobo', 'zombi'] : ['conejo', 'conejo', 'slime'];
   }

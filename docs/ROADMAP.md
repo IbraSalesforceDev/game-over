@@ -177,7 +177,7 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
 - **Bloque 2 — Progresión y combate** (en curso) · niveles de herramienta ✅,
   minar con las manos ✅, apuntar el mandoble con el ratón ✅, la luz espanta a
   lo hostil ✅, enemigos diurnos debilitados ✅, diez niveles de dificultad al
-  crear el mundo ✅ (guardado v8); pendiente: esqueleto, serpiente y momia,
+  crear el mundo ✅ (guardado v8), esqueleto, serpiente y momia ✅; pendiente:
   arco y flechas, pala y azada, armadura, más vida, recetas de cobre, plata y
   oro.
 - **Bloque 3 — Mundo** · selva junto al agua, mares pequeños con fondo de arena,

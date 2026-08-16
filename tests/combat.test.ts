@@ -363,7 +363,11 @@ describe('aparición de enemigos', () => {
       { esNoche: false, superficieTy: SUELO, bioma: 'desierto' },
       SUELO - 2,
     );
-    expect(desierto).toEqual(['escarabajo']);
+    expect(desierto).toContain('escarabajo');
+    // La serpiente sale también de día: cruzar la arena a mediodía tampoco
+    // debería ser gratis.
+    expect(desierto).toContain('serpiente');
+    expect(desierto).not.toContain('momia');
     const nieve = especiesPosibles(
       { esNoche: true, superficieTy: SUELO, bioma: 'nieve' },
       SUELO - 2,

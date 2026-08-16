@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TILE } from '../src/core/constants';
 import { crearCaja, type Caja } from '../src/entities/physics';
 import { crearEnemigo, danoDe, ENEMIGOS, type Enemigo } from '../src/entities/enemies';
+import { DIFICULTADES } from '../src/core/dificultad';
 import {
   esHostil,
   especiesPosibles,
@@ -161,5 +162,60 @@ describe('luz estimada fuera de la ventana visible', () => {
     const m = mundoLlano();
     const luz = new MotorLuz(m);
     expect(luz.luzEstimada(100, SUELO + 30, 1)).toBeLessThan(UMBRAL_LUZ_HOSTIL);
+  });
+});
+
+describe('los tres bichos nuevos', () => {
+  it('el esqueleto solo vive bajo tierra', () => {
+    const hondo = especiesPosibles(contexto({ esNoche: true }), SUELO + 60);
+    const arriba = especiesPosibles(contexto({ esNoche: true }), SUELO - 2);
+    expect(hondo).toContain('esqueleto');
+    expect(arriba).not.toContain('esqueleto');
+  });
+
+  it('la serpiente y la momia son del desierto y de ningún otro sitio', () => {
+    const desiertoDia = especiesPosibles(
+      contexto({ esNoche: false, bioma: 'desierto' }),
+      SUELO - 2,
+    );
+    const desiertoNoche = especiesPosibles(
+      contexto({ esNoche: true, bioma: 'desierto' }),
+      SUELO - 2,
+    );
+    expect(desiertoDia).toContain('serpiente');
+    expect(desiertoNoche).toContain('momia');
+    // La momia es nocturna; la serpiente, no.
+    expect(desiertoDia).not.toContain('momia');
+
+    for (const bioma of ['bosque', 'nieve'] as const) {
+      const otro = especiesPosibles(contexto({ esNoche: true, bioma }), SUELO - 2);
+      expect(otro).not.toContain('serpiente');
+      expect(otro).not.toContain('momia');
+    }
+  });
+
+  it('los tres hacen daño y pegan más fuerte que un slime', () => {
+    for (const especie of ['esqueleto', 'serpiente', 'momia'] as const) {
+      expect(esHostil(especie)).toBe(true);
+      expect(ENEMIGOS[especie].dano).toBeGreaterThan(ENEMIGOS.slime.dano);
+    }
+  });
+
+  it('la serpiente es baja: hay que apuntar el mandoble al suelo', () => {
+    // Menos de un tile de alto, así que la caja horizontal del golpe la coge
+    // justo, y esa es la razón de que exista el apuntado hacia abajo.
+    expect(ENEMIGOS.serpiente.alto).toBeLessThan(TILE);
+  });
+
+  it('en pacífico no sale ninguno de los tres', () => {
+    for (const bioma of ['desierto', 'bosque'] as const) {
+      const lista = especiesPosibles(
+        contexto({ esNoche: true, bioma, dif: DIFICULTADES[0] }),
+        SUELO + 60,
+      );
+      for (const especie of ['esqueleto', 'serpiente', 'momia'] as const) {
+        expect(lista).not.toContain(especie);
+      }
+    }
   });
 });

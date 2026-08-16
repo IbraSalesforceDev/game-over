@@ -22,7 +22,10 @@ export type Especie =
   | 'escarabajo'
   | 'lobo'
   | 'conejo'
-  | 'jabali';
+  | 'jabali'
+  | 'esqueleto'
+  | 'serpiente'
+  | 'momia';
 
 export interface DefEnemigo {
   readonly nombre: string;
@@ -133,6 +136,51 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     botinMax: 3,
     nocturno: false,
     pasivo: true,
+  },
+  // --- Los tres de la fase larga -----------------------------------------
+  // El esqueleto vive abajo y es el que hace que bajar sin espada decente sea
+  // mala idea: pega fuerte y aguanta. Suelta hueso, que es lo que pide el altar.
+  esqueleto: {
+    nombre: 'esqueleto',
+    vida: 55,
+    dano: 20,
+    ancho: 20,
+    alto: 40,
+    color: '#ddd8c4',
+    colorOscuro: '#8d8877',
+    vuela: false,
+    botin: HUESO,
+    botinMax: 3,
+    nocturno: false,
+  },
+  // La serpiente es baja y rápida: por debajo de la espada si no se apunta al
+  // suelo, que es justo la razón de que el mandoble se pueda apuntar.
+  serpiente: {
+    nombre: 'serpiente',
+    vida: 22,
+    dano: 16,
+    ancho: 26,
+    alto: 10,
+    color: '#b8a04a',
+    colorOscuro: '#6d5c22',
+    vuela: false,
+    botin: GEL,
+    botinMax: 1,
+    nocturno: false,
+  },
+  // La momia es el zombi del desierto: más lenta, más dura, y de día también.
+  momia: {
+    nombre: 'momia',
+    vida: 70,
+    dano: 24,
+    ancho: 20,
+    alto: 40,
+    color: '#cfc3a4',
+    colorOscuro: '#8a7d62',
+    vuela: false,
+    botin: HUESO,
+    botinMax: 2,
+    nocturno: true,
   },
   lobo: {
     nombre: 'lobo de hielo',
@@ -310,6 +358,35 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
       if (c.enSuelo && Math.abs(c.vx) < 0.35 && Math.abs(dx) > 4) {
         c.vy = -5.4;
       }
+      break;
+    }
+
+    case 'esqueleto': {
+      // Como el zombi pero decidido: anda más rápido y salta antes. La
+      // diferencia se nota en que no se le deja atrás corriendo.
+      c.vx += (dir * 1.5 - c.vx) * 0.22;
+      c.mirando = dir;
+      if (c.enSuelo && Math.abs(c.vx) < 0.4 && Math.abs(dx) > 4) c.vy = -5.6;
+      break;
+    }
+
+    case 'momia': {
+      // Lentísima y constante. No salta: se la esquiva sin problema, pero si te
+      // acorrala contra una pared del desierto, se acabó.
+      c.vx += (dir * 0.8 - c.vx) * 0.12;
+      c.mirando = dir;
+      break;
+    }
+
+    case 'serpiente': {
+      // Repta a rachas: acelera un momento y se para, así que su avance es
+      // irregular y cuesta calcular cuándo va a llegar.
+      const embiste = e.reloj % 90 < 40;
+      c.vx += ((embiste ? dir * 2.6 : 0) - c.vx) * 0.16;
+      c.mirando = dir;
+      // Solo salta si tiene algo justo delante; una serpiente que brinca no es
+      // una serpiente.
+      if (c.enSuelo && embiste && Math.abs(c.vx) < 0.3 && Math.abs(dx) > 4) c.vy = -3.4;
       break;
     }
 
