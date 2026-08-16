@@ -171,7 +171,7 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
 
 - **Bloque 1 — Errores y manejo** ✅ · el cofre ya no se traga objetos, daño por
   caída, la oscuridad tiene suelo, techo de construcción, menú de pausa, ayuda,
-  ajustes, menú de depuración en Alt+R+F3, F3 coordenadas y F6 diagnóstico,
+  ajustes, menú de depuración en P+F3 con contraseña, F3 coordenadas y F6 diagnóstico,
   hambre y animales, mesa de trabajo con panel propio, rozamiento de arena y
   hielo, la pantalla de muerte dice de qué has muerto.
 - **Bloque 2 — Progresión y combate** (en curso) · niveles de herramienta ✅,

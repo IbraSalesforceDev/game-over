@@ -7,8 +7,14 @@ import { ENEMIGOS } from '../entities/enemies';
  * Menú de trucos y depuración.
  *
  * No aparece en los controles ni en las opciones a propósito: es una puerta de
- * servicio, no una función del juego. Se abre con Alt+R+F3, un acorde que no se
- * pulsa por accidente, y quien no lo conozca no lo encontrará jugando.
+ * servicio, no una función del juego. El acorde P+F3 llama a la puerta y una
+ * contraseña la abre; sin ella no se ve nada del panel.
+ *
+ * Conviene decir qué es y qué no es esta contraseña: el juego entero se
+ * descarga en el navegador de quien juega, así que la palabra está dentro del
+ * bundle y quien sepa mirarlo la encontrará. No protege de nadie decidido — es
+ * un pestillo, no una cerradura. Lo que sí hace es que ni un acorde pulsado por
+ * casualidad ni alguien curioseando por encima del hombro abran los trucos.
  *
  * Existe porque probar el juego sin él cuesta horas: para ver si el pico de oro
  * pica bien hay que bajar a por oro, y para ver si un jabalí se comporta hay que
@@ -86,12 +92,51 @@ const ESTILO = `
   border: 1px solid #38304a; background: #171320; color: #7a6a86; }
 #depuracion .interruptor.on { background: #2a3a2a; border-color: #4c8b3a; color: #b8e0a8; }
 #depuracion .pie { color: #5a4f66; font-size: 9px; margin-top: 12px; line-height: 1.5; }
+
+/* La puerta: una sola línea con un campo. Del panel de detrás no se enseña
+   nada —ni los títulos ni los controles— hasta que la contraseña es correcta. */
+#depuracion-puerta {
+  pointer-events: auto;
+  position: fixed; right: 14px; top: 14px; z-index: 96; display: none;
+  width: min(94vw, 330px); padding: 14px;
+  background: rgba(10,13,18,.97); border: 1px solid #48354f; border-radius: 10px;
+  font: 11px ui-monospace, monospace; color: #cfc4d8;
+  box-shadow: 0 18px 44px rgba(0,0,0,.6);
+}
+#depuracion-puerta.visible { display: block; }
+#depuracion-puerta h3 {
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+  color: #c08fd8; margin-bottom: 10px;
+}
+#depuracion-puerta input {
+  width: 100%; box-sizing: border-box; margin-bottom: 8px;
+  background: #171320; color: #cfc4d8; border: 1px solid #38304a; border-radius: 5px;
+  padding: 6px 8px; font: 11px ui-monospace, monospace;
+}
+#depuracion-puerta input.mal { border-color: #7a3040; color: #e0857a; }
+#depuracion-puerta button {
+  width: 100%; padding: 6px; cursor: pointer; border-radius: 5px;
+  background: #241c2e; border: 1px solid #38304a; color: #cfc4d8;
+  font: 11px ui-monospace, monospace;
+}
+#depuracion-puerta button:hover { background: #302640; }
+#depuracion-puerta .aviso { color: #5a4f66; font-size: 9px; margin-top: 8px; }
 `;
+
+/** Lo que hay que escribir para que la puerta se abra. */
+export const CONTRASENA = 'ibrasaysopensesame';
+
+/** ¿Vale esta palabra? Sin distinguir mayúsculas ni espacios de más. */
+export function contrasenaCorrecta(texto: string): boolean {
+  return texto.trim().toLowerCase() === CONTRASENA;
+}
 
 export interface PanelDebug {
   alternar(): void;
   cerrar(): void;
   readonly abierto: boolean;
+  /** ¿Se ha metido ya la contraseña en esta sesión? */
+  readonly desbloqueado: boolean;
 }
 
 export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): PanelDebug {
@@ -172,7 +217,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       <button id="dbg-generar">Generar</button>
     </div>
 
-    <div class="pie">Alt + R + F3 para abrir y cerrar. No aparece en los controles.</div>
+    <div class="pie">P + F3 para abrir y cerrar. No aparece en los controles.</div>
   `;
   contenedor.appendChild(panel);
 
@@ -229,11 +274,72 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     op.generarCriatura(selEspecie.value as Especie);
   });
 
+  // --- La puerta -----------------------------------------------------------
+  const puerta = document.createElement('div');
+  puerta.id = 'depuracion-puerta';
+  puerta.innerHTML = `
+    <h3>Contraseña</h3>
+    <input id="dbg-clave" type="password" autocomplete="off" spellcheck="false"
+      placeholder="…">
+    <button id="dbg-entrar">Entrar</button>
+    <div class="aviso">Esc cierra.</div>
+  `;
+  contenedor.appendChild(puerta);
+
+  const clave = puerta.querySelector<HTMLInputElement>('#dbg-clave')!;
+  let desbloqueado = false;
+
+  function cerrarTodo(): void {
+    panel.classList.remove('visible');
+    puerta.classList.remove('visible');
+  }
+
+  function probar(): void {
+    if (!contrasenaCorrecta(clave.value)) {
+      clave.classList.add('mal');
+      clave.value = '';
+      clave.placeholder = 'no';
+      return;
+    }
+    // Una vez dentro se queda abierta hasta recargar: pedirla en cada consulta
+    // convertiría la herramienta de probar cosas en un trámite.
+    desbloqueado = true;
+    clave.value = '';
+    clave.classList.remove('mal');
+    puerta.classList.remove('visible');
+    panel.classList.add('visible');
+  }
+
+  puerta.querySelector('#dbg-entrar')!.addEventListener('click', probar);
+  clave.addEventListener('keydown', (e) => {
+    // El campo se traga las teclas: escribiendo la contraseña no se debe andar
+    // ni saltar por el mundo de detrás.
+    e.stopPropagation();
+    if (e.key === 'Enter') probar();
+    if (e.key === 'Escape') cerrarTodo();
+  });
+  clave.addEventListener('keyup', (e) => e.stopPropagation());
+  clave.addEventListener('input', () => clave.classList.remove('mal'));
+
   return {
-    alternar: () => panel.classList.toggle('visible'),
-    cerrar: () => panel.classList.remove('visible'),
+    alternar() {
+      if (desbloqueado) {
+        panel.classList.toggle('visible');
+        return;
+      }
+      const abriendo = !puerta.classList.contains('visible');
+      puerta.classList.toggle('visible', abriendo);
+      if (abriendo) {
+        clave.placeholder = '…';
+        clave.focus();
+      }
+    },
+    cerrar: cerrarTodo,
     get abierto() {
-      return panel.classList.contains('visible');
+      return panel.classList.contains('visible') || puerta.classList.contains('visible');
+    },
+    get desbloqueado() {
+      return desbloqueado;
     },
   };
 }

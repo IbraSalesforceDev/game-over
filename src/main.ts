@@ -455,12 +455,11 @@ async function arrancar(): Promise<void> {
   // primero que veía quien abría el juego, y saber en qué tile estás no debería
   // costar catorce líneas de diagnóstico.
   entrada.alPulsar('F3', () => {
-    // Alt + R + F3 abre la puerta de servicio. Con el acorde completo no se
-    // pisa nunca por accidente, y por eso no hace falta anunciarlo en ningún
-    // menú. Era Alt+D+F3 hasta que se vio que ese acorde lo tiene cogido el
-    // panel de NVIDIA: un atajo secreto que abre el programa de otro no es un
-    // atajo secreto, es una tecla rota.
-    if (entrada.alt && entrada.mantenida('KeyR')) {
+    // P + F3 llama a la puerta de servicio; abrirla pide contraseña. El acorde
+    // no lleva Alt porque Alt+D+F3 lo tiene cogido el panel de NVIDIA y Alt+R
+    // se pisaba con reaparecer: un atajo secreto que abre el programa de otro
+    // no es un atajo secreto, es una tecla rota.
+    if (entrada.mantenida('KeyP')) {
       depuracion.alternar();
       return;
     }
