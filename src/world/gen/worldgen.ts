@@ -775,18 +775,116 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
     }
   }
 
-  // Y lagos de lava en el suelo. Anchos y poco hondos: lo que se busca es que
-  // haya que rodearlos, no que se caiga uno dentro sin verlos.
-  const lagos = Math.floor(mundo.ancho / 45);
-  for (let i = 0; i < lagos; i++) {
-    for (let intento = 0; intento < 30; intento++) {
-      const tx = rng.entero(6, mundo.ancho - 7);
-      const ty = rng.entero(suelo - 24, suelo - 3);
-      if (mundo.getTile(tx, ty) !== AIRE) continue;
-      if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
-      if (inundar(mundo, tx, ty, 260, true, ty - 3, ty + 3) > 20) break;
+  // El mar del fondo. Las últimas filas del inframundo se llenan de lava hasta
+  // donde llegue la roca, así que lo que queda por encima son crestas e islas:
+  // se puede saltar de una a otra, y caerse cuesta la partida.
+  //
+  // Se llena por filas y no por inundación a propósito. Un relleno se escapa
+  // por el primer hueco; esto pinta una lámina a nivel, y una lámina a nivel es
+  // justo lo que el simulador no tiene nada que hacer con: nace quieta.
+  const superficieMar = suelo - 9;
+  for (let ty = superficieMar; ty < suelo; ty++) {
+    for (let tx = 1; tx < mundo.ancho - 1; tx++) {
+      // El borde de arriba ondula: una raya recta de lava a lo ancho del mundo
+      // se lee como el borde de un decorado, no como un mar.
+      const ondulado =
+        superficieMar + Math.round(ruido1D(tx / 23, semilla + 991) * 3.4) - 1;
+      if (ty < ondulado) continue;
+      if (esSolido(mundo.getTile(tx, ty))) continue;
+      mundo.setLiquido(tx, ty, 255, true);
     }
   }
+
+  // Y lagos de lava por encima del mar. Se cava la cuenca primero y se llena
+  // después: es la única forma de que tengan fondo.
+  const lagos = Math.floor(mundo.ancho / 26);
+  for (let i = 0; i < lagos; i++) {
+    for (let intento = 0; intento < 40; intento++) {
+      const tx = rng.entero(10, mundo.ancho - 11);
+      const ty = rng.entero(techo + 10, suelo - 4);
+      if (mundo.getTile(tx, ty) !== AIRE) continue;
+      if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
+      // Se intenta el tamaño grande y se va encogiendo. Sin esto casi todos los
+      // intentos fallaban: una cuenca de treinta y cinco columnas por ocho de
+      // hondo pide un bloque de roca maciza que en el inframundo, agujereado
+      // como está, casi no existe. Encogiendo, el mismo sitio que rechazaba el
+      // lago grande acepta una poza, y el suelo acaba salpicado de lava en vez
+      // de tener cuatro lagos enormes y nada más.
+      let hecho = false;
+      for (let escala = 1; escala > 0.35 && !hecho; escala -= 0.22) {
+        hecho = excavarCuencaLava(
+          mundo,
+          tx,
+          ty + 1,
+          Math.max(2, Math.round(rng.entero(8, 18) * escala)),
+          Math.max(2, Math.round(rng.entero(5, 9) * escala)),
+        );
+      }
+      if (hecho) break;
+    }
+  }
+}
+
+/**
+ * Un lago de lava con fondo: se cava la cuenca en la roca y se llena a ras.
+ *
+ * La versión anterior no cavaba nada: soltaba doscientas sesenta celdas de
+ * lava sobre el suelo de la caverna y dejaba que el relleno por inundación
+ * buscara sitio. En una sala del inframundo —que mide cientos de columnas de
+ * ancho y es plana a propósito— eso no produce un lago, produce una raya
+ * naranja de un tile de alto que cruza la pantalla entera y no se puede ni
+ * rodear ni cruzar: es una valla, no un peligro.
+ *
+ * Cavando primero, la lava tiene paredes. Y como la cuenca se rellena hasta
+ * arriba y queda a nivel, el simulador no tiene nada que repartir: nace
+ * quieta, en vez de pasarse los primeros segundos de la partida extendiéndose.
+ *
+ * Devuelve false si no había roca bastante donde meterla, que es lo normal en
+ * el borde de una sala.
+ */
+function excavarCuencaLava(
+  mundo: Mundo,
+  cx: number,
+  cySuelo: number,
+  semiancho: number,
+  hondo: number,
+): boolean {
+  const perfil = (dx: number): number => {
+    // Media elipse: honda en el centro y en cuña hacia los bordes. Una cuenca
+    // rectangular se lee como una piscina excavada a mano.
+    const t = dx / semiancho;
+    return Math.round(hondo * Math.sqrt(Math.max(0, 1 - t * t)));
+  };
+
+  // Primero se comprueba, y solo después se cava. La cuenca tiene que caber
+  // entera en roca maciza: si asoma por debajo a una sala, la lava se cuela por
+  // el agujero y vuelve el problema, esta vez un piso más abajo.
+  for (let dx = -semiancho; dx <= semiancho; dx++) {
+    const p = perfil(dx);
+    if (p === 0) continue;
+    for (let d = 0; d <= p; d++) {
+      const tx = cx + dx;
+      const ty = cySuelo + d;
+      if (!mundo.dentro(tx, ty)) return false;
+      if (!esSolido(mundo.getTile(tx, ty))) return false;
+      if (mundo.getLiquido(tx, ty) > 0) return false;
+    }
+    // Y las paredes laterales de cada columna, para que no desagüe de lado.
+    for (const lado of [cx - semiancho - 1, cx + semiancho + 1]) {
+      if (!mundo.dentro(lado, cySuelo)) return false;
+    }
+  }
+
+  for (let dx = -semiancho; dx <= semiancho; dx++) {
+    const p = perfil(dx);
+    for (let d = 0; d < p; d++) {
+      const tx = cx + dx;
+      const ty = cySuelo + d;
+      mundo.setTile(tx, ty, AIRE);
+      mundo.setLiquido(tx, ty, 255, true);
+    }
+  }
+  return true;
 }
 
 /** Como `pintarBlob` pero sobre un material concreto en vez de sobre piedra. */
@@ -1333,7 +1431,8 @@ function llenarLiquidos(
       if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
       // Tres tiles de calado como mucho: una charca en el suelo de una cueva,
       // no una columna de agua subiendo por la sala.
-      if (inundar(mundo, tx, ty, 90, false, ty - 2, ty + 2) > 8) break;
+      // Doce columnas de alcance: una charca, no un río subterráneo.
+      if (inundar(mundo, tx, ty, 90, false, ty - 2, ty + 2, 12) > 8) break;
     }
   }
 
@@ -1346,7 +1445,9 @@ function llenarLiquidos(
       const ty = rng.entero(inicioLava, c.fondo - 4);
       if (mundo.getTile(tx, ty) !== AIRE) continue;
       if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
-      if (inundar(mundo, tx, ty, 80, true, ty - 3, ty + 2) > 6) break;
+      // La colada de la caverna se acota más todavía: la lava que no se ve
+      // venir mata, y una tirada de sesenta columnas no se ve venir.
+      if (inundar(mundo, tx, ty, 80, true, ty - 3, ty + 2, 9) > 6) break;
     }
   }
 }
@@ -1439,6 +1540,7 @@ function inundar(
   lava: boolean,
   limiteArriba: number,
   limiteAbajo = Infinity,
+  alcance = Infinity,
 ): number {
   const pila: number[] = [ty0 * mundo.ancho + tx0];
   const vistos = new Set<number>(pila);
@@ -1449,6 +1551,11 @@ function inundar(
     const tx = i % mundo.ancho;
     const ty = (i / mundo.ancho) | 0;
     if (!mundo.dentro(tx, ty) || ty < limiteArriba || ty > limiteAbajo) continue;
+    // Tope horizontal. Sin él, en una caverna ancha y llana el relleno se va de
+    // lado hasta agotar el presupuesto de celdas y deja una raya de líquido de
+    // un tile de alto y doscientas columnas de largo. En el inframundo, cuyas
+    // salas son larguísimas a propósito, era exactamente lo que pasaba.
+    if (Math.abs(tx - tx0) > alcance) continue;
     if (esSolido(mundo.getTile(tx, ty))) continue;
     if (mundo.getLiquido(tx, ty) > 0) continue;
 

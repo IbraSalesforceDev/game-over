@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { fractal1D, fractal2D, ruido1D, ruido2D } from '../src/world/gen/noise';
 import { crearRngRico, semillaDeTexto } from '../src/world/gen/rng';
-import { generarMundo, TAMANOS } from '../src/world/gen/worldgen';
+import { generarMundo, TAMANOS, techoInframundo } from '../src/world/gen/worldgen';
 import { BOSQUE, DESIERTO, JUNGLA, NIEVE_B } from '../src/world/gen/biomas';
 import { SimuladorLiquidos } from '../src/world/liquids';
+import type { Mundo } from '../src/world/world';
 import {
   AIRE,
   ARENA,
@@ -445,5 +446,89 @@ describe('líquidos del mundo generado', () => {
     }
     // O no hay montañas en este mundo, o las que hay tienen la roca a la vista.
     if (cumbres > 0) expect(cumbresConPiedra / cumbres).toBeGreaterThan(0.7);
+  });
+});
+
+describe('la lava tiene fondo', () => {
+  /**
+   * El bug del inframundo: los lagos se hacían soltando doscientas sesenta
+   * celdas de lava y dejando que un relleno por inundación buscara sitio. En
+   * una sala del inframundo, que mide cientos de columnas y es plana a
+   * propósito, eso no daba un lago sino una raya naranja de un tile de alto que
+   * cruzaba la pantalla entera. Se medía en doscientos cincuenta y cuatro tiles
+   * de largo.
+   */
+  const OP = { ancho: 1600, alto: 500, semilla: 'LAVA' };
+
+  /** Tiradas horizontales de líquido sin nada encima ni debajo. */
+  function peorLamina(mundo: Mundo, desde: number): number {
+    let peor = 0;
+    for (let ty = desde; ty < mundo.alto; ty++) {
+      let racha = 0;
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        const fino =
+          mundo.getLiquido(tx, ty) > 0 &&
+          mundo.getLiquido(tx, ty - 1) === 0 &&
+          mundo.getLiquido(tx, ty + 1) === 0;
+        racha = fino ? racha + 1 : 0;
+        peor = Math.max(peor, racha);
+      }
+    }
+    return peor;
+  }
+
+  /** Profundidad de cada charco, columna a columna. */
+  function calados(mundo: Mundo, desde: number): number[] {
+    const salida: number[] = [];
+    for (let tx = 0; tx < mundo.ancho; tx++) {
+      let ty = desde;
+      while (ty < mundo.alto) {
+        if (mundo.getLiquido(tx, ty) > 0) {
+          let h = 0;
+          while (ty + h < mundo.alto && mundo.getLiquido(tx, ty + h) > 0) h++;
+          salida.push(h);
+          ty += h;
+        } else ty++;
+      }
+    }
+    return salida;
+  }
+
+  it('ninguna lámina de un tile cruza el inframundo', () => {
+    const { mundo } = generarMundo(OP);
+    expect(peorLamina(mundo, techoInframundo(mundo.alto))).toBeLessThan(60);
+  });
+
+  it('los charcos del inframundo tienen calado de verdad', () => {
+    const { mundo } = generarMundo(OP);
+    const h = calados(mundo, techoInframundo(mundo.alto)).sort((a, b) => a - b);
+    expect(h.length).toBeGreaterThan(50);
+    // La mediana era 1 —el 79 % de los charcos medía un solo tile de alto—.
+    expect(h[Math.floor(h.length / 2)]!).toBeGreaterThanOrEqual(4);
+  });
+
+  it('hay mucha más lava que roca desnuda en el fondo', () => {
+    const { mundo } = generarMundo(OP);
+    const techo = techoInframundo(mundo.alto);
+    let celdas = 0;
+    for (let ty = techo; ty < mundo.alto; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getLiquido(tx, ty) > 0 && mundo.esLava(tx, ty)) celdas++;
+      }
+    }
+    // Más de dos celdas de lava por columna de mundo: el inframundo se cruza
+    // rodeando lava, no paseando.
+    expect(celdas).toBeGreaterThan(mundo.ancho * 2);
+  });
+
+  it('el mundo generado nace casi quieto y se asienta', () => {
+    const { mundo } = generarMundo(OP);
+    const sim = new SimuladorLiquidos(mundo);
+    sim.despertarTodo();
+    let pasos = 0;
+    for (; pasos < 6000; pasos++) if (sim.paso() === 0) break;
+    expect(sim.pendientes).toBe(0);
+    // Y una vez quieto, sigue sin haber láminas.
+    expect(peorLamina(mundo, techoInframundo(mundo.alto))).toBeLessThan(60);
   });
 });

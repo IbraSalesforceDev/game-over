@@ -114,6 +114,18 @@ export function levantarEstructuras(
     construirMina(mundo, superficie, caverna, fondo, rng, salida);
   }
 
+  // Y la invariante, al final: cada cofre de la lista tiene que ser un cofre en
+  // el mundo.
+  //
+  // Las estructuras se construyen unas después de otras y ninguna mira lo que
+  // hay puesto: una galería que pasa a dieciocho tiles de una cueva de bioma le
+  // atraviesa la sala y le borra el cofre, porque `limpiar` deja aire y no
+  // pregunta. La lista se quedaba entonces con un cofre en una casilla vacía, y
+  // la partida lo adoptaba igual: un contenedor invisible con botín dentro que
+  // solo existía en el guardado. Es más barato comprobarlo aquí una vez que
+  // hacer que las cuatro estructuras se esquiven entre sí.
+  salida.cofres = salida.cofres.filter((c) => mundo.getTile(c.tx, c.ty) === COFRE);
+
   return salida;
 }
 
@@ -475,6 +487,23 @@ function excavarCuevaDeBioma(
   }
 }
 
+/** ¿Hay algo puesto a mano por el generador dentro de este rectángulo? */
+function ocupado(
+  mundo: Mundo,
+  tx0: number,
+  ty0: number,
+  tx1: number,
+  ty1: number,
+): boolean {
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const t = mundo.getTile(tx, ty);
+      if (t === COFRE || t === LADRILLO || t === ALTAR) return true;
+    }
+  }
+  return false;
+}
+
 /** Primer tile con suelo firme debajo, bajando desde un punto. */
 function suelo(mundo: Mundo, tx: number, ty0: number): number {
   let ty = ty0;
@@ -645,6 +674,11 @@ function construirMina(
     // Que arranque en roca: una galería que nace dentro de una caverna ya
     // abierta no se distingue de la caverna.
     if (!esSolido(mundo.getTile(tx, ty + alto))) continue;
+    // Y que no atraviese nada de lo ya construido. La mina se cava la última y
+    // `limpiar` deja aire sin preguntar: sin esto, una galería que pasa cerca
+    // de una cueva de bioma le borra el cofre y de la fortaleza le abre una
+    // pared. Se comprueba el pasillo entero antes de tocar un solo tile.
+    if (ocupado(mundo, tx, ty, tx + largo - 1, ty + alto)) continue;
 
     for (let d = 0; d < largo; d++) {
       const x = tx + d;

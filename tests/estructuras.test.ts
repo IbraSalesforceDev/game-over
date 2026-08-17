@@ -74,6 +74,19 @@ describe('estructuras del mundo', () => {
     }
   });
 
+  it('todo cofre de la lista es un cofre en el mundo', () => {
+    // Las estructuras se construyen unas tras otras y ninguna mira lo que hay
+    // puesto: una mina que pasaba a dieciocho tiles de una cueva de bioma le
+    // atravesaba la sala y le borraba el cofre. La lista se quedaba con un
+    // contenedor en una casilla vacía, y la partida lo adoptaba igual: botín
+    // invisible que solo existía en el guardado.
+    for (const semilla of ['CUEVAS', 'A', 'B', 'C', 'D', 'E']) {
+      const { mundo, cofres } = generarMundo({ ancho: 2400, alto: 400, semilla });
+      const rotos = cofres.filter((c) => mundo.getTile(c.tx, c.ty) !== COFRE);
+      expect(rotos).toEqual([]);
+    }
+  });
+
   it('la misma semilla pone las estructuras en el mismo sitio', () => {
     const a = generarMundo(OP);
     const b = generarMundo(OP);

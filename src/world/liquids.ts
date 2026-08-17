@@ -174,12 +174,22 @@ export class SimuladorLiquidos {
         this.marcarVecinas(nx, ty);
       }
 
-      if (nivel > 0 && nivel <= MINIMO && this.aislada(tx, ty)) {
-        // Una gota suelta que ya no toca nada: se evapora. Si tuviera vecinos
-        // se quedaría, porque entonces es el borde de una lámina de agua y
-        // borrarla iría comiéndose el charco por los lados.
+      if (nivel > 0 && nivel <= MINIMO && !this.tocaCuerpo(tx, ty)) {
+        // Un resto que no toca nada más hondo que él: se evapora.
+        //
+        // La condición era "que no toque ningún líquido", y con esa una lámina
+        // extendida no se recogía jamás: cada celda tenía vecinas igual de
+        // finas, así que ninguna se daba por perdida y la película se quedaba
+        // ahí para siempre. Es literalmente la raya de lava de un tile de alto
+        // que cruzaba el inframundo de lado a lado.
+        //
+        // Mirando si hay algo *más hondo* al lado se distingue lo que hay que
+        // distinguir: el borde de un charco tiene agua de verdad pegada y se
+        // conserva, mientras que el rastro que dejó una gota al extenderse no
+        // tiene nada detrás y desaparece.
         mundo.setLiquido(tx, ty, 0);
         cambios++;
+        this.marcarVecinas(tx, ty);
       }
     }
 
@@ -190,15 +200,13 @@ export class SimuladorLiquidos {
     return cambios;
   }
 
-  /** ¿La celda no toca ningún otro líquido? */
-  private aislada(tx: number, ty: number): boolean {
+  /** ¿Hay pegado un líquido con cuerpo, y no otro resto igual de fino? */
+  private tocaCuerpo(tx: number, ty: number): boolean {
     const { mundo } = this;
-    return (
-      mundo.getLiquido(tx - 1, ty) === 0 &&
-      mundo.getLiquido(tx + 1, ty) === 0 &&
-      mundo.getLiquido(tx, ty - 1) === 0 &&
-      mundo.getLiquido(tx, ty + 1) === 0
-    );
+    for (const [dx, dy] of VECINOS) {
+      if (mundo.getLiquido(tx + dx, ty + dy) > MINIMO) return true;
+    }
+    return false;
   }
 
   private puedeFluir(tx: number, ty: number): boolean {
