@@ -297,6 +297,31 @@ Proyecto estático, igual que los tuyos (framework detectado o `null`):
 4. **Formato de guardado con número de versión desde el día uno** — sin él, cada cambio de fase invalida los mundos guardados.
 5. **Físicas en coordenadas de píxel con floats y paso fijo** — mezclar paso variable después es una reescritura.
 
+## Lo que queda de prealfa (17/8/2026)
+
+Tres mensajes con el contenido que falta antes de la fase alfa. Van en este
+orden, y cada punto es una versión:
+
+1. **El guardián, más duro** ✅ 6.8.0 · sube vida y daño, y encarece la ofrenda,
+   porque el jefe se pensó cuando el mejor peto era de plata.
+2. **Efectos y pociones** ✅ 6.9.0 · siete efectos de estado, el caldero y seis
+   pociones. Es la base de lo que viene detrás: sin efectos, un ataque especial
+   solo puede quitar vida.
+3. **Ataques especiales y más élites** · cada bicho pega distinto según su
+   bioma —bola de fuego y arena en el desierto, ventisca en la nieve—, el bosque
+   también saca élites y la probabilidad de élite sube, con mejor botín.
+4. **Un jefe por bioma** · pradera, jungla, cueva, desierto, nieve e infierno,
+   cada uno de dificultad parecida al guardián de hoy y con su propio ritual de
+   invocación hecho de materiales de ese bioma (el del infierno, por ejemplo,
+   con doscientas piedras del infierno más algún mineral y alguna reliquia).
+5. **Botín por bioma** · cada jefe suelta armas y armadura suyas: variantes de
+   las que ya hay, mejores estéticamente y con una **inscripción** que se lee
+   pasando el ratón por encima y da un poder atado a una tecla (la armadura de
+   fuego del jefe del infierno lanza una bola de fuego).
+6. **Reliquias y el jefe de verdad** · esas piezas dan reliquias; juntando la de
+   los seis jefes se usa el altar de la fortaleza de siempre y sale el jefe
+   final, mejor estéticamente y con ataques especiales.
+
 ## Dónde acaba la prealfa
 
 El juego sale de prealfa cuando estén las tres cosas que lo convierten en algo

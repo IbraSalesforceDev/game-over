@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, BARRO, BATERIA, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, BOMBILLA, CABLE, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, INTERRUPTOR, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, BARRO, BATERIA, CALDERO, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, BOMBILLA, CABLE, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, INTERRUPTOR, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -90,6 +90,14 @@ import {
   POLVORA,
   BOMBA,
   DINAMITA,
+  BAYAS,
+  FRASCO,
+  POCION_VIDA,
+  POCION_REGENERACION,
+  POCION_FUERZA,
+  POCION_PIEDRA,
+  POCION_LIGEREZA,
+  POCION_REMEDIO,
 } from './items';
 
 /**
@@ -820,6 +828,108 @@ export const RECETAS: readonly Receta[] = [
     resultado: BATERIA,
     cantidad: 1,
     estacion: YUNQUE,
+  },
+  // --- Alquimia (6.9.0) -----------------------------------------------------
+  //
+  // El caldero es la cuarta estación, y se pone aparte a propósito: obliga a
+  // montar un rincón con horno al lado —el frasco se sopla en el horno— y eso
+  // convierte preparar pociones en una parada, no en algo que se hace de pie en
+  // mitad de una cueva. Las recetas están pensadas para gastar lo que sobra:
+  // gel, hueso, piedra y plumas se acumulaban en los cofres sin destino.
+  {
+    id: 'caldero',
+    desde: '6.9.0',
+    ingredientes: [
+      [LINGOTE_HIERRO, 6],
+      [PIEDRA, 20],
+    ],
+    resultado: CALDERO,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  {
+    // Dos por vidrio: si saliera uno, el cuello de botella de todo el sistema
+    // sería ir a por arena, que es lo menos interesante de la lista.
+    id: 'frasco',
+    desde: '6.9.0',
+    ingredientes: [[VIDRIO, 1]],
+    resultado: FRASCO,
+    cantidad: 2,
+    estacion: HORNO,
+  },
+  {
+    id: 'pocion-vida',
+    desde: '6.9.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [BAYAS, 3],
+      [GEL, 2],
+    ],
+    resultado: POCION_VIDA,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'pocion-regeneracion',
+    desde: '6.9.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [BAYAS, 2],
+      [TRIGO, 3],
+    ],
+    resultado: POCION_REGENERACION,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'pocion-fuerza',
+    desde: '6.9.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [HUESO, 3],
+      [CARNE_CRUDA, 2],
+    ],
+    resultado: POCION_FUERZA,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'pocion-piedra',
+    desde: '6.9.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [PIEDRA, 12],
+      [PEDERNAL, 2],
+    ],
+    resultado: POCION_PIEDRA,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'pocion-ligereza',
+    desde: '6.9.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [PLUMA, 4],
+      [GEL, 2],
+    ],
+    resultado: POCION_LIGEREZA,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    // El remedio es la más barata de las seis, y eso es deliberado: quitarse
+    // veneno o dejar de arder no puede depender de haber ido a por plumas.
+    id: 'pocion-remedio',
+    desde: '6.9.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [SEMILLAS, 2],
+      [ZANAHORIA_3, 1],
+    ],
+    resultado: POCION_REMEDIO,
+    cantidad: 1,
+    estacion: CALDERO,
   },
   ...forjas(),
   ...armaduras(),

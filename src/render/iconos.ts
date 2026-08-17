@@ -1,4 +1,4 @@
-import { ANTORCHA, COFRE, defTile, HORNO, MESA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
+import { ANTORCHA, CALDERO, COFRE, defTile, HORNO, MESA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
 import {
   CUBO,
   CUBO_AGUA,
@@ -14,7 +14,9 @@ import {
   esHerramienta,
   esMapa,
   esPala,
+  esPocion,
   esSemilla,
+  FRASCO,
   BAYAS,
   CARNE_ASADA,
   CARNE_CRUDA,
@@ -555,10 +557,44 @@ const zanahoriaIcono: Dibujo = (ctx, ox, oy, color) => {
   px(ctx, ox + 12, oy + 1, 3, 3, '#6ab040');
 };
 
+/**
+ * Poción: frasco con tapón y líquido del color del efecto.
+ *
+ * El vidrio es el mismo en las seis y lo único que cambia es el caldo, que es
+ * exactamente lo que se quiere en la barra rápida: seis siluetas distintas
+ * obligarían a leer el nombre para saber cuál es cuál, y con la misma silueta
+ * basta con el color.
+ */
+const pocionIcono: Dibujo = (ctx, ox, oy, color) => {
+  const t = tono(color, 34, 40);
+  // Cuello y tapón.
+  px(ctx, ox + 8, oy + 3, 4, 3, '#cfe2e8');
+  px(ctx, ox + 7, oy + 1, 6, 2, '#7a5334');
+  // Panza de vidrio, y el caldo dentro con la superficie más clara.
+  elipse(ctx, ox + 10, oy + 12, 6.5, 5.5, '#cfe2e8');
+  elipse(ctx, ox + 10, oy + 12.5, 5.2, 4.4, t.base);
+  px(ctx, ox + 6, oy + 10, 8, 1, t.claro);
+  // Brillo del cristal: es lo que hace que se lea como frasco y no como fruta.
+  px(ctx, ox + 6, oy + 11, 1, 3, '#ffffff');
+  px(ctx, ox + 7, oy + 14, 1, 1, '#ffffff');
+};
+
+/** Frasco vacío: el mismo cristal, sin nada dentro. */
+const frascoIcono: Dibujo = (ctx, ox, oy) => {
+  px(ctx, ox + 8, oy + 3, 4, 3, '#cfe2e8');
+  px(ctx, ox + 7, oy + 1, 6, 2, '#8fa8b0');
+  elipse(ctx, ox + 10, oy + 12, 6.5, 5.5, '#cfe2e8');
+  elipse(ctx, ox + 10, oy + 12.5, 5.2, 4.4, '#8fb0ba');
+  px(ctx, ox + 6, oy + 11, 1, 3, '#ffffff');
+};
+
 /** Elige el dibujo que le toca a cada objeto. */
 function dibujoDe(id: number): Dibujo {
+  if (id === FRASCO) return frascoIcono;
+  if (esPocion(id)) return pocionIcono;
   if (id === ANTORCHA) return antorchaIcono;
-  if (id === MESA || id === HORNO || id === YUNQUE || id === COFRE) return mueble;
+  if (id === MESA || id === HORNO || id === YUNQUE || id === COFRE || id === CALDERO)
+    return mueble;
   if (id === CUBO || id === CUBO_AGUA || id === CUBO_LAVA) return cuboIcono;
   if (esCristal(id)) return cristalIcono;
   if (esMapa(id)) return ICONOS_MAPA[Math.min(4, (defObjeto(id).nivelMapa ?? 1) - 1)]!;

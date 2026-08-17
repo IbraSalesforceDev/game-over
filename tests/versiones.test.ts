@@ -14,7 +14,7 @@ import { generarMundo } from '../src/world/gen/worldgen';
 import { RECETAS, recetasVisibles, existeEn } from '../src/items/recipes';
 import { ENEMIGOS, especieExisteEn, type Especie } from '../src/entities/enemies';
 import { especiesPosibles } from '../src/entities/spawner';
-import { MESA, HORNO, YUNQUE, CANA, HIERBA_JUNGLA, ARENA, TIERRA } from '../src/world/tiles';
+import { CALDERO, MESA, HORNO, YUNQUE, CANA, HIERBA_JUNGLA, ARENA, TIERRA } from '../src/world/tiles';
 import {
   ESPADA_GUARDIAN,
   ESPADA_MADERA,
@@ -267,7 +267,7 @@ describe('ningún objeto se cuela en un mundo que no lo conoce', () => {
 });
 
 describe('las recetas y los bichos llegan cuando llegaron', () => {
-  const estaciones = new Set([MESA, HORNO, YUNQUE]);
+  const estaciones = new Set([MESA, HORNO, YUNQUE, CALDERO]);
 
   it('en 1.7.0 no se puede fabricar un arco', () => {
     const ids = recetasVisibles(estaciones, '1.7.0').map((r) => r.id);

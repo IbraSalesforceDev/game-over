@@ -6,6 +6,20 @@ import { crearBucle } from './engine/loop';
 import { AMANECER, Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
 import { crearAudio } from './engine/audio';
+import {
+  aplicarEfecto,
+  crearEfectos,
+  defensaExtra,
+  DURACION,
+  EFECTOS,
+  limpiarDaninos,
+  limpiarEfectos,
+  multiplicadorDano,
+  multiplicadorSalto,
+  multiplicadorVelocidad,
+  tickEfectos,
+} from './entities/efectos';
+import { crearPanelEstados } from './ui/estados';
 import { crearAjustes, type Graficos } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
 import { crearMapa } from './ui/mapa';
@@ -157,6 +171,7 @@ import {
   esSemilla,
   siembraDe,
   esComida,
+  esPocion,
   esCristal,
   esCubo,
   FLECHAS,
@@ -534,6 +549,15 @@ async function arrancar(): Promise<void> {
   );
   if (partida.estado.vida > 0) salud.vida = Math.min(salud.vidaMax, partida.estado.vida);
   const aliento = crearAliento();
+  /**
+   * Lo que llevas puesto ahora mismo: fuego, veneno, fuerza...
+   *
+   * No se guarda en la partida a propósito. Un efecto dura como mucho un
+   * minuto, y recuperar la partida con doce segundos de quemadura pendientes
+   * sería castigar por cerrar el juego; al revés, guardar la fuerza recién
+   * bebida convertiría cerrar y abrir en una forma de conservarla eternamente.
+   */
+  const estados = crearEfectos();
   const hambre = crearHambre(
     partida.estado.hambre > 0 ? partida.estado.hambre : HAMBRE_MAXIMA,
   );
@@ -571,6 +595,7 @@ async function arrancar(): Promise<void> {
   panelVida.refrescar(salud);
   panelVida.refrescarAliento(aliento);
   panelVida.refrescarHambre(hambre);
+  const panelEstados = crearPanelEstados(capaUI, tiene('efectos'));
   const aviso = crearAviso(capaUI);
   const audio = crearAudio();
   // Antes de 2.2.0 el juego era mudo. Se apaga en la puerta y no en cada
@@ -1312,7 +1337,12 @@ async function arrancar(): Promise<void> {
     }
 
     // El golpe activo alcanza a quien toque, una vez por mandoble.
-    const r = resolverGolpe(golpe, jugador.caja, enemigos, trucos.danoMultiplicador);
+    const r = resolverGolpe(
+      golpe,
+      jugador.caja,
+      enemigos,
+      trucos.danoMultiplicador * multiplicadorDano(estados),
+    );
     for (const tocado of r.tocados) {
       // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
       // de que el mandoble ha entrado, que hasta ahora solo decía la barra de
@@ -1405,7 +1435,10 @@ async function arrancar(): Promise<void> {
       // La armadura descuenta aquí y no dentro de `golpear`: el hambre, la
       // lava y el suelo no son golpes de los que un peto proteja, y meterla
       // en la función común los cubriría a todos sin querer.
-      const encaja = danoTrasArmadura(res.danoAlJugador, defensaTotal(equipo));
+      const encaja = danoTrasArmadura(
+        res.danoAlJugador,
+        defensaTotal(equipo) + defensaExtra(estados),
+      );
       if (golpear(salud, jugador.caja, encaja, fuenteX)) {
         panelVida.refrescar(salud);
         particulas.emitir(
@@ -1455,6 +1488,7 @@ async function arrancar(): Promise<void> {
 
       reaparecer(jugador);
       revivir(salud);
+      limpiarEfectos(estados);
       reiniciarAliento(aliento);
       reiniciarHambre(hambre);
       panelVida.refrescarHambre(hambre);
@@ -1616,6 +1650,50 @@ async function arrancar(): Promise<void> {
       } else {
         aviso.mostrar('Ya tienes toda la vida que se puede tener');
       }
+      return;
+    }
+
+    // Beber, como comer: clic derecho y donde uno esté. Va antes que la comida
+    // en la cadena por nada en particular —los tipos son excluyentes—, pero sí
+    // antes de colocar, porque una poción no es un bloque y apuntar al suelo
+    // con ella en la mano no debería poner nada.
+    if (esPocion(enMano)) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      const usar = puntero.der && !derAnterior;
+      derAnterior = puntero.der;
+      if (!usar) return;
+      const def = defObjeto(enMano);
+      // La de vida no se malgasta estando lleno; las de efecto siempre valen,
+      // aunque sea para renovar lo que ya llevas.
+      const cura = def.curacion ?? 0;
+      if (cura > 0 && salud.vida >= salud.vidaMax) {
+        aviso.mostrar('Estás entero: no hace falta');
+        return;
+      }
+      const limpiados = def.limpia === true ? limpiarDaninos(estados) : [];
+      if (def.limpia === true && limpiados.length === 0) {
+        aviso.mostrar('No te pasa nada que curar');
+        return;
+      }
+      if (cura > 0) {
+        curar(salud, cura);
+        panelVida.refrescar(salud);
+      }
+      if (def.efecto !== undefined) {
+        aplicarEfecto(estados, def.efecto, def.duracion ?? DURACION.pocion);
+        aviso.mostrar(`Notas la ${EFECTOS[def.efecto].nombre}`);
+      }
+      if (limpiados.length > 0) aviso.mostrar('Se te pasa todo lo malo');
+      panelEstados.refrescar(estados);
+      inventario.sacarDe(barra.seleccion, 1);
+      barra.refrescar(capa);
+      audio.sonar('recoger', 1.2);
+      particulas.emitir(
+        jugador.caja.x + jugador.caja.ancho / 2,
+        jugador.caja.y + 12,
+        { cantidad: 12, color: def.color, dispersion: 1.6, empujeY: -1.2, vida: 30, tam: 2 },
+      );
       return;
     }
 
@@ -1986,6 +2064,10 @@ async function arrancar(): Promise<void> {
       nivelDif.castigo,
     );
     if (s.fraccion > 0 && !s.lava) apagar(aliento);
+    // Salir de la lava ya no apaga: se sigue ardiendo unos segundos. Es lo que
+    // convierte un roce en una carrera hasta el agua, y de paso lo que le da un
+    // motivo al remedio más allá de las arañas.
+    if (s.lava && tiene('efectos')) aplicarEfecto(estados, 'ardiendo', DURACION.lava);
     if (r.dano) {
       panelVida.refrescar(salud);
       if (r.motivo === 'ahogo') aviso.mostrar('Te estás ahogando', true);
@@ -2236,6 +2318,71 @@ async function arrancar(): Promise<void> {
   }
 
   /**
+   * Los ajustes de física, con lo que le hayan hecho los efectos.
+   *
+   * Se devuelve el objeto de siempre cuando no hay nada puesto, que es casi
+   * todo el rato: copiar los once campos sesenta veces por segundo para no
+   * cambiar ninguno sería tirar memoria por un caso que no ocurre.
+   *
+   * Va por aquí y no dentro de la física porque los efectos son una capa de
+   * juego y `actualizarFisica` es un motor: mientras no sepa que existen las
+   * pociones, se puede seguir probando el salto sin montar media partida.
+   */
+  function ajustesAhora(): Ajustes {
+    const vel = multiplicadorVelocidad(estados);
+    const salto = multiplicadorSalto(estados);
+    if (vel === 1 && salto === 1) return ajustes;
+    return {
+      ...ajustes,
+      velMaxima: ajustes.velMaxima * vel,
+      impulsoSalto: ajustes.impulsoSalto * salto,
+    };
+  }
+
+  /**
+   * Un tick de los efectos del jugador: lo que queman, lo que curan y el cartel
+   * cuando se acaba alguno.
+   *
+   * El daño entra sin invulnerabilidad y sin empujón, igual que en los bichos:
+   * arder no es un golpe. Y sin empuje sobre todo, porque un jugador al que la
+   * quemadura le arranca el control cada medio segundo no puede salir del sitio
+   * donde se está quemando, que es justo lo único que se le pide que haga.
+   */
+  function actualizarEstados(): void {
+    const r = tickEfectos(estados);
+    const centroX = jugador.caja.x + jugador.caja.ancho / 2;
+    if (r.dano > 0 && !trucos.invulnerable) {
+      if (golpear(salud, jugador.caja, r.dano, centroX, 0, false, 'fuego')) {
+        panelVida.refrescar(salud);
+        particulas.emitir(centroX, jugador.caja.y + 14, {
+          cantidad: 3,
+          color: '#f07a2a',
+          dispersion: 1.2,
+          empujeY: -1.4,
+          vida: 22,
+          tam: 2,
+        });
+      }
+    }
+    if (r.danoSuave > 0 && !trucos.invulnerable) {
+      // El veneno nunca remata: deja a un punto y ahí se queda.
+      const tope = Math.max(0, salud.vida - 1);
+      if (tope > 0) {
+        golpear(salud, jugador.caja, Math.min(r.danoSuave, tope), centroX, 0, false, 'golpe');
+        panelVida.refrescar(salud);
+      }
+    }
+    if (r.curacion > 0 && salud.vida < salud.vidaMax) {
+      curar(salud, r.curacion);
+      panelVida.refrescar(salud);
+    }
+    for (const clase of r.terminados) {
+      if (!EFECTOS[clase].danino) aviso.mostrar(`Se te ha pasado la ${EFECTOS[clase].nombre}`);
+    }
+    panelEstados.refrescar(estados);
+  }
+
+  /**
    * Los sucesos: sortearlos, anunciarlos y aplicar lo que hagan mientras duran.
    *
    * El módulo decide *cuándo* y *cuál*; esto es todo lo que pasa por eso. Las
@@ -2345,12 +2492,13 @@ async function arrancar(): Promise<void> {
       const sumergido = actualizarLiquidos();
       const enSueloAntes = jugador.caja.enSuelo;
       if (trucos.volar) volarUnTick(entrada.estado());
-      else actualizarJugador(mundo, jugador, entrada.estado(), ajustes, sumergido);
+      else actualizarJugador(mundo, jugador, entrada.estado(), ajustesAhora(), sumergido);
       efectosDelJugador(enSueloAntes, sumergido);
       sumergidoAhora = sumergido;
       actualizarDrops();
       if (tiene('cultivos')) actualizarCultivos();
       actualizarCombate();
+      if (tiene('efectos')) actualizarEstados();
       if (tiene('sucesos')) actualizarSucesos();
       if (tiene('electricidad')) actualizarCorriente();
       particulas.actualizar(mundo);

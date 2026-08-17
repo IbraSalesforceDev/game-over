@@ -1,9 +1,11 @@
+import { DURACION, EFECTOS, type ClaseEfecto } from '../entities/efectos';
 import {
   ALTAR,
   ANTORCHA,
   ARENA,
   ARENISCA,
   CACTUS,
+  CALDERO,
   CRISTAL_VIDA,
   COBRE,
   COFRE,
@@ -220,6 +222,21 @@ export const BOMBA = 223;
 export const DINAMITA = 224;
 
 /**
+ * El frasco y las pociones.
+ *
+ * El frasco va aparte y se gasta al preparar: es lo que hace que las pociones
+ * cuesten vidrio y no solo hierbas, y que valga la pena tener un horno cerca del
+ * caldero. Sin él, cualquier bayería del camino se convertiría en poción.
+ */
+export const FRASCO = 225;
+export const POCION_VIDA = 226;
+export const POCION_REGENERACION = 227;
+export const POCION_FUERZA = 228;
+export const POCION_PIEDRA = 229;
+export const POCION_LIGEREZA = 230;
+export const POCION_REMEDIO = 231;
+
+/**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
  *
  * Empieza siendo un pañuelo —lo justo para no perder de vista la casa— y acaba
@@ -254,7 +271,8 @@ export type TipoObjeto =
   | 'mapa'
   | 'semilla'
   | 'brujula'
-  | 'explosivo';
+  | 'explosivo'
+  | 'pocion';
 
 /**
  * Dónde se lleva puesta una pieza de armadura.
@@ -321,6 +339,12 @@ export interface DefObjeto {
   readonly nivelMapa?: number;
   /** Primera etapa del cultivo que planta, si es una semilla. */
   readonly siembra?: number;
+  /** Efecto que pone al beberla, si es una poción. */
+  readonly efecto?: ClaseEfecto;
+  /** Ticks que dura ese efecto. */
+  readonly duracion?: number;
+  /** Quita todo lo malo al beberla. Es lo que hace el remedio. */
+  readonly limpia?: boolean;
 }
 
 const PILA = 999;
@@ -376,6 +400,23 @@ function comida(
   curacion: number,
 ): [number, DefObjeto] {
   return [id, { nombre, tipo: 'comida', color, maxPila: 99, saciedad, curacion }];
+}
+
+/**
+ * Una poción.
+ *
+ * Se bebe con el clic derecho como la comida, pero no llena el estómago: son
+ * dos recursos distintos a propósito. Si las pociones saciaran, la partida se
+ * jugaría bebiendo y el hambre —que existe para obligar a cocinar y a cultivar—
+ * dejaría de pintar nada.
+ */
+function pocion(
+  id: number,
+  nombre: string,
+  color: string,
+  extra: Partial<DefObjeto> = {},
+): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'pocion', color, maxPila: 12, ...extra }];
 }
 
 /**
@@ -594,6 +635,33 @@ const ENTRADAS: [number, DefObjeto][] = [
     DINAMITA,
     { nombre: 'dinamita', tipo: 'explosivo', color: '#b5342a', maxPila: 20, velocidad: 7 },
   ],
+  deTile(CALDERO),
+  [
+    FRASCO,
+    { nombre: 'frasco', tipo: 'material', color: '#b8d8e0', maxPila: 99 },
+  ],
+  // Las pociones se apilan poco. Es lo que las mantiene siendo una decisión:
+  // con noventa y nueve encima, beber fuerza dejaría de ser "me la gasto ahora"
+  // para ser el estado normal del personaje, y entonces valdría más subirle el
+  // daño a la espada y quitar la poción.
+  pocion(POCION_VIDA, 'poción de vida', '#e0538f', { curacion: 45 }),
+  pocion(POCION_REGENERACION, 'poción de regeneración', '#e08fb8', {
+    efecto: 'regeneracion',
+    duracion: DURACION.pocionCorta,
+  }),
+  pocion(POCION_FUERZA, 'poción de fuerza', '#e8b33c', {
+    efecto: 'fuerza',
+    duracion: DURACION.pocion,
+  }),
+  pocion(POCION_PIEDRA, 'poción de piel de piedra', '#9b9b93', {
+    efecto: 'pielDePiedra',
+    duracion: DURACION.pocion,
+  }),
+  pocion(POCION_LIGEREZA, 'poción de ligereza', '#a7e8c0', {
+    efecto: 'ligereza',
+    duracion: DURACION.pocion,
+  }),
+  pocion(POCION_REMEDIO, 'poción de remedio', '#7fbf4a', { limpia: true }),
   // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
   // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
   [
@@ -721,6 +789,11 @@ const ENTRADAS: [number, DefObjeto][] = [
       maxPila: PILA,
       danoExtra: 7,
       estalla: 2.2,
+      // Desde 6.9.0 además prende: el estallido reparte de golpe y la quemadura
+      // sigue cobrando mientras el bicho viene. Es lo que la separa de la de
+      // hueso cuando el objetivo es uno solo y gordo.
+      efecto: 'ardiendo',
+      duracion: DURACION.ataque,
     },
   ],
   lingote(PAPEL, 'papel', '#e6e0cc'),
@@ -855,6 +928,11 @@ export function esCristal(id: number): boolean {
   return defObjeto(id).tipo === 'cristal';
 }
 
+/** ¿Es una poción? */
+export function esPocion(id: number): boolean {
+  return defObjeto(id).tipo === 'pocion';
+}
+
 export function esArmadura(id: number): boolean {
   return defObjeto(id).tipo === 'armadura';
 }
@@ -935,6 +1013,8 @@ export function puntaDe(id: number): {
   perfora: number;
   estalla: number;
   color: string;
+  efecto?: ClaseEfecto;
+  duracionEfecto: number;
 } {
   const d = defObjeto(id);
   return {
@@ -942,6 +1022,8 @@ export function puntaDe(id: number): {
     perfora: d.perfora ?? 0,
     estalla: d.estalla ?? 0,
     color: d.color,
+    ...(d.efecto === undefined ? {} : { efecto: d.efecto }),
+    duracionEfecto: d.duracion ?? 0,
   };
 }
 
@@ -1026,6 +1108,7 @@ const DESCRIPCION_POR_TIPO: Readonly<Record<TipoObjeto, string>> = {
   semilla: 'Se planta sobre tierra labrada.',
   brujula: 'Señala lo que hay construido en este mundo.',
   explosivo: 'Clic izquierdo para tirarla. Estalla sola, y a ti también te pilla.',
+  pocion: 'Clic derecho para beberla.',
 };
 
 /** Qué es este objeto, en una frase. */
@@ -1052,6 +1135,10 @@ export function resumenDe(id: number): string {
   if (d.hueco !== undefined) partes.push(d.hueco);
   if (d.saciedad !== undefined && d.saciedad > 0) partes.push(`sacia ${d.saciedad}`);
   if (d.curacion !== undefined && d.curacion > 0) partes.push(`cura ${d.curacion}`);
+  if (d.efecto !== undefined) {
+    partes.push(`${EFECTOS[d.efecto].nombre} ${Math.round((d.duracion ?? 0) / 60)} s`);
+  }
+  if (d.limpia === true) partes.push('quita lo malo');
   if (d.nivelMapa !== undefined) {
     const alcance = ALCANCE_MAPA[d.nivelMapa - 1] ?? 0;
     partes.push(Number.isFinite(alcance) ? `${alcance} tiles alrededor` : 'el mundo entero');
@@ -1138,6 +1225,14 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
     ],
   ],
   ['6.5.0', [CABLE, BOMBILLA, BATERIA, INTERRUPTOR]],
+  [
+    '6.9.0',
+    [
+      CALDERO, FRASCO,
+      POCION_VIDA, POCION_REGENERACION, POCION_FUERZA,
+      POCION_PIEDRA, POCION_LIGEREZA, POCION_REMEDIO,
+    ],
+  ],
 ];
 
 /**

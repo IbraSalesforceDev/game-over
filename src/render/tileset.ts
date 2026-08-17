@@ -4,6 +4,7 @@ import {
   AIRE,
   ALTAR,
   ANTORCHA,
+  CALDERO,
   ARENISCA,
   LADRILLO,
   BARRO,
@@ -684,6 +685,41 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillRect(ox + 7, oy + 4 + (v % 2), 2, 3);
       ctx.fillStyle = '#fff2b0';
       ctx.fillRect(ox + 7, oy + 5 + (v % 2), 1, 1);
+    }
+  }
+
+  // El caldero: panza de hierro, brebaje dentro y lumbre debajo. Va pintado a
+  // mano por lo mismo que el altar —es una estación, y una estación tiene que
+  // reconocerse de lejos entre los bloques del sótano—, y el color del caldo se
+  // deja verde ácido porque es el único verde de esa esquina de la paleta.
+  ctx.clearRect(0, CALDERO * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (CALDERO * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      // Trébede y lumbre, que es lo que lo separa de una simple olla.
+      ctx.fillStyle = '#2a2228';
+      ctx.fillRect(ox + 3, oy + 14, 2, 2);
+      ctx.fillRect(ox + 11, oy + 14, 2, 2);
+      ctx.fillStyle = '#c8761f';
+      ctx.fillRect(ox + 6, oy + 13 + (v % 2), 4, 3 - (v % 2));
+      ctx.fillStyle = '#ffd24a';
+      ctx.fillRect(ox + 7, oy + 14, 2, 1);
+      // Panza.
+      ctx.fillStyle = '#39343f';
+      ctx.fillRect(ox + 2, oy + 5, 12, 9);
+      ctx.fillStyle = '#4a4550';
+      ctx.fillRect(ox + 2, oy + 5, 12, 1);
+      ctx.fillStyle = '#241f29';
+      ctx.fillRect(ox + 2, oy + 13, 12, 1);
+      // Borde y caldo, con una burbuja que cambia de sitio por variante para
+      // que dos calderos juntos no se vean calcados.
+      ctx.fillStyle = '#6b6577';
+      ctx.fillRect(ox + 1, oy + 4, 14, 2);
+      ctx.fillStyle = '#5f8f3a';
+      ctx.fillRect(ox + 3, oy + 6, 10, 2);
+      ctx.fillStyle = '#8fd14a';
+      ctx.fillRect(ox + 4 + ((v * 3) % 7), oy + 6, 2, 1);
     }
   }
 }

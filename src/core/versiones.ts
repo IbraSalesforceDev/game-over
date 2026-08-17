@@ -523,6 +523,20 @@ export const VERSIONES: readonly Version[] = [
       'Los mundos anteriores a esta versión conservan el guardián y la ofrenda de antes',
     ],
   },
+  {
+    id: '6.9.0',
+    etapa: 'prealfa',
+    nombre: 'Efectos y pociones',
+    resumen: 'Ahora hay cosas que te duran un rato: fuego, veneno, fuerza.',
+    cambios: [
+      'Siete efectos de estado, tres que se sufren y cuatro que se buscan',
+      'Salir de la lava ya no apaga: se sigue ardiendo unos segundos',
+      'El caldero, cuarta estación, y el frasco, que se sopla en el horno',
+      'Seis pociones: vida, regeneración, fuerza, piel de piedra, ligereza y remedio',
+      'La flecha de fuego prende de verdad, y el fuego también le entra a los bichos',
+      'Distintivos en pantalla con lo que llevas puesto y los segundos que le quedan',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -597,6 +611,8 @@ export const DESDE = {
   electricidad: '6.5.0',
   sucesos: '6.7.0',
   guardianReforzado: '6.8.0',
+  efectos: '6.9.0',
+  alquimia: '6.9.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

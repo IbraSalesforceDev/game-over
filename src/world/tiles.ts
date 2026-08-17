@@ -97,6 +97,9 @@ export const BATERIA = 64;
 export const INTERRUPTOR = 65;
 export const INTERRUPTOR_ENCENDIDO = 66;
 
+/** 6.9.0: el caldero, donde se preparan las pociones. */
+export const CALDERO = 67;
+
 /**
  * Las dos parejas apagado/encendido de la instalación.
  *
@@ -168,7 +171,7 @@ export function cultivoMaduro(id: number): boolean {
 }
 
 /** Tiles que habilitan recetas cuando el jugador está cerca. */
-export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
+export const ESTACIONES = [MESA, HORNO, YUNQUE, CALDERO] as const;
 
 /** Minerales, de menos a más profundo. */
 export const MINERALES = [COBRE, HIERRO, PLATA, ORO] as const;
@@ -554,6 +557,19 @@ export const TILES: readonly DefTile[] = [
     color: '#c98a3f',
     luz: 12,
   },
+  {
+    // El caldero. Es la cuarta estación y la primera que no fabrica objetos a
+    // partir de metal: aquí se cuece lo que se bebe. Alumbra un poco porque
+    // debajo tiene lumbre, y eso además lo hace fácil de encontrar en el sótano
+    // donde acaba puesto siempre.
+    nombre: 'caldero',
+    solido: true,
+    plataforma: false,
+    dureza: 90,
+    color: '#4a4550',
+    luz: 26,
+    nivelPico: 1,
+  },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -698,6 +714,7 @@ const TILE_DESDE: Readonly<Record<number, string>> = {
   [BATERIA]: '6.5.0',
   [INTERRUPTOR]: '6.5.0',
   [INTERRUPTOR_ENCENDIDO]: '6.5.0',
+  [CALDERO]: '6.9.0',
 };
 
 /** En qué se convierte cada tile cuando su versión queda por delante. */
@@ -767,6 +784,8 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [BATERIA]: AIRE,
   [INTERRUPTOR]: AIRE,
   [INTERRUPTOR_ENCENDIDO]: AIRE,
+  // Sin pociones, un caldero es una olla decorativa.
+  [CALDERO]: AIRE,
 };
 
 /** Versión en la que apareció este tile. */

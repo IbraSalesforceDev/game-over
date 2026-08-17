@@ -13,6 +13,12 @@ import {
   RELIQUIA,
 } from '../items/items';
 import type { Mundo } from '../world/world';
+import {
+  crearEfectos,
+  multiplicadorVelocidad,
+  tickEfectos,
+  type Efectos,
+} from './efectos';
 import { moverX, moverY, solapaSolido, type Caja } from './physics';
 import { crearSalud, golpear, tickSalud, type Salud } from './salud';
 
@@ -411,6 +417,15 @@ export interface Enemigo {
    */
   version: string;
   /**
+   * Efectos de estado que lleva encima.
+   *
+   * Los bichos los sufren igual que el jugador, y es lo que hace que una flecha
+   * de fuego valga la pena aunque pegue casi lo mismo que una de hierro: el
+   * daño llega después, mientras el bicho sigue viniendo. Con los efectos solo
+   * del lado del jugador, todo lo que se bebiera sería defensivo.
+   */
+  efectos: Efectos;
+  /**
    * Es una versión de élite: el mismo bicho, mucho más fuerte y con premio.
    *
    * Va como bandera y no como una especie aparte porque un "zombi de élite"
@@ -531,6 +546,7 @@ export function crearEnemigo(
     },
     salud: crearSalud(Math.max(1, Math.round(base.vida * fuerza))),
     version: versionMundo,
+    efectos: crearEfectos(),
     reloj: Math.floor(Math.random() * 60),
     olvidado: 0,
     vivo: true,
@@ -802,20 +818,26 @@ export function moverEnemigo(mundo: Mundo, e: Enemigo): void {
     if (c.vy > VEL_TERMINAL) c.vy = VEL_TERMINAL;
   }
 
+  // Los efectos frenan al bicho aquí y no en `pensar`: así la IA sigue
+  // decidiendo lo mismo —a dónde ir, cuándo saltar— y lo único que cambia es
+  // lo que consigue avanzar. Tocarlo en la intención haría que un enemigo
+  // congelado además decidiera peor, que no es lo que se quiere decir.
+  const freno = multiplicadorVelocidad(e.efectos);
+  const vx = c.vx * freno;
   const pasos = Math.max(
     1,
-    Math.ceil(Math.max(Math.abs(c.vx), Math.abs(c.vy)) / (TILE - 1)),
+    Math.ceil(Math.max(Math.abs(vx), Math.abs(c.vy)) / (TILE - 1)),
   );
   let enSuelo = false;
   for (let i = 0; i < pasos; i++) {
     const xAntes = c.x;
     const apoyado = c.enSuelo || enSuelo;
-    if (moverX(mundo, c, c.vx / pasos)) {
+    if (moverX(mundo, c, vx / pasos)) {
       // Los que andan suben un escalón de un tile, igual que el jugador. Sin
       // esto, un slime se queda dando saltitos contra el primer desnivel del
       // terreno hasta que el jugador se aburre y se va: no es un enemigo, es un
       // mueble. Los que vuelan no lo necesitan.
-      if (!def.vuela && apoyado && subirEscalon(mundo, c, c.vx / pasos, xAntes)) {
+      if (!def.vuela && apoyado && subirEscalon(mundo, c, vx / pasos, xAntes)) {
         // Ha subido: se conserva la velocidad y se sigue.
       } else {
         c.vx = 0;
@@ -914,6 +936,7 @@ export function actualizarEnemigos(
 
     pensar(e, objetivo);
     moverEnemigo(mundo, e);
+    aplicarEfectosA(e);
 
     // La lava quema a todo el mundo. Es lo que hace que una colada sea un
     // accidente del terreno y no un adorno naranja: se puede usar de trampa, y
@@ -954,6 +977,27 @@ export function actualizarEnemigos(
   }
 
   return salida;
+}
+
+/**
+ * Un tick de los efectos de un bicho.
+ *
+ * El daño entra sin invulnerabilidad y sin empujón: arder no es un golpe, y si
+ * quemara con los mismos fotogramas de gracia que una espada, la mitad de los
+ * pinchazos se perderían justo cuando el jugador está pegando. Sin empuje,
+ * porque un enemigo que sale volando por su propia quemadura se lee como un
+ * fallo de la física.
+ */
+function aplicarEfectosA(e: Enemigo): void {
+  const r = tickEfectos(e.efectos);
+  const centroX = e.caja.x + e.caja.ancho / 2;
+  if (r.dano > 0) golpear(e.salud, e.caja, r.dano, centroX, 0, false);
+  if (r.danoSuave > 0) {
+    // El veneno deja siempre vivo: rematar es cosa del jugador.
+    const tope = Math.max(0, e.salud.vida - 1);
+    if (tope > 0) golpear(e.salud, e.caja, Math.min(r.danoSuave, tope), centroX, 0, false);
+  }
+  if (r.curacion > 0) e.salud.vida = Math.min(e.salud.vidaMax, e.salud.vida + r.curacion);
 }
 
 /** ¿La mitad de abajo de esta caja está metida en lava? */

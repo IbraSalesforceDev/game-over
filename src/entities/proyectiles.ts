@@ -1,6 +1,7 @@
 import { TILE } from '../core/constants';
 import { esSolido } from '../world/tiles';
 import type { Mundo } from '../world/world';
+import { aplicarEfecto, type ClaseEfecto } from './efectos';
 import { danarEnemigo, solapan, type Enemigo } from './enemies';
 import type { Caja } from './physics';
 
@@ -59,6 +60,15 @@ export interface Flecha {
    * esquiva basta con acertarle al suelo de al lado.
    */
   estalla: number;
+  /**
+   * Efecto que prende en el bicho al acertarle, y cuánto dura.
+   *
+   * Va en la flecha ya disparada y no se consulta al catálogo en el impacto,
+   * porque para entonces la flecha ya no sabe de qué munición salió: lo mismo
+   * que pasa con el daño y con la perforación.
+   */
+  efecto?: ClaseEfecto;
+  duracionEfecto: number;
   /** Color con el que se dibuja, para distinguir los tipos en el aire. */
   color: string;
   /**
@@ -83,6 +93,9 @@ export interface Punta {
   /** Radio de la explosión al pararse, en tiles. */
   estalla?: number;
   color?: string;
+  /** Efecto que le pega al bicho al acertarle, si es de las que prenden. */
+  efecto?: ClaseEfecto;
+  duracionEfecto?: number;
 }
 
 const PUNTA_LISA: Punta = {};
@@ -108,6 +121,8 @@ export function crearFlecha(
     perfora: punta.perfora ?? 0,
     estalla: punta.estalla ?? 0,
     color: punta.color ?? '#b8a882',
+    ...(punta.efecto === undefined ? {} : { efecto: punta.efecto }),
+    duracionEfecto: punta.duracionEfecto ?? 0,
     tocados: new Set(),
   };
 }
@@ -218,6 +233,7 @@ export function actualizarFlechas(
       const tocado = primerEnemigoEn(enemigos, f.x, f.y, f.tocados);
       if (tocado) {
         const muerto = danarEnemigo(tocado, f.dano, f.x);
+        prender(f, tocado);
         salida.impactos.push({ flecha: f, enemigo: tocado, muerto });
         if (f.estalla > 0) {
           estallar(f, enemigos, salida);
@@ -265,8 +281,21 @@ function estallar(
     // lo mismo en todo el círculo, apuntar dejaría de importar.
     const dano = Math.max(1, Math.round(f.dano * (1 - 0.5 * (d / radio))));
     const muerto = danarEnemigo(e, dano, f.x);
+    prender(f, e);
     salida.impactos.push({ flecha: f, enemigo: e, muerto });
   }
+}
+
+/**
+ * Le pega a un bicho el efecto de la punta, si la punta trae alguno.
+ *
+ * Se le pone también al que ya está muerto por el mismo impacto, y da igual: un
+ * enemigo muerto ya no tiquea sus efectos. Comprobarlo aquí sería una rama más
+ * para no hacer nada.
+ */
+function prender(f: Flecha, e: Enemigo): void {
+  if (f.efecto === undefined) return;
+  aplicarEfecto(e.efectos, f.efecto, f.duracionEfecto);
 }
 
 function fueraDelMundo(mundo: Mundo, f: Flecha): boolean {
