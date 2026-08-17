@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TILE } from '../src/core/constants';
 import { generarMundo } from '../src/world/gen/worldgen';
+import { Mundo } from '../src/world/world';
 import { crearJugador, actualizarJugador } from '../src/entities/player';
 import { AJUSTES_POR_DEFECTO, solapaSolido, type Entrada } from '../src/entities/physics';
 import { SimuladorLiquidos, sumersion } from '../src/world/liquids';
@@ -11,7 +12,7 @@ import {
   type Especie,
   ENEMIGOS,
 } from '../src/entities/enemies';
-import { esSolido, versionTile } from '../src/world/tiles';
+import { esSolido, PIEDRA, versionTile } from '../src/world/tiles';
 import { destinosPosibles, migrarPasos } from '../src/world/migracion';
 import { VERSIONES, VERSION_ACTUAL, alMenos } from '../src/core/versiones';
 import { DIFICULTAD_POR_DEFECTO } from '../src/core/dificultad';
@@ -219,5 +220,71 @@ describe('migrar entre versiones no rompe nada', () => {
     expect(distintos).toBe(0);
     expect(estado.mundoHondo).toBe(true);
     expect(estado.cofres.length).toBe(e.cofres.length);
+  });
+});
+
+describe('el simulador de líquidos no depende de lo grande que sea el mundo', () => {
+  /**
+   * El bug del titánico: cinco fotogramas por segundo nada más cargar.
+   *
+   * `TOPE_POR_PASO` limitaba cuántas celdas se simulan por paso, pero el paso
+   * recorría el conjunto activo *entero* para copiar al relevo las que no daba
+   * tiempo a mirar. O sea que acotaba la física y no el trabajo, y el trabajo
+   * seguía siendo proporcional a cuánto líquido hay en el mundo: 487.000 celdas
+   * activas y 48 milisegundos por paso en un titánico, tres frames enteros para
+   * simular seis mil celdas.
+   *
+   * Y encima `despertarTodo` metía en la cola toda celda con líquido, casi
+   * todas ellas en el fondo de un mar que llevaba quieto desde que se generó.
+   */
+  it('despertar un mundo generado no encola medio mar', () => {
+    const { mundo } = generarMundo({ ancho: 2000, alto: 1200, semilla: 'PERF' });
+    let conLiquido = 0;
+    for (let i = 0; i < mundo.liquido.length; i++) if (mundo.liquido[i]! > 0) conLiquido++;
+
+    const sim = new SimuladorLiquidos(mundo);
+    sim.despertarTodo();
+    expect(conLiquido).toBeGreaterThan(10000);
+    // Un mundo recién generado nace casi en reposo: lo que se despierta son los
+    // bordes y poco más, nunca una fracción grande del líquido que hay.
+    expect(sim.pendientes).toBeLessThan(conLiquido * 0.1);
+  });
+
+  it('el coste de un paso no crece con el mundo', () => {
+    const medir = (ancho: number, alto: number): number => {
+      const { mundo } = generarMundo({ ancho, alto, semilla: 'PERF' });
+      const sim = new SimuladorLiquidos(mundo);
+      sim.despertarTodo();
+      // Unos cuantos pasos para que la cola crezca hasta su tamaño de crucero.
+      for (let i = 0; i < 40; i++) sim.paso();
+      const t0 = performance.now();
+      for (let i = 0; i < 20; i++) sim.paso();
+      return (performance.now() - t0) / 20;
+    };
+    const pequeno = medir(1000, 500);
+    const grande = medir(2600, 1300);
+    // El mundo grande tiene casi siete veces más tiles. Si el paso costara
+    // proporcional al líquido, costaría también siete veces más.
+    expect(grande).toBeLessThan(Math.max(pequeno * 3, 4));
+  });
+
+  it('y ni un mundo entero de agua lo desborda', () => {
+    // El peor caso posible: todo hueco lleno hasta arriba y todo despierto.
+    // Es lo que pasaría al vaciar un cubo en una caverna enorme.
+    const mundo = new Mundo(600, 400);
+    mundo.rellenar(0, 0, 599, 399, PIEDRA);
+    mundo.rellenar(2, 2, 597, 397, 0);
+    for (let ty = 2; ty < 200; ty++) {
+      for (let tx = 2; tx < 597; tx++) mundo.setLiquido(tx, ty, 255, false);
+    }
+    const sim = new SimuladorLiquidos(mundo);
+    for (let ty = 2; ty < 200; ty++) {
+      for (let tx = 2; tx < 597; tx++) sim.activar(tx, ty);
+    }
+    const t0 = performance.now();
+    for (let i = 0; i < 20; i++) sim.paso();
+    const porPaso = (performance.now() - t0) / 20;
+    // Cada paso mira como mucho seis mil celdas, pase lo que pase alrededor.
+    expect(porPaso).toBeLessThan(8);
   });
 });

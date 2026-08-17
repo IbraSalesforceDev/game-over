@@ -48,11 +48,38 @@ export class SimuladorLiquidos {
    * chunk y la luz sin que el simulador sepa nada de render.
    */
   readonly apagados: { tx: number; ty: number }[] = [];
-  /** Celdas por revisar en el próximo paso, como índice plano del mundo. */
-  private activas = new Set<number>();
-  private siguientes = new Set<number>();
+  /**
+   * Celdas por revisar, como cola de índices planos del mundo.
+   *
+   * Era un `Set` con otro `Set` de relevo, y el relevo es lo que la hundía. El
+   * paso recorría el conjunto *entero* aunque solo procesara las primeras seis
+   * mil: las demás se copiaban al conjunto siguiente una por una. O sea que el
+   * tope acotaba la física pero no el trabajo, y el trabajo seguía siendo
+   * proporcional a cuánto líquido hay en el mundo.
+   *
+   * Medido en un mundo titánico: 487.000 celdas activas y 48 milisegundos por
+   * paso, o sea tres frames enteros para simular seis mil celdas. El juego iba
+   * a cinco fotogramas por segundo nada más cargar.
+   *
+   * Con una cola solo se tocan las que se procesan. El vector de banderas
+   * cuesta un byte por tile —trece megas en un titánico— y sale barato: el
+   * `Set` de medio millón de enteros costaba bastante más que eso.
+   */
+  private cola: number[] = [];
+  /** Primera de la cola sin procesar. Avanza en vez de desplazar el vector. */
+  private inicio = 0;
+  private readonly enCola: Uint8Array;
 
-  constructor(private readonly mundo: Mundo) {}
+  constructor(private readonly mundo: Mundo) {
+    this.enCola = new Uint8Array(mundo.ancho * mundo.alto);
+  }
+
+  /** Mete una celda en la cola si no estaba ya. */
+  private encolar(i: number): void {
+    if (this.enCola[i] === 1) return;
+    this.enCola[i] = 1;
+    this.cola.push(i);
+  }
 
   /** Marca una celda y su entorno para revisión. */
   activar(tx: number, ty: number): void {
@@ -62,7 +89,7 @@ export class SimuladorLiquidos {
         const x = tx + dx;
         const y = ty + dy;
         if (!mundo.dentro(x, y)) continue;
-        this.activas.add(y * mundo.ancho + x);
+        this.encolar(y * mundo.ancho + x);
       }
     }
   }
@@ -74,16 +101,67 @@ export class SimuladorLiquidos {
     this.activar(tx, ty);
   }
 
-  /** Despierta todas las celdas con líquido. Se usa al cargar un mundo. */
+  /**
+   * Despierta lo que pueda moverse. Se usa al cargar un mundo.
+   *
+   * Antes despertaba toda celda con líquido, y eso es medio millón de celdas en
+   * un mundo titánico —casi todas ellas en el fondo de un mar que lleva quieto
+   * desde que se generó—. La cola arrancaba llena y el simulador se pasaba los
+   * primeros minutos de partida recorriéndola para descubrir, una por una, que
+   * no había nada que hacer.
+   *
+   * Ahora se pregunta antes: solo entra en la cola lo que de verdad puede
+   * cambiar. Es un recorrido del mundo entero, sí, pero uno solo y al cargar,
+   * en vez de sesenta por segundo para siempre.
+   */
   despertarTodo(): void {
     const { mundo } = this;
+    const ancho = mundo.ancho;
     for (let i = 0; i < mundo.liquido.length; i++) {
-      if (mundo.liquido[i]! > 0) this.activas.add(i);
+      if (mundo.liquido[i]! === 0) continue;
+      const tx = i % ancho;
+      const ty = (i / ancho) | 0;
+      if (this.inestable(tx, ty, mundo.liquido[i]!)) this.encolar(i);
     }
   }
 
+  /**
+   * ¿Esta celda tiene algo que hacer?
+   *
+   * Es la misma pregunta que se hace el paso, pero sin mover nada: si la
+   * respuesta es no, despertarla sería gastar un hueco de cola para volver a
+   * dormirse. Basta con que se equivoque por exceso —despertar de más solo
+   * cuesta un paso—, nunca por defecto: una celda que podía moverse y no se
+   * despierta se queda congelada hasta que alguien la toque.
+   */
+  private inestable(tx: number, ty: number, nivel: number): boolean {
+    const { mundo } = this;
+    // Enterrada en un bloque: hay que borrarla.
+    if (esSolido(mundo.getTile(tx, ty))) return true;
+    const lava = mundo.esLava(tx, ty);
+    // Puede caer.
+    if (this.puedeFluir(tx, ty + 1)) {
+      const abajo = mundo.getLiquido(tx, ty + 1);
+      if (abajo < 255 && (abajo === 0 || mundo.esLava(tx, ty + 1) === lava)) return true;
+    }
+    for (const [dx, dy] of VECINOS) {
+      const nx = tx + dx;
+      const ny = ty + dy;
+      if (!mundo.dentro(nx, ny)) continue;
+      const v = mundo.getLiquido(nx, ny);
+      // Toca el líquido contrario: obsidiana.
+      if (v > 0 && mundo.esLava(nx, ny) !== lava) return true;
+      // Y el reparto lateral, que es el que nivela.
+      if (dy === 0 && this.puedeFluir(nx, ny) && (v === 0 || mundo.esLava(nx, ny) === lava)) {
+        if (nivel - v > TOLERANCIA) return true;
+      }
+    }
+    // Un resto fino sin nada hondo al lado se evapora.
+    return nivel <= MINIMO && !this.tocaCuerpo(tx, ty);
+  }
+
   get pendientes(): number {
-    return this.activas.size;
+    return this.cola.length - this.inicio;
   }
 
   /**
@@ -91,22 +169,21 @@ export class SimuladorLiquidos {
    * el render usa para saber si tiene que repintar.
    */
   paso(): number {
-    if (this.activas.size === 0) return 0;
+    if (this.pendientes === 0) return 0;
     const { mundo } = this;
     const ancho = mundo.ancho;
     let cambios = 0;
-    let procesadas = 0;
 
     this.apagados.length = 0;
-    this.siguientes.clear();
 
-    for (const i of this.activas) {
-      if (++procesadas > TOPE_POR_PASO) {
-        // Lo que no da tiempo a mirar se queda para el paso siguiente en vez de
-        // perderse: mejor que el agua tarde un poco más que que se congele.
-        this.siguientes.add(i);
-        continue;
-      }
+    // Solo se tocan las que se procesan. Lo que no entra en el tope se queda
+    // donde está, en la cola, sin copiarse a ninguna parte: es la diferencia
+    // entre un paso que cuesta lo que cuesta el tope y uno que cuesta lo que
+    // haya de líquido en el mundo.
+    const tope = Math.min(this.pendientes, TOPE_POR_PASO);
+    for (let k = 0; k < tope; k++) {
+      const i = this.cola[this.inicio++]!;
+      this.enCola[i] = 0;
 
       const tx = i % ancho;
       const ty = (i / ancho) | 0;
@@ -193,10 +270,12 @@ export class SimuladorLiquidos {
       }
     }
 
-    const anterior = this.activas;
-    this.activas = this.siguientes;
-    this.siguientes = anterior;
-    this.siguientes.clear();
+    // Compactar de vez en cuando: la cola avanza con un índice en vez de
+    // desplazar el vector, y sin esto el hueco de delante crecería sin fin.
+    if (this.inicio > 4096 && this.inicio * 2 > this.cola.length) {
+      this.cola = this.cola.slice(this.inicio);
+      this.inicio = 0;
+    }
     return cambios;
   }
 
@@ -253,15 +332,7 @@ export class SimuladorLiquidos {
   }
 
   private marcarVecinas(tx: number, ty: number): void {
-    const { mundo } = this;
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const x = tx + dx;
-        const y = ty + dy;
-        if (!mundo.dentro(x, y)) continue;
-        this.siguientes.add(y * mundo.ancho + x);
-      }
-    }
+    this.activar(tx, ty);
   }
 }
 

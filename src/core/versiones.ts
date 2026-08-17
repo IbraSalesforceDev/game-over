@@ -404,6 +404,17 @@ export const VERSIONES: readonly Version[] = [
       'La brújula y el mapa las señalan',
     ],
   },
+  {
+    id: '6.2.1',
+    etapa: 'prealfa',
+    nombre: 'Se acabó el tirón del titánico',
+    resumen: 'El simulador de líquidos ya no depende de lo grande que sea el mundo.',
+    cambios: [
+      'Titánico: de 5 a 58 fotogramas por segundo',
+      'Se acabó también el bache de los primeros segundos en los demás',
+      'Un paso de líquidos cuesta lo mismo en cualquier tamaño',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
