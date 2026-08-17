@@ -119,6 +119,14 @@ import {
   type Flecha,
 } from './entities/proyectiles';
 import {
+  actualizarExplosivos,
+  anadirExplosivo,
+  lanzarDesde,
+  limpiarExplosivos,
+  type Estallido,
+  type Explosivo,
+} from './entities/explosivos';
+import {
   ampliarVida,
   crearSalud,
   curar,
@@ -126,6 +134,7 @@ import {
   golpear,
   revivir,
   TEXTO_MOTIVO,
+  TICKS_INVULNERABLE,
   tickSalud,
   VIDA_MAXIMA,
   VIDA_TOPE,
@@ -155,6 +164,8 @@ import {
   ESENCIA,
   ESPADA_GUARDIAN,
   LINGOTE_ORO,
+  esExplosivo,
+  DINAMITA,
 } from './items/items';
 import {
   biomaEn,
@@ -509,6 +520,7 @@ async function arrancar(): Promise<void> {
   );
   const golpe = crearGolpe();
   const flechas: Flecha[] = [];
+  const bombas: Explosivo[] = [];
   /**
    * Dificultad del mundo, fijada al crearlo. Se lee una vez y no cambia: no hay
    * ninguna forma de tocarla desde dentro de la partida, ni siquiera desde el
@@ -1278,6 +1290,15 @@ async function arrancar(): Promise<void> {
     }
     if (flechas.length > 0 && relojAparicion % 30 === 0) limpiarFlechas(flechas);
 
+    // Y los explosivos. Van después de las flechas y antes de los enemigos por
+    // la misma razón: lo que mata este tick no puede pegar este tick.
+    if (bombas.length > 0) {
+      for (const est of actualizarExplosivos(mundo, bombas, enemigos, jugador.caja)) {
+        reventar(est);
+      }
+      if (relojAparicion % 30 === 0) limpiarExplosivos(bombas);
+    }
+
     const res = actualizarEnemigos(mundo, enemigos, jugador.caja, salud);
     if (res.danoAlJugador > 0) {
       // El empujón sale del enemigo más cercano, para que aparte en la
@@ -1553,6 +1574,33 @@ async function arrancar(): Promise<void> {
         barra.refrescar(capa);
         motorLuz.marcarSucio();
       }
+      return;
+    }
+
+    // Los explosivos se tiran con el clic izquierdo, como el arco, pero gastan
+    // el propio objeto en vez de munición aparte: la bomba *es* la munición.
+    if (esExplosivo(enMano) && tiene('explosivos')) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      derAnterior = puntero.der;
+      if (!puntero.izq || !puedeGolpear(golpe)) return;
+      const def = defObjeto(enMano);
+      if (inventario.sacarDe(barra.seleccion, 1) <= 0) return;
+      barra.refrescar(capa);
+      lanzarGolpe(golpe, enMano, wx < jugador.caja.x ? -1 : 1);
+      golpe.restante = 0;
+      jugador.caja.mirando = wx < jugador.caja.x ? -1 : 1;
+      anadirExplosivo(
+        bombas,
+        lanzarDesde(
+          enMano === DINAMITA ? 'dinamita' : 'bomba',
+          jugador.caja,
+          wx,
+          wy,
+          def.velocidad ?? 8,
+        ),
+      );
+      audio.sonar('flechazo', 0.7);
       return;
     }
 
@@ -2008,6 +2056,55 @@ async function arrancar(): Promise<void> {
     if (c.vx !== 0) c.mirando = c.vx > 0 ? 1 : -1;
   }
 
+  /**
+   * Las consecuencias de una explosión.
+   *
+   * El módulo de explosivos decide *qué* pasa —qué tiles caen, a quién le toca y
+   * cuánto— y esto lo aplica: es la misma separación que con las flechas, y es
+   * lo que permite probar el radio y el daño en un test sin canvas, sin audio y
+   * sin inventario.
+   */
+  function reventar(est: Estallido): void {
+    const grande = est.tipo === 'dinamita';
+    for (const { tx, ty, tile } of est.rotos) {
+      // Se comprueba otra vez que sigue estando: dos bombas que estallan en el
+      // mismo tick pueden apuntar al mismo tile, y soltar el drop dos veces
+      // sería duplicar material a base de sincronizar mechas.
+      if (mundo.getTile(tx, ty) !== tile) continue;
+      mundo.setTile(tx, ty, AIRE);
+      renderer.cache.invalidar(tx, ty);
+      motorLuz.invalidar(tx);
+      liquidos.activar(tx, ty);
+      if (tile === COFRE) cofres.borrar(tx, ty);
+      soltar(drops, dropDeTile(tile), tx, ty);
+    }
+    for (const golpeado of est.impactos) {
+      if (golpeado.muerto) morir(golpeado.enemigo);
+    }
+    if (est.danoJugador > 0) {
+      golpear(salud, jugador.caja, est.danoJugador, est.x, TICKS_INVULNERABLE, true, 'fuego');
+    }
+    particulas.emitir(est.x, est.y, {
+      cantidad: grande ? 70 : 34,
+      color: '#ff8a3a',
+      dispersion: grande ? 7.5 : 4.6,
+      vida: 34,
+      tam: 3,
+      gravedad: 0.03,
+    });
+    particulas.emitir(est.x, est.y, {
+      cantidad: grande ? 40 : 20,
+      color: '#4a4a52',
+      forma: 'humo',
+      dispersion: grande ? 4.4 : 2.8,
+      empujeY: -1.2,
+      vida: 60,
+      tam: 4,
+    });
+    audio.sonar('romper-piedra', grande ? 0.45 : 0.62);
+    sacudir(grande ? 9 : 5);
+  }
+
   /** Rompe un cuadrado de tiles de golpe. Solo lo usa el menú de depuración. */
   function romperArea(tx: number, ty: number, lado: number): void {
     const r = Math.floor(lado / 2);
@@ -2086,6 +2183,7 @@ async function arrancar(): Promise<void> {
         enemigos,
         golpe,
       flechas,
+        explosivos: bombas,
         particulas,
         sumergido: sumergidoAhora,
         enMano: barra.objetoActivo(),

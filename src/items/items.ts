@@ -28,6 +28,9 @@ import {
   INFERNITA,
   LADRILLO,
   LIANA,
+  LADRILLO_INFERNAL,
+  PINCHOS,
+  BLOQUES_METAL,
   ROCA_INFERNAL,
   TITANIO,
   GRAVA,
@@ -170,6 +173,38 @@ export const FLECHA_HIERRO = 140;
 export const FLECHA_HUESO = 141;
 export const FLECHA_FUEGO = 142;
 
+// --- Metalurgia (6.4.0) -----------------------------------------------------
+// Los tres metales nuevos llevaban desde 5.0.0 dando pico, espada y arco, y
+// nada más: se llegaba al inframundo, se sacaba infernita y lo único que se
+// podía hacer con ella era un pico que ya no hacía falta para nada, porque no
+// quedaba nada más duro que picar. Aquí se cierra: armadura de los tres, un
+// sitio donde guardar el metal sobrante y algo que hacer con el carbón.
+export const CASCO_COBALTO = 143;
+export const PETO_COBALTO = 144;
+export const GREBAS_COBALTO = 145;
+export const BOTAS_COBALTO = 146;
+export const GUANTES_COBALTO = 147;
+export const CASCO_TITANIO = 148;
+export const PETO_TITANIO = 149;
+export const GREBAS_TITANIO = 150;
+export const BOTAS_TITANIO = 151;
+export const GUANTES_TITANIO = 152;
+export const CASCO_INFERNITA = 153;
+export const PETO_INFERNITA = 154;
+export const GREBAS_INFERNITA = 155;
+export const BOTAS_INFERNITA = 156;
+export const GUANTES_INFERNITA = 157;
+/**
+ * Pólvora: carbón molido con arena.
+ *
+ * Es el material que le da sentido al carbón más allá de la antorcha. Hasta
+ * ahora se picaban vetas enteras de carbón para hacer seis antorchas y el resto
+ * se quedaba en el cofre para siempre.
+ */
+export const POLVORA = 158;
+export const BOMBA = 159;
+export const DINAMITA = 160;
+
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
  *
@@ -204,7 +239,8 @@ export type TipoObjeto =
   | 'municion'
   | 'mapa'
   | 'semilla'
-  | 'brujula';
+  | 'brujula'
+  | 'explosivo';
 
 /**
  * Dónde se lleva puesta una pieza de armadura.
@@ -421,6 +457,14 @@ const ENTRADAS: [number, DefObjeto][] = [
   deTile(OBSIDIANA),
   deTile(ROCA_INFERNAL),
   deTile(LIANA),
+  // El ladrillo infernal y los pinchos existían como tile desde 6.2.0 y 6.3.0
+  // pero no como objeto, así que picarlos soltaba un identificador que no estaba
+  // en el catálogo: el drop nacía roto y se perdía. Ahora se recogen, que además
+  // es el premio de verdad de reventar una fortaleza del inframundo —su
+  // material es el más duro que se puede colocar— y las trampas se pueden
+  // recolocar donde uno quiera.
+  deTile(LADRILLO_INFERNAL),
+  deTile(PINCHOS),
   // Los minerales nuevos, en bruto: se funden como los de siempre. El carbón
   // no: se usa tal cual, y por eso es el único que no tiene lingote.
   deTile(CARBON, 'material'),
@@ -487,6 +531,47 @@ const ENTRADAS: [number, DefObjeto][] = [
     '#dcb13a',
     4,
   ),
+  // Y los tres metales del subsuelo profundo. Siguen la misma escalera de uno
+  // en uno: el juego entero de infernita descuenta treinta y ocho de cada
+  // golpe, que ante el mandoble del guardián —treinta y cuatro— parecería
+  // inmunidad si no fuera por el suelo del 25 % que nada puede bajar. Con él, el
+  // jefe sigue quitando nueve por golpe a alguien vestido de infernita: se nota
+  // muchísimo la armadura y aun así hay que pelear.
+  ...juegoArmadura(
+    [CASCO_COBALTO, PETO_COBALTO, GREBAS_COBALTO, BOTAS_COBALTO, GUANTES_COBALTO],
+    'cobalto',
+    '#3f7fc4',
+    5,
+  ),
+  ...juegoArmadura(
+    [CASCO_TITANIO, PETO_TITANIO, GREBAS_TITANIO, BOTAS_TITANIO, GUANTES_TITANIO],
+    'titanio',
+    '#c8d0d8',
+    6,
+  ),
+  ...juegoArmadura(
+    [CASCO_INFERNITA, PETO_INFERNITA, GREBAS_INFERNITA, BOTAS_INFERNITA, GUANTES_INFERNITA],
+    'infernita',
+    '#e0552a',
+    7,
+  ),
+  // Los bloques de metal se colocan y se pican como cualquier otro bloque, así
+  // que salen de la tabla de tiles sin nada especial.
+  ...BLOQUES_METAL.map((id) => deTile(id)),
+  [
+    POLVORA,
+    { nombre: 'pólvora', tipo: 'material', color: '#4a4a52', maxPila: PILA },
+  ],
+  // Las dos se apilan menos que un material normal: llevar noventa y nueve
+  // dinamitas encima convierte cualquier montaña en un rato de clics.
+  [
+    BOMBA,
+    { nombre: 'bomba', tipo: 'explosivo', color: '#3a3a42', maxPila: 30, velocidad: 8 },
+  ],
+  [
+    DINAMITA,
+    { nombre: 'dinamita', tipo: 'explosivo', color: '#b5342a', maxPila: 20, velocidad: 7 },
+  ],
   // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
   // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
   [
@@ -797,6 +882,11 @@ export function esArco(id: number): boolean {
   return defObjeto(id).tipo === 'arco';
 }
 
+/** ¿Es algo que se tira y estalla? */
+export function esExplosivo(id: number): boolean {
+  return defObjeto(id).tipo === 'explosivo';
+}
+
 /** Munición que gasta este arma, o NADA si no gasta ninguna. */
 export function municionDe(id: number): number {
   return defObjeto(id).municion ?? NADA;
@@ -913,6 +1003,7 @@ const DESCRIPCION_POR_TIPO: Readonly<Record<TipoObjeto, string>> = {
   mapa: 'Se abre con M. Enseña el terreno de alrededor.',
   semilla: 'Se planta sobre tierra labrada.',
   brujula: 'Señala lo que hay construido en este mundo.',
+  explosivo: 'Clic izquierdo para tirarla. Estalla sola, y a ti también te pilla.',
 };
 
 /** Qué es este objeto, en una frase. */
@@ -1012,7 +1103,31 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
     '5.4.0',
     [ARCO_CAZA, ARCO_COBALTO, ARCO_INFERNAL, FLECHA_HIERRO, FLECHA_HUESO, FLECHA_FUEGO],
   ],
+  ['6.2.0', [LADRILLO_INFERNAL]],
+  ['6.3.0', [PINCHOS]],
+  [
+    '6.4.0',
+    [
+      CASCO_COBALTO, PETO_COBALTO, GREBAS_COBALTO, BOTAS_COBALTO, GUANTES_COBALTO,
+      CASCO_TITANIO, PETO_TITANIO, GREBAS_TITANIO, BOTAS_TITANIO, GUANTES_TITANIO,
+      CASCO_INFERNITA, PETO_INFERNITA, GREBAS_INFERNITA, BOTAS_INFERNITA, GUANTES_INFERNITA,
+      ...BLOQUES_METAL,
+      POLVORA, BOMBA, DINAMITA,
+    ],
+  ],
 ];
+
+/**
+ * Versión declarada explícitamente, o null si el objeto no está en la tabla.
+ *
+ * Existe para el test que vigila la tabla. `versionObjeto` devuelve 1.6.0 para
+ * lo que no encuentra, que es lo correcto para el catálogo viejo pero convierte
+ * un olvido en un objeto del futuro disponible en el primer mundo del juego: el
+ * ladrillo infernal y los pinchos estuvieron así dos versiones.
+ */
+export function versionDeclarada(id: number): string | null {
+  return VERSION_DE_OBJETO.get(id) ?? null;
+}
 
 const VERSION_DE_OBJETO = new Map<number, string>();
 for (const [v, ids] of OBJETOS_POR_VERSION) {

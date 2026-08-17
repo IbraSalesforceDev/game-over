@@ -73,6 +73,29 @@ export const LADRILLO_INFERNAL = 52;
 // trampa que además bloquea el paso es un muro con pinchos, y lo que tiene que
 // hacer es castigar el descuido, no cerrar el camino.
 export const PINCHOS = 53;
+// 6.4.0: bloques de metal macizo. Son a la vez almacén y material de obra: cada
+// uno cuesta cinco lingotes y devuelve los cinco al deshacerlo, así que una
+// ranura de bloques guarda quinientos lingotes donde antes cabían noventa y
+// nueve. Y de paso hay por fin algo bonito con lo que construir: hasta ahora
+// todo lo que se podía levantar era madera, piedra o ladrillo.
+export const BLOQUE_COBRE = 54;
+export const BLOQUE_HIERRO = 55;
+export const BLOQUE_PLATA = 56;
+export const BLOQUE_ORO = 57;
+export const BLOQUE_COBALTO = 58;
+export const BLOQUE_TITANIO = 59;
+export const BLOQUE_INFERNITA = 60;
+
+/** Los siete bloques de metal, del más blando al más duro. */
+export const BLOQUES_METAL: readonly number[] = [
+  BLOQUE_COBRE,
+  BLOQUE_HIERRO,
+  BLOQUE_PLATA,
+  BLOQUE_ORO,
+  BLOQUE_COBALTO,
+  BLOQUE_TITANIO,
+  BLOQUE_INFERNITA,
+];
 
 /**
  * Cultivos: primera etapa, última y qué se planta con qué semilla.
@@ -167,6 +190,35 @@ export interface DefTile {
    * —una zarza, una placa al rojo— tiene que bastar con añadir una fila.
    */
   readonly dano?: number;
+}
+
+/**
+ * Los siete bloques de metal, en el orden de `BLOQUES_METAL`.
+ *
+ * Va en una función y no escrito a mano siete veces porque lo único que cambia
+ * entre ellos son cuatro números, y siete copias del mismo objeto es donde se
+ * cuelan las erratas —un nivel de pico de menos y un bloque se abre a mano—.
+ */
+function bloquesMetal(): DefTile[] {
+  const metales: [string, string, number, number, number][] = [
+    // nombre, color, dureza, nivel de pico, luz
+    ['cobre', '#b06a3b', 70, 1, 0],
+    ['hierro', '#a3968a', 95, 2, 0],
+    ['plata', '#c2ccd6', 120, 2, 0],
+    ['oro', '#dcb13a', 150, 3, 24],
+    ['cobalto', '#3f7fc4', 185, 4, 0],
+    ['titanio', '#c8d0d8', 215, 5, 0],
+    ['infernita', '#e0552a', 250, 6, 46],
+  ];
+  return metales.map(([metal, color, dureza, nivelPico, luz]) => ({
+    nombre: `bloque de ${metal}`,
+    solido: true,
+    plataforma: false,
+    dureza,
+    color,
+    nivelPico,
+    ...(luz > 0 ? { luz } : {}),
+  }));
 }
 
 export const TILES: readonly DefTile[] = [
@@ -397,6 +449,12 @@ export const TILES: readonly DefTile[] = [
     color: '#8f96a3',
     dano: 22,
   },
+  // Los siete bloques de metal. La dureza y el nivel de pico son los del
+  // mineral del que salen: un bloque de infernita no se abre con el pico con el
+  // que se abre uno de cobre, y así una casa hecha de metal caro es de verdad
+  // más difícil de desmontar. El de oro y el de infernita alumbran un poco:
+  // pulidos así, devuelven la luz de una antorcha.
+  ...bloquesMetal(),
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -528,6 +586,13 @@ const TILE_DESDE: Readonly<Record<number, string>> = {
   [LIANA]: '5.0.0',
   [LADRILLO_INFERNAL]: '6.2.0',
   [PINCHOS]: '6.3.0',
+  [BLOQUE_COBRE]: '6.4.0',
+  [BLOQUE_HIERRO]: '6.4.0',
+  [BLOQUE_PLATA]: '6.4.0',
+  [BLOQUE_ORO]: '6.4.0',
+  [BLOQUE_COBALTO]: '6.4.0',
+  [BLOQUE_TITANIO]: '6.4.0',
+  [BLOQUE_INFERNITA]: '6.4.0',
 };
 
 /** En qué se convierte cada tile cuando su versión queda por delante. */
@@ -577,6 +642,17 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [LADRILLO_INFERNAL]: ROCA_INFERNAL,
   [PINCHOS]: AIRE,
   [LIANA]: AIRE,
+  // Un bloque de metal vuelve a ser el mineral del que salió, no piedra: una
+  // pared hecha de cincuenta bloques de infernita es un montón de trabajo, y al
+  // bajar de versión tiene que quedar algo que se pueda volver a picar y
+  // fundir, no un muro de roca gris.
+  [BLOQUE_COBRE]: COBRE,
+  [BLOQUE_HIERRO]: HIERRO,
+  [BLOQUE_PLATA]: PLATA,
+  [BLOQUE_ORO]: ORO,
+  [BLOQUE_COBALTO]: COBALTO,
+  [BLOQUE_TITANIO]: TITANIO,
+  [BLOQUE_INFERNITA]: INFERNITA,
 };
 
 /** Versión en la que apareció este tile. */

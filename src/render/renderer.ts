@@ -15,6 +15,7 @@ import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
 import { CacheChunks, CHUNK_RENDER } from './chunkCache';
 import { CIELO_INFRAMUNDO, Fondo, fondoSubterraneo, type BiomaFondo } from './fondo';
+import type { Explosivo } from '../entities/explosivos';
 import { crearIconos, type Iconos } from './iconos';
 import type { Particulas } from './particles';
 import {
@@ -88,6 +89,8 @@ export interface Escena {
   enemigos: readonly Enemigo[];
   golpe: Golpe;
   flechas: readonly Flecha[];
+  /** Bombas y dinamita en vuelo. Opcional: antes de 6.4.0 no existían. */
+  explosivos?: readonly Explosivo[];
   particulas: Particulas;
   /** Fracción del jugador bajo líquido, para elegir la pose de nado. */
   sumergido: number;
@@ -828,6 +831,41 @@ export class Renderer {
     }
   }
 
+  /**
+   * Bombas y dinamita por el aire.
+   *
+   * Lo importante no es el cuerpo sino la mecha: parpadea cada vez más deprisa
+   * según se acaba, y eso es toda la interfaz que un explosivo necesita. Sin
+   * ella habría que llevar la cuenta de cuándo se tiró cada una, y con dos en el
+   * aire eso ya no lo hace nadie.
+   */
+  private explosivos(lista: readonly Explosivo[], ox: number, oy: number): void {
+    if (lista.length === 0) return;
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    for (const b of lista) {
+      if (!b.vivo) continue;
+      const x = ox + Math.round(b.x * z);
+      const y = oy + Math.round(b.y * z);
+      const lado = (b.tipo === 'dinamita' ? 9 : 7) * z;
+      ctx.fillStyle = b.tipo === 'dinamita' ? '#b5342a' : '#3a3a42';
+      ctx.fillRect(x - lado / 2, y - lado / 2, lado, lado);
+      // Franjas claras en la dinamita, para que se distinga de un canto rodado.
+      if (b.tipo === 'dinamita') {
+        ctx.fillStyle = '#e8ddc8';
+        ctx.fillRect(x - lado / 2, y - lado * 0.2, lado, lado * 0.16);
+        ctx.fillRect(x - lado / 2, y + lado * 0.12, lado, lado * 0.16);
+      }
+      // El periodo del parpadeo va con lo que queda de mecha: cuatro ticks al
+      // principio, uno al final.
+      const periodo = Math.max(2, Math.round(b.mecha / 16));
+      if (Math.floor(b.edad / periodo) % 2 === 0) {
+        ctx.fillStyle = '#ffd67a';
+        ctx.fillRect(x - z, y - lado / 2 - 2 * z, 2 * z, 2 * z);
+      }
+    }
+  }
+
   /** Objetos por el suelo: un cuadradito del color del objeto, balanceándose. */
   private drops(lista: readonly Drop[], ox: number, oy: number): void {
     if (lista.length === 0) return;
@@ -887,6 +925,7 @@ export class Renderer {
     this.picado(e.mundo, e.picado, ox, oy);
     this.drops(e.drops, ox, oy);
     this.flechas(e.flechas, ox, oy);
+    if (e.explosivos) this.explosivos(e.explosivos, ox, oy);
     this.enemigos(e.enemigos, ox, oy, e.epoca);
     if (e.jugador.caja.enSuelo && e.epoca.sombras) {
       const c = e.jugador.caja;

@@ -444,6 +444,20 @@ export const VERSIONES: readonly Version[] = [
       'La lava tapa del todo y ya no deja ver el fondo a través',
     ],
   },
+  {
+    id: '6.4.0',
+    etapa: 'prealfa',
+    nombre: 'Metalurgia',
+    resumen: 'Armadura de los tres metales hondos, bloques de metal, pólvora y explosivos.',
+    cambios: [
+      'Armadura entera de cobalto, titanio e infernita: los tres tenían pico y espada y nada que ponerse',
+      'Bloques de metal de los siete metales: se comprimen cinco a uno y se deshacen uno a cinco',
+      'Pólvora, que por fin le da salida al carbón',
+      'Bombas y dinamita: se tiran, rebotan y abren el terreno de un golpe',
+      'Y estallan también en tus narices, así que hay que echar a correr',
+      'El ladrillo infernal y los pinchos por fin se recogen y se fabrican',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -514,6 +528,7 @@ export const DESDE = {
   fortalezaInfernal: '6.2.0',
   guarnicionEstructuras: '6.3.0',
   trampas: '6.3.0',
+  explosivos: '6.4.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

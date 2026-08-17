@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, BARRO, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, LADRILLO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, BARRO, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -72,6 +72,24 @@ import {
   ESPADA_COBALTO,
   ESPADA_TITANIO,
   ESPADA_INFERNITA,
+  CASCO_COBALTO,
+  PETO_COBALTO,
+  GREBAS_COBALTO,
+  BOTAS_COBALTO,
+  GUANTES_COBALTO,
+  CASCO_TITANIO,
+  PETO_TITANIO,
+  GREBAS_TITANIO,
+  BOTAS_TITANIO,
+  GUANTES_TITANIO,
+  CASCO_INFERNITA,
+  PETO_INFERNITA,
+  GREBAS_INFERNITA,
+  BOTAS_INFERNITA,
+  GUANTES_INFERNITA,
+  POLVORA,
+  BOMBA,
+  DINAMITA,
 } from './items';
 
 /**
@@ -691,10 +709,112 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 1,
     estacion: HORNO,
   },
+  // --- Metalurgia (6.4.0) ---
+  {
+    // La pólvora es lo que le da salida al carbón. Hasta 6.4.0 se picaban vetas
+    // enteras para hacer seis antorchas y el resto criaba polvo en un cofre.
+    id: 'polvora',
+    desde: '6.4.0',
+    ingredientes: [
+      [CARBON, 2],
+      [ARENA, 1],
+    ],
+    resultado: POLVORA,
+    cantidad: 2,
+    estacion: HORNO,
+  },
+  {
+    id: 'bomba',
+    desde: '6.4.0',
+    ingredientes: [
+      [POLVORA, 3],
+      [LINGOTE_COBRE, 1],
+    ],
+    resultado: BOMBA,
+    cantidad: 3,
+    estacion: MESA,
+  },
+  {
+    // La dinamita sale de tres bombas de pólvora y del papel que ya se hacía
+    // para los mapas: es cara a propósito, porque abre una sala de trece tiles
+    // de un tirón y eso tiene que costar una expedición, no un rato de picar.
+    id: 'dinamita',
+    desde: '6.4.0',
+    ingredientes: [
+      [POLVORA, 9],
+      [PAPEL, 2],
+      [LINGOTE_HIERRO, 1],
+    ],
+    resultado: DINAMITA,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    // El ladrillo del inframundo se podía romper desde 6.2.0 y no se podía
+    // hacer. Ahora se funde de lo que hay ahí abajo, que es el único sitio de
+    // donde salen los dos ingredientes.
+    id: 'ladrillo-infernal',
+    desde: '6.4.0',
+    ingredientes: [
+      [ROCA_INFERNAL, 2],
+      [INFERNITA, 1],
+    ],
+    resultado: LADRILLO_INFERNAL,
+    cantidad: 2,
+    estacion: HORNO,
+  },
+  {
+    id: 'pinchos',
+    desde: '6.4.0',
+    ingredientes: [[LINGOTE_HIERRO, 1]],
+    resultado: PINCHOS,
+    cantidad: 4,
+    estacion: YUNQUE,
+  },
   ...forjas(),
   ...armaduras(),
+  ...bloquesMetal(),
   ...mapas(),
 ];
+
+/**
+ * Los bloques de metal y su vuelta.
+ *
+ * Las dos direcciones importan igual. Comprimir es lo que convierte el metal
+ * sobrante en algo que cabe en el cofre; descomprimir es lo que impide que
+ * hacerlo sea una decisión de la que uno se arrepienta al necesitar catorce
+ * lingotes para un pico. Cinco a uno y uno a cinco: no se pierde ni se gana
+ * nada, que es justo lo que tiene que pasar para que nadie dude en usarlo.
+ */
+function bloquesMetal(): Receta[] {
+  const metales: [string, number, number][] = [
+    ['cobre', LINGOTE_COBRE, BLOQUE_COBRE],
+    ['hierro', LINGOTE_HIERRO, BLOQUE_HIERRO],
+    ['plata', LINGOTE_PLATA, BLOQUE_PLATA],
+    ['oro', LINGOTE_ORO, BLOQUE_ORO],
+    ['cobalto', LINGOTE_COBALTO, BLOQUE_COBALTO],
+    ['titanio', LINGOTE_TITANIO, BLOQUE_TITANIO],
+    ['infernita', LINGOTE_INFERNITA, BLOQUE_INFERNITA],
+  ];
+  return metales.flatMap(([metal, lingote, bloque]) => [
+    {
+      id: `bloque-${metal}`,
+      desde: '6.4.0',
+      ingredientes: [[lingote, 5]] as const,
+      resultado: bloque,
+      cantidad: 1,
+      estacion: YUNQUE,
+    },
+    {
+      id: `lingotes-${metal}`,
+      desde: '6.4.0',
+      ingredientes: [[bloque, 1]] as const,
+      resultado: lingote,
+      cantidad: 5,
+      estacion: YUNQUE,
+    },
+  ]);
+}
 
 /** Picos y espadas de los tres metales nuevos, que siguen el mismo patrón. */
 function forjas(): Receta[] {
@@ -787,7 +907,29 @@ function armaduras(): Receta[] {
     ['hierro', LINGOTE_HIERRO, [CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO, BOTAS_HIERRO, GUANTES_HIERRO]],
     ['plata', LINGOTE_PLATA, [CASCO_PLATA, PETO_PLATA, GREBAS_PLATA, BOTAS_PLATA, GUANTES_PLATA]],
     ['oro', LINGOTE_ORO, [CASCO_ORO, PETO_ORO, GREBAS_ORO, BOTAS_ORO, GUANTES_ORO]],
+    // Los tres del subsuelo profundo llegan en 6.4.0. Cuestan lo mismo en
+    // lingotes que los de arriba y son mucho más caros de verdad, porque el
+    // lingote sale de cuatro trozos de mineral y de carbón: un juego entero de
+    // infernita son ciento ochenta trozos de infernita y ciento treinta y cinco
+    // de carbón, todo ello por debajo del inframundo.
+    [
+      'cobalto',
+      LINGOTE_COBALTO,
+      [CASCO_COBALTO, PETO_COBALTO, GREBAS_COBALTO, BOTAS_COBALTO, GUANTES_COBALTO],
+    ],
+    [
+      'titanio',
+      LINGOTE_TITANIO,
+      [CASCO_TITANIO, PETO_TITANIO, GREBAS_TITANIO, BOTAS_TITANIO, GUANTES_TITANIO],
+    ],
+    [
+      'infernita',
+      LINGOTE_INFERNITA,
+      [CASCO_INFERNITA, PETO_INFERNITA, GREBAS_INFERNITA, BOTAS_INFERNITA, GUANTES_INFERNITA],
+    ],
   ];
+  /** Las que no existían en 3.x llegaron con su metal. */
+  const NUEVOS = new Set(['cobalto', 'titanio', 'infernita']);
   // Un juego entero cuesta 45 lingotes: bastante más que el pico del mismo
   // metal, para que vestirse sea una decisión y no el siguiente paso obvio.
   const coste: [string, number][] = [
@@ -803,7 +945,11 @@ function armaduras(): Receta[] {
       salida.push({
         id: `${pieza}-${metal}`,
         // Las cinco piezas llegaron a la vez, con la armadura entera.
-        desde: pieza === 'botas' || pieza === 'guantes' ? '3.2.0' : '3.0.0',
+        desde: NUEVOS.has(metal)
+          ? '6.4.0'
+          : pieza === 'botas' || pieza === 'guantes'
+            ? '3.2.0'
+            : '3.0.0',
         ingredientes: [[lingoteId, cuantos]],
         resultado: ids[i]!,
         cantidad: 1,

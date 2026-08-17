@@ -62,12 +62,14 @@ describe('las piezas', () => {
     }
   });
 
-  it('las veinte piezas se forjan en el yunque', () => {
-    // Cinco huecos por cuatro metales.
+  it('las treinta y cinco piezas se forjan en el yunque', () => {
+    // Cinco huecos por siete metales: los cuatro de siempre más el cobalto, el
+    // titanio y la infernita, que llegaron en 6.4.0.
+    const PIEZAS = 5 * 7;
     const recetas = RECETAS.filter((r) => esArmadura(r.resultado));
-    expect(recetas).toHaveLength(20);
+    expect(recetas).toHaveLength(PIEZAS);
     for (const r of recetas) expect(r.estacion).toBe(YUNQUE);
-    expect(new Set(recetas.map((r) => r.resultado)).size).toBe(20);
+    expect(new Set(recetas.map((r) => r.resultado)).size).toBe(PIEZAS);
   });
 
   it('el juego completo cuesta más que el pico del mismo metal', () => {

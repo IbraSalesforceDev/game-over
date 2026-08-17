@@ -21,6 +21,7 @@ import {
   SEMILLAS_ZANAHORIA,
   TRIGO,
   versionObjeto,
+  versionDeclarada,
 } from '../src/items/items';
 import {
   craftear,
@@ -54,6 +55,9 @@ import {
   MESA,
   PIEDRA,
   PINCHOS,
+  BLOQUES_METAL,
+  BLOQUE_COBRE,
+  BLOQUE_INFERNITA,
   ROCA_INFERNAL,
   TIERRA,
   TILES,
@@ -218,6 +222,16 @@ describe('el catálogo es coherente consigo mismo', () => {
     }
   });
 
+  it('y la declara a propósito, no por omisión', () => {
+    // `versionObjeto` devuelve 1.6.0 para lo que no encuentra en la tabla, que
+    // es lo correcto para el catálogo original y convierte un olvido en un
+    // objeto del futuro disponible en el primer mundo del juego. El ladrillo
+    // infernal y los pinchos estuvieron así dos versiones enteras, y el test de
+    // arriba no lo veía porque 1.6.0 es una versión perfectamente real.
+    const sinDeclarar = IDS_OBJETO.filter((id) => id !== NADA && versionDeclarada(id) === null);
+    expect(sinDeclarar.map(nombre)).toEqual([]);
+  });
+
   it('todo destino de migración que se ofrece tuvo un mundo', () => {
     // Migrar un mundo a una versión que no generaba ninguno no significa nada,
     // y lo que hacía era darle terreno con vetas de mineral y árboles: justo el
@@ -358,6 +372,8 @@ describe('la tabla de tiles está en su sitio', () => {
       [LIANA, 'liana'],
       [LADRILLO_INFERNAL, 'ladrillo infernal'],
       [PINCHOS, 'pinchos'],
+      [BLOQUE_COBRE, 'bloque de cobre'],
+      [BLOQUE_INFERNITA, 'bloque de infernita'],
     ];
     for (const [id, nom] of esperado) {
       expect(`${id}=${TILES[id]?.nombre}`).toBe(`${id}=${nom}`);
@@ -368,8 +384,9 @@ describe('la tabla de tiles está en su sitio', () => {
     // Un hueco significa que alguien añadió una constante sin su definición, o
     // al revés. Las dos cosas se leen como "el tile existe" hasta que alguien
     // lo coloca y no pasa nada.
-    expect(TILES[PINCHOS]).toBeDefined();
-    expect(TILES.length).toBe(PINCHOS + 1);
+    const ultimo = BLOQUES_METAL[BLOQUES_METAL.length - 1]!;
+    expect(TILES[ultimo]).toBeDefined();
+    expect(TILES.length).toBe(ultimo + 1);
     for (let id = 0; id < TILES.length; id++) {
       expect(TILES[id], `falta el tile #${id}`).toBeDefined();
     }
