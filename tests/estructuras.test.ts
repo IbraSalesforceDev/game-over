@@ -33,6 +33,9 @@ import { Inventario } from '../src/items/inventory';
 import {
   faltaParaOfrenda,
   OFRENDA,
+  OFRENDA_ORIGINAL,
+  OFRENDA_REFORZADA,
+  ofrendaDe,
   pagarOfrenda,
   puedeInvocar,
   textoFalta,
@@ -293,17 +296,41 @@ describe('el altar', () => {
 
   it('sin la ofrenda entera no se cobra nada', () => {
     const inv = conOfrenda();
+    const oro = OFRENDA.find(([o]) => o === LINGOTE_ORO)![1];
+    const gel = OFRENDA.find(([o]) => o === GEL)![1];
     inv.quitar(GEL, 1);
     expect(pagarOfrenda(inv)).toBe(false);
     // Ni un lingote de menos: cobrar a medias dejaría sin material y sin jefe.
-    expect(inv.contar(LINGOTE_ORO)).toBe(25);
-    expect(inv.contar(GEL)).toBe(99);
+    expect(inv.contar(LINGOTE_ORO)).toBe(oro);
+    expect(inv.contar(GEL)).toBe(gel - 1);
   });
 
-  it('el oro y la plata suman los cincuenta lingotes prometidos', () => {
+  it('el oro y la plata siguen repartidos mitad y mitad', () => {
+    // Da igual cuánto pida: lo que no puede pasar es que uno de los dos metales
+    // sea el cuello de botella, porque entonces la pelea se decide picando.
     const oro = OFRENDA.find(([o]) => o === LINGOTE_ORO)![1];
     const plata = OFRENDA.find(([o]) => o === LINGOTE_PLATA)![1];
-    expect(oro + plata).toBe(50);
+    expect(oro).toBe(plata);
+  });
+
+  it('la ofrenda de 6.8.0 pide más de todo que la de antes', () => {
+    for (const [objeto, cantidad] of OFRENDA_ORIGINAL) {
+      const ahora = OFRENDA_REFORZADA.find(([o]) => o === objeto);
+      expect(ahora, `la ofrenda nueva ya no pide ${objeto}`).toBeDefined();
+      expect(ahora![1]).toBeGreaterThan(cantidad);
+    }
+    // Y una cosa que la vieja no pedía: cobalto, o sea, haber bajado.
+    expect(OFRENDA_REFORZADA.some(([o]) => o === LINGOTE_COBALTO)).toBe(true);
+  });
+
+  it('un mundo anterior a 6.8.0 sigue pagando la ofrenda de entonces', () => {
+    const inv = new Inventario(40);
+    for (const [objeto, cantidad] of OFRENDA_ORIGINAL) inv.anadir(objeto, cantidad);
+    expect(puedeInvocar(inv, '4.0.0')).toBe(true);
+    // Y con eso mismo no le llega para el altar de hoy.
+    expect(puedeInvocar(inv, '6.8.0')).toBe(false);
+    expect(ofrendaDe('6.7.0')).toBe(OFRENDA_ORIGINAL);
+    expect(ofrendaDe('6.8.0')).toBe(OFRENDA_REFORZADA);
   });
 });
 

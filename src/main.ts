@@ -211,8 +211,15 @@ const RADIO_MAR = 30;
 /** Hasta dónde se oye a un bicho quejarse, en píxeles de mundo. */
 const RADIO_VOZ = 26 * TILE;
 
-/** Ticks entre tandas de esqueletos mientras el guardián está enfurecido. */
-const INTERVALO_ESBIRROS = 420;
+/**
+ * Ticks entre tandas de esqueletos mientras el guardián está enfurecido.
+ *
+ * Cinco segundos desde 6.8.0, siete antes. Con el jefe reforzado la segunda
+ * fase dura bastante más, y una tanda cada siete segundos se limpiaba en el
+ * hueco entre embestidas: los esbirros dejaban de ser presión para ser botín.
+ */
+const INTERVALO_ESBIRROS = 300;
+const INTERVALO_ESBIRROS_ORIGINAL = 420;
 /** Enemigos vivos como máximo durante la pelea contra el jefe. */
 const TOPE_CON_JEFE = 9;
 
@@ -610,7 +617,9 @@ async function arrancar(): Promise<void> {
     },
     generarCriatura: (especie, elite) => {
       const c = jugador.caja;
-      enemigos.push(crearEnemigo(especie, c.x + c.mirando * 60, c.y - 20, 1, elite));
+      enemigos.push(
+        crearEnemigo(especie, c.x + c.mirando * 60, c.y - 20, 1, elite, versionMundo),
+      );
     },
     rellenarVida: () => {
       curar(salud, salud.vidaMax);
@@ -1152,12 +1161,12 @@ async function arrancar(): Promise<void> {
       aviso.mostrar('El guardián ya está despierto', true);
       return;
     }
-    const falta = faltaParaOfrenda(inventario);
+    const falta = faltaParaOfrenda(inventario, versionMundo);
     if (falta.length > 0) {
       aviso.mostrar(`Al altar le falta: ${textoFalta(falta)}`, true);
       return;
     }
-    pagarOfrenda(inventario);
+    pagarOfrenda(inventario, versionMundo);
     barra.refrescar(capa);
 
     // Nace unos tiles por encima del altar, para que no aparezca encajado
@@ -1168,6 +1177,8 @@ async function arrancar(): Promise<void> {
       tx * TILE + TILE / 2 - def.ancho / 2,
       (ty - 5) * TILE,
       nivelDif.fuerza,
+      false,
+      versionMundo,
     );
     enemigos.push(nuevo);
     jefe = nuevo;
@@ -1217,7 +1228,9 @@ async function arrancar(): Promise<void> {
     }
     if (!furioso) return;
     if (--relojEsbirros > 0) return;
-    relojEsbirros = INTERVALO_ESBIRROS;
+    relojEsbirros = tiene('guardianReforzado')
+      ? INTERVALO_ESBIRROS
+      : INTERVALO_ESBIRROS_ORIGINAL;
     // Tope aparte del aforo normal: la sala tiene que seguir siendo transitable.
     if (enemigos.filter((e) => e.vivo).length >= TOPE_CON_JEFE) return;
     for (const lado of [-1, 1]) {
@@ -1227,6 +1240,8 @@ async function arrancar(): Promise<void> {
           jefe.caja.x + lado * 70,
           jefe.caja.y + 40,
           nivelDif.fuerza,
+          false,
+          versionMundo,
         ),
       );
     }

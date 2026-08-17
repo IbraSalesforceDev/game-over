@@ -5,8 +5,12 @@ import {
   botinDe,
   crearEnemigo,
   danarEnemigo,
+  danoDe,
   ENEMIGOS,
   esJefe,
+  estadisticasDe,
+  GUARDIAN_ORIGINAL,
+  pensar,
   PROBABILIDAD_RELIQUIA,
   sueltaReliquia,
   type Especie,
@@ -63,6 +67,55 @@ describe('el guardián', () => {
       .filter((e) => e !== 'guardian')
       .map((e) => ENEMIGOS[e].dano);
     expect(ENEMIGOS.guardian.dano).toBeGreaterThan(Math.max(...otros));
+  });
+});
+
+describe('el guardián reforzado de 6.8.0', () => {
+  it('en un mundo de hoy aguanta y pega más que en uno de antes', () => {
+    const hoy = estadisticasDe('guardian', '6.8.0');
+    const antes = estadisticasDe('guardian', '6.7.0');
+    expect(hoy.vida).toBeGreaterThan(antes.vida);
+    expect(hoy.dano).toBeGreaterThan(antes.dano);
+    expect(antes).toEqual({ vida: GUARDIAN_ORIGINAL.vida, dano: GUARDIAN_ORIGINAL.dano });
+  });
+
+  it('un mundo de 4.0.0 despierta al guardián de 4.0.0', () => {
+    const viejo = crearEnemigo('guardian', 0, 0, 1, false, '4.0.0');
+    const nuevo = crearEnemigo('guardian', 0, 0, 1, false, '6.8.0');
+    expect(viejo.salud.vidaMax).toBe(GUARDIAN_ORIGINAL.vida);
+    expect(danoDe(viejo)).toBe(GUARDIAN_ORIGINAL.dano);
+    expect(nuevo.salud.vidaMax).toBe(ENEMIGOS.guardian.vida);
+    expect(danoDe(nuevo)).toBe(ENEMIGOS.guardian.dano);
+  });
+
+  it('la dificultad sigue multiplicando encima de lo que toque a cada versión', () => {
+    const viejo = crearEnemigo('guardian', 0, 0, 2, false, '4.0.0');
+    expect(viejo.salud.vidaMax).toBe(GUARDIAN_ORIGINAL.vida * 2);
+    expect(danoDe(viejo)).toBe(GUARDIAN_ORIGINAL.dano * 2);
+  });
+
+  it('el resto de especies no cambia con la versión', () => {
+    for (const especie of Object.keys(ENEMIGOS) as Especie[]) {
+      if (especie === 'guardian') continue;
+      expect(estadisticasDe(especie, '2.0.0')).toEqual(estadisticasDe(especie, '6.8.0'));
+    }
+  });
+
+  it('embiste más seguido al enfurecerse, y solo en los mundos nuevos', () => {
+    // Se cuenta cuántas veces arranca una embestida en mil ticks con la barra
+    // por debajo de la mitad: es la única señal observable del ritmo.
+    const embestidas = (version: string): number => {
+      const e = crearEnemigo('guardian', 0, 0, 1, false, version);
+      e.salud.vida = 1;
+      let cuentas = 0;
+      for (let i = 0; i < 1000; i++) {
+        const antes = e.caja.vx;
+        pensar(e, { x: 400, y: 0 });
+        if (Math.abs(e.caja.vx) > Math.abs(antes) + 3) cuentas++;
+      }
+      return cuentas;
+    };
+    expect(embestidas('6.8.0')).toBeGreaterThan(embestidas('6.7.0'));
   });
 });
 

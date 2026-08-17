@@ -205,7 +205,8 @@ terminarlo: no se abre uno nuevo dejando el anterior a medias.
 - **Bloque 5 — Fortaleza y jefe** ✅ · fortaleza de ladrillo en la caverna, con
   tres pisos de salas, cofres con botín y la sala del altar abajo ✅; altar que
   pide 5 huesos, 25 lingotes de oro y 25 de plata, 100 gel y una reliquia
-  antigua ✅; la reliquia la suelta cualquier hostil al 3 % ✅; el guardián de la
+  antigua ✅ (desde 6.8.0 pide bastante más, y cobalto); la reliquia la suelta
+  cualquier hostil al 3 % ✅; el guardián de la
   fortaleza, que vuela, embiste, se enfurece a media vida y llama esqueletos ✅,
   con su barra arriba ✅; suelta la espada del guardián —la única mejor que la de
   hierro— y una esencia guardada para más adelante ✅. Y para **encontrarla**:

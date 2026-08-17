@@ -365,6 +365,7 @@ export function intentarAparicion(
     sitio.y,
     fuerza,
     esElite(ctx, especie, enSuperficie, rng),
+    ctx.version ?? VERSION_ACTUAL,
   );
   enemigos.push(e);
   return e;

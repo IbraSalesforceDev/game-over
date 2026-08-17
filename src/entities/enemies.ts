@@ -1,5 +1,5 @@
 import { TILE } from '../core/constants';
-import { alMenos } from '../core/versiones';
+import { alMenos, hay, VERSION_ACTUAL } from '../core/versiones';
 import {
   CARNE_CRUDA,
   CRISTAL,
@@ -333,11 +333,17 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   // para que pueda usarlos. Aguanta mucho y pega fuerte, pero no de un toque:
   // con armadura de plata quedan cinco o seis errores de margen, que es lo que
   // convierte la pelea en una pelea y no en una tirada de dados.
+  //
+  // Estos números son los de 6.8.0. Los de antes están en `GUARDIAN_ORIGINAL`,
+  // porque cuando se escribieron el mejor equipo del juego era de plata y ahora
+  // hay tres metales por debajo: con novecientos de vida y treinta y cuatro de
+  // daño, el jefe que cerraba la partida se moría en un minuto sin quitar media
+  // barra, y un jefe que no da miedo no es un final, es un trámite.
   guardian: {
     desde: '4.0.0',
     nombre: 'guardián de la fortaleza',
-    vida: 900,
-    dano: 34,
+    vida: 1600,
+    dano: 46,
     ancho: 60,
     alto: 60,
     color: '#a37ef0',
@@ -394,6 +400,17 @@ export interface Enemigo {
    */
   fuerza: number;
   /**
+   * La versión del mundo en el que nació.
+   *
+   * La tabla `ENEMIGOS` dice cómo es cada especie *hoy*, y una partida de 4.0.0
+   * tiene derecho a su guardián de 4.0.0: el de entonces se pensó para un juego
+   * cuyo mejor peto era de plata. Guardar la versión en el propio bicho es lo
+   * que permite que un mismo `ENEMIGOS` sirva para todas las versiones sin
+   * tener que arrastrar la versión del mundo hasta cada golpe y cada decisión
+   * de la IA.
+   */
+  version: string;
+  /**
    * Es una versión de élite: el mismo bicho, mucho más fuerte y con premio.
    *
    * Va como bandera y no como una especie aparte porque un "zombi de élite"
@@ -437,11 +454,47 @@ export function nombreDe(e: Enemigo): string {
 
 /** Vida a la que el guardián se enfurece, como fracción de su máximo. */
 export const MITAD_JEFE = 0.5;
-/** Ticks entre embestidas del guardián, tranquilo y enfurecido. */
+/**
+ * Ticks entre embestidas del guardián, tranquilo y enfurecido.
+ *
+ * El de furioso bajó de 130 a 105 en 6.8.0. Con más vida, la segunda fase duraba
+ * el doble sin ser más peligrosa, y una fase larga que no aprieta es una fase
+ * aburrida: lo que hace que la mitad de la barra dé miedo es que a partir de ahí
+ * apenas hay hueco para curarse entre embestida y embestida.
+ */
 const CICLO_EMBESTIDA = 190;
-const CICLO_EMBESTIDA_FURIOSO = 130;
+const CICLO_EMBESTIDA_FURIOSO = 105;
+const CICLO_EMBESTIDA_FURIOSO_ORIGINAL = 130;
 /** Ticks que dura una embestida antes de volver a flotar. */
 const TICKS_EMBESTIDA = 34;
+
+/**
+ * El guardián de antes de 6.8.0.
+ *
+ * Se conserva entero porque elegir una versión tiene que devolver esa versión,
+ * y un mundo de 4.0.0 con el jefe de 6.8.0 sería injugable: allí el mejor peto
+ * es de plata y no existen ni el cobalto ni la infernita con los que se pensaron
+ * estos números.
+ */
+export const GUARDIAN_ORIGINAL = { vida: 900, dano: 34 } as const;
+
+/**
+ * Vida y daño de una especie en un mundo de esta versión.
+ *
+ * Casi siempre es lo que dice la tabla. La excepción es el guardián, y por eso
+ * esto existe: sin este rodeo, retocar al jefe reescribiría también la pelea de
+ * todas las partidas viejas.
+ */
+export function estadisticasDe(
+  especie: Especie,
+  versionMundo: string = VERSION_ACTUAL,
+): { vida: number; dano: number } {
+  const def = ENEMIGOS[especie];
+  if (especie === 'guardian' && !hay('guardianReforzado', versionMundo)) {
+    return { vida: GUARDIAN_ORIGINAL.vida, dano: GUARDIAN_ORIGINAL.dano };
+  }
+  return { vida: def.vida, dano: def.dano };
+}
 
 export function crearEnemigo(
   especie: Especie,
@@ -449,8 +502,10 @@ export function crearEnemigo(
   wy: number,
   fuerza = 1,
   elite = false,
+  versionMundo: string = VERSION_ACTUAL,
 ): Enemigo {
   const def = ENEMIGOS[especie];
+  const base = estadisticasDe(especie, versionMundo);
   // La élite multiplica sobre lo que ya traía: la dificultad y la hora siguen
   // contando. Un zombi de élite en brutal y de madrugada tiene que ser peor que
   // uno de élite en normal, y con la élite como valor fijo no lo sería.
@@ -474,7 +529,8 @@ export function crearEnemigo(
       yInicioCaida: wy,
       ultimaCaida: 0,
     },
-    salud: crearSalud(Math.max(1, Math.round(def.vida * fuerza))),
+    salud: crearSalud(Math.max(1, Math.round(base.vida * fuerza))),
+    version: versionMundo,
     reloj: Math.floor(Math.random() * 60),
     olvidado: 0,
     vivo: true,
@@ -492,7 +548,7 @@ export function crearEnemigo(
 export function danoDe(e: Enemigo): number {
   const def = ENEMIGOS[e.especie];
   if (def.pasivo || def.dano <= 0) return 0;
-  return Math.max(1, Math.round(def.dano * e.fuerza));
+  return Math.max(1, Math.round(estadisticasDe(e.especie, e.version).dano * e.fuerza));
 }
 
 /** Centro de una caja, que es lo que usan todas las decisiones de la IA. */
@@ -700,7 +756,11 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
       // sin castigar el simple hecho de estar cerca.
       const furioso = e.salud.vida < e.salud.vidaMax * MITAD_JEFE;
       e.fase += 0.05;
-      const ciclo = furioso ? CICLO_EMBESTIDA_FURIOSO : CICLO_EMBESTIDA;
+      const ciclo = furioso
+        ? hay('guardianReforzado', e.version)
+          ? CICLO_EMBESTIDA_FURIOSO
+          : CICLO_EMBESTIDA_FURIOSO_ORIGINAL
+        : CICLO_EMBESTIDA;
       const t = e.reloj % ciclo;
       if (t === 0) {
         const d = Math.hypot(dx, dy) || 1;

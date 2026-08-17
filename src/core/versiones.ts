@@ -510,6 +510,19 @@ export const VERSIONES: readonly Version[] = [
       'Uno de cada tres es un regalo, para que ver el cartel no sea siempre malo',
     ],
   },
+  {
+    id: '6.8.0',
+    etapa: 'prealfa',
+    nombre: 'El guardián, más duro',
+    resumen: 'El jefe se había quedado pequeño desde que hay armaduras de los hondos.',
+    cambios: [
+      'El guardián aguanta bastante más y pega más fuerte',
+      'Embiste más a menudo cuando se enfurece, y llama esbirros más seguido',
+      'La ofrenda del altar sube: más hueso, más oro y plata, más gel y tres reliquias',
+      'Y pide cobalto: bajar a los hondos deja de ser opcional para despertarlo',
+      'Los mundos anteriores a esta versión conservan el guardián y la ofrenda de antes',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -583,6 +596,7 @@ export const DESDE = {
   explosivos: '6.4.0',
   electricidad: '6.5.0',
   sucesos: '6.7.0',
+  guardianReforzado: '6.8.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',
