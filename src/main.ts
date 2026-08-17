@@ -175,6 +175,17 @@ import {
   limpiarEnemigos,
 } from './entities/spawner';
 import { accionarInterruptor, resolverCorriente } from './world/corriente';
+import {
+  cortarSuceso,
+  crearSucesos,
+  forzarSuceso,
+  ritmoDeApariciones,
+  ritmoDeElites,
+  SUCESOS,
+  tickSucesos,
+  type ClaseSuceso,
+} from './world/sucesos';
+import { caerMeteorito, RADIO as RADIO_METEORITO } from './world/meteorito';
 import { crearPanelVida } from './ui/vida';
 import { esArma } from './items/items';
 import {
@@ -523,6 +534,17 @@ async function arrancar(): Promise<void> {
   const flechas: Flecha[] = [];
   const bombas: Explosivo[] = [];
   /**
+   * Los sucesos del mundo.
+   *
+   * No se guardan con la partida a propósito. Un suceso es algo que está
+   * pasando *ahora*, y guardar "te quedaba media luna de sangre" para
+   * devolvértela tres días después al abrir el mundo no reanuda nada: reanuda
+   * un susto sin contexto. Al cargar, el calendario empieza de cero.
+   */
+  const sucesos = crearSucesos();
+  /** Ticks hasta el siguiente meteorito, mientras dure la lluvia. */
+  let relojMeteorito = 0;
+  /**
    * Dificultad del mundo, fijada al crearlo. Se lee una vez y no cambia: no hay
    * ninguna forma de tocarla desde dentro de la partida, ni siquiera desde el
    * menú de depuración, porque para eso están las perillas sueltas de ahí.
@@ -615,6 +637,25 @@ async function arrancar(): Promise<void> {
       motorLuz.marcarSucio();
     },
     volverAlSpawn: () => reaparecer(jugador),
+    sucesos: () =>
+      (Object.keys(SUCESOS) as ClaseSuceso[]).map((c) => ({
+        clave: c,
+        nombre: SUCESOS[c].nombre,
+      })),
+    sucesoActivo: () => (sucesos.activo ? SUCESOS[sucesos.activo].nombre : null),
+    lanzarSuceso: (clave) => {
+      const c = clave as ClaseSuceso;
+      if (!SUCESOS[c]) return;
+      forzarSuceso(sucesos, c);
+      aviso.mostrar(SUCESOS[c].aviso, true);
+      aviso.fijar(SUCESOS[c].nombre, SUCESOS[c].color);
+      relojMeteorito = 0;
+    },
+    cortarSuceso: () => {
+      const cortado = cortarSuceso(sucesos);
+      if (cortado) aviso.mostrar(SUCESOS[cortado].despedida);
+      aviso.fijar(null);
+    },
     informe: () => ({
       semilla: partida.estado.semilla,
       ancho: mundo.ancho,
@@ -1424,9 +1465,8 @@ async function arrancar(): Promise<void> {
       const dentro = tiene('guarnicionEstructuras')
         ? estructuraEn(partida.estado.estructuras, txJugador, tyJugador)
         : null;
-      relojAparicion = dentro === null
-        ? INTERVALO_INTENTO
-        : Math.max(6, Math.round(INTERVALO_INTENTO / RITMO_ESTRUCTURA));
+      const ritmo = (dentro === null ? 1 : RITMO_ESTRUCTURA) * ritmoDeApariciones(sucesos);
+      relojAparicion = Math.max(5, Math.round(INTERVALO_INTENTO / ritmo));
       const salido = intentarAparicion(mundo, enemigos, jugador.caja, {
         esNoche: reloj.esNoche,
         superficieTy: motorLuz.alturaCielo[txJugador] ?? 0,
@@ -1441,6 +1481,8 @@ async function arrancar(): Promise<void> {
           ? techoInframundo(mundo.alto, hay('mundoHondo', versionMundo))
           : undefined,
         estructura: dentro,
+        ritmoSuceso: ritmoDeApariciones(sucesos),
+        ritmoElite: ritmoDeElites(sucesos),
       });
       // Un élite se anuncia. Aparece fuera de pantalla como todo lo demás, y
       // enterarse de que ese zombi pegaba dos veces y media cuando ya te ha
@@ -2179,6 +2221,63 @@ async function arrancar(): Promise<void> {
   }
 
   /**
+   * Los sucesos: sortearlos, anunciarlos y aplicar lo que hagan mientras duran.
+   *
+   * El módulo decide *cuándo* y *cuál*; esto es todo lo que pasa por eso. Las
+   * apariciones se enteran por dos multiplicadores que ya viajan en el contexto,
+   * así que aquí solo queda el cartel y la lluvia de meteoritos.
+   */
+  function actualizarSucesos(): void {
+    const tyJugador = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
+    const txJugador = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
+    // "En la superficie" es ver el cielo o andar cerca de donde se ve: los tres
+    // sucesos pasan arriba, y empezar uno a doscientas filas de hondo sería
+    // gastarlo sin que nadie se entere.
+    const enSuperficie = tyJugador < (motorLuz.alturaCielo[txJugador] ?? 0) + 20;
+    const cambio = tickSucesos(sucesos, {
+      esNoche: reloj.esNoche,
+      version: versionMundo,
+      enSuperficie,
+    });
+    if (cambio.empieza) {
+      const def = SUCESOS[cambio.empieza];
+      aviso.mostrar(def.aviso, true);
+      aviso.fijar(def.nombre, def.color);
+      audio.sonar('golpe', 0.35);
+      sacudir(3);
+      relojMeteorito = 0;
+    }
+    if (cambio.termina) {
+      aviso.mostrar(SUCESOS[cambio.termina].despedida);
+      aviso.fijar(null);
+    }
+
+    // La lluvia: un meteorito cada pocos segundos mientras dure.
+    if (sucesos.activo !== 'lluviaEstrellas') return;
+    if (--relojMeteorito > 0) return;
+    // Uno cada quince segundos: con la lluvia de cincuenta, caen tres. Con uno
+    // cada siete caían siete, y siete cráteres en la misma ladera no son una
+    // lluvia de estrellas, son un bombardeo.
+    relojMeteorito = 60 * 15;
+    const impacto = caerMeteorito(mundo, txJugador, motorLuz.alturaCielo);
+    if (!impacto) return;
+    // Todo lo que ha cambiado el cráter hay que repintarlo y rehacerle la luz,
+    // y como la altura del cielo cambia columna por columna, se invalida cada
+    // una: es lo que decide si el sitio recibe sol.
+    for (let dx = -RADIO_METEORITO - 1; dx <= RADIO_METEORITO + 1; dx++) {
+      motorLuz.invalidar(impacto.tx + dx);
+      for (let dy = -RADIO_METEORITO - 1; dy <= RADIO_METEORITO + 3; dy++) {
+        renderer.cache.invalidar(impacto.tx + dx, impacto.ty + dy);
+      }
+    }
+    liquidos.activar(impacto.tx, impacto.ty);
+    corrienteSucia = true;
+    audio.sonar('romper-piedra', 0.5);
+    sacudir(6);
+    aviso.mostrar(`Ha caído una a ${Math.abs(impacto.tx - txJugador)} de aquí`);
+  }
+
+  /**
    * La instalación eléctrica: qué bombillas están encendidas ahora mismo.
    *
    * Va marcada como sucia en vez de recalcularse cada tick. Resolver la ventana
@@ -2237,6 +2336,7 @@ async function arrancar(): Promise<void> {
       actualizarDrops();
       if (tiene('cultivos')) actualizarCultivos();
       actualizarCombate();
+      if (tiene('sucesos')) actualizarSucesos();
       if (tiene('electricidad')) actualizarCorriente();
       particulas.actualizar(mundo);
       if (opciones.sacudidaActiva) renderer.camara.tickSacudida();

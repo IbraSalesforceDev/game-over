@@ -497,6 +497,19 @@ export const VERSIONES: readonly Version[] = [
       'Marcador en vivo: semilla, tamaño, dónde estás, bioma, fps y bichos vivos',
     ],
   },
+  {
+    id: '6.7.0',
+    etapa: 'prealfa',
+    nombre: 'Sucesos',
+    resumen: 'Ahora al mundo le pasan cosas por su cuenta.',
+    cambios: [
+      'Luna de sangre: el triple de bichos, el triple de élites, y dura hasta que amanece',
+      'Lluvia de estrellas: caen meteoritos que abren cráteres con cobalto y titanio',
+      'Enjambre: minuto y medio de bichos viniendo sin parar desde los dos lados',
+      'Se avisa siempre antes, y no se repite el mismo dos veces seguidas',
+      'Uno de cada tres es un regalo, para que ver el cartel no sea siempre malo',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -569,6 +582,7 @@ export const DESDE = {
   trampas: '6.3.0',
   explosivos: '6.4.0',
   electricidad: '6.5.0',
+  sucesos: '6.7.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

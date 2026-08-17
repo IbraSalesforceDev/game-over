@@ -104,6 +104,15 @@ export interface ContextoAparicion {
    * barata de conseguir.
    */
   estructura?: number | null;
+  /**
+   * Lo que multiplica el suceso que haya en marcha, y cuánto sube el élite.
+   *
+   * Van aquí y no como una tabla propia del spawner porque el spawner no tiene
+   * por qué saber qué es una luna de sangre: recibe dos números y ya. Así el
+   * día que haya un cuarto suceso no hay que tocar este fichero.
+   */
+  ritmoSuceso?: number;
+  ritmoElite?: number;
 }
 
 /**
@@ -307,7 +316,12 @@ export function intentarAparicion(
   const dentro = ctx.estructura != null;
   const tope = Math.max(
     1,
-    Math.round(TOPE_ENEMIGOS * Math.max(dif.aforo, 0.5) * (dentro ? RITMO_ESTRUCTURA : 1)),
+    Math.round(
+      TOPE_ENEMIGOS *
+        Math.max(dif.aforo, 0.5) *
+        (dentro ? RITMO_ESTRUCTURA : 1) *
+        (ctx.ritmoSuceso ?? 1),
+    ),
   );
   if (vivos >= tope) return null;
 
@@ -385,7 +399,7 @@ export function esElite(
   const dif = ctx.dif ?? dificultad(DIFICULTAD_POR_DEFECTO);
   // Y dentro salen el doble: es lo que hace que la fortaleza se sienta
   // defendida y no solo habitada.
-  return rng() < PROBABILIDAD_ELITE * dif.fuerza * (dentro ? 2 : 1);
+  return rng() < PROBABILIDAD_ELITE * dif.fuerza * (dentro ? 2 : 1) * (ctx.ritmoElite ?? 1);
 }
 
 /** Quita del array los que ya no están vivos. */

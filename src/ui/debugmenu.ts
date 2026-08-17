@@ -99,6 +99,17 @@ export interface OpcionesDebugMenu {
   estructuras(): readonly { nombre: string; tx: number; ty: number }[];
   viajarA(tx: number, ty: number): void;
   volverAlSpawn(): void;
+  /**
+   * Los sucesos que se pueden lanzar a mano, y cuál está en marcha.
+   *
+   * Sin esto, probar una luna de sangre es esperar a que salga: un suceso cada
+   * veinte minutos de media y uno de cada tres, con lo que ver los tres puede
+   * costar una hora larga de reloj.
+   */
+  sucesos(): readonly { clave: string; nombre: string }[];
+  sucesoActivo(): string | null;
+  lanzarSuceso(clave: string): void;
+  cortarSuceso(): void;
   /** Datos del mundo abierto, para el marcador de la pestaña de mundo. */
   informe(): {
     semilla: string;
@@ -405,6 +416,17 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
         <span class="interruptor" id="dbg-congelar">no</span>
       </div>
 
+      <h4>Sucesos</h4>
+      <div class="fila">
+        <select id="dbg-suceso"></select>
+        <button id="dbg-lanzar">Lanzar</button>
+      </div>
+      <div class="fila">
+        <label>En marcha</label>
+        <span class="valor" id="dbg-suceso-activo" style="width:auto">ninguno</span>
+        <button id="dbg-cortar">Cortar</button>
+      </div>
+
       <h4>Viajar</h4>
       <div class="fila">
         <select id="dbg-estructura"></select>
@@ -444,6 +466,8 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   const hora = $<HTMLInputElement>('dbg-hora');
   const horaVal = $('dbg-hora-val');
   const datos = $('dbg-datos');
+  const selSuceso = $<HTMLSelectElement>('dbg-suceso');
+  const sucesoActivo = $('dbg-suceso-activo');
   // Vive aquí y no en `trucos` porque no cambia nada del jugador: es solo con
   // qué bandera nace la próxima criatura que se genere.
   let elite = false;
@@ -550,6 +574,13 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     const m = op.horaActual();
     hora.value = String(m);
     horaVal.textContent = comoHora(m);
+    sucesoActivo.textContent = op.sucesoActivo() ?? 'ninguno';
+    if (selSuceso.options.length === 0) {
+      selSuceso.innerHTML = op
+        .sucesos()
+        .map((s) => `<option value="${s.clave}">${s.nombre}</option>`)
+        .join('');
+    }
   }
 
   function pintarIcono(): void {
@@ -647,6 +678,14 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   hora.addEventListener('input', () => {
     op.ponerHora(Number(hora.value));
     horaVal.textContent = comoHora(Number(hora.value));
+  });
+  $('dbg-lanzar').addEventListener('click', () => {
+    if (selSuceso.value) op.lanzarSuceso(selSuceso.value);
+    refrescarMundo();
+  });
+  $('dbg-cortar').addEventListener('click', () => {
+    op.cortarSuceso();
+    refrescarMundo();
   });
   $('dbg-viajar').addEventListener('click', () => {
     const i = Number(selEstructura.value);
