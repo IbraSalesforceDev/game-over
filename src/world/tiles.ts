@@ -64,6 +64,11 @@ export const TITANIO = 48;
 export const INFERNITA = 49;
 export const ROCA_INFERNAL = 50;
 export const LIANA = 51;
+// 6.2.0: el material de las fortalezas del inframundo. Es la roca del sitio
+// fundida y prensada, así que alumbra como ella pero aguanta mucho más: sin esa
+// dureza, una fortaleza del inframundo se abriría por un costado con el mismo
+// pico con el que se llegó hasta ella.
+export const LADRILLO_INFERNAL = 52;
 
 /**
  * Cultivos: primera etapa, última y qué se planta con qué semilla.
@@ -343,6 +348,18 @@ export const TILES: readonly DefTile[] = [
     luz: 120,
     nivelPico: 4,
   },
+  // El ladrillo de las fortalezas de ahí abajo. Alumbra menos que la roca de la
+  // que sale —está prensado, no al rojo— pero lo justo para que una sala se lea
+  // al entrar sin tener que ir poniendo antorchas.
+  {
+    nombre: 'ladrillo infernal',
+    solido: true,
+    plataforma: false,
+    dureza: 260,
+    color: '#8a3a24',
+    luz: 70,
+    nivelPico: 6,
+  },
   // Las lianas cuelgan y no frenan, como las hojas. Se agarran al techo de la
   // selva y son lo que hace que mirar hacia arriba ahí signifique algo.
   {
@@ -448,6 +465,7 @@ const TILE_DESDE: Readonly<Record<number, string>> = {
   [INFERNITA]: '5.0.0',
   [ROCA_INFERNAL]: '5.0.0',
   [LIANA]: '5.0.0',
+  [LADRILLO_INFERNAL]: '6.2.0',
 };
 
 /** En qué se convierte cada tile cuando su versión queda por delante. */
@@ -494,6 +512,7 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [TITANIO]: PIEDRA,
   [INFERNITA]: PIEDRA,
   [ROCA_INFERNAL]: PIEDRA,
+  [LADRILLO_INFERNAL]: ROCA_INFERNAL,
   [LIANA]: AIRE,
 };
 

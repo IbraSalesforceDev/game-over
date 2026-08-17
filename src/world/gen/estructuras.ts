@@ -8,6 +8,7 @@ import {
   esSolido,
   HIELO,
   LADRILLO,
+  LADRILLO_INFERNAL,
   MADERA,
   PIEDRA,
   PLATAFORMA,
@@ -18,6 +19,7 @@ import {
   CUEVA_DESIERTO,
   CUEVA_NIEVE,
   FORTALEZA,
+  FORTALEZA_INFERNAL,
   MINA,
   type Estructura,
   type TipoEstructura,
@@ -34,6 +36,10 @@ import {
   PEDERNAL,
   CARNE_ASADA,
   CRISTAL,
+  FLECHA_FUEGO,
+  LINGOTE_COBALTO,
+  LINGOTE_INFERNITA,
+  LINGOTE_TITANIO,
 } from '../../items/items';
 import type { DatosCofre } from '../contenedores';
 import type { Mundo } from '../world';
@@ -95,6 +101,8 @@ export function levantarEstructuras(
    * las cabañas, que son de la superficie y la superficie no ha crecido.
    */
   escala = 1,
+  /** Techo y suelo del inframundo, si este mundo lo tiene. */
+  inframundo?: { techo: number; suelo: number },
 ): ResultadoEstructuras {
   const salida: ResultadoEstructuras = { estructuras: [], cofres: [] };
 
@@ -121,6 +129,14 @@ export function levantarEstructuras(
   const minas = Math.max(1, Math.floor((mundo.ancho / 500) * escala));
   for (let i = 0; i < minas; i++) {
     construirMina(mundo, superficie, caverna, fondo, rng, salida);
+  }
+
+  // Y las fortalezas del inframundo, si el mundo llega a tener inframundo.
+  if (inframundo) {
+    const cuantas = Math.max(1, Math.floor(mundo.ancho / 900));
+    for (let i = 0; i < cuantas; i++) {
+      levantarFortalezaInfernal(mundo, inframundo.techo, inframundo.suelo, rng, salida);
+    }
   }
 
   // Y la invariante, al final: cada cofre de la lista tiene que ser un cofre en
@@ -366,11 +382,12 @@ function limpiarPuerta(
   ty0: number,
   tx1: number,
   ty1: number,
+  pared: number = LADRILLO,
 ): void {
   for (let ty = ty0; ty <= ty1; ty++) {
     for (let tx = tx0; tx <= tx1; tx++) {
       mundo.setTile(tx, ty, AIRE);
-      mundo.setPared(tx, ty, LADRILLO);
+      mundo.setPared(tx, ty, pared);
       mundo.setLiquido(tx, ty, 0);
     }
   }
@@ -601,6 +618,138 @@ function vaciarLobulo(mundo: Mundo, cx: number, cy: number, radio: number): void
       mundo.setTile(tx, ty, AIRE);
       mundo.setLiquido(tx, ty, 0);
     }
+  }
+}
+
+// --- La fortaleza infernal ---------------------------------------------------
+
+/** Lo que guarda un cofre del inframundo. Lo mejor que hay fuera del jefe. */
+const BOTIN_INFERNAL: readonly (readonly [number, number, number])[] = [
+  [LINGOTE_INFERNITA, 6, 14],
+  [LINGOTE_TITANIO, 8, 18],
+  [LINGOTE_COBALTO, 8, 18],
+  [FLECHA_FUEGO, 20, 45],
+  [CRISTAL, 1, 2],
+  [CARNE_ASADA, 4, 8],
+  [HUESO, 10, 20],
+];
+
+/** Alto y ancho de una sala de la fortaleza infernal, en tiles. */
+const SALA_INF_ANCHO = 13;
+const SALA_INF_ALTO = 7;
+
+/**
+ * Una fortaleza del inframundo: un bloque de salas sobre la repisa.
+ *
+ * Se apoya en el suelo en vez de colgar en mitad del aire, y no por realismo
+ * sino porque es la única forma de que se llegue a ella andando. Una fortaleza
+ * flotando sobre el mar de lava solo la visita quien ya tiene con qué volar, y
+ * entonces deja de ser el premio de haber bajado hasta aquí.
+ *
+ * Va abierta por delante —sin puerta ni muro exterior en la cara que da al
+ * paso— porque cerrarla obligaría a picar ladrillo infernal, que pide un pico
+ * de nivel seis, y ese pico se fabrica justamente con lo que hay dentro. Una
+ * cerradura cuya llave está dentro de la caja no es un reto, es un muro.
+ */
+function levantarFortalezaInfernal(
+  mundo: Mundo,
+  techo: number,
+  suelo: number,
+  rng: Rng,
+  salida: ResultadoEstructuras,
+): void {
+  const salas = rng.entero(2, 4);
+  const ancho = salas * SALA_INF_ANCHO + 1;
+  const pisos = rng.entero(2, 3);
+  const alto = pisos * SALA_INF_ALTO + 1;
+
+  for (let intento = 0; intento < 300; intento++) {
+    const tx = rng.entero(8, mundo.ancho - ancho - 9);
+
+    // Se busca la repisa: el primer suelo firme bajando desde el techo del
+    // inframundo, y que además tenga aire encima para que quepa la fortaleza.
+    let base = -1;
+    for (let ty = techo + 6; ty < suelo - 4; ty++) {
+      if (mundo.getTile(tx, ty) !== AIRE) continue;
+      if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
+      base = ty;
+      break;
+    }
+    if (base < 0 || base - alto <= techo + 2) continue;
+
+    // Ni encima de otra fortaleza. Miden hasta cincuenta y tres columnas, así
+    // que dos a dieciocho de distancia no son dos fortalezas: son una sola con
+    // las paredes cruzadas por dentro y el doble de cofres apiñados.
+    let pegada = false;
+    for (const otra of salida.estructuras) {
+      if (otra.tipo !== FORTALEZA_INFERNAL) continue;
+      if (Math.abs(otra.tx - (tx + ancho / 2)) < ancho + 30) pegada = true;
+    }
+    if (pegada) continue;
+
+    // Y que la repisa aguante todo el ancho: media fortaleza en voladizo sobre
+    // el mar es media fortaleza a la que no se puede entrar.
+    let firme = 0;
+    for (let d = 0; d < ancho; d++) {
+      if (esSolido(mundo.getTile(tx + d, base + 1))) firme++;
+    }
+    if (firme < ancho * 0.8) continue;
+    // Ni encima de la lava, aunque haya suelo: la sala se inundaría al primer
+    // tick de simulación y lo que se encuentra al llegar es una piscina.
+    let mojado = false;
+    for (let d = 0; d < ancho && !mojado; d++) {
+      for (let y = base - alto; y <= base + 1; y++) {
+        if (mundo.getLiquido(tx + d, y) > 0) mojado = true;
+      }
+    }
+    if (mojado) continue;
+
+    const arriba = base - alto + 1;
+    const derecha = tx + ancho - 1;
+
+    // Caja maciza y salas abiertas por resta, igual que la fortaleza de la
+    // caverna: construir por suma deja huecos de roca colados entre sala y sala.
+    macizar(mundo, tx, arriba, derecha, base, LADRILLO_INFERNAL);
+    for (let piso = 0; piso < pisos; piso++) {
+      for (let col = 0; col < salas; col++) {
+        const sx0 = tx + 1 + col * SALA_INF_ANCHO;
+        const sy0 = arriba + 1 + piso * SALA_INF_ALTO;
+        const sx1 = sx0 + SALA_INF_ANCHO - 2;
+        const sy1 = sy0 + SALA_INF_ALTO - 2;
+        ahuecar(mundo, sx0, sy0, sx1, sy1, LADRILLO_INFERNAL);
+        // Paso a la sala de al lado, a ras de suelo.
+        if (col < salas - 1) limpiarPuerta(mundo, sx1 + 1, sy1 - 1, sx1 + 1, sy1, LADRILLO_INFERNAL);
+        // Y hueco al piso de abajo con plataformas para poder volver a subir.
+        if (piso < pisos - 1) {
+          const hx = sx0 + rng.entero(1, SALA_INF_ANCHO - 4);
+          limpiarPuerta(mundo, hx, sy1 + 1, hx + 1, sy1 + 1, LADRILLO_INFERNAL);
+          mundo.setTile(hx, sy1 + 1, PLATAFORMA);
+          mundo.setTile(hx + 1, sy1 + 1, PLATAFORMA);
+        }
+        // Un cofre en poco menos de la mitad de las salas.
+        if (rng.suerte(0.45)) {
+          ponerCofre(
+            mundo,
+            salida,
+            sx0 + rng.entero(2, SALA_INF_ANCHO - 4),
+            sy1,
+            sortearBotin(rng, BOTIN_INFERNAL, rng.entero(2, 3)),
+          );
+        }
+      }
+    }
+
+    // La entrada: se abre la pared del piso de abajo por los dos lados. El
+    // ladrillo infernal pide un pico que se fabrica con lo que hay dentro, así
+    // que dejarla cerrada sería una cerradura con la llave dentro de la caja.
+    const syAbajo = arriba + 1 + (pisos - 1) * SALA_INF_ALTO;
+    for (const x of [tx, derecha]) {
+      limpiarPuerta(mundo, x, base - 2, x, base - 1, LADRILLO_INFERNAL);
+    }
+    void syAbajo;
+
+    anotar(salida, FORTALEZA_INFERNAL, tx + ancho / 2, base - 2);
+    return;
   }
 }
 

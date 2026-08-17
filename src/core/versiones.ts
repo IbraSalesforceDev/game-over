@@ -392,6 +392,18 @@ export const VERSIONES: readonly Version[] = [
       'Ni nubes ni sol ahí abajo: alumbra la lava',
     ],
   },
+  {
+    id: '6.2.0',
+    etapa: 'prealfa',
+    nombre: 'Fortalezas del infierno',
+    resumen: 'Puestos de ladrillo infernal sobre la repisa, con lo mejor dentro.',
+    cambios: [
+      'Varias fortalezas por mundo, apoyadas en el suelo',
+      'Ladrillo infernal: alumbra y pide pico de nivel 6',
+      'Cofres con lingotes de cobalto, titanio e infernita',
+      'La brújula y el mapa las señalan',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -459,6 +471,7 @@ export const DESDE = {
   arqueria: '5.4.0',
   mundoHondo: '6.0.0',
   sueloInfernal: '6.1.0',
+  fortalezaInfernal: '6.2.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

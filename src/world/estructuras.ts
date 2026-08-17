@@ -23,13 +23,19 @@ export const MINA = 2;
 // nadie verá.
 export const CUEVA_DESIERTO = 3;
 export const CUEVA_NIEVE = 4;
+// 6.2.0: las fortalezas del inframundo. No hay una sino varias, al revés que
+// la de la caverna: aquella es el sitio del jefe y por eso es única, y estas
+// son puestos avanzados —lo que le da al inframundo algo que buscar además de
+// no caerse.
+export const FORTALEZA_INFERNAL = 5;
 
 export type TipoEstructura =
   | typeof FORTALEZA
   | typeof CABANA
   | typeof MINA
   | typeof CUEVA_DESIERTO
-  | typeof CUEVA_NIEVE;
+  | typeof CUEVA_NIEVE
+  | typeof FORTALEZA_INFERNAL;
 
 export interface Estructura {
   readonly tipo: TipoEstructura;
@@ -44,6 +50,7 @@ export const NOMBRE_ESTRUCTURA: Readonly<Record<number, string>> = {
   [MINA]: 'Mina abandonada',
   [CUEVA_DESIERTO]: 'Cueva de arenisca',
   [CUEVA_NIEVE]: 'Cueva helada',
+  [FORTALEZA_INFERNAL]: 'Fortaleza infernal',
 };
 
 /** Letra que marca cada tipo en el mapa. Una sola: el mapa es diminuto. */
@@ -53,6 +60,7 @@ export const MARCA_ESTRUCTURA: Readonly<Record<number, string>> = {
   [MINA]: 'M',
   [CUEVA_DESIERTO]: 'A',
   [CUEVA_NIEVE]: 'H',
+  [FORTALEZA_INFERNAL]: 'I',
 };
 
 /** Color del marcador de cada tipo. */
@@ -62,6 +70,7 @@ export const COLOR_ESTRUCTURA: Readonly<Record<number, string>> = {
   [MINA]: '#8fd0e8',
   [CUEVA_DESIERTO]: '#e8c88a',
   [CUEVA_NIEVE]: '#a8e0f0',
+  [FORTALEZA_INFERNAL]: '#ff7a3a',
 };
 
 export function nombreEstructura(tipo: number): string {

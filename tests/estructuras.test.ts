@@ -1,16 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { generarMundo } from '../src/world/gen/worldgen';
+import { generarMundo, techoInframundo } from '../src/world/gen/worldgen';
 import {
   CABANA,
   CUEVA_DESIERTO,
   CUEVA_NIEVE,
   estructuraMasCercana,
   FORTALEZA,
+  FORTALEZA_INFERNAL,
   MINA,
   nombreEstructura,
   rumbo,
 } from '../src/world/estructuras';
-import { AIRE, ALTAR, ANTORCHA, ARENISCA, COFRE, HIELO, LADRILLO } from '../src/world/tiles';
+import {
+  AIRE,
+  ALTAR,
+  ANTORCHA,
+  ARENISCA,
+  COFRE,
+  esSolido,
+  HIELO,
+  LADRILLO,
+  LADRILLO_INFERNAL,
+} from '../src/world/tiles';
 import { Inventario } from '../src/items/inventory';
 import {
   faltaParaOfrenda,
@@ -19,7 +30,16 @@ import {
   puedeInvocar,
   textoFalta,
 } from '../src/world/altar';
-import { GEL, HUESO, LINGOTE_ORO, LINGOTE_PLATA, RELIQUIA } from '../src/items/items';
+import {
+  GEL,
+  HUESO,
+  LINGOTE_COBALTO,
+  LINGOTE_INFERNITA,
+  LINGOTE_ORO,
+  LINGOTE_PLATA,
+  LINGOTE_TITANIO,
+  RELIQUIA,
+} from '../src/items/items';
 
 const OP = { ancho: 400, alto: 300, semilla: 'FORTALEZA' };
 
@@ -277,5 +297,97 @@ describe('el altar', () => {
     const oro = OFRENDA.find(([o]) => o === LINGOTE_ORO)![1];
     const plata = OFRENDA.find(([o]) => o === LINGOTE_PLATA)![1];
     expect(oro + plata).toBe(50);
+  });
+});
+
+describe('fortalezas del inframundo (6.2.0)', () => {
+  const OP = { ancho: 2100, alto: 900, semilla: 'INFERNAL' };
+
+  it('salen varias, y todas dentro del inframundo', () => {
+    const { mundo, estructuras } = generarMundo(OP);
+    const fs = estructuras.filter((e) => e.tipo === FORTALEZA_INFERNAL);
+    expect(fs.length).toBeGreaterThan(0);
+    const techo = techoInframundo(mundo.alto, true);
+    for (const f of fs) expect(f.ty).toBeGreaterThan(techo);
+  });
+
+  it('se apoyan en el suelo, no cuelgan sobre el mar', () => {
+    // Una fortaleza flotando sobre la lava solo la visita quien ya tiene con
+    // qué volar, y entonces deja de ser el premio de haber bajado hasta aquí.
+    const { mundo, estructuras } = generarMundo(OP);
+    for (const f of estructuras.filter((e) => e.tipo === FORTALEZA_INFERNAL)) {
+      let ty = f.ty;
+      while (ty < mundo.alto - 2 && !esSolido(mundo.getTile(f.tx, ty + 1))) ty++;
+      expect(ty - f.ty).toBeLessThan(6);
+    }
+  });
+
+  it('no se solapan entre sí', () => {
+    // Miden hasta cincuenta y tres columnas: dos a dieciocho de distancia no
+    // son dos fortalezas, son una con las paredes cruzadas por dentro.
+    for (const semilla of ['INFERNAL', 'A', 'B', 'C']) {
+      const { estructuras } = generarMundo({ ...OP, semilla });
+      const fs = estructuras.filter((e) => e.tipo === FORTALEZA_INFERNAL);
+      for (let i = 0; i < fs.length; i++) {
+        for (let j = i + 1; j < fs.length; j++) {
+          expect(Math.abs(fs[i]!.tx - fs[j]!.tx)).toBeGreaterThan(50);
+        }
+      }
+    }
+  });
+
+  it('se puede entrar andando: hay puerta en la planta baja', () => {
+    // El ladrillo infernal pide un pico de nivel seis, y ese pico se fabrica
+    // justamente con lo que hay dentro. Una fortaleza cerrada sería una
+    // cerradura con la llave dentro de la caja.
+    const { mundo, estructuras } = generarMundo(OP);
+    for (const f of estructuras.filter((e) => e.tipo === FORTALEZA_INFERNAL)) {
+      // Desde el punto anotado —el centro de la planta baja— se sale andando
+      // hacia algún lado sin atravesar ladrillo.
+      let salida = false;
+      for (const paso of [-1, 1]) {
+        for (let d = 1; d < 60; d++) {
+          const tx = f.tx + paso * d;
+          if (mundo.getTile(tx, f.ty) === LADRILLO_INFERNAL) break;
+          if (mundo.getTile(tx, f.ty) !== AIRE) break;
+          // Se ha salido de la caja: ya no hay pared de ladrillo detrás.
+          if (mundo.getPared(tx, f.ty) !== LADRILLO_INFERNAL) {
+            salida = true;
+            break;
+          }
+        }
+        if (salida) break;
+      }
+      expect(salida).toBe(true);
+    }
+  });
+
+  it('están secas: la sala no nace inundada', () => {
+    const { mundo, estructuras } = generarMundo(OP);
+    for (const f of estructuras.filter((e) => e.tipo === FORTALEZA_INFERNAL)) {
+      for (let ty = f.ty - 20; ty <= f.ty + 2; ty++) {
+        for (let tx = f.tx - 25; tx <= f.tx + 25; tx++) {
+          if (mundo.getPared(tx, ty) !== LADRILLO_INFERNAL) continue;
+          expect(mundo.getLiquido(tx, ty)).toBe(0);
+        }
+      }
+    }
+  });
+
+  it('guardan lingotes de los tres metales hondos', () => {
+    const { estructuras, cofres } = generarMundo(OP);
+    const fs = estructuras.filter((e) => e.tipo === FORTALEZA_INFERNAL);
+    const dentro = cofres.filter((c) =>
+      fs.some((f) => Math.abs(c.tx - f.tx) < 30 && Math.abs(c.ty - f.ty) < 25),
+    );
+    expect(dentro.length).toBeGreaterThan(0);
+    const objetos = new Set(dentro.flatMap((c) => c.ranuras.map(([o]) => o)));
+    const hondos = [LINGOTE_COBALTO, LINGOTE_TITANIO, LINGOTE_INFERNITA];
+    expect(hondos.some((m) => objetos.has(m))).toBe(true);
+  });
+
+  it('no existen antes de 6.2.0', () => {
+    const { estructuras } = generarMundo({ ...OP, version: '6.1.0' });
+    expect(estructuras.some((e) => e.tipo === FORTALEZA_INFERNAL)).toBe(false);
   });
 });
