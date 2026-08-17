@@ -306,7 +306,7 @@ export function* generarMundoPasos(
 
   // --- 5. Superficie ------------------------------------------------------
   yield { pct: 88, texto: 'Plantando el bosque…' };
-  vestirSuperficie(mundo, superficie, biomas, rng, semilla);
+  vestirSuperficie(mundo, superficie, biomas, rng, semilla, tiene('biomasNuevos'));
   if (tiene('cana')) plantarCanas(mundo, superficie, rng);
   if (tiene('lianas')) colgarLianas(mundo, superficie, biomas, rng);
 
@@ -1192,6 +1192,16 @@ function vestirSuperficie(
   biomas: MapaBiomas,
   rng: Rng,
   semillaArboles: number,
+  /**
+   * Hay más de una clase de árbol.
+   *
+   * El abedul y el pino son tiles de 3.1.0, pero la nieve existe desde 2.1.0 y
+   * el bosque desde siempre: sin esta puerta, un mundo de 2.1.0 salía con pinos
+   * en la nieve y abedules en el bosque, o sea con dos bloques que en esa
+   * versión no existían. Lo cazó la auditoría comparando cada tile del mundo
+   * generado contra la versión que declara.
+   */
+  variedad: boolean,
 ): void {
   const { ancho, alto } = mundo;
 
@@ -1244,11 +1254,19 @@ function vestirSuperficie(
     if (mundo.getLiquido(tx, ty - 1) > 0) continue;
 
     if (bioma === DESIERTO) plantarCactus(mundo, tx, ty - 1, rng);
-    else if (bioma === NIEVE_B) plantarPino(mundo, tx, ty - 1, rng);
+    else if (bioma === NIEVE_B && variedad) plantarPino(mundo, tx, ty - 1, rng);
     else if (bioma === JUNGLA) plantarCeiba(mundo, tx, ty - 1, rng);
     // En el bosque, uno de cada cuatro es un abedul: la mancha clara entre los
     // troncos oscuros es lo que hace que el bosque deje de verse repetido.
-    else plantarArbol(mundo, tx, ty - 1, rng, rng.suerte(0.25) ? TRONCO_ABEDUL : TRONCO);
+    else {
+      plantarArbol(
+        mundo,
+        tx,
+        ty - 1,
+        rng,
+        variedad && rng.suerte(0.25) ? TRONCO_ABEDUL : TRONCO,
+      );
+    }
     ultimaPlanta = tx;
   }
 }

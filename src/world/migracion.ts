@@ -1,4 +1,4 @@
-import { alMenos, indiceVersion, version, VERSIONES } from '../core/versiones';
+import { alMenos, hay, indiceVersion, version, VERSIONES } from '../core/versiones';
 import { DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
 import { defObjeto, filtrarObjeto, NADA, objetoExisteEn } from '../items/items';
 import { VIDA_MAXIMA } from '../entities/salud';
@@ -334,11 +334,21 @@ export function migrarEstado(
 /** Versiones a las que se puede llevar un mundo: todas menos la suya. */
 export function destinosPosibles(desde: string): typeof VERSIONES {
   const i = indiceVersion(desde);
-  // Todas menos la suya, en los dos sentidos. La profundidad no limita nada:
-  // un mundo clásico puede subir a 6.0.0 y llevarse el contenido nuevo
-  // conservando su reparto de capas, porque el reparto va guardado con el
-  // mundo y no se deduce de la versión.
-  return VERSIONES.filter((v) => indiceVersion(v.id) !== i);
+  // Todas menos la suya, en los dos sentidos, salvo las que no tenían mundo.
+  //
+  // Antes de 1.3.0 no había generación: el juego era el escenario de pruebas a
+  // mano, y al crear un mundo con una de esas versiones es lo que se da. Pero
+  // migrar un mundo *a* una de ellas no significa nada — no hay ningún mundo
+  // al que convertirlo—, y lo que hacía era generar terreno con vetas de
+  // mineral y árboles, o sea justo el contenido que esa versión no tenía. Un
+  // destino que produce lo contrario de lo que promete es peor que no estar.
+  //
+  // La profundidad, en cambio, no limita nada: un mundo clásico puede subir a
+  // 6.0.0 y llevarse el contenido nuevo conservando su reparto de capas,
+  // porque el reparto va guardado con el mundo y no se deduce de la versión.
+  return VERSIONES.filter(
+    (v) => indiceVersion(v.id) !== i && hay('mundoGenerado', v.id),
+  );
 }
 
 /** Una frase corta que resume el salto, para el botón. */

@@ -9,7 +9,7 @@ import {
   migrarPasos,
   planMigracion,
 } from '../src/world/migracion';
-import { VERSION_ACTUAL, VERSIONES } from '../src/core/versiones';
+import { hay, VERSION_ACTUAL, VERSIONES } from '../src/core/versiones';
 import { DIFICULTAD_POR_DEFECTO } from '../src/core/dificultad';
 import { VIDA_MAXIMA } from '../src/entities/salud';
 import { ESPADA_GUARDIAN, SEMILLAS } from '../src/items/items';
@@ -287,14 +287,19 @@ describe('el plan que se enseña antes de aceptar', () => {
 });
 
 describe('a dónde se puede ir', () => {
-  it('todas las versiones menos la propia', () => {
+  it('todas las que tuvieron mundo, menos la propia', () => {
     const destinos = destinosPosibles('3.0.0');
-    expect(destinos.length).toBe(VERSIONES.length - 1);
     expect(destinos.some((v) => v.id === '3.0.0')).toBe(false);
-    expect(destinos.some((v) => v.id === '1.0.0')).toBe(true);
     // 6.0.0 incluida: un mundo clásico puede subir y llevarse el contenido
     // nuevo sin cambiar de altura, porque la altura va guardada con el mundo.
     expect(destinos.some((v) => v.id === VERSION_ACTUAL)).toBe(true);
+    // Pero no las de antes de 1.3.0: entonces no había generación de mundo, y
+    // migrar el tuyo a una de ellas no significa nada. Lo que hacía era darle
+    // terreno con vetas y árboles, o sea justo lo que esa versión no tenía.
+    expect(destinos.some((v) => v.id === '1.0.0')).toBe(false);
+    expect(destinos.some((v) => v.id === '1.3.0')).toBe(true);
+    const conMundo = VERSIONES.filter((v) => hay('mundoGenerado', v.id));
+    expect(destinos.length).toBe(conMundo.length - 1);
   });
 });
 

@@ -369,6 +369,17 @@ export const VERSIONES: readonly Version[] = [
       'Más mineral, cristales y agua, para que cavar rinda lo mismo',
     ],
   },
+  {
+    id: '6.0.1',
+    etapa: 'prealfa',
+    nombre: 'Repaso a fondo',
+    resumen: 'Auditoría de todo el catálogo: lo que faltaba y lo que se colaba.',
+    cambios: [
+      'Troncos, hojas, cactus y hierba ya se pueden fabricar',
+      'Los abedules y los pinos dejan de salir dos versiones antes de existir',
+      'No se puede migrar un mundo a una versión que no tenía mundo',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

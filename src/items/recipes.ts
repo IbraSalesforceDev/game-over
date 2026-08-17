@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERRO, HORNO, INFERNITA, LADRILLO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, TITANIO, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, BARRO, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, LADRILLO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -61,6 +61,7 @@ import {
   PAN,
   TRIGO,
   PLUMA,
+  SEMILLAS,
   BRUJULA,
   LINGOTE_COBALTO,
   LINGOTE_TITANIO,
@@ -355,6 +356,103 @@ export const RECETAS: readonly Receta[] = [
     desde: '1.7.0',
     ingredientes: [[LINGOTE_HIERRO, 5]],
     resultado: YUNQUE,
+    cantidad: 1,
+    estacion: MESA,
+  },
+
+  // --- Bloques de adorno ---
+  //
+  // Nueve bloques del catálogo se podían colocar pero no conseguir de ninguna
+  // manera: los tres troncos, las tres clases de hoja, el cactus y las dos
+  // hierbas. Al picarlos daban su material —el tronco da madera, la hierba da
+  // tierra— que es lo correcto, pero eso dejaba el bloque en sí fuera del
+  // alcance del jugador para siempre. Salían en el menú de depuración y en
+  // ninguna otra parte.
+  //
+  // Se resuelve con recetas y no cambiando lo que sueltan, porque lo que
+  // sueltan está bien: talar un árbol tiene que dar madera, no troncos. Son
+  // baratas a propósito: no son una mejora, son material de construcción, y
+  // cobrarlas caras solo conseguiría que nadie las usara.
+  {
+    id: 'troncos',
+    desde: '1.7.0',
+    ingredientes: [[MADERA, 2]],
+    resultado: TRONCO,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'hojas',
+    desde: '1.7.0',
+    ingredientes: [[MADERA, 1]],
+    resultado: HOJAS,
+    cantidad: 4,
+    estacion: MESA,
+  },
+  {
+    id: 'cactus-bloque',
+    desde: '2.1.0',
+    ingredientes: [
+      [MADERA, 2],
+      [ARENA, 2],
+    ],
+    resultado: CACTUS,
+    cantidad: 2,
+    estacion: MESA,
+  },
+  {
+    id: 'troncos-abedul',
+    desde: '3.1.0',
+    ingredientes: [[MADERA, 2]],
+    resultado: TRONCO_ABEDUL,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'troncos-selva',
+    desde: '3.1.0',
+    ingredientes: [[MADERA, 2]],
+    resultado: TRONCO_JUNGLA,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'hojas-pino',
+    desde: '3.1.0',
+    ingredientes: [[MADERA, 1]],
+    resultado: HOJAS_PINO,
+    cantidad: 4,
+    estacion: MESA,
+  },
+  {
+    id: 'hojas-selva',
+    desde: '3.1.0',
+    ingredientes: [[MADERA, 1]],
+    resultado: HOJAS_JUNGLA,
+    cantidad: 4,
+    estacion: MESA,
+  },
+  // Las dos hierbas piden semilla: es sembrar el bloque, no fabricarlo. Por eso
+  // van desde 3.2.0, que es cuando existen las semillas.
+  {
+    id: 'hierba-bloque',
+    desde: '3.2.0',
+    ingredientes: [
+      [TIERRA, 1],
+      [SEMILLAS, 1],
+    ],
+    resultado: HIERBA,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'hierba-selva',
+    desde: '3.2.0',
+    ingredientes: [
+      [BARRO, 1],
+      [SEMILLAS, 1],
+    ],
+    resultado: HIERBA_JUNGLA,
     cantidad: 1,
     estacion: MESA,
   },
