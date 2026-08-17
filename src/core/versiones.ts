@@ -305,6 +305,18 @@ export const VERSIONES: readonly Version[] = [
       'El bosque conserva sus cordilleras',
     ],
   },
+  {
+    id: '5.2.0',
+    etapa: 'prealfa',
+    nombre: 'Cuevas de bioma',
+    resumen: 'El desierto y la nieve tienen cavernas propias, con cofres dentro.',
+    cambios: [
+      'Cuevas de arenisca bajo el desierto',
+      'Cuevas heladas bajo la nieve',
+      'Cofres con cobalto, titanio y lo mejor de cada sitio',
+      'La brújula y el mapa también las señalan',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -368,6 +380,7 @@ export const DESDE = {
   cristalesVida: '3.0.0',
   cana: '3.0.0',
   estructuras: '4.0.0',
+  cuevasDeBioma: '5.2.0',
   mineralesProfundos: '5.0.0',
   inframundo: '5.0.0',
   lianas: '5.0.0',

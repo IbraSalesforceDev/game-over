@@ -234,7 +234,14 @@ export function* generarMundoPasos(
   // inunda, y una cabaña puesta antes de los árboles acaba con un roble dentro.
   yield { pct: 92, texto: 'Levantando la fortaleza…' };
   const construido = tiene('estructuras')
-    ? levantarEstructuras(mundo, superficie, c.caverna, c.fondo, rng)
+    ? levantarEstructuras(
+        mundo,
+        superficie,
+        c.caverna,
+        c.fondo,
+        rng,
+        tiene('cuevasDeBioma') ? biomas : undefined,
+      )
     : { estructuras: [], cofres: [] };
 
   // --- 7. Bordes y remate -------------------------------------------------

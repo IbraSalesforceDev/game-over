@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { generarMundo } from '../src/world/gen/worldgen';
 import {
   CABANA,
+  CUEVA_DESIERTO,
+  CUEVA_NIEVE,
   estructuraMasCercana,
   FORTALEZA,
   MINA,
   nombreEstructura,
   rumbo,
 } from '../src/world/estructuras';
-import { AIRE, ALTAR, LADRILLO } from '../src/world/tiles';
+import { AIRE, ALTAR, ANTORCHA, ARENISCA, COFRE, HIELO, LADRILLO } from '../src/world/tiles';
 import { Inventario } from '../src/items/inventory';
 import {
   faltaParaOfrenda,
@@ -79,12 +81,105 @@ describe('estructuras del mundo', () => {
     expect(a.cofres).toEqual(b.cofres);
   });
 
+  it('la fortaleza no queda agujereada por una cueva de bioma', () => {
+    // Las cuevas se cavan después de la fortaleza y a la misma profundidad. Si
+    // no se apartaran, una podría abrir un boquete de veinte tiles en una sala.
+    for (const semilla of ['FORTALEZA', 'OTRA', 'TERCERA', 'CUARTA']) {
+      const { mundo, estructuras } = generarMundo({ ...OP, ancho: 1400, semilla });
+      const f = estructuras.find((e) => e.tipo === FORTALEZA)!;
+      for (const c of estructuras) {
+        if (c.tipo !== CUEVA_DESIERTO && c.tipo !== CUEVA_NIEVE) continue;
+        expect(Math.hypot(c.tx - f.tx, c.ty - f.ty)).toBeGreaterThan(20);
+      }
+      // Y el altar sigue en pie.
+      expect(mundo.getTile(f.tx, f.ty)).toBe(ALTAR);
+    }
+  });
+
   it('semillas distintas mueven la fortaleza', () => {
     const a = generarMundo(OP);
     const b = generarMundo({ ...OP, semilla: 'OTRA' });
     const fa = a.estructuras.find((e) => e.tipo === FORTALEZA)!;
     const fb = b.estructuras.find((e) => e.tipo === FORTALEZA)!;
     expect(fa.tx === fb.tx && fa.ty === fb.ty).toBe(false);
+  });
+});
+
+describe('cuevas de bioma', () => {
+  // Ancho generoso: con cuatrocientas columnas puede no tocar ni un desierto,
+  // y lo que se prueba aquí es la cueva, no la lotería de las franjas.
+  const ANCHO = { ancho: 2400, alto: 400, semilla: 'CUEVAS' };
+
+  it('un mundo ancho tiene cuevas de arenisca y heladas', () => {
+    const { estructuras } = generarMundo(ANCHO);
+    expect(estructuras.some((e) => e.tipo === CUEVA_DESIERTO)).toBe(true);
+    expect(estructuras.some((e) => e.tipo === CUEVA_NIEVE)).toBe(true);
+  });
+
+  it('por dentro están huecas y forradas del material del bioma', () => {
+    const { mundo, estructuras } = generarMundo(ANCHO);
+    for (const c of estructuras) {
+      const forro =
+        c.tipo === CUEVA_DESIERTO ? ARENISCA : c.tipo === CUEVA_NIEVE ? HIELO : null;
+      if (forro === null) continue;
+
+      // El centro es aire: si no, no hay sala.
+      expect(mundo.getTile(c.tx, c.ty)).toBe(AIRE);
+      // Y bajando desde el centro se topa uno con el suelo de la sala, que es
+      // del material del bioma y no la piedra gris de todo el mundo. El cofre
+      // está apoyado justo ahí, así que se pasa de largo.
+      let ty = c.ty;
+      while (
+        ty < mundo.alto - 1 &&
+        (mundo.getTile(c.tx, ty) === AIRE || mundo.getTile(c.tx, ty) === COFRE)
+      ) {
+        ty++;
+      }
+      expect(mundo.getTile(c.tx, ty)).toBe(forro);
+    }
+  });
+
+  it('cada cueva cae dentro de su bioma y bajo tierra', () => {
+    const { mundo, estructuras, superficie } = generarMundo(ANCHO);
+    for (const c of estructuras) {
+      if (c.tipo !== CUEVA_DESIERTO && c.tipo !== CUEVA_NIEVE) continue;
+      // Nada de cuevas asomando por la ladera: al menos treinta tiles de techo.
+      expect(c.ty - superficie[c.tx]!).toBeGreaterThan(30);
+      expect(mundo.dentro(c.tx, c.ty)).toBe(true);
+    }
+  });
+
+  it('cada cueva guarda un cofre con material del bueno', () => {
+    const { mundo, estructuras, cofres } = generarMundo(ANCHO);
+    const cuevas = estructuras.filter(
+      (e) => e.tipo === CUEVA_DESIERTO || e.tipo === CUEVA_NIEVE,
+    );
+    for (const c of cuevas) {
+      // El cofre va en la misma columna, apoyado en el suelo de la sala.
+      const cofre = cofres.find((k) => k.tx === c.tx && k.ty >= c.ty);
+      expect(cofre).toBeDefined();
+      expect(mundo.getTile(cofre!.tx, cofre!.ty)).toBe(COFRE);
+      // Tres o cuatro premios: más que una mina, que da uno o tres.
+      expect(cofre!.ranuras.length).toBeGreaterThanOrEqual(3);
+
+      // Y alguna antorcha cerca: sin luz la sala es un rectángulo negro y el
+      // cofre solo se encuentra tropezando con él.
+      let antorchas = 0;
+      for (let ty = cofre!.ty - 3; ty <= cofre!.ty + 1; ty++) {
+        for (let tx = cofre!.tx - 5; tx <= cofre!.tx + 5; tx++) {
+          if (mundo.getTile(tx, ty) === ANTORCHA) antorchas++;
+        }
+      }
+      expect(antorchas).toBeGreaterThan(0);
+    }
+  });
+
+  it('antes de 5.2.0 no había cuevas de bioma', () => {
+    const { estructuras } = generarMundo({ ...ANCHO, version: '5.1.0' });
+    expect(estructuras.some((e) => e.tipo === CUEVA_DESIERTO)).toBe(false);
+    expect(estructuras.some((e) => e.tipo === CUEVA_NIEVE)).toBe(false);
+    // Pero la fortaleza, que sí existía, sigue ahí.
+    expect(estructuras.some((e) => e.tipo === FORTALEZA)).toBe(true);
   });
 });
 

@@ -16,8 +16,20 @@
 export const FORTALEZA = 0;
 export const CABANA = 1;
 export const MINA = 2;
+// 5.2.0: las cuevas propias del desierto y de la nieve. Cuentan como
+// estructura y no como terreno porque tienen dentro un cofre puesto a mano, y
+// porque la brújula tiene que poder llevarte a ellas: una caverna de hielo con
+// titanio dentro que solo se encuentra por casualidad es una caverna que casi
+// nadie verá.
+export const CUEVA_DESIERTO = 3;
+export const CUEVA_NIEVE = 4;
 
-export type TipoEstructura = typeof FORTALEZA | typeof CABANA | typeof MINA;
+export type TipoEstructura =
+  | typeof FORTALEZA
+  | typeof CABANA
+  | typeof MINA
+  | typeof CUEVA_DESIERTO
+  | typeof CUEVA_NIEVE;
 
 export interface Estructura {
   readonly tipo: TipoEstructura;
@@ -30,6 +42,8 @@ export const NOMBRE_ESTRUCTURA: Readonly<Record<number, string>> = {
   [FORTALEZA]: 'Fortaleza',
   [CABANA]: 'Cabaña abandonada',
   [MINA]: 'Mina abandonada',
+  [CUEVA_DESIERTO]: 'Cueva de arenisca',
+  [CUEVA_NIEVE]: 'Cueva helada',
 };
 
 /** Letra que marca cada tipo en el mapa. Una sola: el mapa es diminuto. */
@@ -37,6 +51,8 @@ export const MARCA_ESTRUCTURA: Readonly<Record<number, string>> = {
   [FORTALEZA]: 'F',
   [CABANA]: 'C',
   [MINA]: 'M',
+  [CUEVA_DESIERTO]: 'A',
+  [CUEVA_NIEVE]: 'H',
 };
 
 /** Color del marcador de cada tipo. */
@@ -44,6 +60,8 @@ export const COLOR_ESTRUCTURA: Readonly<Record<number, string>> = {
   [FORTALEZA]: '#c88ae8',
   [CABANA]: '#e8c06a',
   [MINA]: '#8fd0e8',
+  [CUEVA_DESIERTO]: '#e8c88a',
+  [CUEVA_NIEVE]: '#a8e0f0',
 };
 
 export function nombreEstructura(tipo: number): string {

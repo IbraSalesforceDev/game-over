@@ -2,20 +2,27 @@ import {
   AIRE,
   ALTAR,
   ANTORCHA,
+  ARENISCA,
+  COBALTO,
   COFRE,
   esSolido,
+  HIELO,
   LADRILLO,
   MADERA,
   PIEDRA,
   PLATAFORMA,
+  TITANIO,
 } from '../tiles';
 import {
   CABANA,
+  CUEVA_DESIERTO,
+  CUEVA_NIEVE,
   FORTALEZA,
   MINA,
   type Estructura,
   type TipoEstructura,
 } from '../estructuras';
+import { DESIERTO, NIEVE_B, type MapaBiomas } from './biomas';
 import {
   FLECHA,
   GEL,
@@ -78,10 +85,21 @@ export function levantarEstructuras(
   caverna: number,
   fondo: number,
   rng: Rng,
+  biomas?: MapaBiomas,
 ): ResultadoEstructuras {
   const salida: ResultadoEstructuras = { estructuras: [], cofres: [] };
 
   construirFortaleza(mundo, superficie, caverna, fondo, rng, salida);
+
+  // Las cuevas de bioma van antes que las cabañas y las minas para que, si dos
+  // quisieran el mismo sitio, gane la que da nombre al lugar.
+  if (biomas) {
+    const cuantas = Math.max(1, Math.floor(mundo.ancho / 700));
+    for (let i = 0; i < cuantas; i++) {
+      excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, DESIERTO);
+      excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, NIEVE_B);
+    }
+  }
 
   // Una cabaña cada ochocientas columnas y una mina cada quinientas: las
   // suficientes para que la brújula tenga a qué apuntar mientras se busca la
@@ -332,6 +350,178 @@ function limpiarPuerta(
     for (let tx = tx0; tx <= tx1; tx++) {
       mundo.setTile(tx, ty, AIRE);
       mundo.setPared(tx, ty, LADRILLO);
+      mundo.setLiquido(tx, ty, 0);
+    }
+  }
+}
+
+// --- Cuevas de bioma ---------------------------------------------------------
+
+/** Lo que guarda una cueva de arenisca. */
+const BOTIN_DESIERTO: readonly (readonly [number, number, number])[] = [
+  [COBALTO, 8, 20],
+  [LINGOTE_ORO, 5, 12],
+  [FLECHA, 30, 70],
+  [HUESO, 6, 14],
+  [CRISTAL, 1, 1],
+  [CARNE_ASADA, 2, 5],
+];
+
+/** Lo que guarda una cueva helada. */
+const BOTIN_NIEVE: readonly (readonly [number, number, number])[] = [
+  [TITANIO, 6, 16],
+  [LINGOTE_PLATA, 6, 14],
+  [FLECHA, 30, 70],
+  [PEDERNAL, 5, 12],
+  [CRISTAL, 1, 1],
+  [GEL, 15, 32],
+];
+
+/**
+ * Una caverna propia del desierto o de la nieve, con su cofre.
+ *
+ * Es lo que le faltaba a la profundidad que ganaron los biomas en 5.0.0: bajar
+ * setenta tiles dentro de un desierto y encontrarse la misma piedra gris de
+ * siempre convertía todo ese subsuelo en un pasillo hacia la caverna. Ahora hay
+ * algo que buscar ahí, y es justamente donde salen el cobalto y el titanio en
+ * cantidad, así que el desierto y la nieve dejan de ser sitios que se cruzan.
+ *
+ * La sala se cava con varios lóbulos solapados en vez de con un círculo: una
+ * caverna redonda se lee como un agujero hecho con un compás, y tres bultos
+ * pegados ya parecen una cueva.
+ */
+function excavarCuevaDeBioma(
+  mundo: Mundo,
+  superficie: Int32Array,
+  biomas: MapaBiomas,
+  rng: Rng,
+  salida: ResultadoEstructuras,
+  bioma: number,
+): void {
+  const desierto = bioma === DESIERTO;
+  const forro = desierto ? ARENISCA : HIELO;
+  const botin = desierto ? BOTIN_DESIERTO : BOTIN_NIEVE;
+  const tipo = desierto ? CUEVA_DESIERTO : CUEVA_NIEVE;
+
+  for (let intento = 0; intento < 400; intento++) {
+    const cx = rng.entero(20, mundo.ancho - 21);
+    if (biomas[cx] !== bioma) continue;
+    // Bien dentro de la franja: pegada al borde, la mitad de la sala caería en
+    // el bosque de al lado y dejaría de ser una cueva del desierto.
+    if (biomas[cx - 16] !== bioma || biomas[cx + 16] !== bioma) continue;
+
+    // Dentro del subsuelo propio del bioma, que desde 5.0.0 baja setenta y
+    // ocho tiles: por debajo ya es la piedra de todo el mundo.
+    const cy = superficie[cx]! + rng.entero(34, 68);
+    if (cy >= mundo.alto - 20) continue;
+
+    const radio = rng.rango(9, 14);
+
+    // Ni un ladrillo cerca: la fortaleza se construye antes y va en esta misma
+    // franja de profundidad, así que una cueva puesta encima le abriría un
+    // boquete de veinte tiles en una sala. Vale más renunciar a la cueva.
+    if (hayLadrillo(mundo, cx, cy, radio + 5)) continue;
+
+    // Ni pegada a otra cueva: dos salas solapadas se leen como una sola sala
+    // grande con dos cofres dentro, que es exactamente lo contrario de lo que
+    // se buscaba al repartirlas por el mundo.
+    let apinada = false;
+    for (const otra of salida.estructuras) {
+      if (otra.tipo !== CUEVA_DESIERTO && otra.tipo !== CUEVA_NIEVE) continue;
+      if (Math.hypot(otra.tx - cx, otra.ty - cy) < 60) apinada = true;
+    }
+    if (apinada) continue;
+
+    const lobulos: [number, number, number][] = [[0, 0, radio]];
+    for (let i = 0; i < 3; i++) {
+      lobulos.push([
+        rng.rango(-radio, radio),
+        rng.rango(-radio * 0.55, radio * 0.55),
+        radio * rng.rango(0.5, 0.8),
+      ]);
+    }
+
+    // Primero el forro y luego el hueco: se pinta una sala maciza del material
+    // del bioma un par de tiles más grande, y después se vacía por dentro. Así
+    // la pared tiene grosor y no se ve la piedra gris al primer picotazo.
+    for (const [dx, dy, r] of lobulos) {
+      forrar(mundo, cx + dx, cy + dy, r + 2.5, forro);
+    }
+    for (const [dx, dy, r] of lobulos) {
+      vaciarLobulo(mundo, cx + dx, cy + dy, r);
+    }
+
+    // El cofre, apoyado en el suelo de la sala.
+    const sy = suelo(mundo, cx, cy);
+    ponerCofre(mundo, salida, cx, sy, sortearBotin(rng, botin, rng.entero(3, 4)));
+
+    // Y antorchas escoltándolo. No están por decorar: sin una sola fuente de
+    // luz la sala es un rectángulo negro idéntico a la roca sin picar, y el
+    // cofre —que es todo el motivo de la cueva— solo se encuentra tropezando
+    // con él. La misma licencia que se toma la mina: aquí estuvo alguien antes.
+    // Cada antorcha busca el suelo de su propia columna: el de la sala es
+    // curvo, y darlas todas por buenas a la altura del cofre las dejaría la
+    // mitad flotando y la otra mitad enterradas.
+    for (const d of [-4, -2, 2, 4]) {
+      const ty = suelo(mundo, cx + d, cy);
+      if (ty <= cy || ty >= mundo.alto - 2) continue;
+      if (!esSolido(mundo.getTile(cx + d, ty + 1))) continue;
+      if (mundo.getTile(cx + d, ty) !== AIRE) continue;
+      mundo.setTile(cx + d, ty, ANTORCHA);
+    }
+
+    anotar(salida, tipo, cx, cy);
+    return;
+  }
+}
+
+/** Primer tile con suelo firme debajo, bajando desde un punto. */
+function suelo(mundo: Mundo, tx: number, ty0: number): number {
+  let ty = ty0;
+  while (ty < mundo.alto - 2 && !esSolido(mundo.getTile(tx, ty + 1))) ty++;
+  return ty;
+}
+
+/** ¿Hay obra hecha por el generador en este cuadrado? */
+function hayLadrillo(mundo: Mundo, cx: number, cy: number, radio: number): boolean {
+  const r = Math.ceil(radio);
+  for (let ty = cy - r; ty <= cy + r; ty++) {
+    for (let tx = cx - r; tx <= cx + r; tx++) {
+      if (!mundo.dentro(tx, ty)) continue;
+      const t = mundo.getTile(tx, ty);
+      if (t === LADRILLO || t === ALTAR) return true;
+      if (mundo.getPared(tx, ty) === LADRILLO) return true;
+    }
+  }
+  return false;
+}
+
+/** Sustituye por el material del bioma todo lo sólido de un círculo. */
+function forrar(mundo: Mundo, cx: number, cy: number, radio: number, id: number): void {
+  const r2 = radio * radio;
+  for (let ty = Math.floor(cy - radio); ty <= Math.ceil(cy + radio); ty++) {
+    for (let tx = Math.floor(cx - radio); tx <= Math.ceil(cx + radio); tx++) {
+      const dx = tx - cx;
+      const dy = ty - cy;
+      if (dx * dx + dy * dy > r2) continue;
+      if (!mundo.dentro(tx, ty)) continue;
+      if (esSolido(mundo.getTile(tx, ty))) mundo.setTile(tx, ty, id);
+      mundo.setPared(tx, ty, id);
+      mundo.setLiquido(tx, ty, 0);
+    }
+  }
+}
+
+/** Vacía un círculo dejando la pared puesta: el interior de la sala. */
+function vaciarLobulo(mundo: Mundo, cx: number, cy: number, radio: number): void {
+  const r2 = radio * radio;
+  for (let ty = Math.floor(cy - radio); ty <= Math.ceil(cy + radio); ty++) {
+    for (let tx = Math.floor(cx - radio); tx <= Math.ceil(cx + radio); tx++) {
+      const dx = tx - cx;
+      // Aplastada en vertical: una sala más ancha que alta se recorre andando.
+      if (dx * dx + (ty - cy) * (ty - cy) * 1.7 > r2) continue;
+      if (!mundo.dentro(tx, ty)) continue;
+      mundo.setTile(tx, ty, AIRE);
       mundo.setLiquido(tx, ty, 0);
     }
   }
