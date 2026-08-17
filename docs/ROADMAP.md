@@ -295,3 +295,25 @@ Proyecto estático, igual que los tuyos (framework detectado o `null`):
 3. **Renderer Canvas2D** — mitigado por el aislamiento en `src/render/`, pero un cambio a WebGL es una fase entera.
 4. **Formato de guardado con número de versión desde el día uno** — sin él, cada cambio de fase invalida los mundos guardados.
 5. **Físicas en coordenadas de píxel con floats y paso fijo** — mezclar paso variable después es una reescritura.
+
+## Dónde acaba la prealfa
+
+El juego sale de prealfa cuando estén las tres cosas que lo convierten en algo
+que se juega en más de un sitio, y no antes:
+
+1. **Login.** Cuenta con correo y contraseña, más un botón de jugar como
+   invitado con sesión anónima, que después se puede enlazar a una cuenta sin
+   perder las partidas.
+2. **Partidas en la nube.** Las mismas partidas desde cualquier dispositivo. El
+   motor no se entera: `SaveAdapter` ya existe para esto, y lo que hay que
+   escribir es un adaptador de Supabase —blob en Storage, ficha en una tabla con
+   RLS por usuario— sin tocar una línea del juego.
+3. **Multijugador.**
+
+Hasta que esas tres estén, todas las versiones siguen siendo `prealfa`. En
+cuanto lo estén, la etapa pasa a `alfa`.
+
+Nada de esto está empezado, y no se empieza hasta que se diga. No hay proyecto
+de Supabase creado ni tabla ninguna: la cuenta tiene un proyecto de otras cosas
+y se decidirá entonces si el juego va ahí con prefijo o en uno propio —crear uno
+nuevo cuesta cero euros al mes.
