@@ -14,7 +14,7 @@ import type { Mundo } from '../world/world';
 import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
 import { CacheChunks, CHUNK_RENDER } from './chunkCache';
-import { Fondo, type BiomaFondo } from './fondo';
+import { CIELO_INFRAMUNDO, Fondo, fondoSubterraneo, type BiomaFondo } from './fondo';
 import { crearIconos, type Iconos } from './iconos';
 import type { Particulas } from './particles';
 import {
@@ -99,6 +99,11 @@ export interface Escena {
   epoca: EpocaVisual;
   /** Bioma donde está el jugador, para teñir las montañas del fondo. */
   bioma: BiomaFondo;
+  /**
+   * Fila desde la que se mide el desplazamiento vertical del fondo, en píxeles.
+   * Cero para los horizontes; el techo del inframundo cuando se está debajo.
+   */
+  baseFondoY?: number;
 }
 
 export class Renderer {
@@ -195,19 +200,32 @@ export class Renderer {
 
   /** Bioma en el que está el jugador, para teñir el fondo. Lo pone la escena. */
   private biomaFondo: BiomaFondo = 'bosque';
+  /** Altura de referencia del fondo en píxeles. La pone la escena. */
+  private baseFondoY = 0;
 
   private cielo(reloj: Reloj, epoca: EpocaVisual): void {
     const { ctx } = this;
-    const [alto, medio, bajo] = reloj.colorCielo;
+    // Bajo tierra no hay cielo. Sin esto, por los huecos de las cavernas del
+    // inframundo se veía el degradado azul del mediodía: un agujero al cielo a
+    // doscientas filas de profundidad.
+    const bajoTierra = epoca.fondo && fondoSubterraneo(this.biomaFondo);
     const g = ctx.createLinearGradient(0, 0, 0, this.altoCanvas);
-    g.addColorStop(0, css(alto));
-    g.addColorStop(0.55, css(medio));
-    g.addColorStop(1, css(bajo));
+    if (bajoTierra) {
+      const [alto, medio, bajo] = CIELO_INFRAMUNDO;
+      g.addColorStop(0, alto);
+      g.addColorStop(0.55, medio);
+      g.addColorStop(1, bajo);
+    } else {
+      const [alto, medio, bajo] = reloj.colorCielo;
+      g.addColorStop(0, css(alto));
+      g.addColorStop(0.55, css(medio));
+      g.addColorStop(1, css(bajo));
+    }
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.anchoCanvas, this.altoCanvas);
     // Antes de 1.5.0 el cielo era un degradado y nada más: ni sol, ni luna, ni
     // estrellas, porque no había hora que representar.
-    if (epoca.astros) {
+    if (epoca.astros && !bajoTierra) {
       this.estrellas(reloj);
       this.astro(reloj);
     }
@@ -224,6 +242,7 @@ export class Renderer {
       this.dpr,
       performance.now(),
       this.biomaFondo,
+      this.baseFondoY,
     );
   }
 
@@ -655,7 +674,12 @@ export class Renderer {
         const sx = ox + tx * TILE * z;
         const sy = oy + (ty + 1) * TILE * z - alto;
 
-        ctx.globalAlpha = lava ? 0.88 : 0.62;
+        // La lava tapa del todo. El 0,88 de antes no se notaba porque detrás
+        // siempre había una pared negra, pero en cuanto el inframundo pasó a
+        // enseñar su fondo, ese 12 % dejaba ver las agujas de roca *dentro* del
+        // lago: unos dientes oscuros flotando en la lava. Y es que la lava no es
+        // transparente; el agua sí.
+        ctx.globalAlpha = lava ? 1 : 0.62;
         ctx.fillStyle = lava ? '#d84a1b' : '#2f6fb5';
         ctx.fillRect(sx, sy, TILE * z, alto);
 
@@ -857,6 +881,7 @@ export class Renderer {
     const recalculada = e.motorLuz.actualizar(tx0, ty0, tx1, ty1, e.reloj.luzSolar);
 
     this.biomaFondo = e.bioma;
+    this.baseFondoY = e.baseFondoY ?? 0;
     this.cielo(e.reloj, e.epoca);
     this.chunks(e.mundo, ox, oy);
     this.picado(e.mundo, e.picado, ox, oy);

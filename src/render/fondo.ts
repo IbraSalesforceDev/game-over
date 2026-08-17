@@ -360,10 +360,21 @@ const RECETAS: Record<BiomaFondo, RecetaFondo> = {
   // Al revés que los demás: aquí la capa de lejos es *más clara* que la de
   // cerca, porque lo que ilumina está abajo y detrás. Con el orden de siempre
   // el techo salía más brillante que las agujas y todo se leía plano.
+  // Los anclajes están mucho más arriba que los de un horizonte a propósito.
+  // Con 0,72 y 0,98 las dos tiras caían por debajo del borde inferior de la
+  // pantalla salvo mirando al techo: el fondo del infierno existía pero estaba
+  // fuera de cuadro. Aquí no se está mirando a lo lejos desde un prado, se está
+  // dentro de una caverna, y la pared del fondo ocupa toda la vista.
+  // Y el contraste entre las dos capas es mucho más bruto que el de un
+  // horizonte porque aquí abajo todo lo que se pinta se multiplica después por
+  // la oscuridad, y la luz de ambiente del inframundo es un cuarto de la del
+  // mediodía: con la diferencia de tono de un horizonte —treinta niveles de
+  // gris— las agujas de delante se quedaban a cinco niveles de las de detrás
+  // una vez apagadas, que es lo mismo que no dibujarlas.
   inframundo: {
     tira: tiraInframundo,
-    colores: ['#6b2a1c', '#341412'],
-    anclajes: [0.72, 0.98],
+    colores: ['#a8482a', '#1e0a09'],
+    anclajes: [0.5, 0.72],
     subterraneo: true,
   },
   mar: {
@@ -372,6 +383,24 @@ const RECETAS: Record<BiomaFondo, RecetaFondo> = {
     anclajes: [0.6, 0.72],
   },
 };
+
+/**
+ * Si el fondo de este bioma es el de una caverna y no un horizonte.
+ *
+ * Lo pregunta el render antes de pintar el degradado del cielo: bajo tierra no
+ * hay cielo que pintar, y dejar el de siempre hacía que por los huecos de las
+ * cavernas del inframundo se viera azul celeste de fondo.
+ */
+export function fondoSubterraneo(bioma: BiomaFondo): boolean {
+  return RECETAS[bioma].subterraneo === true;
+}
+
+/** Degradado del "cielo" del inframundo: ascuas arriba, roca quemada abajo. */
+export const CIELO_INFRAMUNDO: readonly [string, string, string] = [
+  '#2a0d08',
+  '#4a1710',
+  '#6d2413',
+];
 
 export class Fondo {
   /**
@@ -413,6 +442,14 @@ export class Fondo {
    * desplazamiento vertical va con un factor mucho menor que el horizontal
    * porque, al bajar a una cueva, unas montañas que suben con el jugador se
    * notan enseguida como un truco.
+   *
+   * `camYBase` es la altura desde la que se mide ese desplazamiento vertical.
+   * Para un horizonte es cero —el cero del mundo es la línea del cielo—, pero el
+   * fondo del inframundo está a ochocientas filas de ahí, y con el cero de
+   * siempre las dos tiras se iban seiscientos píxeles por encima del borde
+   * superior de la pantalla: quedaba solo el relleno liso de debajo, un baño de
+   * color plano sin una sola aguja a la vista. Midiendo desde el techo del
+   * inframundo, el fondo vuelve a estar donde se le ve.
    */
   dibujar(
     ctx: CanvasRenderingContext2D,
@@ -424,7 +461,9 @@ export class Fondo {
     escala: number,
     ms: number,
     bioma: BiomaFondo = 'bosque',
+    camYBase = 0,
   ): void {
+    camY -= camYBase;
     const bajoTierra = RECETAS[bioma].subterraneo === true;
     const luz = reloj.luzSolar / 255;
     // De noche el fondo casi desaparece: las montañas se funden con el cielo,
@@ -458,7 +497,10 @@ export class Fondo {
       // La bruma de la distancia: cuanto más lejos está la capa, más se mezcla
       // su color con el del cielo. Es niebla atmosférica sin niebla de verdad.
       // El color ya viene del bioma: aquí solo se le echa la distancia encima.
-      const color = mezclar(capa.color, cielo, 0.42 - capa.parallax);
+      // Bajo tierra la bruma casi no se aplica: en una caverna no hay kilómetros
+      // de aire que atravesar, y el 40 % de mezcla del horizonte se llevaba por
+      // delante justo el contraste que separa una capa de la otra.
+      const color = mezclar(capa.color, cielo, bajoTierra ? 0.1 : 0.42 - capa.parallax);
       if (color !== capa.colorTenido) {
         tenir(capa.tenida, capa.tira, color);
         capa.colorTenido = color;

@@ -21,6 +21,7 @@ import {
   GRAVA,
   HIERBA_JUNGLA,
   HOJAS_PINO,
+  LADRILLO_INFERNAL,
   TRONCO_JUNGLA,
   esSolido,
   HIERBA,
@@ -736,5 +737,44 @@ describe('el inframundo se puede recorrer (6.1.0)', () => {
     }
     const pisables = andables(mundo, techo).length;
     expect(sobreLava / pisables).toBeGreaterThan(0.6);
+  });
+
+  it('el aire del inframundo no tiene pared detrás, para que se vea su fondo', () => {
+    // El fondo del inframundo se añadió en 6.1.0 y no se vio hasta 6.3.1: el
+    // relleno de piedra del mundo deja pared detrás de todo, cavar aire no la
+    // tocaba, y el fondo se estaba dibujando debajo de una plancha opaca. En la
+    // superficie el aire tiene cero paredes, y por eso allí sí se ve.
+    //
+    // Se cuenta a partir del techo + 20 y se descuenta el ladrillo infernal: la
+    // fortaleza es un edificio y sus habitaciones tienen pared con todo derecho.
+    const { mundo } = generarMundo(OP);
+    const techo = techoInframundo(mundo.alto, true);
+    let aire = 0;
+    let tapado = 0;
+    for (let ty = techo + 20; ty < mundo.alto - 2; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getTile(tx, ty) !== AIRE) continue;
+        aire++;
+        const pared = mundo.getPared(tx, ty);
+        if (pared !== AIRE && pared !== LADRILLO_INFERNAL) tapado++;
+      }
+    }
+    expect(aire).toBeGreaterThan(1000);
+    // Antes de 6.3.1 esto era el 100 %.
+    expect(tapado / aire).toBeLessThan(0.005);
+  });
+
+  it('pero la franja del techo sí la conserva, para que la entrada se note', () => {
+    // Sin ese margen, cruzar el techo del inframundo sería un corte seco de
+    // pared opaca a fondo abierto en una sola fila.
+    const { mundo } = generarMundo(OP);
+    const techo = techoInframundo(mundo.alto, true);
+    let conPared = 0;
+    for (let ty = techo; ty < techo + 14; ty++) {
+      for (let tx = 0; tx < mundo.ancho; tx++) {
+        if (mundo.getTile(tx, ty) === AIRE && mundo.getPared(tx, ty) !== AIRE) conPared++;
+      }
+    }
+    expect(conPared).toBeGreaterThan(0);
   });
 });

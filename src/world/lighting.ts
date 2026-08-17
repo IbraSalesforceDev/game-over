@@ -31,6 +31,21 @@ export const CAIDA_SOLIDO = 38;
 export const LUZ_MINIMA = 34;
 /** Luz que emite una celda llena de lava. */
 export const LUZ_LAVA = 200;
+
+/**
+ * Luz de fondo del inframundo, para todo lo que esté por debajo de su techo.
+ *
+ * Ahí abajo no llega el sol pero el sitio no está a oscuras: hay un mar de lava
+ * en el fondo y roca al rojo por todas partes, y eso rebota. Sin esto, el aire
+ * abierto del inframundo quedaba en negro absoluto en cuanto uno se separaba
+ * unos tiles de la roca, y el fondo de agujas y resplandor —que se dibuja antes
+ * de la pasada de oscuridad y por tanto se multiplica por ella— se apagaba del
+ * todo. Se veía negro con un tinte rojo apenas perceptible.
+ *
+ * Es el equivalente de lo que el cielo hace en la superficie: no ilumina como
+ * una antorcha, pero impide que el sitio sea una pantalla apagada.
+ */
+export const LUZ_INFRAMUNDO = 62;
 /** Margen de tiles que se calcula fuera de la pantalla. */
 const MARGEN = 12;
 /** Cuántos tiles puede moverse la cámara antes de rehacer la ventana. */
@@ -43,6 +58,11 @@ export class MotorLuz {
   readonly alturaCielo: Int32Array;
 
   private luz: Uint8Array = new Uint8Array(0);
+  /**
+   * Fila a partir de la cual empieza el resplandor del inframundo, o -1 si este
+   * mundo no tiene inframundo. La pone la partida al arrancar.
+   */
+  techoInframundo = -1;
   private tx0 = 0;
   private ty0 = 0;
   private ancho = 0;
@@ -143,6 +163,10 @@ export class MotorLuz {
           // lo que hay por encima, de noche el suelo se ve negro porque la luz
           // de la luna no sobrevive ni a un tile de roca.
           if (ty <= this.alturaCielo[tx]!) valor = luzSolar;
+          // El resplandor del inframundo, que hace de cielo ahí abajo.
+          if (this.techoInframundo >= 0 && ty >= this.techoInframundo && valor < LUZ_INFRAMUNDO) {
+            valor = LUZ_INFRAMUNDO;
+          }
           const emision = emisionLuz(mundo.getTile(tx, ty));
           if (emision > valor) valor = emision;
           // La lava alumbra proporcionalmente a lo llena que esté la celda: un

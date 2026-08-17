@@ -431,6 +431,19 @@ export const VERSIONES: readonly Version[] = [
       'Las cabañas se quedan como estaban: son el refugio',
     ],
   },
+  {
+    id: '6.3.1',
+    etapa: 'prealfa',
+    nombre: 'El infierno tiene fondo',
+    resumen: 'El fondo del inframundo, que existía desde 6.1.0, por fin se ve.',
+    cambios: [
+      'Se quita la pared de detrás del aire del inframundo: tapaba el fondo entero',
+      'Resplandor de ambiente ahí abajo, para que el sitio no sea una pantalla apagada',
+      'Su propio degradado en vez del cielo: ya no se ve azul por los huecos',
+      'Las agujas de roca del fondo suben a la altura de la vista',
+      'La lava tapa del todo y ya no deja ver el fondo a través',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

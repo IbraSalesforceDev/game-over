@@ -834,7 +834,8 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
         octavas: 2,
         persistencia: 0.5,
       });
-      if (n > 0.44) mundo.setTile(tx, ty, AIRE);
+      if (n <= 0.44) continue;
+      mundo.setTile(tx, ty, AIRE);
     }
   }
 
@@ -910,6 +911,38 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
         );
       }
       if (hecho) break;
+    }
+  }
+
+  destaparFondoInfernal(mundo, techo, suelo);
+}
+
+/**
+ * Quita la pared de detrás de todo el aire del inframundo.
+ *
+ * Esto es lo que hace que el fondo del inframundo exista de verdad. La capa de
+ * pared viene del relleno de piedra del mundo entero, y cavar aire no la tocaba:
+ * el cien por cien del aire de aquí abajo tenía pared detrás, así que el fondo
+ * de agujas y resplandor que se añadió en 6.1.0 estaba dibujándose debajo de una
+ * plancha opaca y no se llegó a ver nunca. En la superficie el aire tiene cero
+ * paredes, y por eso allí sí se ven las montañas del fondo.
+ *
+ * Se hace en una sola pasada al final y no dentro de cada excavación porque el
+ * inframundo se cava en cinco sitios distintos —el ruido de las salas, los
+ * huecos del suelo infernal, las cuencas de los lagos, el mar y las vetas— y
+ * hacerlo en uno solo dejaba seis de cada diez celdas todavía tapadas: el fondo
+ * salía a parches.
+ *
+ * La franja de arriba se deja con pared a propósito: cruzarla es lo que hace que
+ * se note que se ha salido de la caverna y se ha entrado en otro sitio. Sin ese
+ * margen el cambio sería un corte seco.
+ */
+function destaparFondoInfernal(mundo: Mundo, techo: number, suelo: number): void {
+  for (let ty = techo + 14; ty < suelo; ty++) {
+    for (let tx = 0; tx < mundo.ancho; tx++) {
+      if (mundo.getTile(tx, ty) !== AIRE) continue;
+      if (mundo.getPared(tx, ty) === AIRE) continue;
+      mundo.setPared(tx, ty, AIRE);
     }
   }
 }

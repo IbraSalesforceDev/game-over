@@ -455,6 +455,11 @@ async function arrancar(): Promise<void> {
    * comporta distinto según la versión.
    */
   const versionMundo = partida.estado.versionJuego;
+  // El inframundo alumbra solo: se le dice al motor de luz desde dónde, para
+  // que el sitio no sea una pantalla apagada en cuanto uno se separa de la roca.
+  motorLuz.techoInframundo = hay('inframundo', versionMundo)
+    ? techoInframundo(mundo.alto, partida.estado.mundoHondo)
+    : -1;
   const tiene = (q: Caracteristica): boolean => hay(q, versionMundo);
   /**
    * Cómo se veía el juego en esta versión.
@@ -2067,6 +2072,7 @@ async function arrancar(): Promise<void> {
         mundo.ancho,
         mundo.alto,
       );
+      const biomaFondoAhora: BiomaFondo = tiene('fondoPorBioma') ? biomaDelFondo() : 'bosque';
       renderer.dibujar({
         mundo,
         jugador,
@@ -2086,7 +2092,13 @@ async function arrancar(): Promise<void> {
         // Hasta 4.1.0 la armadura se llevaba pero no se veía.
         armadura: tiene('armaduraVisible') ? coloresEquipo(equipo) : ARMADURA_DESNUDA,
         epoca,
-      bioma: tiene('fondoPorBioma') ? biomaDelFondo() : 'bosque',
+        bioma: biomaFondoAhora,
+        // El fondo del inframundo se mide desde su techo y no desde el cero del
+        // mundo: a esa profundidad el parallax vertical sacaba las tiras de la
+        // pantalla por arriba. Los horizontes siguen midiéndose desde cero, que
+        // es donde está su línea del cielo.
+        baseFondoY:
+          biomaFondoAhora === 'inframundo' ? motorLuz.techoInframundo * TILE : 0,
       });
 
       debug.fps = bucle.fps;
