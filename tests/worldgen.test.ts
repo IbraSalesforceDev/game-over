@@ -656,3 +656,85 @@ describe('un mundo más hondo (6.0.0)', () => {
     expect([...subido.superficie]).toEqual([...clasico.superficie]);
   });
 });
+
+describe('el inframundo se puede recorrer (6.1.0)', () => {
+  const OP = { ancho: 1600, alto: 900, semilla: 'INFIERNO' };
+
+  /** Columnas donde se puede estar de pie: suelo firme y tres tiles de aire. */
+  function andables(mundo: Mundo, techo: number): number[] {
+    const salida: number[] = [];
+    for (let tx = 0; tx < mundo.ancho; tx++) {
+      for (let ty = techo; ty < mundo.alto - 4; ty++) {
+        if (mundo.getTile(tx, ty) !== AIRE) continue;
+        if (mundo.getLiquido(tx, ty) > 0) continue;
+        if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
+        let libre = 0;
+        while (libre < 3 && mundo.getTile(tx, ty - libre) === AIRE) libre++;
+        if (libre >= 3) {
+          salida.push(tx);
+          break;
+        }
+      }
+    }
+    return salida;
+  }
+
+  it('hay repisa por la que andar en casi todas las columnas', () => {
+    // Antes de 6.1.0 el inframundo era un salón vacío con un mar de lava al
+    // fondo: se veía imponente en un corte del mundo y era injugable, porque no
+    // había dónde ponerse. Se bajaba por un túnel y se caía al mar.
+    const { mundo } = generarMundo(OP);
+    const techo = techoInframundo(mundo.alto, true);
+    const pisables = andables(mundo, techo);
+    expect(pisables.length / mundo.ancho).toBeGreaterThan(0.5);
+  });
+
+  it('y se recorre en tramos largos, no a saltitos', () => {
+    // Lo que hace jugable el sitio no es cuántas columnas tienen suelo sino
+    // que estén seguidas: cien tramos de tres columnas con hueco en medio son
+    // cien columnas andables y ni un metro que se pueda caminar.
+    const { mundo } = generarMundo(OP);
+    const pisables = andables(mundo, techoInframundo(mundo.alto, true));
+    const tramos: number[] = [];
+    let racha = 1;
+    for (let i = 1; i < pisables.length; i++) {
+      if (pisables[i] === pisables[i - 1]! + 1) racha++;
+      else {
+        tramos.push(racha);
+        racha = 1;
+      }
+    }
+    tramos.push(racha);
+    tramos.sort((a, b) => b - a);
+    expect(tramos[0]!).toBeGreaterThan(40);
+    const medio = tramos.reduce((a, b) => a + b, 0) / tramos.length;
+    expect(medio).toBeGreaterThan(8);
+  });
+
+  it('pero con boquetes: la repisa no es un pasillo continuo', () => {
+    // Si no hubiera huecos, el inframundo sería un pasillo recto y el mar de
+    // lava, decoración que nunca se toca.
+    const { mundo } = generarMundo(OP);
+    const pisables = new Set(andables(mundo, techoInframundo(mundo.alto, true)));
+    const huecos = mundo.ancho - pisables.size;
+    expect(huecos).toBeGreaterThan(mundo.ancho * 0.05);
+  });
+
+  it('la repisa queda por encima del mar de lava', () => {
+    const { mundo } = generarMundo(OP);
+    const techo = techoInframundo(mundo.alto, true);
+    let sobreLava = 0;
+    for (const tx of andables(mundo, techo)) {
+      // Bajando desde donde se pisa, en algún momento hay lava: es lo que hace
+      // que caerse cueste la partida.
+      for (let ty = techo; ty < mundo.alto; ty++) {
+        if (mundo.getLiquido(tx, ty) > 0 && mundo.esLava(tx, ty)) {
+          sobreLava++;
+          break;
+        }
+      }
+    }
+    const pisables = andables(mundo, techo).length;
+    expect(sobreLava / pisables).toBeGreaterThan(0.6);
+  });
+});

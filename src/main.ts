@@ -834,6 +834,11 @@ async function arrancar(): Promise<void> {
   function biomaDelFondo(): BiomaFondo {
     const tx = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
     const ty = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
+    // El inframundo manda sobre todo: bajo la roca infernal no hay bioma de
+    // superficie que valga, y el fondo es lo primero que dice que has llegado.
+    if (tiene('inframundo') && ty >= techoInframundo(mundo.alto, partida.estado.mundoHondo)) {
+      return 'inframundo';
+    }
     // Solo en la superficie: bajo tierra el fondo no se ve y contar agua de
     // cuevas pondría el horizonte del mar dentro de una caverna.
     if (ty < (motorLuz.alturaCielo[tx] ?? 0) + 12) {

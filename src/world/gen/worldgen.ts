@@ -802,6 +802,8 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
   const techo = c.inframundo;
   const suelo = c.fondo;
 
+  const filas = suelo - techo;
+
   for (let ty = techo; ty < suelo; ty++) {
     for (let tx = 0; tx < mundo.ancho; tx++) {
       const id = mundo.getTile(tx, ty);
@@ -816,21 +818,30 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
 
   // Salas anchas. El ruido se estira mucho en horizontal a propósito: lo que
   // define el inframundo es que se camina, no que se trepa.
+  //
+  // La escala vertical va con lo alto que sea el sitio y no fija en veintidós
+  // filas. Con el valor fijo, el inframundo hondo de 6.0.0 —ciento sesenta
+  // filas en vez de ochenta— repetía el patrón siete veces y salía a franjas
+  // de roca con bolsas dentro: parecía un bloque macizo agujereado, no una
+  // caverna. Y el umbral baja, porque lo que define este sitio es el espacio
+  // abierto: la roca es lo que queda entre medias, no al revés.
+  const escalaY = Math.max(14, filas * 0.15);
   for (let ty = techo + 6; ty < suelo - 2; ty++) {
     for (let tx = 2; tx < mundo.ancho - 2; tx++) {
-      const n = fractal2D(tx / 70, ty / 22, semilla + 5171, {
+      const n = fractal2D(tx / 70, ty / escalaY, semilla + 5171, {
         octavas: 2,
         persistencia: 0.5,
       });
-      if (n > 0.52) mundo.setTile(tx, ty, AIRE);
+      if (n > 0.44) mundo.setTile(tx, ty, AIRE);
     }
   }
+
+  tenderSueloInfernal(mundo, techo, suelo, rng, semilla);
 
   // Vetas de infernita en lo que queda de roca. La cuenta va por área y no por
   // ancho: el inframundo hondo mide casi doscientas filas en vez de ochenta, y
   // con la cuenta vieja la infernita habría salido igual de escasa en un sitio
   // del doble de grande.
-  const filas = suelo - techo;
   const vetas = Math.max(4, Math.floor((mundo.ancho * filas) / 5700));
   for (let v = 0; v < vetas; v++) {
     for (let intento = 0; intento < 20; intento++) {
@@ -961,6 +972,86 @@ function excavarCuencaLava(
     }
   }
   return true;
+}
+
+/**
+ * El suelo del inframundo: una repisa continua pero rota a media altura.
+ *
+ * Sin esto, el inframundo era un salón enorme y vacío con un mar de lava al
+ * fondo y nada entre medias. Se veía imponente en un corte del mundo y era
+ * injugable: no había dónde ponerse. Se bajaba por un túnel, se caía al mar y
+ * se acababa la partida, y no había manera de recorrerlo ni sitio donde
+ * levantar nada.
+ *
+ * La repisa arregla las dos cosas a la vez. Por encima queda el techo, que es
+ * donde caben las fortalezas y por donde vuelan los diablillos; por debajo, el
+ * mar, que se ve por los boquetes y es lo que hace que andar por aquí no sea
+ * gratis. Los boquetes no son un adorno: son la mitad del peligro, y por eso
+ * se sacan de su propio ruido en vez de dejarlos al azar tile a tile —así
+ * salen huecos de varias columnas, que se ven venir y se saltan, en vez de
+ * agujeros de uno que se pisan sin enterarse.
+ */
+function tenderSueloInfernal(
+  mundo: Mundo,
+  techo: number,
+  suelo: number,
+  rng: Rng,
+  semilla: number,
+): void {
+  const filas = suelo - techo;
+  // A poco más de la mitad: deja techo de sobra arriba y mar de sobra abajo.
+  const base = techo + Math.floor(filas * 0.52);
+  const grosor = Math.max(3, Math.round(filas * 0.05));
+
+  for (let tx = 1; tx < mundo.ancho - 1; tx++) {
+    // Dos ondas de distinta escala: una larga que da las lomas y una corta que
+    // rompe la línea. Con una sola, la repisa se lee como el borde de una caja.
+    const larga = (ruido1D(tx / 90, semilla + 313) - 0.5) * filas * 0.13;
+    const corta = (ruido1D(tx / 17, semilla + 977) - 0.5) * 4;
+    const y = Math.round(base + larga + corta);
+
+    // El boquete. Umbral alto: la repisa tiene que ser sobre todo suelo, y el
+    // agujero la excepción que obliga a mirar dónde se pisa.
+    const hueco = ruido1D(tx / 26, semilla + 4211);
+    if (hueco > 0.68) continue;
+    // Y el borde del boquete se adelgaza en vez de cortarse en seco, para que
+    // se vea que la repisa se está acabando antes de pisar el vacío.
+    const merma = hueco > 0.62 ? Math.round((hueco - 0.62) * 60) : 0;
+
+    for (let d = merma; d < grosor; d++) {
+      const ty = y + d;
+      if (ty <= techo + 2 || ty >= suelo) continue;
+      mundo.setTile(tx, ty, ROCA_INFERNAL);
+      mundo.setPared(tx, ty, ROCA_INFERNAL);
+      mundo.setLiquido(tx, ty, 0);
+    }
+    // Y nada de pared sobre la repisa. Estuvo puesta un rato, para que el aire
+    // de encima no se leyera como el vacío del fondo del mundo, y era la
+    // solución equivocada: lo que hay detrás del inframundo no es una pared de
+    // roca, es la caverna entera, y taparla con pared habría escondido el fondo
+    // de agujas y resplandor justo en la franja por la que se camina. Lo que
+    // llena ese hueco es el fondo, no un revestimiento.
+  }
+
+  // Columnas sueltas que van del suelo al techo: rompen la horizontal y dan
+  // por dónde subir sin tener que cavar.
+  const columnas = Math.max(3, Math.floor(mundo.ancho / 110));
+  for (let i = 0; i < columnas; i++) {
+    const cx = rng.entero(6, mundo.ancho - 7);
+    const ancho = rng.entero(2, 4);
+    let arriba = techo + 3;
+    while (arriba < suelo && mundo.getTile(cx, arriba) !== AIRE) arriba++;
+    let abajo = arriba;
+    while (abajo < suelo - 1 && mundo.getTile(cx, abajo) === AIRE) abajo++;
+    if (abajo - arriba < 8) continue;
+    for (let ty = arriba; ty < abajo; ty++) {
+      for (let d = 0; d < ancho; d++) {
+        if (!mundo.dentro(cx + d, ty)) continue;
+        mundo.setTile(cx + d, ty, ROCA_INFERNAL);
+        mundo.setPared(cx + d, ty, ROCA_INFERNAL);
+      }
+    }
+  }
 }
 
 /** Como `pintarBlob` pero sobre un material concreto en vez de sobre piedra. */

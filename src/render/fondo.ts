@@ -258,8 +258,54 @@ function tiraMar(cerca: boolean): HTMLCanvasElement {
   return c;
 }
 
+/**
+ * El fondo del inframundo: agujas de roca recortadas contra el resplandor.
+ *
+ * Es el único fondo que no representa un horizonte lejano sino un techo y unas
+ * columnas, porque ahí abajo no hay horizonte: hay una caverna. La capa de
+ * lejos son estalactitas colgando —lo que se ve al mirar arriba— y la de cerca,
+ * agujas que suben del suelo. Entre las dos queda la franja de resplandor, que
+ * es lo que hace que el sitio se lea como iluminado por debajo y no como una
+ * cueva cualquiera pintada de naranja.
+ */
+function tiraInframundo(cerca: boolean): HTMLCanvasElement {
+  const c = lienzo(ANCHO_TIRA, ALTO_TIRA);
+  const ctx = contexto(c);
+  ctx.fillStyle = '#ffffff';
+
+  // Las dos capas son agujas que suben del suelo: las de cerca altas y
+  // separadas, las de lejos bajas y apretadas.
+  //
+  // El primer intento colgaba estalactitas del techo en la capa lejana, que es
+  // lo que de verdad se vería mirando arriba en una caverna. No funcionó, y por
+  // una razón del motor y no del dibujo: cada capa rellena con su color todo lo
+  // que queda por debajo, para que al subir la cámara no asome una franja de
+  // cielo bajo las montañas. Una capa anclada arriba inundaba el cuadro entero
+  // de color plano y se comía la de abajo. Se puede pelear con eso o aceptar
+  // que este fondo son dos filas de agujas, que a esta escala se lee igual.
+  const paso = cerca ? 3 : 2;
+  const anchoBase = cerca ? 9 : 5;
+  const altoBase = cerca ? 14 : 8;
+  const rango = cerca ? 78 : 30;
+  let x = 0;
+  let n = 0;
+  while (x < ANCHO_TIRA) {
+    const ancho = anchoBase + ((n * 37) % 23);
+    const alto = altoBase + ((n * 61) % rango);
+    // Triángulo: cada fila hacia arriba es más estrecha. Un perfil regular se
+    // lee como una sierra, así que los anchos y las alturas van saltando.
+    for (let i = 0; i < alto; i++) {
+      const w = Math.max(1, Math.round((ancho * (alto - i)) / alto));
+      ctx.fillRect(x + (ancho - w) / 2, ALTO_TIRA - 1 - i, w, 1);
+    }
+    x += ancho + paso + ((n * 13) % 11);
+    n++;
+  }
+  return c;
+}
+
 /** Biomas que el fondo distingue. Es el mismo nombre que usa el generador. */
-export type BiomaFondo = 'bosque' | 'desierto' | 'nieve' | 'jungla' | 'mar';
+export type BiomaFondo = 'bosque' | 'desierto' | 'nieve' | 'jungla' | 'mar' | 'inframundo';
 
 /** Cómo es el fondo de cada bioma: silueta, color, altura y separación. */
 interface RecetaFondo {
@@ -269,6 +315,18 @@ interface RecetaFondo {
   colores: readonly [string, string];
   /** Dónde se apoya cada capa, en fracción de pantalla. */
   anclajes: readonly [number, number];
+  /**
+   * Está bajo tierra: ni nubes, ni sol, ni bruma del cielo.
+   *
+   * Los cinco fondos de arriba son horizontes y se comportan como tales: se
+   * apagan de noche, se tiñen del color del cielo con la distancia y llevan
+   * nubes pasando. El del inframundo no es un horizonte sino el fondo de una
+   * caverna, y aplicarle esas tres reglas daba tres errores a la vez: nubes
+   * bajo tierra, un infierno que se desvanecía al anochecer en la superficie
+   * —a doscientas filas de distancia— y unas agujas de roca teñidas de azul
+   * celeste.
+   */
+  subterraneo?: boolean;
 }
 
 const RECETAS: Record<BiomaFondo, RecetaFondo> = {
@@ -298,6 +356,15 @@ const RECETAS: Record<BiomaFondo, RecetaFondo> = {
     colores: ['#cfe0f0', '#9db8d2'],
     // Más alto que los demás: el pico tiene que salirse por arriba.
     anclajes: [0.44, 0.6],
+  },
+  // Al revés que los demás: aquí la capa de lejos es *más clara* que la de
+  // cerca, porque lo que ilumina está abajo y detrás. Con el orden de siempre
+  // el techo salía más brillante que las agujas y todo se leía plano.
+  inframundo: {
+    tira: tiraInframundo,
+    colores: ['#6b2a1c', '#341412'],
+    anclajes: [0.72, 0.98],
+    subterraneo: true,
   },
   mar: {
     tira: tiraMar,
@@ -358,12 +425,18 @@ export class Fondo {
     ms: number,
     bioma: BiomaFondo = 'bosque',
   ): void {
+    const bajoTierra = RECETAS[bioma].subterraneo === true;
     const luz = reloj.luzSolar / 255;
     // De noche el fondo casi desaparece: las montañas se funden con el cielo,
-    // igual que en la realidad.
-    const opacidadBase = 0.25 + luz * 0.55;
+    // igual que en la realidad. Bajo tierra no: ahí abajo no llega el sol, y lo
+    // que ilumina —la lava— alumbra igual a las tres de la tarde que a las
+    // tres de la madrugada.
+    const opacidadBase = bajoTierra ? 0.9 : 0.25 + luz * 0.55;
     if (opacidadBase < 0.06) return;
-    const cielo = colorCss(reloj.colorCielo[1]);
+    // Y la bruma se mezcla con el color del propio sitio, no con el del cielo:
+    // teñir de azul celeste unas agujas de roca a doscientas filas bajo tierra
+    // las dejaba de color pizarra.
+    const cielo = bajoTierra ? '#1a0805' : colorCss(reloj.colorCielo[1]);
 
     // --- Nubes ---
     ctx.save();
@@ -373,8 +446,10 @@ export class Fondo {
     // completamente quieto delata que el mundo está en pausa.
     const desNubes = (((-camX * 0.03 - ms * 0.004) % anchoNubes) + anchoNubes) % anchoNubes;
     const yNubes = Math.round(alto * 0.05 - camY * 0.02 * escala);
-    for (let x = desNubes - anchoNubes; x < ancho; x += anchoNubes) {
-      ctx.drawImage(this.nubes, Math.round(x), yNubes, anchoNubes, 120 * escala);
+    if (!bajoTierra) {
+      for (let x = desNubes - anchoNubes; x < ancho; x += anchoNubes) {
+        ctx.drawImage(this.nubes, Math.round(x), yNubes, anchoNubes, 120 * escala);
+      }
     }
     ctx.restore();
 

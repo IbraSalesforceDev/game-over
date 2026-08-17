@@ -380,6 +380,18 @@ export const VERSIONES: readonly Version[] = [
       'No se puede migrar un mundo a una versión que no tenía mundo',
     ],
   },
+  {
+    id: '6.1.0',
+    etapa: 'prealfa',
+    nombre: 'El infierno se puede pisar',
+    resumen: 'El inframundo gana suelo por el que andar y un fondo propio.',
+    cambios: [
+      'Una repisa de roca infernal a media altura, con boquetes',
+      'Columnas del suelo al techo por las que subir',
+      'Fondo propio: agujas de roca sobre el resplandor de la lava',
+      'Ni nubes ni sol ahí abajo: alumbra la lava',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -446,6 +458,7 @@ export const DESDE = {
   cuevasDeBioma: '5.2.0',
   arqueria: '5.4.0',
   mundoHondo: '6.0.0',
+  sueloInfernal: '6.1.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',
