@@ -86,6 +86,50 @@ export const BLOQUE_COBALTO = 58;
 export const BLOQUE_TITANIO = 59;
 export const BLOQUE_INFERNITA = 60;
 
+// 6.5.0: la instalación eléctrica improvisada. El cobre era el metal que menos
+// razones daba para volver a picarlo: de cobre se hacía el primer pico, la
+// primera espada y la primera armadura, y a partir del hierro no volvía a
+// aparecer en ninguna receta. Esto le da un uso que no caduca.
+export const CABLE = 61;
+export const BOMBILLA = 62;
+export const BOMBILLA_ENCENDIDA = 63;
+export const BATERIA = 64;
+export const INTERRUPTOR = 65;
+export const INTERRUPTOR_ENCENDIDO = 66;
+
+/**
+ * Las dos parejas apagado/encendido de la instalación.
+ *
+ * El estado va en el propio identificador del tile y no en una capa nueva, y esa
+ * decisión se paga una vez y se cobra en todas partes: la luz que emite ya sale
+ * de la tabla de tiles, el guardado se lo lleva sin enterarse, el render lo
+ * pinta con su color y la migración de versiones lo trata como a cualquier otro
+ * bloque. Una capa de "encendido" habría tocado esas cuatro cosas.
+ */
+export const PAREJAS_ENCENDIDO: readonly (readonly [apagado: number, encendido: number])[] = [
+  [BOMBILLA, BOMBILLA_ENCENDIDA],
+  [INTERRUPTOR, INTERRUPTOR_ENCENDIDO],
+];
+
+/** Los tiles por los que pasa la corriente. */
+export const CONDUCTORES: readonly number[] = [
+  CABLE,
+  BOMBILLA,
+  BOMBILLA_ENCENDIDA,
+  INTERRUPTOR,
+  INTERRUPTOR_ENCENDIDO,
+];
+
+/**
+ * Todo lo que forma parte de la instalación eléctrica, batería incluida.
+ *
+ * Sirve para dos cosas distintas: para saber qué se puede colgar de qué al
+ * construir y, sobre todo, para no repetir la lista en tres sitios.
+ */
+export function esInstalacion(id: number): boolean {
+  return id === CABLE || id === BATERIA || CONDUCTORES.includes(id);
+}
+
 /** Los siete bloques de metal, del más blando al más duro. */
 export const BLOQUES_METAL: readonly number[] = [
   BLOQUE_COBRE,
@@ -455,6 +499,61 @@ export const TILES: readonly DefTile[] = [
   // más difícil de desmontar. El de oro y el de infernita alumbran un poco:
   // pulidos así, devuelven la luz de una antorcha.
   ...bloquesMetal(),
+  // La instalación eléctrica. Nada de esto frena el paso: un cable que hiciera
+  // de suelo convertiría la instalación en andamio, y una bombilla que bloqueara
+  // sería una antorcha con pasos de más. Todo se quita de un manotazo, porque
+  // reformar el cableado tiene que costar tiempo de pensar y no de picar.
+  {
+    nombre: 'cable de cobre',
+    solido: false,
+    plataforma: false,
+    dureza: 8,
+    color: '#b06a3b',
+  },
+  {
+    nombre: 'bombilla',
+    solido: false,
+    plataforma: false,
+    dureza: 10,
+    color: '#6d6a55',
+  },
+  {
+    // Alumbra bastante más que una antorcha, y esa es la gracia: la antorcha se
+    // pone donde llegas, y la bombilla ilumina una sala entera desde el techo
+    // sin que nadie tenga que ir hasta allí a encenderla.
+    nombre: 'bombilla encendida',
+    solido: false,
+    plataforma: false,
+    dureza: 10,
+    color: '#ffe9a8',
+    luz: 235,
+  },
+  {
+    // La batería sí es maciza: es el único cacharro de la instalación con peso,
+    // y poder subirse encima de ella es justo lo que hace que se note como un
+    // aparato y no como una pegatina en la pared.
+    nombre: 'batería improvisada',
+    solido: true,
+    plataforma: false,
+    dureza: 40,
+    color: '#3f6a4a',
+    luz: 18,
+  },
+  {
+    nombre: 'interruptor',
+    solido: false,
+    plataforma: false,
+    dureza: 10,
+    color: '#7a5334',
+  },
+  {
+    nombre: 'interruptor encendido',
+    solido: false,
+    plataforma: false,
+    dureza: 10,
+    color: '#c98a3f',
+    luz: 12,
+  },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -593,6 +692,12 @@ const TILE_DESDE: Readonly<Record<number, string>> = {
   [BLOQUE_COBALTO]: '6.4.0',
   [BLOQUE_TITANIO]: '6.4.0',
   [BLOQUE_INFERNITA]: '6.4.0',
+  [CABLE]: '6.5.0',
+  [BOMBILLA]: '6.5.0',
+  [BOMBILLA_ENCENDIDA]: '6.5.0',
+  [BATERIA]: '6.5.0',
+  [INTERRUPTOR]: '6.5.0',
+  [INTERRUPTOR_ENCENDIDO]: '6.5.0',
 };
 
 /** En qué se convierte cada tile cuando su versión queda por delante. */
@@ -653,6 +758,15 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [BLOQUE_COBALTO]: COBALTO,
   [BLOQUE_TITANIO]: TITANIO,
   [BLOQUE_INFERNITA]: INFERNITA,
+  // La instalación no tiene equivalente en ninguna versión anterior: sin
+  // corriente, un cable es un adorno y una bombilla apagada un cacharro. Se
+  // quedan en aire, como la antorcha o la caña.
+  [CABLE]: AIRE,
+  [BOMBILLA]: AIRE,
+  [BOMBILLA_ENCENDIDA]: AIRE,
+  [BATERIA]: AIRE,
+  [INTERRUPTOR]: AIRE,
+  [INTERRUPTOR_ENCENDIDO]: AIRE,
 };
 
 /** Versión en la que apareció este tile. */

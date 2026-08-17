@@ -13,6 +13,13 @@ import {
 } from '../src/world/save';
 import { DIFICULTAD_POR_DEFECTO } from '../src/core/dificultad';
 import { HIERBA, MADERA, PIEDRA, TIERRA } from '../src/world/tiles';
+import {
+  BASE_NO_TILE,
+  CASCO_ORO,
+  ESPADA_INFERNITA,
+  LINGOTE_COBRE,
+  PICO_HIERRO,
+} from '../src/items/items';
 import { CABANA, FORTALEZA } from '../src/world/estructuras';
 import { Mundo } from '../src/world/world';
 
@@ -195,6 +202,34 @@ describe('empaquetado', () => {
     salida.set(rle, comun + extra);
     return salida;
   }
+
+  it('traduce los ids de objeto de un mundo del formato 14', () => {
+    // En 6.4.1 la frontera entre tiles y objetos se movió de 64 a 128 para
+    // hacerle sitio a la instalación eléctrica, y con ella se fue sesenta y
+    // cuatro puestos arriba todo lo que no es un bloque. Un guardado anterior
+    // tiene los ids viejos, y sin traducir, el pico de hierro de una partida de
+    // antes se convertía en el lingote de cobalto de hoy.
+    //
+    // El cuerpo del formato 14 y el del 15 son idénticos byte a byte: lo único
+    // que cambia es qué significa cada número. Así que se serializa con los ids
+    // *viejos* y se lee diciéndole al lector que el cuerpo es del formato 14.
+    const viejo = (id: number): number => (id >= BASE_NO_TILE ? id - 64 : id);
+    const m = new Mundo(4, 4);
+    const inventario: [number, number][] = [
+      [PICO_HIERRO, 1],
+      [MADERA, 40],
+      [ESPADA_INFERNITA, 1],
+    ];
+    const e = estado({
+      inventario: inventario.map(([o, c]) => [viejo(o), c]),
+      equipo: [[viejo(CASCO_ORO), 1]],
+      cofres: [{ tx: 1, ty: 1, ranuras: [[viejo(LINGOTE_COBRE), 7]] }],
+    });
+    const { estado: leido } = deserializar(serializar(m, e), 14);
+    expect(leido.inventario).toEqual(inventario);
+    expect(leido.equipo).toEqual([[CASCO_ORO, 1]]);
+    expect(leido.cofres[0]!.ranuras).toEqual([[LINGOTE_COBRE, 7]]);
+  });
 
   it('abre un mundo del formato 1, que no guardaba ni la hora ni el inventario', () => {
     const m = new Mundo(4, 4);

@@ -458,6 +458,30 @@ export const VERSIONES: readonly Version[] = [
       'El ladrillo infernal y los pinchos por fin se recogen y se fabrican',
     ],
   },
+  {
+    id: '6.4.1',
+    etapa: 'prealfa',
+    nombre: 'Sitio para más bloques',
+    resumen: 'La frontera entre tiles y objetos se mueve del 64 al 128.',
+    cambios: [
+      'Con los bloques de metal quedaban tres huecos antes de chocar con el primer lingote',
+      'Los objetos guardados se traducen solos al abrir la partida',
+      'No cambia nada de lo que se ve: es sitio para lo que viene',
+    ],
+  },
+  {
+    id: '6.5.0',
+    etapa: 'prealfa',
+    nombre: 'Electricidad improvisada',
+    resumen: 'Cable, bombillas, interruptores y baterías de cobre.',
+    cambios: [
+      'El cobre vuelve a servir para algo después del hierro',
+      'La batería empuja corriente por el cable, y la corriente se gasta con la distancia',
+      'La bombilla alumbra mucho más que una antorcha, y desde el techo',
+      'El interruptor corta el cable: un mismo tendido enciende tres salas por separado',
+      'Alumbrar una mina entera obliga a repartir baterías, no a poner una en la entrada',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -529,6 +553,7 @@ export const DESDE = {
   guarnicionEstructuras: '6.3.0',
   trampas: '6.3.0',
   explosivos: '6.4.0',
+  electricidad: '6.5.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

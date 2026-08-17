@@ -1,5 +1,5 @@
 import { DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
-import { migrarId } from '../items/items';
+import { migrarBase, migrarId } from '../items/items';
 import type { DatosCofre } from './contenedores';
 import type { Estructura, TipoEstructura } from './estructuras';
 
@@ -69,7 +69,7 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  * empaquetado sube el formato sin tocar el juego, y una tanda de contenido
  * sube el juego sin tocar el formato.
  */
-export const VERSION_FORMATO = 14;
+export const VERSION_FORMATO = 15;
 
 export interface EstadoJugador {
   x: number;
@@ -414,15 +414,25 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     // hondos, así que es clásico por definición.
     mundoHondo: false,
   };
+  /**
+   * Traduce un id de objeto guardado a los ids de hoy.
+   *
+   * Son dos mudanzas distintas y el orden entre ellas importa. Antes del formato
+   * 4 las herramientas ocupaban ids del rango de tiles —13, 14 y 15—, y antes
+   * del 15 todo lo que no es un bloque vivía a partir del 64 en vez del 128. La
+   * de la frontera va primero justo porque aquellos tres ids caen por debajo de
+   * 64: la tabla de ids antiguos ya apunta a los valores de hoy, así que si se
+   * aplicara al revés se les sumaría el desplazamiento dos veces.
+   */
+  const objeto = (id: number): number => {
+    const base = version < 15 ? migrarBase(id) : id;
+    return version < 4 ? migrarId(base) : base;
+  };
+
   if (version >= 3) {
     const n = l.u16();
     const ranuras: [number, number][] = [];
-    // Antes del formato 4 las herramientas ocupaban ids del rango de tiles.
-    const traducir = version < 4;
-    for (let i = 0; i < n; i++) {
-      const objeto = l.u16();
-      ranuras.push([traducir ? migrarId(objeto) : objeto, l.u16()]);
-    }
+    for (let i = 0; i < n; i++) ranuras.push([objeto(l.u16()), l.u16()]);
     estado.inventario = ranuras;
   }
   if (version >= 4) {
@@ -433,7 +443,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
       const ty = l.u32();
       const n = l.u16();
       const ranuras: [number, number][] = [];
-      for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
+      for (let i = 0; i < n; i++) ranuras.push([objeto(l.u16()), l.u16()]);
       cofres.push({ tx, ty, ranuras });
     }
     estado.cofres = cofres;
@@ -445,7 +455,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   if (version >= 10) {
     const n = l.u16();
     const ranuras: [number, number][] = [];
-    for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
+    for (let i = 0; i < n; i++) ranuras.push([objeto(l.u16()), l.u16()]);
     estado.equipo = ranuras;
   }
   if (version >= 11) {

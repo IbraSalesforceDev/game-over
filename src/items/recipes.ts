@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, BARRO, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, BARRO, BATERIA, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, BOMBILLA, CABLE, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, INTERRUPTOR, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -769,6 +769,56 @@ export const RECETAS: readonly Receta[] = [
     ingredientes: [[LINGOTE_HIERRO, 1]],
     resultado: PINCHOS,
     cantidad: 4,
+    estacion: YUNQUE,
+  },
+  // --- Instalación eléctrica (6.5.0) ---
+  {
+    // Es la receta que devuelve al cobre a la mesa de trabajo. Un lingote da
+    // ocho tramos: tender cable tiene que ser barato, porque lo caro y lo que se
+    // reparte por el mundo son las baterías.
+    id: 'cable',
+    desde: '6.5.0',
+    ingredientes: [[LINGOTE_COBRE, 1]],
+    resultado: CABLE,
+    cantidad: 8,
+    estacion: MESA,
+  },
+  {
+    id: 'bombilla',
+    desde: '6.5.0',
+    ingredientes: [
+      [VIDRIO, 1],
+      [LINGOTE_COBRE, 1],
+    ],
+    resultado: BOMBILLA,
+    cantidad: 1,
+    estacion: MESA,
+  },
+  {
+    id: 'interruptor',
+    desde: '6.5.0',
+    ingredientes: [
+      [MADERA, 2],
+      [LINGOTE_COBRE, 1],
+    ],
+    resultado: INTERRUPTOR,
+    cantidad: 2,
+    estacion: MESA,
+  },
+  {
+    // Improvisada de verdad: dos metales distintos y algo ácido entre medias.
+    // Es cara en cobre y encima gasta gel, que hasta ahora solo servía para
+    // antorchas: es la pieza que se racionea, y por eso alumbrar una mina entera
+    // obliga a repartirlas por el camino en vez de poner una en la entrada.
+    id: 'bateria',
+    desde: '6.5.0',
+    ingredientes: [
+      [LINGOTE_COBRE, 6],
+      [LINGOTE_HIERRO, 2],
+      [GEL, 4],
+    ],
+    resultado: BATERIA,
+    cantidad: 1,
     estacion: YUNQUE,
   },
   ...forjas(),

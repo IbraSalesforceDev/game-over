@@ -174,6 +174,7 @@ import {
   RITMO_ESTRUCTURA,
   limpiarEnemigos,
 } from './entities/spawner';
+import { accionarInterruptor, resolverCorriente } from './world/corriente';
 import { crearPanelVida } from './ui/vida';
 import { esArma } from './items/items';
 import {
@@ -1732,6 +1733,7 @@ async function arrancar(): Promise<void> {
         if (avanzarPicado(mundo, picado, tx, ty, capa, potencia * trucos.velocidadMinado)) {
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
+          corrienteSucia = true;
           // Abrir un hueco es lo que hace que el agua de al lado se mueva.
           liquidos.activar(tx, ty);
           // Área de minado del menú de depuración: el tile del centro ya se ha
@@ -1815,6 +1817,24 @@ async function arrancar(): Promise<void> {
       derAnterior = puntero.der;
       return;
     }
+
+    // Y el interruptor se acciona igual que se abre un cofre: clic derecho
+    // encima. Va antes de colocar porque, si no, con cable en la mano el clic
+    // derecho pondría un cable sobre el interruptor en vez de darle.
+    if (
+      puntero.der &&
+      !derAnterior &&
+      tiene('electricidad') &&
+      enAlcance(jugador.caja, tx, ty) &&
+      accionarInterruptor(mundo, tx, ty) !== null
+    ) {
+      renderer.cache.invalidar(tx, ty);
+      motorLuz.invalidar(tx);
+      corrienteSucia = true;
+      audio.sonar('colocar', 1.6);
+      derAnterior = puntero.der;
+      return;
+    }
     derAnterior = puntero.der;
 
     if (puntero.der && previo.ok && tileEnMano !== undefined) {
@@ -1824,6 +1844,7 @@ async function arrancar(): Promise<void> {
         else mundo.setPared(tx, ty, tileEnMano);
         renderer.cache.invalidar(tx, ty);
         motorLuz.invalidar(tx);
+        corrienteSucia = true;
         audio.sonar('colocar', 0.85 + Math.random() * 0.3);
         // Tapar una celda con agua la vacía en el paso siguiente, y el líquido
         // de al lado tiene que enterarse de que ha perdido un camino.
@@ -2075,6 +2096,7 @@ async function arrancar(): Promise<void> {
       renderer.cache.invalidar(tx, ty);
       motorLuz.invalidar(tx);
       liquidos.activar(tx, ty);
+      corrienteSucia = true;
       if (tile === COFRE) cofres.borrar(tx, ty);
       soltar(drops, dropDeTile(tile), tx, ty);
     }
@@ -2124,6 +2146,33 @@ async function arrancar(): Promise<void> {
     }
   }
 
+  /**
+   * La instalación eléctrica: qué bombillas están encendidas ahora mismo.
+   *
+   * Va marcada como sucia en vez de recalcularse cada tick. Resolver la ventana
+   * es un flood fill sobre el cableado, y aunque en una casa cueste nada, en un
+   * mundo titánico se pagaría sesenta veces por segundo para no cambiar nada:
+   * la corriente solo se mueve cuando alguien toca un tile o cuando la cámara
+   * enseña una parte de la instalación que no se veía.
+   */
+  let corrienteSucia = true;
+  let ventanaCorriente = '';
+
+  function actualizarCorriente(): void {
+    const { tx0, ty0, tx1, ty1 } = renderer.camara.tilesVisibles();
+    // El margen es generoso a propósito: sin él, una bombilla justo al borde se
+    // encendería al entrar en cuadro, y verla encenderse delata el truco.
+    const M = 24;
+    const clave = `${tx0 >> 3},${ty0 >> 3},${tx1 >> 3},${ty1 >> 3}`;
+    if (!corrienteSucia && clave === ventanaCorriente) return;
+    corrienteSucia = false;
+    ventanaCorriente = clave;
+    for (const c of resolverCorriente(mundo, tx0 - M, ty0 - M, tx1 + M, ty1 + M)) {
+      renderer.cache.invalidar(c.tx, c.ty);
+      motorLuz.invalidar(c.tx);
+    }
+  }
+
   /** ¿Hay lava en la ventana visible? Solo entonces su movimiento cambia la luz. */
   function hayLavaCerca(): boolean {
     const { tx0, ty0, tx1, ty1 } = renderer.camara.tilesVisibles();
@@ -2156,6 +2205,7 @@ async function arrancar(): Promise<void> {
       actualizarDrops();
       if (tiene('cultivos')) actualizarCultivos();
       actualizarCombate();
+      if (tiene('electricidad')) actualizarCorriente();
       particulas.actualizar(mundo);
       if (opciones.sacudidaActiva) renderer.camara.tickSacudida();
       entrada.finTick();

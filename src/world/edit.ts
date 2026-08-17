@@ -1,6 +1,6 @@
 import { TILE } from '../core/constants';
 import type { Caja } from '../entities/physics';
-import { AIRE, defTile, esPlataforma, esSolido, nivelPicoTile } from './tiles';
+import { AIRE, defTile, esInstalacion, esPlataforma, esSolido, nivelPicoTile } from './tiles';
 import type { Mundo } from './world';
 
 /**
@@ -58,8 +58,16 @@ export function solapaJugador(caja: Caja, tx: number, ty: number): boolean {
  * Un bloque necesita apoyo: un vecino ortogonal de la misma capa o una pared
  * detrás. Sin esta regla se pueden construir islas flotantes en mitad del
  * cielo de un solo clic.
+ *
+ * `id` es lo que se está intentando colocar, y solo cambia algo para la
+ * instalación eléctrica: un cable se agarra a otro cable. Tenderlo es
+ * literalmente para lo que sirve, y con la regla general —hace falta un bloque
+ * macizo o una pared— un tendido no podía cruzar una caverna ni colgar de nada:
+ * había que ir poniéndole bloques debajo, que es justo lo contrario de lo que
+ * hace un cable. Al resto de bloques no se le aplica: una antorcha sigue sin
+ * poder sostener a otra antorcha.
  */
-export function tieneApoyo(mundo: Mundo, tx: number, ty: number): boolean {
+export function tieneApoyo(mundo: Mundo, tx: number, ty: number, id = AIRE): boolean {
   if (mundo.getPared(tx, ty) !== AIRE) return true;
   const vecinos = [
     mundo.getTile(tx, ty - 1),
@@ -67,7 +75,8 @@ export function tieneApoyo(mundo: Mundo, tx: number, ty: number): boolean {
     mundo.getTile(tx, ty + 1),
     mundo.getTile(tx - 1, ty),
   ];
-  return vecinos.some((id) => esSolido(id) || esPlataforma(id));
+  if (esInstalacion(id) && vecinos.some(esInstalacion)) return true;
+  return vecinos.some((v) => esSolido(v) || esPlataforma(v));
 }
 
 export interface Resultado {
@@ -108,7 +117,7 @@ export function puedeColocarBloque(
   if (!esPlataforma(id) && solapaJugador(caja, tx, ty)) {
     return { ok: false, motivo: 'jugador' };
   }
-  if (!tieneApoyo(mundo, tx, ty)) return { ok: false, motivo: 'vacio' };
+  if (!tieneApoyo(mundo, tx, ty, id)) return { ok: false, motivo: 'vacio' };
   return OK;
 }
 

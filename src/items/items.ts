@@ -31,6 +31,12 @@ import {
   LADRILLO_INFERNAL,
   PINCHOS,
   BLOQUES_METAL,
+  BATERIA,
+  BOMBILLA,
+  BOMBILLA_ENCENDIDA,
+  CABLE,
+  INTERRUPTOR,
+  INTERRUPTOR_ENCENDIDO,
   ROCA_INFERNAL,
   TITANIO,
   GRAVA,
@@ -62,10 +68,18 @@ import { alMenos } from '../core/versiones';
  *
  * Los objetos que son bloques comparten identificador con su tile, así colocar
  * es `mundo.setTile(tx, ty, objeto)` sin tabla de traducción. Los que no son
- * bloques empiezan en 64, bien lejos del rango de tiles: los ids acaban dentro
- * de partidas guardadas, y si dependieran de cuántos tiles existan, añadir un
- * mueble convertiría los picos de todo el mundo en otra cosa. Ya pasó al llegar
- * la fase 7, y por eso el formato de guardado sube de versión y remapea.
+ * bloques empiezan en `BASE_NO_TILE`, bien lejos del rango de tiles: los ids
+ * acaban dentro de partidas guardadas, y si dependieran de cuántos tiles
+ * existan, añadir un mueble convertiría los picos de todo el mundo en otra cosa.
+ * Ya pasó al llegar la fase 7, y por eso el formato de guardado sube de versión
+ * y remapea.
+ *
+ * En 6.4.1 la frontera se movió de 64 a 128 por la razón contraria: con los
+ * bloques de metal, los tiles llegaron a 60 y quedaban tres huecos hasta chocar
+ * con el primer lingote. Tres no daban ni para la instalación eléctrica más
+ * pelada —cable, bombilla apagada, bombilla encendida y batería son cuatro—, así
+ * que o se movía la frontera o el catálogo de bloques se cerraba para siempre.
+ * Los objetos guardados se traducen al abrir la partida.
  *
  * Lo que suelta un tile al romperse sí es una tabla aparte, porque no es uno a
  * uno: la hierba suelta tierra, el tronco madera y las hojas nada.
@@ -76,102 +90,102 @@ export const NADA = 0;
 // La comparación de versiones vive en `core/versiones`; aquí solo se usa.
 
 /** Primer id que no corresponde a un tile. */
-export const BASE_NO_TILE = 64;
+export const BASE_NO_TILE = 128;
 
-export const LINGOTE_COBRE = 64;
-export const LINGOTE_HIERRO = 65;
-export const LINGOTE_PLATA = 66;
-export const LINGOTE_ORO = 67;
-export const PICO_MADERA = 68;
-export const PICO_COBRE = 69;
-export const PICO_HIERRO = 70;
-export const PICO_PLATA = 71;
-export const PICO_ORO = 72;
-export const GEL = 73;
-export const HUESO = 74;
-export const ESPADA_MADERA = 75;
-export const ESPADA_COBRE = 76;
-export const ESPADA_HIERRO = 77;
-export const CUBO = 78;
-export const CUBO_AGUA = 79;
-export const CUBO_LAVA = 80;
-export const PICO_PIEDRA = 81;
-export const ESPADA_PIEDRA = 82;
-export const CARNE_CRUDA = 83;
-export const CARNE_ASADA = 84;
-export const BAYAS = 85;
-export const CRISTAL = 86;
+export const LINGOTE_COBRE = 128;
+export const LINGOTE_HIERRO = 129;
+export const LINGOTE_PLATA = 130;
+export const LINGOTE_ORO = 131;
+export const PICO_MADERA = 132;
+export const PICO_COBRE = 133;
+export const PICO_HIERRO = 134;
+export const PICO_PLATA = 135;
+export const PICO_ORO = 136;
+export const GEL = 137;
+export const HUESO = 138;
+export const ESPADA_MADERA = 139;
+export const ESPADA_COBRE = 140;
+export const ESPADA_HIERRO = 141;
+export const CUBO = 142;
+export const CUBO_AGUA = 143;
+export const CUBO_LAVA = 144;
+export const PICO_PIEDRA = 145;
+export const ESPADA_PIEDRA = 146;
+export const CARNE_CRUDA = 147;
+export const CARNE_ASADA = 148;
+export const BAYAS = 149;
+export const CRISTAL = 150;
 // Armadura: casco, peto y grebas de cada metal. Van seguidos y en el mismo
 // orden en los cuatro juegos, para que la tabla de recetas sea un bucle.
-export const CASCO_COBRE = 87;
-export const PETO_COBRE = 88;
-export const GREBAS_COBRE = 89;
-export const CASCO_HIERRO = 90;
-export const PETO_HIERRO = 91;
-export const GREBAS_HIERRO = 92;
-export const CASCO_PLATA = 93;
-export const PETO_PLATA = 94;
-export const GREBAS_PLATA = 95;
-export const CASCO_ORO = 96;
-export const PETO_ORO = 97;
-export const GREBAS_ORO = 98;
-export const ARCO = 99;
-export const FLECHA = 100;
-export const PALA_HIERRO = 101;
-export const AZADA = 102;
-export const PAPEL = 103;
+export const CASCO_COBRE = 151;
+export const PETO_COBRE = 152;
+export const GREBAS_COBRE = 153;
+export const CASCO_HIERRO = 154;
+export const PETO_HIERRO = 155;
+export const GREBAS_HIERRO = 156;
+export const CASCO_PLATA = 157;
+export const PETO_PLATA = 158;
+export const GREBAS_PLATA = 159;
+export const CASCO_ORO = 160;
+export const PETO_ORO = 161;
+export const GREBAS_ORO = 162;
+export const ARCO = 163;
+export const FLECHA = 164;
+export const PALA_HIERRO = 165;
+export const AZADA = 166;
+export const PAPEL = 167;
 // Los cinco mapas. Van seguidos y de menos a más: el nivel es la posición en
 // `MAPAS`, no un campo, porque una ranura de inventario solo guarda un id.
-export const MAPA_1 = 104;
-export const MAPA_2 = 105;
-export const MAPA_3 = 106;
-export const MAPA_4 = 107;
-export const MAPA_5 = 108;
-export const PEDERNAL = 109;
-export const VIDRIO = 110;
+export const MAPA_1 = 168;
+export const MAPA_2 = 169;
+export const MAPA_3 = 170;
+export const MAPA_4 = 171;
+export const MAPA_5 = 172;
+export const PEDERNAL = 173;
+export const VIDRIO = 174;
 // Botas y guantes: los dos huecos que faltaban. Van en cuatro metales, como el
 // resto de la armadura.
-export const BOTAS_COBRE = 111;
-export const GUANTES_COBRE = 112;
-export const BOTAS_HIERRO = 113;
-export const GUANTES_HIERRO = 114;
-export const BOTAS_PLATA = 115;
-export const GUANTES_PLATA = 116;
-export const BOTAS_ORO = 117;
-export const GUANTES_ORO = 118;
-export const SEMILLAS = 119;
-export const SEMILLAS_ZANAHORIA = 120;
-export const TRIGO = 121;
-export const PAN = 122;
-export const PLUMA = 123;
+export const BOTAS_COBRE = 175;
+export const GUANTES_COBRE = 176;
+export const BOTAS_HIERRO = 177;
+export const GUANTES_HIERRO = 178;
+export const BOTAS_PLATA = 179;
+export const GUANTES_PLATA = 180;
+export const BOTAS_ORO = 181;
+export const GUANTES_ORO = 182;
+export const SEMILLAS = 183;
+export const SEMILLAS_ZANAHORIA = 184;
+export const TRIGO = 185;
+export const PAN = 186;
+export const PLUMA = 187;
 // Bloque 5: la fortaleza, el altar y el jefe.
-export const RELIQUIA = 124;
-export const BRUJULA = 125;
-export const ESPADA_GUARDIAN = 126;
-export const ESENCIA = 127;
+export const RELIQUIA = 188;
+export const BRUJULA = 189;
+export const ESPADA_GUARDIAN = 190;
+export const ESENCIA = 191;
 // 5.0.0: los tres metales nuevos, con su lingote, su pico y su espada. El
 // carbón no tiene lingote —no se funde, se quema— y va como material suelto.
-export const LINGOTE_COBALTO = 128;
-export const LINGOTE_TITANIO = 129;
-export const LINGOTE_INFERNITA = 130;
-export const PICO_COBALTO = 131;
-export const PICO_TITANIO = 132;
-export const PICO_INFERNITA = 133;
-export const ESPADA_COBALTO = 134;
-export const ESPADA_TITANIO = 135;
-export const ESPADA_INFERNITA = 136;
+export const LINGOTE_COBALTO = 192;
+export const LINGOTE_TITANIO = 193;
+export const LINGOTE_INFERNITA = 194;
+export const PICO_COBALTO = 195;
+export const PICO_TITANIO = 196;
+export const PICO_INFERNITA = 197;
+export const ESPADA_COBALTO = 198;
+export const ESPADA_TITANIO = 199;
+export const ESPADA_INFERNITA = 200;
 
 // --- Arquería (5.4.0) -------------------------------------------------------
 // El arco llevaba desde 3.0.0 siendo uno solo con una sola flecha: una vez
 // fabricado no había nada más que hacer con él, y a partir de la espada de
 // hierro dejaba de merecer la pena. Ahora hay una escalera de arcos y, sobre
 // todo, tres puntas que cambian a qué se apunta y no solo cuánto quita.
-export const ARCO_CAZA = 137;
-export const ARCO_COBALTO = 138;
-export const ARCO_INFERNAL = 139;
-export const FLECHA_HIERRO = 140;
-export const FLECHA_HUESO = 141;
-export const FLECHA_FUEGO = 142;
+export const ARCO_CAZA = 201;
+export const ARCO_COBALTO = 202;
+export const ARCO_INFERNAL = 203;
+export const FLECHA_HIERRO = 204;
+export const FLECHA_HUESO = 205;
+export const FLECHA_FUEGO = 206;
 
 // --- Metalurgia (6.4.0) -----------------------------------------------------
 // Los tres metales nuevos llevaban desde 5.0.0 dando pico, espada y arco, y
@@ -179,21 +193,21 @@ export const FLECHA_FUEGO = 142;
 // podía hacer con ella era un pico que ya no hacía falta para nada, porque no
 // quedaba nada más duro que picar. Aquí se cierra: armadura de los tres, un
 // sitio donde guardar el metal sobrante y algo que hacer con el carbón.
-export const CASCO_COBALTO = 143;
-export const PETO_COBALTO = 144;
-export const GREBAS_COBALTO = 145;
-export const BOTAS_COBALTO = 146;
-export const GUANTES_COBALTO = 147;
-export const CASCO_TITANIO = 148;
-export const PETO_TITANIO = 149;
-export const GREBAS_TITANIO = 150;
-export const BOTAS_TITANIO = 151;
-export const GUANTES_TITANIO = 152;
-export const CASCO_INFERNITA = 153;
-export const PETO_INFERNITA = 154;
-export const GREBAS_INFERNITA = 155;
-export const BOTAS_INFERNITA = 156;
-export const GUANTES_INFERNITA = 157;
+export const CASCO_COBALTO = 207;
+export const PETO_COBALTO = 208;
+export const GREBAS_COBALTO = 209;
+export const BOTAS_COBALTO = 210;
+export const GUANTES_COBALTO = 211;
+export const CASCO_TITANIO = 212;
+export const PETO_TITANIO = 213;
+export const GREBAS_TITANIO = 214;
+export const BOTAS_TITANIO = 215;
+export const GUANTES_TITANIO = 216;
+export const CASCO_INFERNITA = 217;
+export const PETO_INFERNITA = 218;
+export const GREBAS_INFERNITA = 219;
+export const BOTAS_INFERNITA = 220;
+export const GUANTES_INFERNITA = 221;
 /**
  * Pólvora: carbón molido con arena.
  *
@@ -201,9 +215,9 @@ export const GUANTES_INFERNITA = 157;
  * ahora se picaban vetas enteras de carbón para hacer seis antorchas y el resto
  * se quedaba en el cofre para siempre.
  */
-export const POLVORA = 158;
-export const BOMBA = 159;
-export const DINAMITA = 160;
+export const POLVORA = 222;
+export const BOMBA = 223;
+export const DINAMITA = 224;
 
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
@@ -217,8 +231,8 @@ export const MAPAS: readonly number[] = [MAPA_1, MAPA_2, MAPA_3, MAPA_4, MAPA_5]
 export const ALCANCE_MAPA: readonly number[] = [45, 110, 260, 620, Infinity];
 
 /**
- * Identificadores que tenían las herramientas antes de moverse al rango 64+.
- * Se conserva para poder abrir partidas del formato 3.
+ * Identificadores que tenían las herramientas antes de moverse fuera del rango
+ * de tiles. Se conserva para poder abrir partidas del formato 3.
  */
 export const IDS_ANTIGUOS: Readonly<Record<number, number>> = {
   13: PICO_MADERA,
@@ -558,6 +572,14 @@ const ENTRADAS: [number, DefObjeto][] = [
   // Los bloques de metal se colocan y se pican como cualquier otro bloque, así
   // que salen de la tabla de tiles sin nada especial.
   ...BLOQUES_METAL.map((id) => deTile(id)),
+  // La instalación eléctrica. Los dos tiles encendidos no son objetos: picar una
+  // bombilla encendida devuelve una bombilla, y ya se encenderá sola donde le
+  // llegue corriente. Tenerlos en el zurrón como cosas aparte sería llevar dos
+  // bombillas distintas que en realidad son la misma.
+  deTile(CABLE),
+  deTile(BOMBILLA),
+  deTile(BATERIA),
+  deTile(INTERRUPTOR),
   [
     POLVORA,
     { nombre: 'pólvora', tipo: 'material', color: '#4a4a52', maxPila: PILA },
@@ -1115,6 +1137,7 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
       POLVORA, BOMBA, DINAMITA,
     ],
   ],
+  ['6.5.0', [CABLE, BOMBILLA, BATERIA, INTERRUPTOR]],
 ];
 
 /**
@@ -1166,6 +1189,23 @@ export function migrarId(id: number): number {
   return IDS_ANTIGUOS[id] ?? id;
 }
 
+/** Dónde empezaban los objetos que no son bloques antes de 6.4.1. */
+export const BASE_NO_TILE_VIEJA = 64;
+
+/**
+ * Traduce un id guardado con la frontera vieja a la de hoy.
+ *
+ * Todo lo que no era un tile estaba en 64 y por encima, y se ha ido sesenta y
+ * cuatro sitios más arriba en bloque; los que sí son tiles no se han movido, así
+ * que se quedan igual. Se aplica **antes** que `migrarId`, porque los tres ids
+ * antiguos de los picos —13, 14 y 15— caen en el rango de tiles y esa tabla ya
+ * apunta a los valores de hoy: traducirlos después los dejaría bien, y al revés
+ * los sumaría dos veces.
+ */
+export function migrarBase(id: number): number {
+  return id >= BASE_NO_TILE_VIEJA ? id + (BASE_NO_TILE - BASE_NO_TILE_VIEJA) : id;
+}
+
 /**
  * Con qué probabilidad una palada de grava deja pedernal en vez de grava.
  *
@@ -1198,6 +1238,12 @@ export function dropDeTile(tile: number): number {
     // Labrar no crea material nuevo: al romperla vuelve tierra.
     case TIERRA_LABRADA:
       return TIERRA;
+    // Y encendido o apagado es un estado, no un objeto distinto: lo que se
+    // recoge de un cacharro de la instalación es siempre el cacharro apagado.
+    case BOMBILLA_ENCENDIDA:
+      return BOMBILLA;
+    case INTERRUPTOR_ENCENDIDO:
+      return INTERRUPTOR;
     // Un cultivo maduro da su fruto; uno a medias, solo la semilla de vuelta.
     case TRIGO_3:
       return TRIGO;

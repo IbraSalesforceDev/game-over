@@ -55,9 +55,12 @@ import {
   MESA,
   PIEDRA,
   PINCHOS,
-  BLOQUES_METAL,
   BLOQUE_COBRE,
   BLOQUE_INFERNITA,
+  BATERIA,
+  BOMBILLA_ENCENDIDA,
+  CABLE,
+  INTERRUPTOR_ENCENDIDO,
   ROCA_INFERNAL,
   TIERRA,
   TILES,
@@ -374,6 +377,10 @@ describe('la tabla de tiles está en su sitio', () => {
       [PINCHOS, 'pinchos'],
       [BLOQUE_COBRE, 'bloque de cobre'],
       [BLOQUE_INFERNITA, 'bloque de infernita'],
+      [CABLE, 'cable de cobre'],
+      [BOMBILLA_ENCENDIDA, 'bombilla encendida'],
+      [BATERIA, 'batería improvisada'],
+      [INTERRUPTOR_ENCENDIDO, 'interruptor encendido'],
     ];
     for (const [id, nom] of esperado) {
       expect(`${id}=${TILES[id]?.nombre}`).toBe(`${id}=${nom}`);
@@ -384,9 +391,8 @@ describe('la tabla de tiles está en su sitio', () => {
     // Un hueco significa que alguien añadió una constante sin su definición, o
     // al revés. Las dos cosas se leen como "el tile existe" hasta que alguien
     // lo coloca y no pasa nada.
-    const ultimo = BLOQUES_METAL[BLOQUES_METAL.length - 1]!;
-    expect(TILES[ultimo]).toBeDefined();
-    expect(TILES.length).toBe(ultimo + 1);
+    expect(TILES[INTERRUPTOR_ENCENDIDO]).toBeDefined();
+    expect(TILES.length).toBe(INTERRUPTOR_ENCENDIDO + 1);
     for (let id = 0; id < TILES.length; id++) {
       expect(TILES[id], `falta el tile #${id}`).toBeDefined();
     }

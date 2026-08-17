@@ -120,10 +120,18 @@ describe('pacífico', () => {
 
 describe('las dificultades altas se notan', () => {
   it('el zombi de "tú lo has querido" tiene mucha más vida que el de normal', () => {
+    // De noche y en la superficie puede salir un élite, y un élite multiplica la
+    // fuerza: comparando un solo bicho con otro, un élite en dificultad normal
+    // rompía la proporción de vez en cuando. Se comparan medias de cuarenta.
     const m = mundoLlano();
-    const normal = aparecerAlgo(m, contexto({ dif: DIFICULTADES[3] }));
-    const brutal = aparecerAlgo(m, contexto({ dif: DIFICULTADES[9] }));
-    expect(brutal!.fuerza).toBeGreaterThan(normal!.fuerza * 4);
+    const media = (nivel: number): number => {
+      let total = 0;
+      for (let i = 0; i < 40; i++) {
+        total += aparecerAlgo(m, contexto({ dif: DIFICULTADES[nivel] }))!.fuerza;
+      }
+      return total / 40;
+    };
+    expect(media(9)).toBeGreaterThan(media(3) * 4);
   });
 
   it('el hambre baja más deprisa cuanto más alta es la dificultad', () => {
