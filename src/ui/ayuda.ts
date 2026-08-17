@@ -47,6 +47,7 @@ const GRUPOS: Grupo[] = [
       ['Brújula', 'Llevándola, la aguja y el mapa señalan las estructuras'],
       ['Fortaleza', 'De ladrillo, en la caverna · dentro está el altar'],
       ['Altar', 'Clic der. con la ofrenda: despierta al guardián'],
+      ['Ídolos', 'Se preparan en el caldero · clic der. en su bioma: sale su jefe'],
       ['Reliquia', 'La suelta cualquier hostil de vez en cuando'],
       ['Ratón encima', 'Pásalo por una ranura y sale la ficha del objeto'],
       ['1 – 0 · rueda', 'Elegir ranura'],

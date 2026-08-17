@@ -62,11 +62,15 @@ describe('el guardián', () => {
     expect(jefe.vivo).toBe(true);
   });
 
-  it('pega más fuerte que cualquier otra cosa del juego', () => {
-    const otros = (Object.keys(ENEMIGOS) as Especie[])
-      .filter((e) => e !== 'guardian')
+  it('pega más fuerte que cualquier bicho normal', () => {
+    // Desde 7.0.0 ya no es el que más pega del juego entero: el señor del fuego
+    // pega más, y eso es lo que se quiere —los seis de bioma son puertas al
+    // mismo nivel, no peldaños por debajo del guardián—. Lo que sigue siendo
+    // cierto es que ningún bicho que salga solo se le acerca.
+    const normales = (Object.keys(ENEMIGOS) as Especie[])
+      .filter((e) => ENEMIGOS[e].jefe !== true)
       .map((e) => ENEMIGOS[e].dano);
-    expect(ENEMIGOS.guardian.dano).toBeGreaterThan(Math.max(...otros));
+    expect(ENEMIGOS.guardian.dano).toBeGreaterThan(Math.max(...normales));
   });
 });
 

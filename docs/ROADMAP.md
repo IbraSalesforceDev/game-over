@@ -311,10 +311,11 @@ orden, y cada punto es una versión:
    según su bioma —bola de fuego y arena en el desierto, ventisca en la nieve,
    veneno en la selva, huesos en la cueva—, sube la probabilidad de élite, ahora
    también las hay bajo tierra y la mitad de las veces sueltan botiquín.
-4. **Un jefe por bioma** · pradera, jungla, cueva, desierto, nieve e infierno,
-   cada uno de dificultad parecida al guardián de hoy y con su propio ritual de
-   invocación hecho de materiales de ese bioma (el del infierno, por ejemplo,
-   con doscientas piedras del infierno más algún mineral y alguna reliquia).
+4. **Un jefe por bioma** ✅ 7.0.0 · rey limo, reina escarabajo, yeti, araña
+   madre, devorador y señor del fuego. Cada uno se despierta con su ídolo, que
+   se prepara en el caldero con material de su bioma y solo funciona allí (el
+   infernal pide 200 rocas del infierno, infernita y dos reliquias). Cada uno
+   deja su trofeo.
 5. **Botín por bioma** · cada jefe suelta armas y armadura suyas: variantes de
    las que ya hay, mejores estéticamente y con una **inscripción** que se lee
    pasando el ratón por encima y da un poder atado a una tecla (la armadura de

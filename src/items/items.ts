@@ -237,6 +237,33 @@ export const POCION_LIGEREZA = 230;
 export const POCION_REMEDIO = 231;
 
 /**
+ * Los seis ídolos y los seis trofeos (7.0.0).
+ *
+ * Un ídolo es el ritual hecho objeto: se prepara con material del bioma al que
+ * pertenece y se usa allí, y al usarlo despierta al jefe de ese sitio. Se
+ * eligió un objeto en vez de un altar por bioma porque un altar hay que
+ * generarlo, encontrarlo y protegerlo de que una cueva se lo lleve por delante,
+ * y lo que se quería no era una búsqueda sino una preparación: juntar lo que
+ * hay que juntar y decidir cuándo estás listo.
+ *
+ * El trofeo es lo que deja cada uno. Todavía no hace nada —el equipo de bioma
+ * llega en la siguiente versión— y eso está dicho en su descripción, que es
+ * mejor que fingir que sirve para algo.
+ */
+export const IDOLO_PRADERA = 232;
+export const IDOLO_DESIERTO = 233;
+export const IDOLO_NIEVE = 234;
+export const IDOLO_JUNGLA = 235;
+export const IDOLO_CUEVA = 236;
+export const IDOLO_INFIERNO = 237;
+export const TROFEO_PRADERA = 238;
+export const TROFEO_DESIERTO = 239;
+export const TROFEO_NIEVE = 240;
+export const TROFEO_JUNGLA = 241;
+export const TROFEO_CUEVA = 242;
+export const TROFEO_INFIERNO = 243;
+
+/**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
  *
  * Empieza siendo un pañuelo —lo justo para no perder de vista la casa— y acaba
@@ -272,7 +299,9 @@ export type TipoObjeto =
   | 'semilla'
   | 'brujula'
   | 'explosivo'
-  | 'pocion';
+  | 'pocion'
+  | 'invocador'
+  | 'trofeo';
 
 /**
  * Dónde se lleva puesta una pieza de armadura.
@@ -417,6 +446,20 @@ function pocion(
   extra: Partial<DefObjeto> = {},
 ): [number, DefObjeto] {
   return [id, { nombre, tipo: 'pocion', color, maxPila: 12, ...extra }];
+}
+
+/**
+ * Un ídolo de invocación. A qué jefe llama lo dice `world/jefes`, no el
+ * catálogo: aquí solo vive el objeto, y así el catálogo de objetos no tiene que
+ * saber que existen los enemigos.
+ */
+function idolo(id: number, nombre: string, color: string): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'invocador', color, maxPila: 4 }];
+}
+
+/** Un trofeo de jefe. Uno por jefe y no se apila con nada. */
+function trofeo(id: number, nombre: string, color: string): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'trofeo', color, maxPila: 20 }];
 }
 
 /**
@@ -662,6 +705,21 @@ const ENTRADAS: [number, DefObjeto][] = [
     duracion: DURACION.pocion,
   }),
   pocion(POCION_REMEDIO, 'poción de remedio', '#7fbf4a', { limpia: true }),
+  // Los seis ídolos. Se gastan al usarlos, así que se apilan poco: llevar diez
+  // encima no serviría de nada más que para invocar diez veces seguidas.
+  idolo(IDOLO_PRADERA, 'ídolo de la pradera', '#6fbf4a'),
+  idolo(IDOLO_DESIERTO, 'ídolo del desierto', '#d8b96a'),
+  idolo(IDOLO_NIEVE, 'ídolo helado', '#a8e0f5'),
+  idolo(IDOLO_JUNGLA, 'ídolo de la selva', '#4a9b5a'),
+  idolo(IDOLO_CUEVA, 'ídolo de la caverna', '#8a8a95'),
+  idolo(IDOLO_INFIERNO, 'ídolo infernal', '#e0542a'),
+  // Y los seis trofeos.
+  trofeo(TROFEO_PRADERA, 'corona de limo', '#7fd15a'),
+  trofeo(TROFEO_DESIERTO, 'caparazón de la reina', '#e0c070'),
+  trofeo(TROFEO_NIEVE, 'colmillo de escarcha', '#cfeaf8'),
+  trofeo(TROFEO_JUNGLA, 'ojo de la madre', '#6ab84a'),
+  trofeo(TROFEO_CUEVA, 'mandíbula del devorador', '#b8b2a0'),
+  trofeo(TROFEO_INFIERNO, 'corazón de brasa', '#ff6a28'),
   // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
   // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
   [
@@ -933,6 +991,16 @@ export function esPocion(id: number): boolean {
   return defObjeto(id).tipo === 'pocion';
 }
 
+/** ¿Es un ídolo de invocación? */
+export function esInvocador(id: number): boolean {
+  return defObjeto(id).tipo === 'invocador';
+}
+
+/** ¿Es un trofeo de jefe? */
+export function esTrofeo(id: number): boolean {
+  return defObjeto(id).tipo === 'trofeo';
+}
+
 export function esArmadura(id: number): boolean {
   return defObjeto(id).tipo === 'armadura';
 }
@@ -1109,6 +1177,8 @@ const DESCRIPCION_POR_TIPO: Readonly<Record<TipoObjeto, string>> = {
   brujula: 'Señala lo que hay construido en este mundo.',
   explosivo: 'Clic izquierdo para tirarla. Estalla sola, y a ti también te pilla.',
   pocion: 'Clic derecho para beberla.',
+  invocador: 'Clic derecho en su bioma: despierta a lo que vive ahí.',
+  trofeo: 'Lo que queda de un jefe. Guárdalo.',
 };
 
 /** Qué es este objeto, en una frase. */
@@ -1231,6 +1301,15 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
       CALDERO, FRASCO,
       POCION_VIDA, POCION_REGENERACION, POCION_FUERZA,
       POCION_PIEDRA, POCION_LIGEREZA, POCION_REMEDIO,
+    ],
+  ],
+  [
+    '7.0.0',
+    [
+      IDOLO_PRADERA, IDOLO_DESIERTO, IDOLO_NIEVE,
+      IDOLO_JUNGLA, IDOLO_CUEVA, IDOLO_INFIERNO,
+      TROFEO_PRADERA, TROFEO_DESIERTO, TROFEO_NIEVE,
+      TROFEO_JUNGLA, TROFEO_CUEVA, TROFEO_INFIERNO,
     ],
   ],
 ];

@@ -294,13 +294,17 @@ describe('las pociones', () => {
   });
 
   it('las seis se preparan en el caldero, y el caldero no', () => {
-    const alCaldero = RECETAS.filter((r) => r.estacion === CALDERO);
-    expect(alCaldero.map((r) => r.resultado).sort()).toEqual([...TODAS].sort());
+    const enCaldero = new Set(
+      RECETAS.filter((r) => r.estacion === CALDERO).map((r) => r.resultado),
+    );
+    for (const id of TODAS) expect(enCaldero.has(id), defObjeto(id).nombre).toBe(true);
     expect(RECETAS.find((r) => r.resultado === CALDERO)!.estacion).not.toBe(CALDERO);
   });
 
   it('todas gastan un frasco: es lo que las hace costar vidrio', () => {
-    for (const r of RECETAS.filter((x) => x.estacion === CALDERO)) {
+    // Solo las pociones. Desde 7.0.0 el caldero también prepara los rituales,
+    // que no llevan frasco porque no se beben.
+    for (const r of RECETAS.filter((x) => x.estacion === CALDERO && esPocion(x.resultado))) {
       expect(r.ingredientes.some(([o]) => o === FRASCO), r.id).toBe(true);
     }
   });

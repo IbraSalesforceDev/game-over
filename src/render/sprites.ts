@@ -427,7 +427,13 @@ export type EspecieSprite =
   | 'espectro'
   | 'arana'
   | 'diablillo'
-  | 'guardian';
+  | 'guardian'
+  | 'reyLimo'
+  | 'reinaEscarabajo'
+  | 'yeti'
+  | 'aranaMadre'
+  | 'devorador'
+  | 'senorDelFuego';
 
 interface Molde {
   ancho: number;
@@ -1232,6 +1238,341 @@ const MOLDES: Record<EspecieSprite, Molde> = {
       // Dientes.
       px(ctx, cx + 14, cy + 1, 1, 2, '#ffffff');
       px(ctx, cx + 16, cy + 1, 1, 2, '#ffffff');
+    },
+  },
+  // --- Los seis jefes de bioma (7.0.0) ------------------------------------
+  //
+  // Todos comparten dos cosas y las dos son deliberadas: son grandes —lo
+  // bastante como para que ocupen media pantalla y no haya que buscarlos— y
+  // llevan un aura de su color. El aura no es adorno: es lo que los separa del
+  // fondo del bioma, que suele ser justo de su gama —el yeti es blanco sobre
+  // nieve, el señor del fuego es naranja sobre lava—, y sin ella el jefe se
+  // pierde en el decorado. Se aprendió con el guardián.
+
+  /** El rey limo: una montaña de gelatina con una corona hundida dentro. */
+  reyLimo: {
+    ancho: 84,
+    alto: 62,
+    frames: 6,
+    offX: -5,
+    offY: -8,
+    pintar(ctx, ox, oy, f) {
+      const cuerpo = tono('#5ad07a', 34, 40);
+      const t = (f / 6) * Math.PI * 2;
+      // Se aplasta y se estira, como el slime pequeño: es lo único que hace que
+      // una mancha verde parezca gelatina y no un bloque.
+      const aplaste = Math.sin(t) * 4;
+      const ancho = 38 + aplaste;
+      const alto = 25 - aplaste;
+      const cx = ox + 42;
+      const cy = oy + 40;
+
+      ctx.globalAlpha = 0.18;
+      elipse(ctx, cx, cy, ancho + 8, alto + 8, '#8fffb0');
+      ctx.globalAlpha = 1;
+      elipse(ctx, cx, cy, ancho, alto, cuerpo.base);
+      elipse(ctx, cx, cy - alto * 0.28, ancho * 0.82, alto * 0.62, cuerpo.claro);
+      // Los blandones de dentro: burbujas más oscuras que se mueven, para que
+      // se vea que está lleno de cosas y no es una masa lisa.
+      for (const [bx, by, br] of [
+        [-14, 4, 6],
+        [11, 7, 5],
+        [2, -6, 4],
+      ] as const) {
+        elipse(ctx, cx + bx, cy + by + aplaste * 0.4, br, br * 0.8, cuerpo.oscuro);
+      }
+      // Ojos: dos puntos negros con brillo. Sin ellos es una gota; con ellos
+      // mira, y un jefe tiene que mirar.
+      for (const lado of [-1, 1]) {
+        px(ctx, cx + lado * 13 - 3, cy - 8, 6, 7, '#123a1e');
+        px(ctx, cx + lado * 13 - 2, cy - 7, 2, 2, '#e8ffe8');
+      }
+      // La corona, medio hundida en la gelatina.
+      const coronaY = cy - alto + 2 + Math.round(aplaste * 0.5);
+      px(ctx, cx - 17, coronaY, 34, 5, '#f0cc66');
+      px(ctx, cx - 17, coronaY, 34, 2, '#fff0b0');
+      for (const dx of [-15, -5, 5, 13]) {
+        px(ctx, cx + dx, coronaY - 6, 5, 6, '#f0cc66');
+        px(ctx, cx + dx + 1, coronaY - 7, 3, 2, '#fff0b0');
+      }
+    },
+  },
+
+  /** La reina escarabajo: caparazón partido y cuatro alas batiendo. */
+  reinaEscarabajo: {
+    ancho: 76,
+    alto: 56,
+    frames: 6,
+    offX: -5,
+    offY: -5,
+    pintar(ctx, ox, oy, f) {
+      const quitina = tono('#e0b45a', 34, 44);
+      const oscuro = tono('#7a5a1c', 24, 30);
+      const cx = ox + 38;
+      const cy = oy + 28;
+      const t = (f / 6) * Math.PI * 2;
+      const bate = Math.sin(t);
+
+      ctx.globalAlpha = 0.16;
+      elipse(ctx, cx, cy, 36, 27, '#ffd98a');
+      ctx.globalAlpha = 1;
+
+      // Las alas van detrás y en contrafase: dos arriba, dos abajo.
+      ctx.globalAlpha = 0.55;
+      for (const lado of [-1, 1]) {
+        elipse(ctx, cx + lado * 22, cy - 6 - bate * 5, 15, 6, '#f6ecc8');
+        elipse(ctx, cx + lado * 20, cy + 5 + bate * 5, 12, 5, '#e8dcae');
+      }
+      ctx.globalAlpha = 1;
+
+      // Cuerpo: el abdomen detrás y el tórax delante.
+      elipse(ctx, cx - 4, cy + 3, 22, 16, quitina.base);
+      elipse(ctx, cx - 4, cy - 2, 20, 11, quitina.claro);
+      // La raya que parte el caparazón en dos, que es lo que lo hace escarabajo.
+      px(ctx, cx - 24, cy + 2, 40, 2, oscuro.oscuro);
+      elipse(ctx, cx + 19, cy, 13, 12, quitina.base);
+      elipse(ctx, cx + 19, cy - 3, 11, 7, quitina.claro);
+
+      // Patas: tres a cada lado, colgando.
+      for (let i = 0; i < 3; i++) {
+        const lx = cx - 14 + i * 12;
+        px(ctx, lx, cy + 13, 2, 8 + (i % 2) * 3, oscuro.base);
+        px(ctx, lx - 2, cy + 19 + (i % 2) * 3, 4, 2, oscuro.oscuro);
+      }
+      // Cuernos y ojos.
+      px(ctx, cx + 27, cy - 9, 10, 3, oscuro.base);
+      px(ctx, cx + 33, cy - 13, 3, 6, oscuro.base);
+      px(ctx, cx + 22, cy - 4, 4, 4, '#2a1808');
+      px(ctx, cx + 23, cy - 3, 2, 2, '#ffd24a');
+    },
+  },
+
+  /** El yeti: un armario de pelo con dos cuernos de hielo. */
+  yeti: {
+    ancho: 66,
+    alto: 82,
+    frames: 6,
+    offX: -5,
+    offY: -8,
+    pintar(ctx, ox, oy, f) {
+      const pelo = tono('#dceef8', 22, 34);
+      const hielo = tono('#8fd6f0', 30, 38);
+      const cx = ox + 33;
+      const cy = oy + 44;
+      const t = (f / 6) * Math.PI * 2;
+      const respira = Math.round(Math.sin(t) * 2);
+
+      ctx.globalAlpha = 0.16;
+      elipse(ctx, cx, cy, 32, 38, '#bfe6ff');
+      ctx.globalAlpha = 1;
+
+      // Piernas cortas y anchas: lo que le da la silueta de armario.
+      for (const lado of [-1, 1]) {
+        bloque(ctx, cx + lado * 13 - 8, cy + 18, 16, 18, pelo);
+        px(ctx, cx + lado * 13 - 9, cy + 33, 18, 4, pelo.oscuro);
+      }
+      // Torso.
+      bloque(ctx, cx - 22, cy - 14 + respira, 44, 34, pelo);
+      px(ctx, cx - 22, cy - 14 + respira, 44, 5, pelo.claro);
+      // Brazos, largos hasta el suelo.
+      for (const lado of [-1, 1]) {
+        bloque(ctx, cx + lado * 26 - 6, cy - 10 + respira, 12, 32, pelo);
+        elipse(ctx, cx + lado * 26, cy + 22, 8, 7, pelo.oscuro);
+      }
+      // Mechones: tres líneas verticales que rompen el bloque de pelo.
+      for (const dx of [-14, -2, 10]) {
+        px(ctx, cx + dx, cy - 8 + respira, 2, 26, pelo.oscuro);
+      }
+      // Cabeza hundida entre los hombros, con la cara oscura.
+      bloque(ctx, cx - 15, cy - 34 + respira, 30, 22, pelo);
+      px(ctx, cx - 11, cy - 26 + respira, 22, 12, '#33505f');
+      for (const lado of [-1, 1]) {
+        px(ctx, cx + lado * 6 - 2, cy - 24 + respira, 4, 4, '#9fe8ff');
+      }
+      // Boca abierta con dientes: es lo que lo separa de un peluche.
+      px(ctx, cx - 6, cy - 18 + respira, 12, 4, '#12222b');
+      for (const dx of [-5, -1, 3]) px(ctx, cx + dx, cy - 18 + respira, 2, 2, '#ffffff');
+      // Cuernos de hielo, que además dicen de qué bioma es.
+      for (const lado of [-1, 1]) {
+        for (let i = 0; i < 8; i++) {
+          px(ctx, cx + lado * (13 + i) - 1, cy - 36 - i + respira, 3, 2, hielo.base);
+        }
+      }
+    },
+  },
+
+  /** La araña madre: ocho patas, ojos de sobra y un saco de huevos. */
+  aranaMadre: {
+    ancho: 80,
+    alto: 54,
+    frames: 6,
+    offX: -5,
+    offY: -6,
+    pintar(ctx, ox, oy, f) {
+      const cuerpo = tono('#4f9b3a', 28, 34);
+      const t = (f / 6) * Math.PI * 2;
+      const paso = Math.sin(t);
+      const cx = ox + 40;
+      const cy = oy + 30;
+
+      ctx.globalAlpha = 0.16;
+      elipse(ctx, cx, cy, 34, 24, '#8fe06a');
+      ctx.globalAlpha = 1;
+
+      // Las ocho patas, en dos grupos que se alternan.
+      for (let i = 0; i < 4; i++) {
+        const lado = i < 2 ? -1 : 1;
+        const fase = i % 2 === 0 ? paso : -paso;
+        const bx = cx + lado * (10 + (i % 2) * 9);
+        for (const alto of [-1, 1]) {
+          const by = cy + alto * 4;
+          px(ctx, bx, by, lado * 16, 3, cuerpo.oscuro);
+          px(ctx, bx + lado * 15, by - 10 + fase * 4, 3, 14, cuerpo.oscuro);
+          px(ctx, bx + lado * 15, by + 4 + fase * 4, 3, 10, cuerpo.base);
+        }
+      }
+      // El saco de huevos que arrastra detrás: es lo que la hace "madre".
+      elipse(ctx, cx - 24, cy + 6, 12, 10, '#d8e8c0');
+      for (const [hx, hy] of [
+        [-28, 4],
+        [-22, 8],
+        [-25, 10],
+      ] as const) {
+        elipse(ctx, cx + hx, cy + hy, 3, 3, '#8fb85a');
+      }
+      // Abdomen y cabeza.
+      elipse(ctx, cx - 6, cy + 1, 20, 15, cuerpo.base);
+      elipse(ctx, cx - 6, cy - 3, 17, 9, cuerpo.claro);
+      elipse(ctx, cx + 16, cy, 14, 12, cuerpo.oscuro);
+      // Seis ojos rojos en dos filas. Con dos parecería un bicho; con seis
+      // parece lo que hay al fondo de la selva.
+      for (const fila of [0, 1]) {
+        for (const col of [-1, 0, 1]) {
+          px(ctx, cx + 14 + col * 5, cy - 5 + fila * 6, 3, 3, '#ff4a4a');
+        }
+      }
+      // Quelíceros.
+      px(ctx, cx + 27, cy + 3, 6, 3, cuerpo.oscuro);
+      px(ctx, cx + 30, cy + 6, 3, 4, '#1e3a12');
+    },
+  },
+
+  /** El devorador: un cráneo de piedra flotante con las fauces abiertas. */
+  devorador: {
+    ancho: 74,
+    alto: 74,
+    frames: 8,
+    offX: -5,
+    offY: -5,
+    pintar(ctx, ox, oy, f) {
+      const roca = tono('#b8b2a0', 26, 34);
+      const oscuro = tono('#6a6558', 22, 28);
+      const cx = ox + 37;
+      const cy = oy + 37;
+      const t = (f / 8) * Math.PI * 2;
+      const flota = Math.round(Math.sin(t) * 3);
+      const mandibula = Math.round((Math.sin(t) + 1) * 3);
+
+      ctx.globalAlpha = 0.18;
+      elipse(ctx, cx, cy + flota, 32, 32, '#e0d8c0');
+      ctx.globalAlpha = 1;
+
+      // Las piedras que le orbitan: es lo que dice que está flotando y no
+      // simplemente dibujado en el aire.
+      for (let i = 0; i < 4; i++) {
+        const a = t + (i / 4) * Math.PI * 2;
+        px(ctx, cx + Math.cos(a) * 31 - 3, cy + Math.sin(a) * 26 - 3, 6, 6, oscuro.base);
+      }
+
+      // Cráneo.
+      const cy2 = cy + flota;
+      elipse(ctx, cx, cy2 - 6, 24, 21, roca.base);
+      elipse(ctx, cx, cy2 - 11, 20, 13, roca.claro);
+      // Cuencas: dos pozos con una brasa dentro.
+      for (const lado of [-1, 1]) {
+        elipse(ctx, cx + lado * 10, cy2 - 8, 7, 6, '#241f18');
+        px(ctx, cx + lado * 10 - 2, cy2 - 9, 4, 4, '#ff8a3a');
+      }
+      // Grietas.
+      px(ctx, cx - 3, cy2 - 26, 2, 10, oscuro.oscuro);
+      px(ctx, cx + 12, cy2 - 18, 2, 7, oscuro.oscuro);
+      // Mandíbula, que se abre y se cierra con la animación.
+      const my = cy2 + 10 + mandibula;
+      elipse(ctx, cx, my, 18, 8, roca.base);
+      px(ctx, cx - 16, my - 4, 32, 3, oscuro.base);
+      for (let i = 0; i < 6; i++) {
+        px(ctx, cx - 14 + i * 5, my - 8, 3, 5, '#efe8d4');
+        px(ctx, cx - 14 + i * 5, my + 2, 3, 4, '#efe8d4');
+      }
+    },
+  },
+
+  /** El señor del fuego: una figura de brasa dentro de su propia hoguera. */
+  senorDelFuego: {
+    ancho: 78,
+    alto: 78,
+    frames: 8,
+    offX: -5,
+    offY: -5,
+    pintar(ctx, ox, oy, f) {
+      const brasa = tono('#ff7a3a', 34, 46);
+      const carbon = tono('#5a2410', 22, 26);
+      const cx = ox + 39;
+      const cy = oy + 39;
+      const t = (f / 8) * Math.PI * 2;
+      const flota = Math.round(Math.sin(t) * 3);
+      const llama = Math.sin(t * 2);
+
+      // Tres capas de fuego alrededor: es lo único que lo despega del
+      // inframundo, que ya es naranja de por sí.
+      ctx.globalAlpha = 0.16;
+      elipse(ctx, cx, cy + flota, 36, 36, '#ffb060');
+      ctx.globalAlpha = 0.2;
+      elipse(ctx, cx, cy + flota - 4, 27, 30, '#ff7a2a');
+      ctx.globalAlpha = 0.26;
+      elipse(ctx, cx, cy + flota - 8, 17, 20, '#ffe08a');
+      ctx.globalAlpha = 1;
+
+      const by = cy + flota;
+      // Cuerpo de carbón agrietado, con la brasa saliendo por las grietas.
+      for (let i = -20; i <= 18; i++) {
+        const ancho = Math.round(17 - Math.abs(i) * 0.45);
+        if (ancho <= 0) continue;
+        px(ctx, cx - ancho, by + i, ancho * 2, 1, i < -6 ? carbon.claro : carbon.base);
+      }
+      for (const [gx, gy, gh] of [
+        [-8, -12, 14],
+        [5, -4, 16],
+        [-2, 6, 10],
+      ] as const) {
+        px(ctx, cx + gx, by + gy, 3, gh, brasa.base);
+        px(ctx, cx + gx, by + gy, 1, gh, brasa.claro);
+      }
+      // Hombros y brazos de brasa suelta, sin tocar el cuerpo.
+      for (const lado of [-1, 1]) {
+        elipse(ctx, cx + lado * 24, by - 6 + llama * 3, 8, 11, brasa.base);
+        elipse(ctx, cx + lado * 24, by - 8 + llama * 3, 5, 6, brasa.claro);
+      }
+      // Cabeza: una máscara oscura con dos ranuras encendidas.
+      bloque(ctx, cx - 12, by - 30, 24, 17, carbon);
+      px(ctx, cx - 12, by - 30, 24, 3, carbon.claro);
+      for (const lado of [-1, 1]) {
+        px(ctx, cx + lado * 6 - 4, by - 24, 8, 4, '#ffd24a');
+        px(ctx, cx + lado * 6 - 3, by - 23, 4, 2, '#fff6d0');
+      }
+      // Cuernos de fuego que se mueven con la llama.
+      for (const lado of [-1, 1]) {
+        for (let i = 0; i < 6; i++) {
+          px(
+            ctx,
+            cx + lado * (10 + i) + Math.round(llama * i * 0.4),
+            by - 32 - i,
+            3,
+            2,
+            i < 3 ? brasa.base : brasa.claro,
+          );
+        }
+      }
     },
   },
 };

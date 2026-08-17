@@ -554,6 +554,22 @@ export const VERSIONES: readonly Version[] = [
       'Y la mitad de las veces la élite suelta algo del botiquín',
     ],
   },
+  {
+    id: '7.0.0',
+    etapa: 'prealfa',
+    nombre: 'Un jefe por bioma',
+    resumen: 'Ya no hay un final: hay seis puertas, y se abren en el orden que quieras.',
+    cambios: [
+      'Rey limo en la pradera, reina escarabajo en el desierto y yeti en la nieve',
+      'Araña madre en la selva, devorador en la caverna y señor del fuego en el infierno',
+      'Cada uno se despierta con su ídolo, y el ídolo solo funciona en su sitio',
+      'Los seis rituales se preparan en el caldero con material de ese bioma',
+      'El infernal pide 200 rocas del infierno, infernita y dos reliquias',
+      'Los seis son de una dificultad parecida al guardián: no son una escalera',
+      'Cada uno deja su trofeo, que servirá para el equipo de bioma',
+      'La barra de arriba ya dice qué jefe es, y no siempre "el guardián"',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -632,6 +648,7 @@ export const DESDE = {
   alquimia: '6.9.0',
   ataquesEspeciales: '6.10.0',
   elitesPorTodas: '6.10.0',
+  jefesDeBioma: '7.0.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

@@ -23,7 +23,7 @@ import type { Caja } from './physics';
  * probar todas las trayectorias sin un solo bicho.
  */
 
-export type ClaseAtaque = 'bolaDeFuego' | 'arena' | 'ventisca' | 'veneno' | 'hueso';
+export type ClaseAtaque = 'bolaDeFuego' | 'arena' | 'ventisca' | 'veneno' | 'hueso' | 'gel';
 
 export interface DefAtaque {
   readonly nombre: string;
@@ -67,13 +67,14 @@ function ataque(nombre: string, extra: Partial<DefAtaque> & { color: string }): 
 }
 
 /**
- * Los cinco ataques.
+ * Los seis ataques.
  *
- * Tres llevan efecto y dos no, y no es un olvido: si todos pegaran un estado,
+ * Tres llevan efecto y tres no, y no es un olvido: si todos pegaran un estado,
  * cruzar cualquier sitio sería llevar tres cosas encima a la vez y el remedio
- * dejaría de ser una decisión para ser una obligación. Los dos que no lo llevan
- * —la arena y el hueso— se compensan por otro lado: la arena sale de tres en
- * tres y el hueso vuela el doble de rápido, así que esquivarlos también cuesta.
+ * dejaría de ser una decisión para ser una obligación. Los que no lo llevan
+ * —arena, gel y hueso— se compensan por otro lado: los dos primeros salen de
+ * varios en varios y el hueso vuela el doble de rápido, así que esquivarlos
+ * también cuesta.
  */
 export const ATAQUES: Readonly<Record<ClaseAtaque, DefAtaque>> = {
   bolaDeFuego: ataque('bola de fuego', {
@@ -114,6 +115,21 @@ export const ATAQUES: Readonly<Record<ClaseAtaque, DefAtaque>> = {
     // Pesa: se lanza en arco, así que subirse a algo lo evita y agacharse no.
     pesa: true,
     radio: 3,
+  }),
+  gel: ataque('salpicadura de limo', {
+    desde: '7.0.0',
+    // Lo del rey limo. Va en arco y de cuatro en cuatro: no quema ni envenena,
+    // pero llena el trozo de suelo donde estabas, y eso obliga a moverse todo
+    // el rato en una pelea que si no sería quedarse debajo pegando.
+    color: '#7fd15a',
+    dano: 10,
+    velocidad: 4.8,
+    alcance: 16,
+    cadencia: 130,
+    salvas: 4,
+    abanico: 0.22,
+    pesa: true,
+    radio: 5,
   }),
   hueso: ataque('hueso lanzado', {
     color: '#e4dfcc',

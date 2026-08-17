@@ -22,6 +22,12 @@ import {
   TRIGO,
   versionObjeto,
   versionDeclarada,
+  TROFEO_PRADERA,
+  TROFEO_DESIERTO,
+  TROFEO_NIEVE,
+  TROFEO_JUNGLA,
+  TROFEO_CUEVA,
+  TROFEO_INFIERNO,
 } from '../src/items/items';
 import {
   craftear,
@@ -102,6 +108,15 @@ const OTRAS_FUENTES = new Set<number>([
   ESPADA_GUARDIAN,
   ESENCIA,
   TRIGO,
+  // Los seis trofeos: los deja un jefe de bioma al morir, y el botín de los
+  // jefes no está en la tabla de botines porque no se reparte igual que el de
+  // un zombi. Se comprueban en `tests/jefes.test.ts`.
+  TROFEO_PRADERA,
+  TROFEO_DESIERTO,
+  TROFEO_NIEVE,
+  TROFEO_JUNGLA,
+  TROFEO_CUEVA,
+  TROFEO_INFIERNO,
 ]);
 
 describe('todo objeto se puede conseguir', () => {

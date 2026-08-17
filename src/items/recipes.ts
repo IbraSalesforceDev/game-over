@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, BARRO, BATERIA, CALDERO, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, BOMBILLA, CABLE, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, INTERRUPTOR, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
+import { ANTORCHA, ARENA, BARRO, BATERIA, CALDERO, HIELO, LIANA, NIEVE, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, BOMBILLA, CABLE, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, INTERRUPTOR, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -98,6 +98,13 @@ import {
   POCION_PIEDRA,
   POCION_LIGEREZA,
   POCION_REMEDIO,
+  IDOLO_PRADERA,
+  IDOLO_DESIERTO,
+  IDOLO_NIEVE,
+  IDOLO_JUNGLA,
+  IDOLO_CUEVA,
+  IDOLO_INFIERNO,
+  RELIQUIA,
 } from './items';
 
 /**
@@ -928,6 +935,88 @@ export const RECETAS: readonly Receta[] = [
       [ZANAHORIA_3, 1],
     ],
     resultado: POCION_REMEDIO,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  // --- Los seis rituales (7.0.0) --------------------------------------------
+  //
+  // Todos se preparan en el caldero, que con esto deja de ser solo el sitio de
+  // las pociones para ser el sitio de lo que no se forja. Y todos piden mucha
+  // cantidad de algo que solo hay en su bioma: no es por hacerlos caros, es
+  // porque juntar doscientas rocas del infierno obliga a estar allí un buen
+  // rato, y estar allí un buen rato es exactamente lo que tiene que haber
+  // pasado antes de pelear con lo que vive allí.
+  {
+    id: 'idolo-pradera',
+    desde: '7.0.0',
+    ingredientes: [
+      [GEL, 80],
+      [MADERA, 60],
+      [BAYAS, 20],
+    ],
+    resultado: IDOLO_PRADERA,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'idolo-desierto',
+    desde: '7.0.0',
+    ingredientes: [
+      [ARENA, 200],
+      [CACTUS, 30],
+      [HUESO, 20],
+    ],
+    resultado: IDOLO_DESIERTO,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'idolo-nieve',
+    desde: '7.0.0',
+    ingredientes: [
+      [HIELO, 150],
+      [NIEVE, 100],
+      [LINGOTE_PLATA, 12],
+    ],
+    resultado: IDOLO_NIEVE,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'idolo-jungla',
+    desde: '7.0.0',
+    ingredientes: [
+      [BARRO, 150],
+      [LIANA, 60],
+      [HOJAS_JUNGLA, 80],
+    ],
+    resultado: IDOLO_JUNGLA,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'idolo-cueva',
+    desde: '7.0.0',
+    ingredientes: [
+      [PIEDRA, 300],
+      [HUESO, 40],
+      [CARBON, 30],
+    ],
+    resultado: IDOLO_CUEVA,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    // El más caro de los seis, y con razón: para juntarlo hay que haber vivido
+    // en el inframundo, y quien puede pagarlo ya lleva equipo de los hondos.
+    id: 'idolo-infierno',
+    desde: '7.0.0',
+    ingredientes: [
+      [ROCA_INFERNAL, 200],
+      [LINGOTE_INFERNITA, 15],
+      [RELIQUIA, 2],
+    ],
+    resultado: IDOLO_INFIERNO,
     cantidad: 1,
     estacion: CALDERO,
   },

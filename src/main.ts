@@ -26,6 +26,13 @@ import {
   limpiarDisparos,
   type Disparo,
 } from './entities/ataques';
+import {
+  jefeDeInvocador,
+  sitioCorrecto,
+  trofeoDe,
+  type DefJefe,
+  type DondeEstoy,
+} from './world/jefes';
 import { crearAjustes, type Graficos } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
 import { crearMapa } from './ui/mapa';
@@ -183,6 +190,7 @@ import {
   esSemilla,
   siembraDe,
   esComida,
+  esInvocador,
   esPocion,
   esCristal,
   esCubo,
@@ -196,6 +204,7 @@ import {
 } from './items/items';
 import {
   biomaEn,
+  PROFUNDIDAD_PELIGRO,
   intentarAparicion,
   INTERVALO_INTENTO,
   RITMO_ESTRUCTURA,
@@ -1141,7 +1150,7 @@ async function arrancar(): Promise<void> {
     });
     sacudir(grande ? 9 : 2.4);
     audio.sonar(grande ? 'muerte' : 'muerte-bicho', grande ? 0.6 : 0.85 + Math.random() * 0.4);
-    if (grande) caerJefe();
+    if (grande) caerJefe(especie);
   }
 
   /**
@@ -1178,26 +1187,111 @@ async function arrancar(): Promise<void> {
     // El guardián no suelta reliquia pero sí lo suyo: la espada, la esencia y
     // el oro del que estaba hecho.
     if (esJefe(especie)) {
-      soltar(ESPADA_GUARDIAN, 1);
-      soltar(ESENCIA, 1);
-      soltar(LINGOTE_ORO, 12);
+      // El guardián de la fortaleza deja lo suyo de siempre; los seis de bioma
+      // dejan su trofeo. Se distinguen por si tienen trofeo y no por la especie
+      // para que añadir un jefe más no obligue a tocar esto.
+      const trofeo = trofeoDe(especie);
+      if (trofeo !== null) {
+        soltar(trofeo, 1);
+      } else {
+        soltar(ESPADA_GUARDIAN, 1);
+        soltar(ESENCIA, 1);
+        soltar(LINGOTE_ORO, 12);
+      }
     }
   }
 
   /** Remate de la caída del jefe: barra fuera, aviso y marca en la partida. */
-  function caerJefe(): void {
+  function caerJefe(especie: Enemigo['especie']): void {
     jefe = null;
     panelJefe.ocultar();
-    const primera = !partida.estado.jefeVencido;
-    partida.estado.jefeVencido = true;
-    aviso.mostrar(
-      primera
-        ? 'El guardián ha caído. La fortaleza es tuya.'
-        : 'El guardián vuelve a caer.',
-    );
+    const nombre = ENEMIGOS[especie].nombre;
+    // Solo el guardián marca la partida: es el que cierra la fortaleza. Los de
+    // bioma no cambian el estado del mundo, dejan un trofeo y ya.
+    if (especie === 'guardian') {
+      const primera = !partida.estado.jefeVencido;
+      partida.estado.jefeVencido = true;
+      aviso.mostrar(
+        primera ? 'El guardián ha caído. La fortaleza es tuya.' : 'El guardián vuelve a caer.',
+      );
+    } else {
+      aviso.mostrar(`Ha caído: ${nombre}`);
+    }
     // Guardar en el acto: perder la espada del jefe porque el navegador se
     // cerró antes del autoguardado sería el peor bug posible de este bloque.
     void guardar('auto');
+  }
+
+  /**
+   * Dónde está el jugador, para las reglas de los rituales.
+   *
+   * Se calcula aquí y no en `world/jefes` porque las tres respuestas —bioma,
+   * profundidad e inframundo— salen de tres sitios distintos del mundo, y
+   * mandarle el mundo entero a una tabla de datos sería darle la vuelta a quién
+   * depende de quién.
+   */
+  function dondeEstoy(): DondeEstoy {
+    const c = jugador.caja;
+    const tx = Math.floor((c.x + c.ancho / 2) / TILE);
+    const ty = Math.floor((c.y + c.alto) / TILE);
+    const superficie = motorLuz.alturaCielo[tx] ?? 0;
+    const techoInfra = tiene('inframundo')
+      ? techoInframundo(mundo.alto, tiene('mundoHondo'))
+      : mundo.alto;
+    return {
+      bioma: biomaEn(mundo, tx, ty),
+      bajoTierra: ty > superficie + PROFUNDIDAD_PELIGRO,
+      inframundo: ty >= techoInfra,
+    };
+  }
+
+  /**
+   * El ritual de un jefe de bioma: se gasta el ídolo y sale lo que vive ahí.
+   *
+   * Las dos comprobaciones —que no haya ya un jefe y que el sitio sea el suyo—
+   * van antes de gastar nada. Quemar un ídolo que ha costado doscientas rocas
+   * del infierno para que salga el aviso de "aquí no" sería el peor resultado
+   * posible de toda la versión.
+   */
+  function ritualDeBioma(def: DefJefe): void {
+    if (jefe) {
+      aviso.mostrar('Ya has despertado a algo', true);
+      return;
+    }
+    if (!sitioCorrecto(def, dondeEstoy())) {
+      aviso.mostrar(def.sitioMal, true);
+      return;
+    }
+    inventario.sacarDe(barra.seleccion, 1);
+    barra.refrescar(capa);
+
+    const d = ENEMIGOS[def.especie];
+    const c = jugador.caja;
+    // Nace a un lado y por encima, mirando al jugador: encima de la cabeza se
+    // solaparía con él y saldría empujado a saber dónde.
+    const nuevo = crearEnemigo(
+      def.especie,
+      c.x + c.mirando * (d.ancho + 40),
+      c.y - d.alto - 16,
+      nivelDif.fuerza,
+      false,
+      versionMundo,
+    );
+    enemigos.push(nuevo);
+    jefe = nuevo;
+    furiaAnunciada = false;
+
+    aviso.mostrar(def.aviso, true);
+    sacudir(9);
+    audio.sonar('rugido', 0.7);
+    particulas.emitir(nuevo.caja.x + d.ancho / 2, nuevo.caja.y + d.alto / 2, {
+      cantidad: 70,
+      color: d.color,
+      dispersion: 4.4,
+      empujeY: -1.6,
+      vida: 60,
+      tam: 3,
+    });
   }
 
   /**
@@ -1263,7 +1357,7 @@ async function arrancar(): Promise<void> {
     }
     const furioso = jefe.salud.vida < jefe.salud.vidaMax * MITAD_JEFE;
     panelJefe.mostrar(
-      ENEMIGOS.guardian.nombre,
+      ENEMIGOS[jefe.especie].nombre,
       jefe.salud.vida,
       jefe.salud.vidaMax,
       furioso,
@@ -1274,9 +1368,13 @@ async function arrancar(): Promise<void> {
       furiaAnunciada = true;
       audio.sonar('rugido', 1.15);
       sacudir(6);
-      aviso.mostrar('El guardián se enfurece', true);
+      aviso.mostrar(`${ENEMIGOS[jefe.especie].nombre}: se enfurece`, true);
     }
     if (!furioso) return;
+    // Los esbirros son cosa del guardián: es el que pelea en una sala cerrada
+    // con esqueletos alrededor. Un rey limo llamando esqueletos en mitad de un
+    // prado no dice nada de la pradera.
+    if (jefe.especie !== 'guardian') return;
     if (--relojEsbirros > 0) return;
     relojEsbirros = tiene('guardianReforzado')
       ? INTERVALO_ESBIRROS
@@ -1489,7 +1587,7 @@ async function arrancar(): Promise<void> {
     }
     for (const m of res.muertos) {
       repartirBotin(m.especie, m.tx, m.ty, m.elite);
-      if (esJefe(m.especie)) caerJefe();
+      if (esJefe(m.especie)) caerJefe(m.especie);
     }
 
     if (salud.muerto) {
@@ -1680,6 +1778,25 @@ async function arrancar(): Promise<void> {
       } else {
         aviso.mostrar('Ya tienes toda la vida que se puede tener');
       }
+      return;
+    }
+
+    // El ídolo: clic derecho y sale lo que vive en este bioma. Va antes que
+    // todo lo demás porque no apunta a ningún tile —el ritual pasa donde estás
+    // tú— y si cayera después de la rama de colocar, tener uno en la mano
+    // frente a un hueco intentaría ponerlo como bloque.
+    if (esInvocador(enMano)) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      const usar = puntero.der && !derAnterior;
+      derAnterior = puntero.der;
+      if (!usar) return;
+      if (!tiene('jefesDeBioma')) {
+        aviso.mostrar(`Los ídolos no existen en la versión ${versionMundo}`, true);
+        return;
+      }
+      const def = jefeDeInvocador(enMano);
+      if (def !== null) ritualDeBioma(def);
       return;
     }
 

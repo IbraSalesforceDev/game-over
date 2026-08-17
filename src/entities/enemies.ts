@@ -55,7 +55,14 @@ export type Especie =
   | 'espectro'
   | 'arana'
   | 'diablillo'
-  | 'guardian';
+  | 'guardian'
+  // --- Los seis jefes de bioma (7.0.0) ---
+  | 'reyLimo'
+  | 'reinaEscarabajo'
+  | 'yeti'
+  | 'aranaMadre'
+  | 'devorador'
+  | 'senorDelFuego';
 
 export interface DefEnemigo {
   readonly nombre: string;
@@ -390,6 +397,126 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     vuela: true,
     botin: ESENCIA,
     botinMax: 1,
+    nocturno: false,
+    jefe: true,
+  },
+  // --- Los seis jefes de bioma (7.0.0) -----------------------------------
+  //
+  // Uno por sitio, y los seis de una dificultad parecida a la del guardián: la
+  // idea no es una escalera de seis peldaños —eso obligaría a hacerlos en un
+  // orden concreto y convertiría cinco de ellos en trámite— sino seis puertas
+  // al mismo nivel, cada una en su bioma, que se abren en el orden que uno
+  // quiera. Lo que cambia entre ellos no es cuánto aguantan sino cómo pelean.
+  //
+  // Ninguno aparece solo: se invocan con su ídolo y en su sitio. Por eso no
+  // están en ninguna lista del generador de apariciones.
+  reyLimo: {
+    desde: '7.0.0',
+    nombre: 'rey limo',
+    // El más blando de los seis y el primero que casi todo el mundo va a
+    // intentar: vive en la pradera, que es donde se empieza. Pega poco por
+    // toque pero llena el suelo de blandones.
+    vida: 1250,
+    dano: 36,
+    ancho: 74,
+    alto: 54,
+    color: '#5ad07a',
+    colorOscuro: '#2a7040',
+    vuela: false,
+    botin: GEL,
+    botinMax: 40,
+    ataque: 'gel',
+    nocturno: false,
+    jefe: true,
+  },
+  reinaEscarabajo: {
+    desde: '7.0.0',
+    nombre: 'reina escarabajo',
+    // Vuela y escupe arena a puñados. En una duna abierta no hay dónde
+    // esconderse, así que la pelea se gana cavándose un sitio antes.
+    vida: 1400,
+    dano: 42,
+    ancho: 66,
+    alto: 46,
+    color: '#e0b45a',
+    colorOscuro: '#8a6a20',
+    vuela: true,
+    botin: GEL,
+    botinMax: 30,
+    ataque: 'arena',
+    nocturno: false,
+    jefe: true,
+  },
+  yeti: {
+    desde: '7.0.0',
+    nombre: 'yeti',
+    // El más duro de aguantar y el que menos pega: es el jefe con el que la
+    // pelea se hace larga y hay que administrar pociones, no reflejos.
+    vida: 1800,
+    dano: 38,
+    ancho: 56,
+    alto: 72,
+    color: '#dceef8',
+    colorOscuro: '#7d9db0',
+    vuela: false,
+    botin: HUESO,
+    botinMax: 25,
+    ataque: 'ventisca',
+    nocturno: false,
+    jefe: true,
+  },
+  aranaMadre: {
+    desde: '7.0.0',
+    nombre: 'araña madre',
+    // Anda y salta, y escupe veneno en arco. La menos aguantadora y la que más
+    // pega por toque: es la que castiga quedarse quieto pegando.
+    vida: 1200,
+    dano: 48,
+    ancho: 70,
+    alto: 44,
+    color: '#4f9b3a',
+    colorOscuro: '#26541c',
+    vuela: false,
+    botin: GEL,
+    botinMax: 30,
+    ataque: 'veneno',
+    nocturno: false,
+    jefe: true,
+  },
+  devorador: {
+    desde: '7.0.0',
+    nombre: 'devorador de piedra',
+    // Flota por la caverna tirando huesos, que vuelan rápido y no se esquivan
+    // en un pasillo: se pelea en una sala grande o no se pelea.
+    vida: 1550,
+    dano: 46,
+    ancho: 64,
+    alto: 64,
+    color: '#b8b2a0',
+    colorOscuro: '#6a6558',
+    vuela: true,
+    botin: HUESO,
+    botinMax: 35,
+    ataque: 'hueso',
+    nocturno: false,
+    jefe: true,
+  },
+  senorDelFuego: {
+    desde: '7.0.0',
+    nombre: 'señor del fuego',
+    // El más bruto de los seis, y a propósito: para llegar a su ídolo hay que
+    // haber bajado al inframundo y picar doscientas rocas infernales, así que
+    // quien lo invoca ya tiene equipo de los hondos.
+    vida: 1900,
+    dano: 54,
+    ancho: 68,
+    alto: 68,
+    color: '#ff7a3a',
+    colorOscuro: '#8f2a10',
+    vuela: true,
+    botin: LINGOTE_INFERNITA,
+    botinMax: 10,
+    ataque: 'bolaDeFuego',
     nocturno: false,
     jefe: true,
   },
@@ -861,6 +988,44 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
       break;
     }
 
+    // --- Los seis jefes de bioma (7.0.0) ---------------------------------
+    //
+    // Tres formas de moverse para seis jefes, y es a propósito: lo que hace
+    // distintas las seis peleas no es la trayectoria sino lo que lanzan y a qué
+    // ritmo. Seis IAs nuevas serían seis cosas más que mantener para que el
+    // jugador note, como mucho, que uno bota un poco distinto que otro.
+    case 'reyLimo':
+    case 'yeti': {
+      // Saltan como un slime, pero pesando lo que pesan: el salto es más alto,
+      // más largo y con muchísima más pausa entre uno y otro. Esa pausa es la
+      // ventana de la pelea —el rato en el que se pega— y por eso es larga.
+      if (c.enSuelo) {
+        c.vx *= 0.86;
+        if (e.reloj > 96) {
+          e.reloj = 0;
+          c.vy = -7.6;
+          c.vx = dir * 3.1;
+          c.mirando = dir;
+        }
+      }
+      break;
+    }
+
+    case 'aranaMadre': {
+      // Corre por el suelo y salta cuando el jugador está por encima o cuando
+      // algo le corta el paso. Es la única de los seis que persigue de verdad,
+      // y por eso es la que menos aguanta.
+      const objetivoVx = dir * 2.1;
+      c.vx += (objetivoVx - c.vx) * 0.14;
+      c.mirando = dir;
+      const atascada = Math.abs(c.vx) < 0.5 && Math.abs(dx) > 6;
+      if (c.enSuelo && (atascada || (dy < -50 && e.reloj % 70 === 0))) c.vy = -7.2;
+      break;
+    }
+
+    case 'reinaEscarabajo':
+    case 'devorador':
+    case 'senorDelFuego':
     case 'guardian': {
       // Dos velocidades y una embestida. En reposo flota hacia el jugador
       // despacio, con un bamboleo que impide predecir su altura exacta; cada
@@ -1242,6 +1407,15 @@ const VOCES_ESPECIE: Partial<Record<Especie, VozEnemigo>> = {
   espectro: 'chillido',
   arana: 'chillido',
   diablillo: 'gruñido',
+  // Los seis de bioma rugen, menos los dos que no tienen con qué: el rey limo
+  // gorgotea porque es una masa de gelatina, y la araña chilla como su especie.
+  // Un jefe mudo en mitad de un prado no avisa de nada.
+  reyLimo: 'gorgoteo',
+  reinaEscarabajo: 'chillido',
+  yeti: 'rugido',
+  aranaMadre: 'chillido',
+  devorador: 'rugido',
+  senorDelFuego: 'rugido',
 };
 
 export type VozEnemigo =

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TILE } from '../src/core/constants';
+import { VERSIONES } from '../src/core/versiones';
 import {
   ATAQUES,
   avanzarDisparos,
@@ -61,8 +62,9 @@ describe('la tabla de ataques', () => {
     }
   });
 
-  it('todos declaran de qué versión son', () => {
-    for (const clase of CLASES) expect(ATAQUES[clase].desde).toBe('6.10.0');
+  it('todos declaran de qué versión son, y es una que existe', () => {
+    const conocidas = new Set(VERSIONES.map((v) => v.id));
+    for (const clase of CLASES) expect(conocidas.has(ATAQUES[clase].desde), clase).toBe(true);
   });
 });
 
