@@ -308,6 +308,9 @@ function partidaNueva(
       estructuras: gen.estructuras,
       jefeVencido: false,
       versionJuego,
+      // La profundidad se fija al crear el mundo y ya no cambia: acompaña al
+      // mundo aunque después se migre a otra versión.
+      mundoHondo: hay('mundoHondo', versionJuego),
     },
   };
 }
@@ -1360,7 +1363,7 @@ async function arrancar(): Promise<void> {
         // es caverna corriente, y llenarla de diablillos sería meter en una
         // versión vieja algo que entonces no existía.
         inframundoTy: hay('inframundo', versionMundo)
-          ? techoInframundo(mundo.alto)
+          ? techoInframundo(mundo.alto, hay('mundoHondo', versionMundo))
           : undefined,
       });
       // Un élite se anuncia. Aparece fuera de pantalla como todo lo demás, y

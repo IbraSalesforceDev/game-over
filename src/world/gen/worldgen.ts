@@ -97,6 +97,16 @@ export interface OpcionesGen {
    * mismo mundo, y eso es lo que sostiene los tests.
    */
   version?: string;
+  /**
+   * Reparto de capas hondo, si se sabe.
+   *
+   * Manda sobre lo que diga la versión. La profundidad es propiedad del mundo y
+   * no de su versión: un mundo clásico que sube a 6.0.0 sigue midiendo lo que
+   * medía, y regenerarlo con el reparto hondo le movería el nivel del mar
+   * cincuenta y cinco filas sobre unos tiles que no se han movido. Sin esto, la
+   * migración de un mundo viejo a 6.0.0 daría "todo tocado" y no traería nada.
+   */
+  hondo?: boolean;
 }
 
 export interface Progreso {
@@ -130,38 +140,95 @@ export interface ResultadoGen {
  * baje, la única forma de que las dos cuentas sigan de acuerdo es que sea la
  * misma cuenta.
  */
-export function techoInframundo(alto: number): number {
-  return capas(alto).inframundo;
+export function techoInframundo(alto: number, hondo: boolean): number {
+  return capas(alto, hondo).inframundo;
 }
 
-function capas(alto: number) {
-  const nivelMar = Math.floor(alto * 0.22);
+/**
+ * Cuánto más alto es un mundo de 6.0.0 que el mismo tamaño de antes.
+ *
+ * Uno y medio y no tres, que era la idea original: un mundo titánico al triple
+ * son 148 MB de TypedArrays, y 296 durante una migración —el sistema regenera
+ * el mundo original para compararlo con el guardado—, que en un móvil no abre.
+ * A uno y medio el titánico se queda en 74 MB y ningún tamaño necesita
+ * excepción, que vale más que tener el más grande fuera del alcance de medio
+ * mundo.
+ */
+export const FACTOR_HONDO = 1.5;
+
+/** Ancho y alto de un tamaño en una versión concreta del juego. */
+export function dimensiones(
+  tamano: NombreTamano,
+  version: string = VERSION_ACTUAL,
+): { ancho: number; alto: number } {
+  const t = TAMANOS[tamano];
+  return {
+    ancho: t.ancho,
+    // El ancho no cambia: lo que se pidió fue profundidad. Y los mundos
+    // creados eligiendo una versión vieja salen con la altura de entonces,
+    // porque si no, elegir versión sería elegir a medias.
+    alto: hay('mundoHondo', version) ? Math.round(t.alto * FACTOR_HONDO) : t.alto,
+  };
+}
+
+function capas(alto: number, hondo: boolean) {
+  // Todo lo de arriba —cielo, relieve, tierra y dónde empieza la caverna— se
+  // mide contra la altura clásica y no contra la del mundo.
+  //
+  // Estirar el mundo entero por el factor habría dado un mundo idéntico visto
+  // de lejos: la misma proporción de cielo, la misma de caverna, solo que con
+  // los números más grandes. Y peor: en un mundo grande el nivel del mar habría
+  // bajado ochenta filas, o sea ochenta filas más de cielo vacío por las que
+  // nadie va a subir. Lo que se pedía era sitio abajo, así que todo lo que se
+  // añade va abajo y la superficie se juega exactamente igual que antes.
+  const arriba = hondo ? alto / FACTOR_HONDO : alto;
+  const nivelMar = Math.floor(arriba * 0.22);
+  const fondo = alto - 8;
   return {
     nivelMar,
     /** Amplitud del relieve por encima y por debajo del nivel del mar. */
-    amplitud: Math.max(8, Math.floor(alto * 0.05)),
+    amplitud: Math.max(8, Math.floor(arriba * 0.05)),
     /** Grosor medio de la capa de tierra bajo la hierba. */
-    grosorTierra: Math.max(20, Math.floor(alto * 0.075)),
+    grosorTierra: Math.max(20, Math.floor(arriba * 0.075)),
     /** Primera fila que puede tener cuevas, contada desde la superficie. */
     techoCuevas: 22,
     /** A partir de aquí empieza la caverna: piedra y cuevas grandes. */
-    caverna: Math.floor(alto * 0.42),
+    caverna: Math.floor(arriba * 0.42),
     /**
      * Techo del inframundo.
      *
-     * El último octavo del mundo es otro sitio: roca infernal que alumbra sola,
-     * lagos de lava y la única infernita que hay. Se llega cavando, como a todo
-     * lo demás, pero al cruzar el techo se nota que has salido de la caverna.
+     * Era el último octavo del mundo. En los hondos se lleva casi el doble de
+     * proporción —el 18 % de un mundo que además es medio más alto—, así que en
+     * un mundo grande pasa de ochenta filas a casi doscientas. Es lo que hacía
+     * falta para que quepan ahí abajo las fortalezas y los minerales propios sin
+     * que el sitio se llene con dos cosas.
      */
-    inframundo: Math.floor(alto * 0.88),
+    inframundo: hondo ? alto - Math.floor(alto * 0.18) : Math.floor(alto * 0.88),
     /** Filas macizas del fondo del mundo. */
-    fondo: alto - 8,
+    fondo,
+    /**
+     * Cuánto subsuelo tiene este mundo comparado con uno clásico.
+     *
+     * Las densidades del generador —vetas de mineral, charcas, coladas,
+     * cristales— se cuentan por columnas de ancho, que era exacto mientras
+     * todos los mundos tenían la misma proporción de subsuelo. En cuanto uno es
+     * más hondo deja de serlo: la misma cantidad de mineral repartida en medio
+     * mundo más de roca sale a la mitad de mineral por metro cavado, y lo que
+     * el jugador nota no es que el mundo sea más grande sino que está más
+     * vacío. Multiplicando por esto, cavar cien tiles sigue dando lo mismo.
+     */
+    escala: hondo ? (fondo - nivelMar) / (Math.floor(arriba) - 8 - nivelMar) : 1,
   };
 }
 
 /** Altura del terreno en una columna. Menor ty = más alto. */
-function alturaSuperficie(tx: number, op: OpcionesGen, semilla: number): number {
-  const c = capas(op.alto);
+function alturaSuperficie(
+  tx: number,
+  op: OpcionesGen,
+  semilla: number,
+  hondo: boolean,
+): number {
+  const c = capas(op.alto, hondo);
   // Dos escalas: colinas amplias y un rizado fino encima.
   const grande = fractal1D(tx / 220, semilla, { octavas: 3, persistencia: 0.55 });
   const fino = ruido1D(tx / 26, semilla + 77);
@@ -175,9 +242,10 @@ export function* generarMundoPasos(
   const semilla = semillaDeTexto(op.semilla);
   const rng = crearRngRico(semilla);
   const mundo = new Mundo(op.ancho, op.alto);
-  const c = capas(op.alto);
   const v = op.version ?? VERSION_ACTUAL;
   const tiene = (q: Caracteristica): boolean => hay(q, v);
+  const hondo = op.hondo ?? tiene('mundoHondo');
+  const c = capas(op.alto, hondo);
 
   // --- 1. Relieve y capas -------------------------------------------------
   yield { pct: 5, texto: 'Levantando el relieve…' };
@@ -187,7 +255,7 @@ export function* generarMundoPasos(
   const biomas = generarBiomas(op.ancho, semilla, rng, permitidos);
   const superficie = new Int32Array(op.ancho);
   for (let tx = 0; tx < op.ancho; tx++) {
-    superficie[tx] = alturaSuperficie(tx, op, semilla);
+    superficie[tx] = alturaSuperficie(tx, op, semilla, hondo);
   }
   // El desierto es una hondonada y la nieve una meseta: hundir y levantar el
   // relieve por bioma hace que se noten desde lejos, antes de pisarlos.
@@ -255,6 +323,7 @@ export function* generarMundoPasos(
         c.fondo,
         rng,
         tiene('cuevasDeBioma') ? biomas : undefined,
+        c.escala,
       )
     : { estructuras: [], cofres: [] };
 
@@ -636,7 +705,7 @@ function sembrarMinerales(
   ] as const;
 
   for (const veta of receta) {
-    const cuantas = Math.max(2, Math.floor(mundo.ancho * veta.densidad));
+    const cuantas = Math.max(2, Math.floor(mundo.ancho * veta.densidad * c.escala));
     for (let v = 0; v < cuantas; v++) {
       // Buscar un punto que sea piedra de verdad: una veta que nace dentro de
       // una caverna o en la capa de tierra no llega a plantarse, y sin reintento
@@ -697,7 +766,7 @@ function sembrarMineralesProfundos(
   ] as const;
 
   for (const veta of receta) {
-    const cuantas = Math.max(2, Math.floor(mundo.ancho * veta.densidad));
+    const cuantas = Math.max(2, Math.floor(mundo.ancho * veta.densidad * c.escala));
     for (let v = 0; v < cuantas; v++) {
       for (let intento = 0; intento < 24; intento++) {
         const cx = rng.entero(3, mundo.ancho - 4);
@@ -757,8 +826,12 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
     }
   }
 
-  // Vetas de infernita en lo que queda de roca.
-  const vetas = Math.max(4, Math.floor(mundo.ancho / 70));
+  // Vetas de infernita en lo que queda de roca. La cuenta va por área y no por
+  // ancho: el inframundo hondo mide casi doscientas filas en vez de ochenta, y
+  // con la cuenta vieja la infernita habría salido igual de escasa en un sitio
+  // del doble de grande.
+  const filas = suelo - techo;
+  const vetas = Math.max(4, Math.floor((mundo.ancho * filas) / 5700));
   for (let v = 0; v < vetas; v++) {
     for (let intento = 0; intento < 20; intento++) {
       const cx = rng.entero(3, mundo.ancho - 4);
@@ -782,7 +855,10 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
   // Se llena por filas y no por inundación a propósito. Un relleno se escapa
   // por el primer hueco; esto pinta una lámina a nivel, y una lámina a nivel es
   // justo lo que el simulador no tiene nada que hacer con: nace quieta.
-  const superficieMar = suelo - 9;
+  // Poco más de un cuarto del inframundo es mar. Antes eran nueve filas fijas,
+  // que en uno de ochenta era la novena parte y en uno de doscientas habría
+  // sido una raya en el fondo.
+  const superficieMar = suelo - Math.max(9, Math.floor(filas * 0.26));
   for (let ty = superficieMar; ty < suelo; ty++) {
     for (let tx = 1; tx < mundo.ancho - 1; tx++) {
       // El borde de arriba ondula: una raya recta de lava a lo ancho del mundo
@@ -797,7 +873,7 @@ function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): v
 
   // Y lagos de lava por encima del mar. Se cava la cuenca primero y se llena
   // después: es la única forma de que tengan fondo.
-  const lagos = Math.floor(mundo.ancho / 26);
+  const lagos = Math.floor((mundo.ancho * filas) / 2130);
   for (let i = 0; i < lagos; i++) {
     for (let intento = 0; intento < 40; intento++) {
       const tx = rng.entero(10, mundo.ancho - 11);
@@ -1055,7 +1131,7 @@ function sembrarCristales(
   c: Capas,
   rng: Rng,
 ): void {
-  const cuantos = Math.max(6, Math.floor(mundo.ancho / 100));
+  const cuantos = Math.max(6, Math.floor((mundo.ancho / 100) * c.escala));
   let puestos = 0;
   // Muchos más intentos que cristales: la mayoría caen en roca maciza.
   // El techo del inframundo corta por abajo: un cristal entre roca infernal no
@@ -1421,7 +1497,9 @@ function llenarLiquidos(
   }
 
   // --- Charcas subterráneas ---
-  const charcas = Math.floor(mundo.ancho / 90);
+  // Charcas y coladas escalan con el subsuelo: son de abajo, y en un mundo
+  // hondo la misma cuenta las dejaría a la mitad por metro cavado.
+  const charcas = Math.floor((mundo.ancho / 90) * c.escala);
   for (let i = 0; i < charcas; i++) {
     for (let intento = 0; intento < 30; intento++) {
       const tx = rng.entero(6, mundo.ancho - 7);
@@ -1437,7 +1515,7 @@ function llenarLiquidos(
   }
 
   // --- Lava del fondo ---
-  const coladas = Math.floor(mundo.ancho / 70);
+  const coladas = Math.floor((mundo.ancho / 70) * c.escala);
   const inicioLava = Math.floor(c.caverna + (c.fondo - c.caverna) * 0.45);
   for (let i = 0; i < coladas; i++) {
     for (let intento = 0; intento < 30; intento++) {

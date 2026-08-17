@@ -43,6 +43,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
     ],
     jefeVencido: true,
     versionJuego: '4.0.0',
+    mundoHondo: false,
     ...parcial,
   };
 }
@@ -153,6 +154,8 @@ describe('empaquetado', () => {
     const campoEstructuras = 2 + 9 * e.estructuras.length + 1;
     // El texto de la versión va con su longitud delante, como la semilla.
     const campoVersionJuego = 2 + new TextEncoder().encode(e.versionJuego).length;
+    // Y un byte para si el mundo nació hondo, del formato 14.
+    const campoMundoHondo = 1;
 
     const actual = serializar(m, e);
     const inicioRle =
@@ -167,7 +170,8 @@ describe('empaquetado', () => {
       campoEquipo +
       campoHardcore +
       campoEstructuras +
-      campoVersionJuego;
+      campoVersionJuego +
+      campoMundoHondo;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
@@ -181,9 +185,10 @@ describe('empaquetado', () => {
     if (version >= 10) extra += campoEquipo;
     if (version >= 11) extra += campoHardcore;
     if (version >= 12) extra += campoEstructuras;
-    // La versión del juego nunca: es del formato 13, y aquí solo se construyen
-    // cuerpos anteriores. Recortarla es justo lo que hace que el lector
-    // antiguo encuentre el RLE donde lo espera.
+    if (version >= 13) extra += campoVersionJuego;
+    // Lo del formato 14 nunca: aquí solo se construyen cuerpos anteriores, y
+    // recortar la cola es justo lo que hace que el lector antiguo encuentre el
+    // RLE donde lo espera.
 
     const salida = new Uint8Array(comun + extra + rle.length);
     salida.set(actual.subarray(0, comun + extra), 0);

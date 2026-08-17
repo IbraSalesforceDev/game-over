@@ -51,6 +51,7 @@ function estadoDe(version: string, parcial: Partial<EstadoPartida> = {}): Estado
     estructuras: [],
     jefeVencido: false,
     versionJuego: version,
+    mundoHondo: false,
     ...parcial,
   };
 }
@@ -291,6 +292,8 @@ describe('a dónde se puede ir', () => {
     expect(destinos.length).toBe(VERSIONES.length - 1);
     expect(destinos.some((v) => v.id === '3.0.0')).toBe(false);
     expect(destinos.some((v) => v.id === '1.0.0')).toBe(true);
+    // 6.0.0 incluida: un mundo clásico puede subir y llevarse el contenido
+    // nuevo sin cambiar de altura, porque la altura va guardada con el mundo.
     expect(destinos.some((v) => v.id === VERSION_ACTUAL)).toBe(true);
   });
 });

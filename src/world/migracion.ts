@@ -163,12 +163,16 @@ export function* migrarPasos(
 ): Generator<Progreso, ResultadoMigracion, void> {
   const desde = estado.versionJuego;
   const semilla = estado.semilla;
+  // La profundidad viene del mundo, no de ninguna de las dos versiones: las
+  // dos reconstrucciones tienen que usar el mismo reparto de capas o el diff
+  // compararía dos mundos que no se parecen en nada.
+  const hondo = estado.mundoHondo;
 
   yield { pct: 5, texto: `Reconstruyendo el mundo de ${desde}…` };
-  const original = yield* generarMundoPasos({ ...tamano, semilla, version: desde });
+  const original = yield* generarMundoPasos({ ...tamano, semilla, version: desde, hondo });
 
   yield { pct: 45, texto: `Generando el mundo de ${hasta}…` };
-  const destino = yield* generarMundoPasos({ ...tamano, semilla, version: hasta });
+  const destino = yield* generarMundoPasos({ ...tamano, semilla, version: hasta, hondo });
 
   yield { pct: 85, texto: 'Devolviendo lo que construiste…' };
   const tocado = marcarTocado(mundo, original.mundo);
@@ -330,6 +334,10 @@ export function migrarEstado(
 /** Versiones a las que se puede llevar un mundo: todas menos la suya. */
 export function destinosPosibles(desde: string): typeof VERSIONES {
   const i = indiceVersion(desde);
+  // Todas menos la suya, en los dos sentidos. La profundidad no limita nada:
+  // un mundo clásico puede subir a 6.0.0 y llevarse el contenido nuevo
+  // conservando su reparto de capas, porque el reparto va guardado con el
+  // mundo y no se deduce de la versión.
   return VERSIONES.filter((v) => indiceVersion(v.id) !== i);
 }
 

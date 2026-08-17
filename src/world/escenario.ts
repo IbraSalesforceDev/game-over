@@ -1,6 +1,12 @@
 import { DIFICULTADES, DIFICULTAD_POR_DEFECTO } from '../core/dificultad';
 import { hay, indiceVersion, VERSION_ACTUAL } from '../core/versiones';
-import { buscarSpawn, generarMundoPasos, TAMANOS, type NombreTamano } from './gen/worldgen';
+import {
+  buscarSpawn,
+  dimensiones,
+  generarMundoPasos,
+  TAMANOS,
+  type NombreTamano,
+} from './gen/worldgen';
 import { semillaAleatoria } from './gen/rng';
 import type { DatosCofre } from './contenedores';
 import type { Estructura } from './estructuras';
@@ -126,7 +132,10 @@ export function* prepararEscenario(
     };
   }
 
-  const tam = TAMANOS[op.tamano];
+  // La altura sale de la versión y no de la tabla: un mundo creado eligiendo
+  // 5.4.0 tiene que salir con la altura de 5.4.0, o elegir versión sería
+  // elegirla a medias.
+  const tam = dimensiones(op.tamano, version);
   const r = yield* generarMundoPasos({
     ancho: tam.ancho,
     alto: tam.alto,

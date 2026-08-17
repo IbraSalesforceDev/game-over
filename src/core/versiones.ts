@@ -357,6 +357,18 @@ export const VERSIONES: readonly Version[] = [
       'Zoom de ×1 a ×6, con las teclas + y −',
     ],
   },
+  {
+    id: '6.0.0',
+    etapa: 'prealfa',
+    nombre: 'Un mundo más hondo',
+    resumen: 'Medio mundo más de subsuelo, y un inframundo del doble de alto.',
+    cambios: [
+      'Todos los tamaños ganan un 50 % de altura',
+      'Lo nuevo va todo abajo: la superficie se juega igual',
+      'El inframundo pasa de ser un octavo a casi un quinto del mundo',
+      'Más mineral, cristales y agua, para que cavar rinda lo mismo',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -422,6 +434,7 @@ export const DESDE = {
   estructuras: '4.0.0',
   cuevasDeBioma: '5.2.0',
   arqueria: '5.4.0',
+  mundoHondo: '6.0.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

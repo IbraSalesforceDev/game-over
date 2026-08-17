@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { fractal1D, fractal2D, ruido1D, ruido2D } from '../src/world/gen/noise';
 import { crearRngRico, semillaDeTexto } from '../src/world/gen/rng';
-import { generarMundo, TAMANOS, techoInframundo } from '../src/world/gen/worldgen';
+import {
+  dimensiones,
+  FACTOR_HONDO,
+  generarMundo,
+  TAMANOS,
+  techoInframundo,
+  type NombreTamano,
+} from '../src/world/gen/worldgen';
 import { BOSQUE, DESIERTO, JUNGLA, NIEVE_B } from '../src/world/gen/biomas';
 import { SimuladorLiquidos } from '../src/world/liquids';
 import type { Mundo } from '../src/world/world';
@@ -496,12 +503,12 @@ describe('la lava tiene fondo', () => {
 
   it('ninguna lámina de un tile cruza el inframundo', () => {
     const { mundo } = generarMundo(OP);
-    expect(peorLamina(mundo, techoInframundo(mundo.alto))).toBeLessThan(60);
+    expect(peorLamina(mundo, techoInframundo(mundo.alto, true))).toBeLessThan(60);
   });
 
   it('los charcos del inframundo tienen calado de verdad', () => {
     const { mundo } = generarMundo(OP);
-    const h = calados(mundo, techoInframundo(mundo.alto)).sort((a, b) => a - b);
+    const h = calados(mundo, techoInframundo(mundo.alto, true)).sort((a, b) => a - b);
     expect(h.length).toBeGreaterThan(50);
     // La mediana era 1 —el 79 % de los charcos medía un solo tile de alto—.
     expect(h[Math.floor(h.length / 2)]!).toBeGreaterThanOrEqual(4);
@@ -509,7 +516,7 @@ describe('la lava tiene fondo', () => {
 
   it('hay mucha más lava que roca desnuda en el fondo', () => {
     const { mundo } = generarMundo(OP);
-    const techo = techoInframundo(mundo.alto);
+    const techo = techoInframundo(mundo.alto, true);
     let celdas = 0;
     for (let ty = techo; ty < mundo.alto; ty++) {
       for (let tx = 0; tx < mundo.ancho; tx++) {
@@ -529,6 +536,123 @@ describe('la lava tiene fondo', () => {
     for (; pasos < 6000; pasos++) if (sim.paso() === 0) break;
     expect(sim.pendientes).toBe(0);
     // Y una vez quieto, sigue sin haber láminas.
-    expect(peorLamina(mundo, techoInframundo(mundo.alto))).toBeLessThan(60);
+    expect(peorLamina(mundo, techoInframundo(mundo.alto, true))).toBeLessThan(60);
+  });
+});
+
+describe('un mundo más hondo (6.0.0)', () => {
+  /** El mismo tamaño en las dos versiones, para poder compararlos. */
+  function par(nombre: NombreTamano) {
+    const clasico = dimensiones(nombre, '5.4.0');
+    const hondo = dimensiones(nombre, '6.0.0');
+    return { clasico, hondo };
+  }
+
+  it('todos los tamaños crecen justo la mitad, y solo hacia abajo', () => {
+    for (const nombre of Object.keys(TAMANOS) as NombreTamano[]) {
+      const { clasico, hondo } = par(nombre);
+      expect(hondo.ancho).toBe(clasico.ancho);
+      expect(hondo.alto).toBe(Math.round(clasico.alto * FACTOR_HONDO));
+    }
+  });
+
+  it('el titánico sigue cabiendo en un móvil', () => {
+    const d = dimensiones('titanico', '6.0.0');
+    // Seis bytes por tile: dos de bloque, dos de pared, uno de banderas y uno
+    // de líquido. La migración necesita dos mundos a la vez, así que el número
+    // que importa es el doble.
+    const mb = (d.ancho * d.alto * 6) / 1024 / 1024;
+    expect(mb).toBeLessThan(80);
+    expect(mb * 2).toBeLessThan(160);
+  });
+
+  it('la superficie no se mueve ni un tile', () => {
+    // Es la regla que da sentido a todo esto: si el mundo se estirara entero,
+    // el nivel del mar bajaría ochenta filas y lo único que se ganaría sería
+    // cielo vacío por el que nadie va a subir.
+    const OP = { ancho: 900, alto: 0, semilla: 'HONDO' };
+    const a = generarMundo({ ...OP, alto: 500, version: '5.4.0' });
+    const b = generarMundo({ ...OP, alto: 750, version: '6.0.0' });
+    const media = (s: Int32Array): number =>
+      Math.round([...s].reduce((x, y) => x + y, 0) / s.length);
+    // Un tile de margen: el relieve base sale idéntico, pero después pasan por
+    // encima las cuevas y los lagos, y alguna de esas sí depende de lo hondo
+    // que sea el mundo. Lo que importa es que no se mueva una franja entera.
+    expect(Math.abs(media(b.superficie) - media(a.superficie))).toBeLessThanOrEqual(2);
+    // Y el relieve tiene el mismo tamaño: mismas montañas, no montañas de vez
+    // y media.
+    const rango = (s: Int32Array): number => Math.max(...s) - Math.min(...s);
+    expect(Math.abs(rango(b.superficie) - rango(a.superficie))).toBeLessThan(6);
+  });
+
+  it('todo lo que se gana va al subsuelo, y el inframundo se lleva la parte grande', () => {
+    const a = { ancho: 900, alto: 500 };
+    const b = { ancho: 900, alto: 750 };
+    const infraA = techoInframundo(a.alto, false);
+    const infraB = techoInframundo(b.alto, true);
+
+    // El inframundo más que dobla; el resto del subsuelo crece alrededor del 50 %.
+    const infraAltoA = a.alto - 8 - infraA;
+    const infraAltoB = b.alto - 8 - infraB;
+    expect(infraAltoB / infraAltoA).toBeGreaterThan(2);
+
+    const { superficie: sa } = generarMundo({ ...a, semilla: 'H', version: '5.4.0' });
+    const { superficie: sb } = generarMundo({ ...b, semilla: 'H', version: '6.0.0' });
+    const supA = Math.round([...sa].reduce((x, y) => x + y, 0) / sa.length);
+    const supB = Math.round([...sb].reduce((x, y) => x + y, 0) / sb.length);
+    expect((infraB - supB) / (infraA - supA)).toBeGreaterThan(1.4);
+  });
+
+  it('cavar cien tiles sigue dando lo mismo de mineral', () => {
+    // La cuenta de vetas va por columnas de ancho, que era exacto mientras
+    // todos los mundos tenían la misma proporción de subsuelo. Sin escalarla,
+    // un mundo hondo sale con la misma cantidad de mineral repartida en medio
+    // mundo más de roca: lo que se nota no es que sea más grande sino que está
+    // más vacío.
+    const METALES = new Set<number>(MINERALES);
+    const densidad = (alto: number, version: string): number => {
+      const { mundo, superficie } = generarMundo({
+        ancho: 900,
+        alto,
+        semilla: 'MINERAL',
+        version,
+      });
+      const sup = Math.round([...superficie].reduce((a, b) => a + b, 0) / superficie.length);
+      let n = 0;
+      for (let ty = sup; ty < mundo.alto - 8; ty++) {
+        for (let tx = 0; tx < mundo.ancho; tx++) {
+          if (METALES.has(mundo.getTile(tx, ty))) n++;
+        }
+      }
+      return n / (mundo.alto - 8 - sup);
+    };
+    const a = densidad(500, '5.4.0');
+    const b = densidad(750, '6.0.0');
+    expect(b).toBeGreaterThan(a * 0.85);
+    expect(b).toBeLessThan(a * 1.15);
+  });
+
+  it('un mundo creado con una versión vieja sale con la altura de entonces', () => {
+    // Elegir versión tiene que serlo del todo: un "grande" de 3.0.0 mide lo que
+    // medía un grande de 3.0.0.
+    expect(dimensiones('grande', '3.0.0').alto).toBe(TAMANOS.grande.alto);
+    expect(dimensiones('grande', '5.4.0').alto).toBe(TAMANOS.grande.alto);
+    expect(dimensiones('grande', '6.0.0').alto).toBeGreaterThan(TAMANOS.grande.alto);
+  });
+
+  it('la profundidad es del mundo y no de su versión', () => {
+    // Un mundo clásico que sube a 6.0.0 conserva su reparto de capas. Si se
+    // dedujera de la versión, el nivel del mar se le movería cincuenta filas
+    // sobre unos tiles que no se han movido y todo lo construido quedaría
+    // enterrado o colgando.
+    const clasico = generarMundo({ ancho: 500, alto: 500, semilla: 'X', version: '5.4.0' });
+    const subido = generarMundo({
+      ancho: 500,
+      alto: 500,
+      semilla: 'X',
+      version: '6.0.0',
+      hondo: false,
+    });
+    expect([...subido.superficie]).toEqual([...clasico.superficie]);
   });
 });

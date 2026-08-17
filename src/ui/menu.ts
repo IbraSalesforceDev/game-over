@@ -15,7 +15,7 @@ import { destinosPosibles } from '../world/migracion';
 import { VERSION_ANTES_DE_ELEGIR } from '../world/save';
 import type { MetaMundo, SaveAdapter } from '../world/almacen';
 import { semillaAleatoria } from '../world/gen/rng';
-import { TAMANOS, type NombreTamano } from '../world/gen/worldgen';
+import { dimensiones, TAMANOS, type NombreTamano } from '../world/gen/worldgen';
 
 /**
  * Menú de mundos: crear, cargar y borrar.
@@ -193,13 +193,29 @@ export function mostrarMenu(
       const lTam = document.createElement('label');
       lTam.textContent = 'Tamaño';
       const sTam = document.createElement('select');
-      for (const [clave, t] of Object.entries(TAMANOS)) {
+      for (const clave of Object.keys(TAMANOS)) {
         const op = document.createElement('option');
         op.value = clave;
-        op.textContent = `${t.nombre} · ${t.ancho}×${t.alto}`;
         sTam.appendChild(op);
       }
       lTam.appendChild(sTam);
+
+      /**
+       * Reetiqueta los tamaños con las medidas de la versión elegida.
+       *
+       * Desde 6.0.0 los mundos son medio más altos, así que un "grande" mide
+       * 3200×1125 o 3200×750 según con qué versión se cree. Enseñar siempre el
+       * número de hoy sería mentir justo en el desplegable donde se elige.
+       */
+      const pintarTamanos = (): void => {
+        const elegido = sTam.value;
+        for (const op of Array.from(sTam.options)) {
+          const t = TAMANOS[op.value as NombreTamano];
+          const d = dimensiones(op.value as NombreTamano, sVersion.value);
+          op.textContent = `${t.nombre} · ${d.ancho}×${d.alto}`;
+        }
+        if (elegido) sTam.value = elegido;
+      };
 
       // La dificultad se fija al crear el mundo y ya no se toca: por eso se
       // explica aquí en una línea, y no en un menú de opciones donde nadie la
@@ -250,6 +266,7 @@ export function mostrarMenu(
       resumenDif.className = 'resumen-dif';
       const pintarResumen = (): void => {
         const v = version(sVersion.value);
+        pintarTamanos();
         const conDif = hay('dificultad', v.id);
         const conHc = hay('hardcore', v.id);
         // Lo que la versión no tiene no se enseña en gris: se esconde. Un

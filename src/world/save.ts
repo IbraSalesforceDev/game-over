@@ -69,7 +69,7 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  * empaquetado sube el formato sin tocar el juego, y una tanda de contenido
  * sube el juego sin tocar el formato.
  */
-export const VERSION_FORMATO = 13;
+export const VERSION_FORMATO = 14;
 
 export interface EstadoJugador {
   x: number;
@@ -128,6 +128,18 @@ export interface EstadoPartida {
    * un mundo a una versión más nueva es otro asunto y todavía no se hace.
    */
   versionJuego: string;
+  /**
+   * El mundo se creó con el reparto de capas hondo de 6.0.0; formato 14.
+   *
+   * Es propiedad del mundo y no de su versión, igual que el ancho. Un mundo
+   * nace con una altura y ya no crece nunca: si esto se dedujera de
+   * `versionJuego`, actualizar un mundo clásico a 6.0.0 le movería el nivel del
+   * mar cincuenta y cinco filas hacia arriba sobre unos tiles que no se han
+   * movido, y todo lo que el jugador hubiera construido quedaría enterrado o
+   * colgando. Guardándolo aparte, un mundo viejo puede subir a 6.0.0 y llevarse
+   * el contenido nuevo —minerales, bichos, flechas— conservando su reparto.
+   */
+  mundoHondo: boolean;
 }
 
 /** Hora a la que amanecen los mundos guardados antes de que existiera el reloj. */
@@ -342,6 +354,8 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   e.u8(estado.jefeVencido ? 1 : 0);
   // Formato 13: la versión del juego. Al final del cuerpo, como todo lo nuevo.
   e.texto(estado.versionJuego);
+  // Formato 14: si el mundo nació hondo.
+  e.u8(estado.mundoHondo ? 1 : 0);
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -396,6 +410,9 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     // Un mundo sin versión apuntada es de antes de que se pudieran elegir, así
     // que se creó con todo lo que había: la última anterior a este formato.
     versionJuego: VERSION_ANTES_DE_ELEGIR,
+    // Todo lo anterior al formato 14 es de antes de que existieran los mundos
+    // hondos, así que es clásico por definición.
+    mundoHondo: false,
   };
   if (version >= 3) {
     const n = l.u16();
@@ -446,6 +463,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     estado.jefeVencido = l.u8() === 1;
   }
   if (version >= 13) estado.versionJuego = l.texto();
+  if (version >= 14) estado.mundoHondo = l.u8() === 1;
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

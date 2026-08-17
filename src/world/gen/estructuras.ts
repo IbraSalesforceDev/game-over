@@ -86,6 +86,15 @@ export function levantarEstructuras(
   fondo: number,
   rng: Rng,
   biomas?: MapaBiomas,
+  /**
+   * Cuánto subsuelo tiene este mundo comparado con uno clásico.
+   *
+   * Solo lo usan las minas y las cuevas de bioma, que viven abajo: en un mundo
+   * hondo la cuenta por columnas las dejaría a la mitad por metro cavado. La
+   * fortaleza no escala —hay una y solo una, y eso no depende del tamaño— ni
+   * las cabañas, que son de la superficie y la superficie no ha crecido.
+   */
+  escala = 1,
 ): ResultadoEstructuras {
   const salida: ResultadoEstructuras = { estructuras: [], cofres: [] };
 
@@ -94,7 +103,7 @@ export function levantarEstructuras(
   // Las cuevas de bioma van antes que las cabañas y las minas para que, si dos
   // quisieran el mismo sitio, gane la que da nombre al lugar.
   if (biomas) {
-    const cuantas = Math.max(1, Math.floor(mundo.ancho / 700));
+    const cuantas = Math.max(1, Math.floor((mundo.ancho / 700) * escala));
     for (let i = 0; i < cuantas; i++) {
       excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, DESIERTO);
       excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, NIEVE_B);
@@ -109,7 +118,7 @@ export function levantarEstructuras(
   for (let i = 0; i < cabanas; i++) {
     construirCabana(mundo, superficie, rng, salida);
   }
-  const minas = Math.max(1, Math.floor(mundo.ancho / 500));
+  const minas = Math.max(1, Math.floor((mundo.ancho / 500) * escala));
   for (let i = 0; i < minas; i++) {
     construirMina(mundo, superficie, caverna, fondo, rng, salida);
   }
@@ -462,6 +471,15 @@ function excavarCuevaDeBioma(
     for (const [dx, dy, r] of lobulos) {
       vaciarLobulo(mundo, cx + dx, cy + dy, r);
     }
+    // Y se le pone suelo. `forrar` solo cambia lo que ya era sólido, así que
+    // una cueva cavada justo encima de una caverna natural se quedaba sin
+    // fondo: la sala desaguaba por un agujero al piso de abajo y el cofre,
+    // que busca el primer sólido bajando, acababa fuera de la cueva a la que
+    // pertenecía. Se cierra columna a columna en vez de con un rectángulo
+    // porque el suelo de la sala es curvo y un rectángulo dejaría un escalón.
+    // Hasta donde llega el lóbulo por abajo: aplastado 1,7 en vertical, su
+    // media altura es el radio partido por raíz de 1,7, o sea 1,3 largo.
+    solar(mundo, cx, cy, Math.ceil(radio) + 4, Math.ceil(radio / 1.3) + 3, forro);
 
     // El cofre, apoyado en el suelo de la sala.
     const sy = suelo(mundo, cx, cy);
@@ -502,6 +520,36 @@ function ocupado(
     }
   }
   return false;
+}
+
+/**
+ * Cierra el fondo de una sala con el material del bioma.
+ *
+ * `forrar` solo cambia lo que ya era sólido, así que una cueva cavada sobre una
+ * caverna natural se quedaba sin fondo: la sala desaguaba al piso de abajo y el
+ * cofre, que busca el primer sólido bajando, acababa fuera de la cueva a la que
+ * pertenecía. En el peor caso —una sima justo debajo— la sala no tenía suelo en
+ * veinte tiles y no se leía como sala, sino como un tramo más de la caverna.
+ *
+ * Por eso el suelo se pone siempre y a una profundidad acotada: se baja como
+ * mucho hasta donde acaba la propia sala, y ahí se cierra caiga lo que caiga.
+ * Dos tiles de grosor, porque con uno el primer picotazo del jugador reabre el
+ * agujero que se estaba tapando.
+ */
+function solar(mundo: Mundo, cx: number, cy: number, alcance: number, hondo: number, id: number): void {
+  for (let dx = -alcance; dx <= alcance; dx++) {
+    const tx = cx + dx;
+    if (!mundo.dentro(tx, cy)) continue;
+    if (mundo.getTile(tx, cy) !== AIRE) continue;
+    let ty = cy;
+    const limite = Math.min(mundo.alto - 3, cy + hondo);
+    while (ty < limite && mundo.getTile(tx, ty + 1) === AIRE) ty++;
+    if (esSolido(mundo.getTile(tx, ty + 1))) continue;
+    mundo.setTile(tx, ty + 1, id);
+    mundo.setTile(tx, ty + 2, id);
+    mundo.setLiquido(tx, ty + 1, 0);
+    mundo.setLiquido(tx, ty + 2, 0);
+  }
 }
 
 /** Primer tile con suelo firme debajo, bajando desde un punto. */
