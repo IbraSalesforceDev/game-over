@@ -194,7 +194,8 @@ describe('nombres de los picos', () => {
   });
 
   it('un nivel disparatado no rompe el aviso', () => {
-    expect(nombrePicoDeNivel(99)).toBe('pico de oro');
+    // El último de la cadena, sea cual sea: hoy es la infernita.
+    expect(nombrePicoDeNivel(99)).toBe('pico de infernita');
     expect(nombrePicoDeNivel(0)).toBe('un pico');
   });
 });

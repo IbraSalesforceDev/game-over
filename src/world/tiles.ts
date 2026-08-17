@@ -55,6 +55,15 @@ export const BROTE = 43;
 // juego que no sale de ningún bioma— y el altar es la pieza que la justifica.
 export const LADRILLO = 44;
 export const ALTAR = 45;
+// 5.0.0: cuatro minerales más, la roca del inframundo y las lianas de la selva.
+// El carbón va por debajo de la piedra —se saca con las manos— y los otros tres
+// por encima del oro, cada uno más hondo que el anterior.
+export const CARBON = 46;
+export const COBALTO = 47;
+export const TITANIO = 48;
+export const INFERNITA = 49;
+export const ROCA_INFERNAL = 50;
+export const LIANA = 51;
 
 /**
  * Cultivos: primera etapa, última y qué se planta con qué semilla.
@@ -87,6 +96,15 @@ export const ESTACIONES = [MESA, HORNO, YUNQUE] as const;
 
 /** Minerales, de menos a más profundo. */
 export const MINERALES = [COBRE, HIERRO, PLATA, ORO] as const;
+
+/**
+ * Los tres metales de 5.0.0, que viven por debajo del oro.
+ *
+ * Van en su propia lista y no dentro de `MINERALES` porque no comparten sitio
+ * ni regla: los cuatro de siempre se reparten por toda la roca y estos empiezan
+ * donde acaban ellos. La infernita, además, solo existe en el inframundo.
+ */
+export const MINERALES_PROFUNDOS = [COBALTO, TITANIO, INFERNITA] as const;
 
 /** Suelos de superficie de cada bioma; se usan para vestir el terreno. */
 export const SUELOS_BIOMA = [HIERBA, ARENA, NIEVE, HIERBA_JUNGLA] as const;
@@ -271,6 +289,69 @@ export const TILES: readonly DefTile[] = [
     luz: 150,
     nivelPico: 6,
   },
+  // El carbón es lo contrario de un mineral raro: está por todas partes y se
+  // saca con las manos. Existe para que la primera noche no dependa de haber
+  // encontrado madera, y para que el horno tenga con qué arder más adelante.
+  {
+    nombre: 'carbón',
+    solido: true,
+    plataforma: false,
+    dureza: 30,
+    color: '#2f3238',
+    nivelPico: 0,
+  },
+  {
+    nombre: 'cobalto',
+    solido: true,
+    plataforma: false,
+    dureza: 120,
+    color: '#3f7fc4',
+    nivelPico: 5,
+  },
+  {
+    nombre: 'titanio',
+    solido: true,
+    plataforma: false,
+    dureza: 145,
+    color: '#c8d0d8',
+    nivelPico: 6,
+  },
+  // La infernita solo existe abajo del todo, y pide el pico que sale del
+  // cobalto: es el último escalón de la cadena de herramientas.
+  {
+    nombre: 'infernita',
+    solido: true,
+    plataforma: false,
+    dureza: 175,
+    color: '#e0552a',
+    luz: 60,
+    nivelPico: 7,
+  },
+  // La roca del inframundo alumbra un poco por sí sola: es lo que hace que allá
+  // abajo se vea el terreno sin antorchas y que el sitio se lea como otro mundo
+  // en vez de como una cueva más.
+  {
+    nombre: 'roca infernal',
+    solido: true,
+    plataforma: false,
+    dureza: 90,
+    color: '#6b2f26',
+    // Sube de 40 a 120: con la caída de luz por tile que hay, cuarenta se
+    // apagaba en tres tiles y el inframundo salía negro del todo. Con esto la
+    // sala se lee entera con su brasa roja de fondo, que es lo que lo hace otro
+    // sitio en vez de una cueva más honda.
+    luz: 120,
+    nivelPico: 4,
+  },
+  // Las lianas cuelgan y no frenan, como las hojas. Se agarran al techo de la
+  // selva y son lo que hace que mirar hacia arriba ahí signifique algo.
+  {
+    nombre: 'liana',
+    solido: false,
+    plataforma: false,
+    dureza: 6,
+    color: '#4f9a3a',
+  },
 ];
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
@@ -361,6 +442,12 @@ const TILE_DESDE: Readonly<Record<number, string>> = {
   [ZANAHORIA_3]: '3.2.0',
   [LADRILLO]: '4.0.0',
   [ALTAR]: '4.0.0',
+  [CARBON]: '5.0.0',
+  [COBALTO]: '5.0.0',
+  [TITANIO]: '5.0.0',
+  [INFERNITA]: '5.0.0',
+  [ROCA_INFERNAL]: '5.0.0',
+  [LIANA]: '5.0.0',
 };
 
 /** En qué se convierte cada tile cuando su versión queda por delante. */
@@ -402,6 +489,12 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [HIERRO]: PIEDRA,
   [PLATA]: PIEDRA,
   [ORO]: PIEDRA,
+  [CARBON]: PIEDRA,
+  [COBALTO]: PIEDRA,
+  [TITANIO]: PIEDRA,
+  [INFERNITA]: PIEDRA,
+  [ROCA_INFERNAL]: PIEDRA,
+  [LIANA]: AIRE,
 };
 
 /** Versión en la que apareció este tile. */
@@ -454,6 +547,8 @@ const MATERIAL_SONIDO: Readonly<Record<number, MaterialSonido>> = {
   [TIERRA_LABRADA]: 'tierra',
   [PIEDRA]: 'piedra',
   [ARENISCA]: 'piedra',
+  [ROCA_INFERNAL]: 'piedra',
+  [CARBON]: 'piedra',
   [OBSIDIANA]: 'piedra',
   [LADRILLO]: 'piedra',
   [ALTAR]: 'piedra',
@@ -471,10 +566,14 @@ const MATERIAL_SONIDO: Readonly<Record<number, MaterialSonido>> = {
   [HOJAS_PINO]: 'planta',
   [CANA]: 'planta',
   [BROTE]: 'planta',
+  [LIANA]: 'planta',
   [COBRE]: 'metal',
   [HIERRO]: 'metal',
   [PLATA]: 'metal',
   [ORO]: 'metal',
+  [COBALTO]: 'metal',
+  [TITANIO]: 'metal',
+  [INFERNITA]: 'metal',
   [YUNQUE]: 'metal',
   [HORNO]: 'piedra',
   [VIDRIO]: 'vidrio',

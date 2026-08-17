@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, CAMA, CANA, COBRE, esEstacion, HIERRO, HORNO, LADRILLO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, YUNQUE } from '../world/tiles';
+import { ANTORCHA, ARENA, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERRO, HORNO, INFERNITA, LADRILLO, MADERA, MESA, ORO, PIEDRA, PLATA, PLATAFORMA, COFRE, TITANIO, YUNQUE } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -55,6 +55,15 @@ import {
   TRIGO,
   PLUMA,
   BRUJULA,
+  LINGOTE_COBALTO,
+  LINGOTE_TITANIO,
+  LINGOTE_INFERNITA,
+  PICO_COBALTO,
+  PICO_TITANIO,
+  PICO_INFERNITA,
+  ESPADA_COBALTO,
+  ESPADA_TITANIO,
+  ESPADA_INFERNITA,
 } from './items';
 
 /**
@@ -445,9 +454,92 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 1,
     estacion: YUNQUE,
   },
+  // --- Los tres metales de 5.0.0 ---
+  //
+  // Se funden como los de siempre y se forjan como los de siempre: la cadena de
+  // herramientas no cambia de reglas al final, solo se alarga.
+  {
+    id: 'antorchas-carbon',
+    desde: '5.0.0',
+    ingredientes: [
+      [MADERA, 1],
+      [CARBON, 1],
+    ],
+    resultado: ANTORCHA,
+    cantidad: 6,
+    estacion: null,
+  },
+  {
+    id: 'lingote-cobalto',
+    desde: '5.0.0',
+    ingredientes: [
+      [COBALTO, 4],
+      [CARBON, 1],
+    ],
+    resultado: LINGOTE_COBALTO,
+    cantidad: 1,
+    estacion: HORNO,
+  },
+  {
+    id: 'lingote-titanio',
+    desde: '5.0.0',
+    ingredientes: [
+      [TITANIO, 4],
+      [CARBON, 2],
+    ],
+    resultado: LINGOTE_TITANIO,
+    cantidad: 1,
+    estacion: HORNO,
+  },
+  {
+    id: 'lingote-infernita',
+    desde: '5.0.0',
+    ingredientes: [
+      [INFERNITA, 4],
+      [CARBON, 3],
+    ],
+    resultado: LINGOTE_INFERNITA,
+    cantidad: 1,
+    estacion: HORNO,
+  },
+  ...forjas(),
   ...armaduras(),
   ...mapas(),
 ];
+
+/** Picos y espadas de los tres metales nuevos, que siguen el mismo patrón. */
+function forjas(): Receta[] {
+  const juegos: [number, number, number, number, number][] = [
+    [LINGOTE_COBALTO, PICO_COBALTO, ESPADA_COBALTO, 14, 11],
+    [LINGOTE_TITANIO, PICO_TITANIO, ESPADA_TITANIO, 16, 13],
+    [LINGOTE_INFERNITA, PICO_INFERNITA, ESPADA_INFERNITA, 18, 15],
+  ];
+  const nombres = ['cobalto', 'titanio', 'infernita'];
+  return juegos.flatMap(([lingote, pico, espada, costePico, costeEspada], i) => [
+    {
+      id: `pico-${nombres[i]}`,
+      desde: '5.0.0',
+      ingredientes: [
+        [lingote, costePico],
+        [MADERA, 4],
+      ],
+      resultado: pico,
+      cantidad: 1,
+      estacion: YUNQUE,
+    },
+    {
+      id: `espada-${nombres[i]}`,
+      desde: '5.0.0',
+      ingredientes: [
+        [lingote, costeEspada],
+        [MADERA, 3],
+      ],
+      resultado: espada,
+      cantidad: 1,
+      estacion: YUNQUE,
+    },
+  ]);
+}
 
 /**
  * Papel y la escalera de mapas.

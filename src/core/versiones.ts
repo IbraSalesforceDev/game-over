@@ -278,6 +278,20 @@ export const VERSIONES: readonly Version[] = [
       'Pantalla de confirmación con las cifras exactas de lo que se pierde',
     ],
   },
+  {
+    id: '5.0.0',
+    etapa: 'prealfa',
+    nombre: 'El mundo se hace grande',
+    resumen: 'Varios biomas de cada clase, cuatro minerales más y el inframundo.',
+    cambios: [
+      'Varios desiertos, selvas y nieves por mundo, de tamaños distintos',
+      'Los biomas bajan el triple de hondo',
+      'Tamaño de mundo titánico',
+      'Carbón, cobalto, titanio e infernita',
+      'El inframundo: roca que alumbra sola y lagos de lava',
+      'Lianas colgando de la selva',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -341,6 +355,9 @@ export const DESDE = {
   cristalesVida: '3.0.0',
   cana: '3.0.0',
   estructuras: '4.0.0',
+  mineralesProfundos: '5.0.0',
+  inframundo: '5.0.0',
+  lianas: '5.0.0',
 
   // --- Sistemas ---
   inventario: '1.6.0',

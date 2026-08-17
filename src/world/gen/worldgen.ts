@@ -13,6 +13,12 @@ import {
   HOJAS_JUNGLA,
   HOJAS_PINO,
   GRAVA,
+  CARBON,
+  COBALTO,
+  TITANIO,
+  INFERNITA,
+  ROCA_INFERNAL,
+  LIANA,
   HIERRO,
   HOJAS,
   NIEVE,
@@ -69,6 +75,9 @@ export const TAMANOS = {
   mediano: { ancho: 2100, alto: 600, nombre: 'mediano' },
   grande: { ancho: 3200, alto: 750, nombre: 'grande' },
   enorme: { ancho: 4800, alto: 900, nombre: 'enorme' },
+  // El titánico son 8,6 millones de tiles: 50 MB de TypedArray y algo más de un
+  // segundo de generación. Cabe, pero es el que hay que querer de verdad.
+  titanico: { ancho: 7200, alto: 1200, nombre: 'titánico' },
 } as const;
 
 export type NombreTamano = keyof typeof TAMANOS;
@@ -123,6 +132,14 @@ function capas(alto: number) {
     techoCuevas: 22,
     /** A partir de aquí empieza la caverna: piedra y cuevas grandes. */
     caverna: Math.floor(alto * 0.42),
+    /**
+     * Techo del inframundo.
+     *
+     * El último octavo del mundo es otro sitio: roca infernal que alumbra sola,
+     * lagos de lava y la única infernita que hay. Se llega cavando, como a todo
+     * lo demás, pero al cruzar el techo se nota que has salido de la caverna.
+     */
+    inframundo: Math.floor(alto * 0.88),
     /** Filas macizas del fondo del mundo. */
     fondo: alto - 8,
   };
@@ -179,7 +196,7 @@ export function* generarMundoPasos(
   // --- 3. Minerales -------------------------------------------------------
   yield { pct: 72, texto: 'Sembrando minerales…' };
   sembrarMinerales(mundo, superficie, c, rng, biomas, tiene('biomasNuevos'));
-  if (tiene('cristalesVida')) sembrarCristales(mundo, superficie, c, rng);
+  if (tiene('mineralesProfundos')) sembrarMineralesProfundos(mundo, superficie, c, rng);
 
   // --- 4. Líquidos --------------------------------------------------------
   //
@@ -190,11 +207,26 @@ export function* generarMundoPasos(
   // Después del agua, no antes: la mitad de la grava va en el fondo de los
   // lagos y los mares, y antes de llenarlos no hay fondo que forrar.
   if (tiene('grava')) sembrarGrava(mundo, superficie, c, rng, biomas);
+  // Los cristales, después del agua y no antes: sembrados primero, la charca
+  // que se llenaba encima los dejaba dentro del agua. Se veía poco y era un
+  // fallo latente desde 3.0.0.
+  if (tiene('cristalesVida')) sembrarCristales(mundo, superficie, c, rng);
+
+  // --- 4b. Inframundo -----------------------------------------------------
+  //
+  // Después de los líquidos y antes de la superficie: la lava del inframundo la
+  // pone él a su manera, en lagos anchos, y no quiere que la colada normal se
+  // le mezcle.
+  if (tiene('inframundo')) {
+    yield { pct: 84, texto: 'Abriendo el inframundo…' };
+    excavarInframundo(mundo, c, rng, semilla);
+  }
 
   // --- 5. Superficie ------------------------------------------------------
   yield { pct: 88, texto: 'Plantando el bosque…' };
   vestirSuperficie(mundo, superficie, biomas, rng, semilla);
   if (tiene('cana')) plantarCanas(mundo, superficie, rng);
+  if (tiene('lianas')) colgarLianas(mundo, superficie, biomas, rng);
 
   // --- 6. Estructuras -----------------------------------------------------
   //
@@ -245,13 +277,18 @@ type Capas = ReturnType<typeof capas>;
  */
 function suavizarRelievePorBioma(superficie: Int32Array, biomas: MapaBiomas): void {
   const ancho = superficie.length;
-  const TRANSICION = 30;
+  // Sube de 30 a 44 en 5.0.0: con varias franjas por lado, y algunas
+  // estrechas, los taludes de dos biomas seguidos se sumaban y salían
+  // escalones de cinco tiles entre columnas contiguas.
+  const TRANSICION = 64;
   const desnivel = new Float32Array(ancho);
   for (let tx = 0; tx < ancho; tx++) {
     const b = biomas[tx]!;
     // La selva se hunde: el agua se junta en las hondonadas, y así la selva
     // acaba siendo el bioma de los charcos sin tener que colocarlos a mano.
-    desnivel[tx] = b === DESIERTO ? 7 : b === NIEVE_B ? -5 : b === JUNGLA ? 6 : 0;
+    // Más marcados que antes: el desierto es una hondonada de verdad y la
+    // nieve una meseta alta. Es lo que hace que se vean venir desde lejos.
+    desnivel[tx] = b === DESIERTO ? 10 : b === NIEVE_B ? -9 : b === JUNGLA ? 8 : 0;
   }
   // Media móvil: es la forma más barata de convertir un escalón en una rampa.
   const suave = new Float32Array(ancho);
@@ -318,7 +355,10 @@ function pelarCumbres(mundo: Mundo, superficie: Int32Array, biomas: MapaBiomas):
   const UMBRAL = 20;
 
   for (let tx = 0; tx < ancho; tx++) {
-    if (biomas[tx] === DESIERTO) continue;
+    // Ni el desierto ni la nieve: la duna y la meseta nevada están altas o
+    // bajas por ser lo que son, no por haber una montaña debajo, y pelarles la
+    // costra dejaría un desierto de piedra y una cumbre nevada sin nieve.
+    if (biomas[tx] === DESIERTO || biomas[tx] === NIEVE_B) continue;
     const sobre = media - superficie[tx]!;
     if (sobre < UMBRAL) continue;
     // Cuanto más alto, más gruesa la costra de piedra; el ruido rompe la raya.
@@ -374,7 +414,11 @@ function rellenarCapas(
       finBioma +
       (bioma === BOSQUE
         ? 0
-        : Math.round((26 + (ruido1D(tx / 23, semilla + 877) - 0.5) * 20) * cuna));
+        // Tres veces más hondo que antes: un bioma que se acaba a treinta
+        // tiles de la superficie es una capa de pintura. Así el desierto y la
+        // nieve tienen subsuelo propio en el que cavar, y bajar dentro de uno
+        // sigue siendo estar dentro de él.
+        : Math.round((78 + (ruido1D(tx / 23, semilla + 877) - 0.5) * 40) * cuna));
 
     for (let ty = sup; ty < alto; ty++) {
       const id =
@@ -610,6 +654,171 @@ function sembrarMinerales(
 }
 
 /**
+ * Los tres metales de 5.0.0, y el carbón.
+ *
+ * El carbón va aparte de todos: es el único mineral que se saca con las manos y
+ * está por todas partes, desde justo debajo de la hierba. Existe para que la
+ * primera noche no dependa de haber encontrado un árbol.
+ *
+ * Los otros tres empiezan donde acaban los cuatro de siempre. La infernita no
+ * se siembra aquí sino en el inframundo, que es el único sitio donde existe.
+ */
+function sembrarMineralesProfundos(
+  mundo: Mundo,
+  superficie: Int32Array,
+  c: Capas,
+  rng: Rng,
+): void {
+  const receta = [
+    { id: CARBON, desde: 0.02, hasta: 0.6, densidad: 0.07, tamano: [7, 18] },
+    { id: COBALTO, desde: 0.55, hasta: 0.95, densidad: 0.018, tamano: [4, 10] },
+    { id: TITANIO, desde: 0.72, hasta: 1.0, densidad: 0.011, tamano: [3, 8] },
+  ] as const;
+
+  for (const veta of receta) {
+    const cuantas = Math.max(2, Math.floor(mundo.ancho * veta.densidad));
+    for (let v = 0; v < cuantas; v++) {
+      for (let intento = 0; intento < 24; intento++) {
+        const cx = rng.entero(3, mundo.ancho - 4);
+        const techo = superficie[cx]! + 6;
+        // Se para en el techo del inframundo: ahí abajo manda la infernita.
+        const suelo = Math.min(c.fondo, c.inframundo - 4);
+        const rango = suelo - techo;
+        const cy = Math.round(techo + rng.rango(veta.desde, veta.hasta) * rango);
+        if (cy <= techo || cy >= suelo) continue;
+        if (mundo.getTile(cx, cy) !== PIEDRA) continue;
+        let tx = cx;
+        let ty = cy;
+        for (let p = 0, pasos = rng.entero(veta.tamano[0], veta.tamano[1]); p < pasos; p++) {
+          pintarBlob(mundo, tx, ty, rng.rango(0.9, 2), veta.id);
+          tx += rng.entero(-1, 1);
+          ty += rng.entero(-1, 1);
+        }
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * El inframundo: el último octavo del mundo.
+ *
+ * No es una cueva más grande. Se sustituye la roca entera por roca infernal
+ * —que alumbra sola, así que allá abajo se ve sin gastar antorchas—, se abren
+ * salas mucho más anchas que las de la caverna y el suelo se llena de lagos de
+ * lava. Es lo que hace que cruzar su techo se note en el mismo instante.
+ */
+function excavarInframundo(mundo: Mundo, c: Capas, rng: Rng, semilla: number): void {
+  const techo = c.inframundo;
+  const suelo = c.fondo;
+
+  for (let ty = techo; ty < suelo; ty++) {
+    for (let tx = 0; tx < mundo.ancho; tx++) {
+      const id = mundo.getTile(tx, ty);
+      if (id === AIRE) continue;
+      // La transición no es una raya: se mezcla con la piedra en las primeras
+      // filas, para que el techo se vea como un cambio de terreno y no como el
+      // borde de un decorado.
+      const mezcla = Math.min(1, (ty - techo) / 14);
+      if (rng.suerte(mezcla)) mundo.setTile(tx, ty, ROCA_INFERNAL);
+    }
+  }
+
+  // Salas anchas. El ruido se estira mucho en horizontal a propósito: lo que
+  // define el inframundo es que se camina, no que se trepa.
+  for (let ty = techo + 6; ty < suelo - 2; ty++) {
+    for (let tx = 2; tx < mundo.ancho - 2; tx++) {
+      const n = fractal2D(tx / 70, ty / 22, semilla + 5171, {
+        octavas: 2,
+        persistencia: 0.5,
+      });
+      if (n > 0.52) mundo.setTile(tx, ty, AIRE);
+    }
+  }
+
+  // Vetas de infernita en lo que queda de roca.
+  const vetas = Math.max(4, Math.floor(mundo.ancho / 70));
+  for (let v = 0; v < vetas; v++) {
+    for (let intento = 0; intento < 20; intento++) {
+      const cx = rng.entero(3, mundo.ancho - 4);
+      const cy = rng.entero(techo + 8, suelo - 3);
+      if (mundo.getTile(cx, cy) !== ROCA_INFERNAL) continue;
+      let tx = cx;
+      let ty = cy;
+      for (let p = 0, pasos = rng.entero(4, 11); p < pasos; p++) {
+        pintarBlobSobre(mundo, tx, ty, rng.rango(0.9, 2.1), INFERNITA, ROCA_INFERNAL);
+        tx += rng.entero(-1, 1);
+        ty += rng.entero(-1, 1);
+      }
+      break;
+    }
+  }
+
+  // Y lagos de lava en el suelo. Anchos y poco hondos: lo que se busca es que
+  // haya que rodearlos, no que se caiga uno dentro sin verlos.
+  const lagos = Math.floor(mundo.ancho / 45);
+  for (let i = 0; i < lagos; i++) {
+    for (let intento = 0; intento < 30; intento++) {
+      const tx = rng.entero(6, mundo.ancho - 7);
+      const ty = rng.entero(suelo - 24, suelo - 3);
+      if (mundo.getTile(tx, ty) !== AIRE) continue;
+      if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
+      if (inundar(mundo, tx, ty, 260, true, ty - 3, ty + 3) > 20) break;
+    }
+  }
+}
+
+/** Como `pintarBlob` pero sobre un material concreto en vez de sobre piedra. */
+function pintarBlobSobre(
+  mundo: Mundo,
+  cx: number,
+  cy: number,
+  radio: number,
+  id: number,
+  sobre: number,
+): void {
+  const r2 = radio * radio;
+  for (let ty = Math.floor(cy - radio); ty <= Math.ceil(cy + radio); ty++) {
+    for (let tx = Math.floor(cx - radio); tx <= Math.ceil(cx + radio); tx++) {
+      const dx = tx - cx;
+      const dy = ty - cy;
+      if (dx * dx + dy * dy > r2) continue;
+      if (mundo.getTile(tx, ty) === sobre) mundo.setTile(tx, ty, id);
+    }
+  }
+}
+
+/**
+ * Lianas colgando de la selva.
+ *
+ * Se agarran a cualquier hoja de selva que tenga aire debajo y bajan unos
+ * cuantos tiles. Es el detalle que hace que en la selva merezca la pena mirar
+ * hacia arriba: la techumbre deja de ser un techo plano y pasa a tener fondo.
+ */
+function colgarLianas(
+  mundo: Mundo,
+  superficie: Int32Array,
+  biomas: MapaBiomas,
+  rng: Rng,
+): void {
+  for (let tx = 2; tx < mundo.ancho - 2; tx++) {
+    if (biomas[tx] !== JUNGLA) continue;
+    const techo = Math.max(1, superficie[tx]! - 30);
+    for (let ty = techo; ty < superficie[tx]!; ty++) {
+      if (mundo.getTile(tx, ty) !== HOJAS_JUNGLA) continue;
+      if (mundo.getTile(tx, ty + 1) !== AIRE) continue;
+      if (!rng.suerte(0.3)) continue;
+      const largo = rng.entero(2, 9);
+      for (let d = 1; d <= largo; d++) {
+        if (mundo.getTile(tx, ty + d) !== AIRE) break;
+        mundo.setTile(tx, ty + d, LIANA);
+      }
+      break;
+    }
+  }
+}
+
+/**
  * Grava: en el fondo de las masas de agua y en vetas poco profundas.
  *
  * Va donde va porque de ella saldrá el pedernal, y buscar pedernal tiene que
@@ -730,13 +939,16 @@ function sembrarCristales(
   const cuantos = Math.max(6, Math.floor(mundo.ancho / 100));
   let puestos = 0;
   // Muchos más intentos que cristales: la mayoría caen en roca maciza.
-  for (let intento = 0; intento < cuantos * 260 && puestos < cuantos; intento++) {
+  // El techo del inframundo corta por abajo: un cristal entre roca infernal no
+  // se distingue del resplandor del propio sitio.
+  const suelo = Math.min(c.fondo, c.inframundo) - 3;
+  for (let intento = 0; intento < cuantos * 600 && puestos < cuantos; intento++) {
     const tx = rng.entero(4, mundo.ancho - 5);
     // Nunca cerca de la superficie: un cristal a la vista desde el spawn se
     // recoge sin haber bajado a ninguna cueva.
     const techo = superficie[tx]! + 30;
-    if (techo >= c.fondo - 4) continue;
-    const ty = rng.entero(techo, c.fondo - 3);
+    if (techo >= suelo - 1) continue;
+    const ty = rng.entero(techo, suelo);
     if (mundo.getTile(tx, ty) !== AIRE) continue;
     if (mundo.getTile(tx, ty - 1) !== AIRE) continue;
     if (!esSolido(mundo.getTile(tx, ty + 1))) continue;
@@ -815,7 +1027,9 @@ function vestirSuperficie(
     const espesura = ruido1D(tx / 90, semillaArboles);
     const probabilidad =
       bioma === DESIERTO
-        ? 0.07
+        // Sube de 0.07: un desierto con dos cactus en cien columnas se lee como
+        // una playa. Lo que dice "desierto" a primera vista es la densidad.
+        ? 0.16
         // La selva es espesa de verdad: casi el doble que el bosque, y sin el
         // término de espesura que abre claros. Una selva con claros es un
         // bosque con hojas más oscuras.
@@ -1241,9 +1455,19 @@ function inundar(
 /** Marco de roca: el mundo no se acaba en un agujero por el que caerse. */
 function cerrarBordes(mundo: Mundo): void {
   const { ancho, alto } = mundo;
-  mundo.rellenar(0, 0, 1, alto - 1, PIEDRA);
-  mundo.rellenar(ancho - 2, 0, ancho - 1, alto - 1, PIEDRA);
-  mundo.rellenar(0, alto - 3, ancho - 1, alto - 1, PIEDRA);
+  const macizo = (tx0: number, ty0: number, tx1: number, ty1: number): void => {
+    mundo.rellenar(tx0, ty0, tx1, ty1, PIEDRA);
+    // Y se seca lo que hubiera: un mar que llegaba al borde dejaba el agua
+    // metida dentro de la roca del marco, que es la única forma que tenía este
+    // mundo de acabar con líquido dentro de un bloque. Salió al ensanchar los
+    // biomas, porque los mares empezaron a tocar el canto del mundo.
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) mundo.setLiquido(tx, ty, 0);
+    }
+  };
+  macizo(0, 0, 1, alto - 1);
+  macizo(ancho - 2, 0, ancho - 1, alto - 1);
+  macizo(0, alto - 3, ancho - 1, alto - 1);
 }
 
 /**

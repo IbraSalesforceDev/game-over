@@ -23,7 +23,13 @@ import {
   BROTE,
   CAMA,
   CANA,
+  CARBON,
+  COBALTO,
+  INFERNITA,
   LADRILLO,
+  LIANA,
+  ROCA_INFERNAL,
+  TITANIO,
   GRAVA,
   HIERBA_JUNGLA,
   OBSIDIANA,
@@ -140,6 +146,17 @@ export const RELIQUIA = 124;
 export const BRUJULA = 125;
 export const ESPADA_GUARDIAN = 126;
 export const ESENCIA = 127;
+// 5.0.0: los tres metales nuevos, con su lingote, su pico y su espada. El
+// carbón no tiene lingote —no se funde, se quema— y va como material suelto.
+export const LINGOTE_COBALTO = 128;
+export const LINGOTE_TITANIO = 129;
+export const LINGOTE_INFERNITA = 130;
+export const PICO_COBALTO = 131;
+export const PICO_TITANIO = 132;
+export const PICO_INFERNITA = 133;
+export const ESPADA_COBALTO = 134;
+export const ESPADA_TITANIO = 135;
+export const ESPADA_INFERNITA = 136;
 
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
@@ -379,6 +396,25 @@ const ENTRADAS: [number, DefObjeto][] = [
   deTile(HOJAS_PINO),
   deTile(GRAVA),
   deTile(OBSIDIANA),
+  deTile(ROCA_INFERNAL),
+  deTile(LIANA),
+  // Los minerales nuevos, en bruto: se funden como los de siempre. El carbón
+  // no: se usa tal cual, y por eso es el único que no tiene lingote.
+  deTile(CARBON, 'material'),
+  deTile(COBALTO, 'material'),
+  deTile(TITANIO, 'material'),
+  deTile(INFERNITA, 'material'),
+  lingote(LINGOTE_COBALTO, 'lingote de cobalto', '#3f7fc4'),
+  lingote(LINGOTE_TITANIO, 'lingote de titanio', '#c8d0d8'),
+  lingote(LINGOTE_INFERNITA, 'lingote de infernita', '#e0552a'),
+  pico(PICO_COBALTO, 'pico de cobalto', '#3f7fc4', 380, 7),
+  pico(PICO_TITANIO, 'pico de titanio', '#c8d0d8', 470, 8),
+  pico(PICO_INFERNITA, 'pico de infernita', '#e0552a', 620, 9),
+  // Las tres espadas se meten entre la de hierro y la del guardián, que sigue
+  // siendo la mejor: lo que se gana peleando no lo puede igualar la minería.
+  espada(ESPADA_COBALTO, 'espada de cobalto', '#3f7fc4', 30, 30, 44),
+  espada(ESPADA_TITANIO, 'espada de titanio', '#c8d0d8', 34, 30, 46),
+  espada(ESPADA_INFERNITA, 'espada de infernita', '#e0552a', 38, 31, 48),
   // El vidrio no es un tile del generador: solo existe si alguien funde arena,
   // así que se declara aquí con su propio nombre en vez de salir de `deTile`.
   [
@@ -573,6 +609,9 @@ const PICO_DE_NIVEL: readonly number[] = [
   PICO_HIERRO,
   PICO_PLATA,
   PICO_ORO,
+  PICO_COBALTO,
+  PICO_TITANIO,
+  PICO_INFERNITA,
 ];
 
 /**
@@ -678,6 +717,10 @@ export function maxPila(id: number): number {
  */
 const DESCRIPCIONES: Readonly<Record<number, string>> = {
   [PICO_MADERA]: 'El primer pico. Con él se saca piedra, y con la piedra todo lo demás.',
+  [CARBON]: 'Se saca con las manos y está por todas partes. Antorchas baratas.',
+  [INFERNITA]: 'Solo existe en el inframundo. Late aunque esté en el zurrón.',
+  [LIANA]: 'Cuelga de la techumbre de la selva.',
+  [ROCA_INFERNAL]: 'La piedra del inframundo. Alumbra un poco por sí sola.',
   [PALA_HIERRO]: 'Vuela cavando tierra, arena y nieve. Contra la piedra es un desastre.',
   [AZADA]: 'Clic derecho sobre hierba o tierra: la deja labrada para sembrar.',
   [ARCO]: 'Clic izquierdo hacia donde apunte el ratón. Gasta una flecha por disparo.',
@@ -806,6 +849,15 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
     ],
   ],
   ['4.0.0', [LADRILLO, RELIQUIA, BRUJULA, ESPADA_GUARDIAN, ESENCIA]],
+  [
+    '5.0.0',
+    [
+      CARBON, COBALTO, TITANIO, INFERNITA, ROCA_INFERNAL, LIANA,
+      LINGOTE_COBALTO, LINGOTE_TITANIO, LINGOTE_INFERNITA,
+      PICO_COBALTO, PICO_TITANIO, PICO_INFERNITA,
+      ESPADA_COBALTO, ESPADA_TITANIO, ESPADA_INFERNITA,
+    ],
+  ],
 ];
 
 const VERSION_DE_OBJETO = new Map<number, string>();

@@ -246,8 +246,11 @@ describe('biomas', () => {
     const { mundo, biomas, superficie } = generarMundo(OP);
     const suelos = new Map<number, Set<number>>();
     for (let tx = 4; tx < mundo.ancho - 4; tx += 3) {
-      let ty = Math.max(0, superficie[tx]! - 6);
-      while (ty < mundo.alto && mundo.getTile(tx, ty) === AIRE) ty++;
+      let ty = Math.max(0, superficie[tx]! - 30);
+      // Lo que crece encima no es suelo: se baja hasta el primer bloque que
+      // frene de verdad. Con la selva llena de lianas y la taiga de pinos, la
+      // primera cosa no-aire de la columna casi nunca es el terreno.
+      while (ty < mundo.alto && !esSolido(mundo.getTile(tx, ty))) ty++;
       const id = mundo.getTile(tx, ty);
       if (!suelos.has(biomas[tx]!)) suelos.set(biomas[tx]!, new Set());
       suelos.get(biomas[tx]!)!.add(id);
@@ -425,13 +428,17 @@ describe('líquidos del mundo generado', () => {
   });
 
   it('hay cumbres de piedra por encima de la media del terreno', () => {
-    const { mundo, superficie } = generarMundo(OP);
+    const { mundo, superficie, biomas } = generarMundo(OP);
     let suma = 0;
     for (let tx = 0; tx < mundo.ancho; tx++) suma += superficie[tx]!;
     const media = suma / mundo.ancho;
     let cumbresConPiedra = 0;
     let cumbres = 0;
     for (let tx = 0; tx < mundo.ancho; tx++) {
+      // La nieve está alta por ser una meseta, no por tener una montaña
+      // debajo, y el desierto está bajo por ser una hondonada: ni una ni otro
+      // se pelan, así que tampoco cuentan como cumbre aquí.
+      if (biomas[tx] === NIEVE_B || biomas[tx] === DESIERTO) continue;
       if (media - superficie[tx]! < 24) continue;
       cumbres++;
       if (mundo.getTile(tx, superficie[tx]!) === PIEDRA) cumbresConPiedra++;
