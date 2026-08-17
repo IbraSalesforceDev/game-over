@@ -68,6 +68,7 @@ habría partida que jugar ni forma de guardarla.
 | 4.2.0 | Elegir versión al crear el mundo |
 | 4.2.1 | Las versiones viejas también se ven viejas: sprites, fondo, luz e iconos de su época |
 | 4.2.2 | Ningún objeto se cuela: cada uno dice de qué versión es y no aparece en las anteriores |
+| 4.3.0 | Cambiar de versión un mundo ya creado, hacia delante y hacia atrás |
 
 ## Por dónde se comprueba
 
@@ -87,9 +88,49 @@ El menú de depuración solo ofrece lo que existe en el mundo abierto. Tiene un
 interruptor de «sin límite de versión» para cuando de verdad haga falta, y lo
 dice en voz alta en vez de dejarlo pasar por descuido.
 
+## Cambiar de versión un mundo ya creado
+
+Desde la 4.3.0, cada mundo de la lista tiene un desplegable para llevarlo a
+cualquier otra versión, hacia delante o hacia atrás.
+
+La regla es una sola: **lo que has tocado se conserva; lo que nunca tocaste
+pasa a ser lo que habría sido en la otra versión.**
+
+Sale gratis en espacio y es exacta, no aproximada. El mundo es una función de
+la semilla y la versión, así que se regenera el mundo prístino de la versión de
+origen y se compara con el tuyo: lo que difiere es, exactamente, lo que hiciste.
+Después se genera el prístino de la versión de destino y se le pegan encima esas
+diferencias. No hace falta guardar un bit de «tile tocado» —que además no
+existiría en las partidas ya guardadas.
+
+Alrededor de todo lo tocado se conserva además un margen de seis tiles de
+terreno. Es lo que evita que una casa construida en una llanura acabe dentro de
+una montaña que la versión nueva pone ahí. Minecraft resuelve esto conservando
+los trozos de mundo ya generados, al precio de que se vean las costuras; aquí el
+precio es que el terreno pegado a tus construcciones se queda como estaba.
+
+### Qué se rompe al bajar
+
+Lo que no cabe en la versión de destino se va, y se dice antes con cifras
+exactas en una pantalla de confirmación:
+
+- **Los bloques** se convierten en su pariente más cercano, no en un agujero: el
+  ladrillo de fortaleza pasa a piedra, la hierba de selva a hierba, el barro a
+  tierra, el tronco de ceiba a tronco. Solo se quedan en aire los que de verdad
+  no tienen equivalente — una caña, un altar, un cultivo.
+- **Los objetos** que aún no existían desaparecen del zurrón, del equipo y de
+  los cofres.
+- **El estado**: el hardcore se apaga por debajo de 3.2.0, la dificultad vuelve
+  a normal por debajo de 3.0.0, los corazones de más se pierden con los
+  cristales de vida, y los líquidos se secan por debajo de 2.1.0.
+
+No hay vuelta atrás automática: lo que se pierde al bajar no reaparece al
+volver a subir. Lo dice la propia pantalla antes de aceptar.
+
 ## Lo que queda pendiente
 
-**Actualizar un mundo a una versión más nueva.** Hoy la versión de un mundo se
-fija al crearlo y no cambia. Subirla significa sembrar en terreno ya excavado
-—minerales, biomas, la fortaleza— sin pisar lo que haya construido quien juega,
-y eso pide su propia tanda.
+**Réplicas exactas del motor.** Hoy se rebobinan el contenido y el aspecto, pero
+las físicas, la caché de chunks, el formato de guardado y la carpintería de la
+interfaz son los de hoy en todas las versiones. Para que jugar a 1.1.0 fuera
+literalmente jugar a 1.1.0 haría falta que el juego llevara dentro las versiones
+antiguas de esos módulos, no solo interruptores.

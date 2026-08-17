@@ -10,6 +10,9 @@ import {
   VERSIONES,
   VERSION_ACTUAL,
 } from '../core/versiones';
+import { alMenos } from '../core/versiones';
+import { destinosPosibles } from '../world/migracion';
+import { VERSION_ANTES_DE_ELEGIR } from '../world/save';
 import type { MetaMundo, SaveAdapter } from '../world/almacen';
 import { semillaAleatoria } from '../world/gen/rng';
 import { TAMANOS, type NombreTamano } from '../world/gen/worldgen';
@@ -33,7 +36,8 @@ export type Eleccion =
       /** Versión del juego con la que se crea el mundo. */
       version: string;
     }
-  | { tipo: 'cargar'; meta: MetaMundo };
+  | { tipo: 'cargar'; meta: MetaMundo }
+  | { tipo: 'migrar'; meta: MetaMundo; destino: string };
 
 const ESTILO = `
 #menu {
@@ -92,6 +96,9 @@ const ESTILO = `
 #menu .resumen-version ul { margin: 6px 0 0 14px; color: #7f8c9b; }
 #menu .resumen-version li { margin-bottom: 2px; }
 #menu .aviso-version { margin-top: 7px; color: #b08a4a; }
+#menu select.migrar {
+  max-width: 148px; padding: 6px 7px; font-size: 10px; flex: none;
+}
 #menu .aviso-dif { color: #b08a4a; }
 #menu label.hardcore {
   flex-direction: row; align-items: center; gap: 6px; padding-bottom: 7px;
@@ -359,6 +366,31 @@ export function mostrarMenu(
         jugar.textContent = meta.caido ? 'Ver' : 'Jugar';
         jugar.addEventListener('click', () => cerrar({ tipo: 'cargar', meta }));
 
+        // --- Cambiar de versión ---
+        //
+        // Va en la fila del mundo y no en un menú aparte porque es una acción
+        // sobre ese mundo concreto, como borrarlo. El desplegable lista todas
+        // las versiones menos la suya, hacia delante y hacia atrás.
+        const versionMundo = meta.versionJuego ?? VERSION_ANTES_DE_ELEGIR;
+        const sMigrar = document.createElement('select');
+        sMigrar.className = 'migrar';
+        const vacia = document.createElement('option');
+        vacia.value = '';
+        vacia.textContent = 'Cambiar versión…';
+        sMigrar.appendChild(vacia);
+        for (const v of [...destinosPosibles(versionMundo)].reverse()) {
+          const op = document.createElement('option');
+          op.value = v.id;
+          const flecha = alMenos(v.id, versionMundo) ? '↑' : '↓';
+          op.textContent = `${flecha} ${v.id} · ${v.nombre}`;
+          sMigrar.appendChild(op);
+        }
+        sMigrar.addEventListener('change', () => {
+          const destino = sMigrar.value;
+          sMigrar.value = '';
+          if (destino) cerrar({ tipo: 'migrar', meta, destino });
+        });
+
         const borrar = document.createElement('button');
         borrar.className = 'peligro';
         borrar.textContent = 'Borrar';
@@ -378,7 +410,7 @@ export function mostrarMenu(
           await pintar();
         });
 
-        fila.append(datos, jugar, borrar);
+        fila.append(datos, sMigrar, jugar, borrar);
         caja.appendChild(fila);
       }
 

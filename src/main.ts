@@ -34,6 +34,8 @@ import {
   type Capa,
 } from './world/edit';
 import { leerOpciones, prepararEscenario } from './world/escenario';
+import { migrarPasos, planMigracion } from './world/migracion';
+import { confirmarVersion } from './ui/confirmarversion';
 import { faltaParaOfrenda, pagarOfrenda, textoFalta } from './world/altar';
 import {
   estructuraMasCercana,
@@ -222,6 +224,8 @@ interface Partida {
   nombre: string;
   /** El laboratorio de físicas no se guarda: es una herramienta, no una partida. */
   guardable: boolean;
+  /** Acaba de cambiar de versión: hay que guardarla en cuanto se pueda. */
+  migrada?: boolean;
 }
 
 /**
@@ -355,6 +359,43 @@ async function elegirPartida(
   progreso(70, 'Descomprimiendo…');
   await siguienteFrame();
   const { mundo, estado } = await desempaquetar(bytes);
+
+  if (eleccion.tipo === 'migrar') {
+    // El plan se calcula con el mundo ya en memoria: las cifras que enseña son
+    // las de verdad, no una estimación. Por eso la confirmación llega después
+    // de la pantalla de carga y no antes de ella.
+    ocultarCargador();
+    const plan = planMigracion(mundo, estado, eleccion.destino);
+    const adelante = await confirmarVersion(capaUI, plan, eleccion.meta.nombre);
+    if (!adelante) {
+      // Volver al menú es recargar: el arranque está montado para ejecutarse
+      // una vez, y deshacerlo a mano sería inventarse un ciclo de vida.
+      window.location.href = window.location.pathname;
+      await new Promise(() => {});
+    }
+    mostrarCargador();
+    await siguienteFrame();
+    const it = migrarPasos(mundo, estado, eleccion.destino, {
+      ancho: mundo.ancho,
+      alto: mundo.alto,
+    });
+    let paso = it.next();
+    while (!paso.done) {
+      progreso(paso.value.pct, paso.value.texto);
+      await siguienteFrame();
+      paso = it.next();
+    }
+    return {
+      mundo: paso.value.mundo,
+      estado: paso.value.estado,
+      zonas: [],
+      id: eleccion.meta.id,
+      nombre: eleccion.meta.nombre,
+      guardable: true,
+      migrada: true,
+    };
+  }
+
   return {
     mundo,
     estado,
@@ -1899,6 +1940,11 @@ async function arrancar(): Promise<void> {
       dibujarDebug(renderer.ctx, renderer.camara, jugador, debug, renderer.escala);
     },
   );
+
+  // Un mundo recién migrado se guarda en el acto. Esperar al autoguardado
+  // significaría que cerrar la pestaña en los primeros treinta segundos deja
+  // el mundo en la versión vieja después de haber confirmado el cambio.
+  if (partida.migrada) void guardar('auto');
 
   progreso(100, 'Listo');
   // Un mundo hardcore en el que ya se murió se abre para mirarlo, no para

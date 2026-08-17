@@ -265,6 +265,19 @@ export const VERSIONES: readonly Version[] = [
       'Lo que se cuele en el zurrón no se puede usar',
     ],
   },
+  {
+    id: '4.3.0',
+    etapa: 'prealfa',
+    nombre: 'Cambiar de versión',
+    resumen: 'Un mundo ya creado puede subir o bajar de versión, con lo que eso rompe.',
+    cambios: [
+      'Subir o bajar cualquier mundo a cualquier versión',
+      'Lo que construiste se conserva, con su terreno alrededor',
+      'Lo que nunca tocaste se rehace con la generación de la otra versión',
+      'Los bloques que no existían se convierten en su pariente más cercano',
+      'Pantalla de confirmación con las cifras exactas de lo que se pierde',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

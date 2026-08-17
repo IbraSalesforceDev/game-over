@@ -305,6 +305,135 @@ export function esBlando(id: number): boolean {
 }
 
 /**
+ * En qué versión apareció cada tile, y en qué se convierte al retroceder.
+ *
+ * Las dos cosas juntas porque son la misma decisión: si un mundo vuelve a una
+ * versión donde la selva no existía, hay que saber que la hierba de selva es de
+ * 3.1.0 *y* que lo razonable es dejar hierba normal en su sitio, no un agujero.
+ *
+ * El sustituto no es siempre aire, y ahí está la gracia. Un bloque colocado por
+ * quien juega es trabajo suyo: convertir su casa de ladrillo en un vacío sería
+ * castigarle por cambiar de versión. Se busca el pariente más cercano que ya
+ * existiera —ladrillo a piedra, tronco de selva a tronco— y solo se deja aire
+ * cuando de verdad no hay equivalente: una caña, un altar, un cultivo.
+ *
+ * La cadena se sigue hasta el final: la hierba de selva vuelve a hierba, y si
+ * la versión fuera tan vieja que ni la hierba existiera, seguiría a tierra.
+ */
+const TILE_DESDE: Readonly<Record<number, string>> = {
+  [TRONCO]: '1.3.0',
+  [HOJAS]: '1.3.0',
+  [COBRE]: '1.3.0',
+  [HIERRO]: '1.3.0',
+  [PLATA]: '1.3.0',
+  [ORO]: '1.3.0',
+  [ANTORCHA]: '1.5.0',
+  [MESA]: '1.7.0',
+  [HORNO]: '1.7.0',
+  [YUNQUE]: '1.7.0',
+  [COFRE]: '1.7.0',
+  [ARENA]: '2.1.0',
+  [ARENISCA]: '2.1.0',
+  [CACTUS]: '2.1.0',
+  [NIEVE]: '2.1.0',
+  [HIELO]: '2.1.0',
+  [CRISTAL_VIDA]: '3.0.0',
+  [CANA]: '3.0.0',
+  [TIERRA_LABRADA]: '3.0.0',
+  [BARRO]: '3.1.0',
+  [HIERBA_JUNGLA]: '3.1.0',
+  [TRONCO_JUNGLA]: '3.1.0',
+  [HOJAS_JUNGLA]: '3.1.0',
+  [TRONCO_ABEDUL]: '3.1.0',
+  [HOJAS_PINO]: '3.1.0',
+  [GRAVA]: '3.1.0',
+  [OBSIDIANA]: '3.2.0',
+  [VIDRIO]: '3.2.0',
+  [CAMA]: '3.2.0',
+  [BROTE]: '3.2.0',
+  [TRIGO_0]: '3.2.0',
+  [TRIGO_1]: '3.2.0',
+  [TRIGO_2]: '3.2.0',
+  [TRIGO_3]: '3.2.0',
+  [ZANAHORIA_0]: '3.2.0',
+  [ZANAHORIA_1]: '3.2.0',
+  [ZANAHORIA_2]: '3.2.0',
+  [ZANAHORIA_3]: '3.2.0',
+  [LADRILLO]: '4.0.0',
+  [ALTAR]: '4.0.0',
+};
+
+/** En qué se convierte cada tile cuando su versión queda por delante. */
+const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
+  [HIERBA_JUNGLA]: HIERBA,
+  [BARRO]: TIERRA,
+  [TRONCO_JUNGLA]: TRONCO,
+  [TRONCO_ABEDUL]: TRONCO,
+  [HOJAS_JUNGLA]: HOJAS,
+  [HOJAS_PINO]: HOJAS,
+  [GRAVA]: PIEDRA,
+  [OBSIDIANA]: PIEDRA,
+  [LADRILLO]: PIEDRA,
+  [ARENISCA]: PIEDRA,
+  [HIELO]: PIEDRA,
+  [VIDRIO]: ARENA,
+  [ARENA]: TIERRA,
+  [NIEVE]: TIERRA,
+  [CAMA]: MADERA,
+  [MESA]: MADERA,
+  [COFRE]: MADERA,
+  [HORNO]: PIEDRA,
+  [YUNQUE]: PIEDRA,
+  [TIERRA_LABRADA]: TIERRA,
+  [HIERBA]: TIERRA,
+  [TRONCO]: MADERA,
+  // Sin equivalente posible: lo que era una planta, un mueble raro o el altar
+  // se queda en aire. Poner piedra donde había una caña taparía el cielo.
+  [CACTUS]: AIRE,
+  [CANA]: AIRE,
+  [BROTE]: AIRE,
+  [CRISTAL_VIDA]: AIRE,
+  [ALTAR]: AIRE,
+  [ANTORCHA]: AIRE,
+  [HOJAS]: AIRE,
+  [PLATAFORMA]: AIRE,
+  // Los minerales vuelven a ser la roca de la que salieron.
+  [COBRE]: PIEDRA,
+  [HIERRO]: PIEDRA,
+  [PLATA]: PIEDRA,
+  [ORO]: PIEDRA,
+};
+
+/** Versión en la que apareció este tile. */
+export function versionTile(id: number): string {
+  return TILE_DESDE[id] ?? PRIMERA_VERSION_TILE;
+}
+
+/** Los bloques del principio: tierra, hierba, piedra, madera y plataforma. */
+export const PRIMERA_VERSION_TILE = '1.2.0';
+
+/**
+ * En qué se convierte un tile al volver a una versión que no lo conocía.
+ *
+ * Sigue la cadena de sustitutos hasta dar con uno que sí exista: la hierba de
+ * selva vuelve a hierba, y si tampoco la hubiera, a tierra. El límite de vueltas
+ * es una red contra un ciclo mal escrito en la tabla, no una regla del juego.
+ */
+export function sustitutoTile(
+  id: number,
+  existeEn: (tile: number) => boolean,
+): number {
+  let actual = id;
+  for (let vuelta = 0; vuelta < 8; vuelta++) {
+    if (existeEn(actual)) return actual;
+    const siguiente = TILE_SUSTITUTO[actual];
+    if (siguiente === undefined) return AIRE;
+    actual = siguiente;
+  }
+  return AIRE;
+}
+
+/**
  * De qué suena hecho un bloque.
  *
  * No es lo mismo que su textura ni que su dureza: la grava se pinta con el
