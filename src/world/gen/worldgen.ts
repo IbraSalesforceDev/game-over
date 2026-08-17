@@ -120,6 +120,20 @@ export interface ResultadoGen {
 }
 
 /** Perfil de capas, en fracciones de la altura del mundo. */
+/**
+ * Fila en la que empieza el inframundo, para quien no genera nada.
+ *
+ * La partida cargada no vuelve a llamar a `capas` —el mundo ya está escrito en
+ * los tiles— pero el generador de apariciones necesita saber a qué altura deja
+ * de haber caverna y empieza el sitio de los diablillos. Se saca de aquí y no
+ * de una constante suelta en el spawner porque el día que el inframundo suba o
+ * baje, la única forma de que las dos cuentas sigan de acuerdo es que sea la
+ * misma cuenta.
+ */
+export function techoInframundo(alto: number): number {
+  return capas(alto).inframundo;
+}
+
 function capas(alto: number) {
   const nivelMar = Math.floor(alto * 0.22);
   return {

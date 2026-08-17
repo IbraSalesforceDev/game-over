@@ -317,6 +317,20 @@ export const VERSIONES: readonly Version[] = [
       'La brújula y el mapa también las señalan',
     ],
   },
+  {
+    id: '5.3.0',
+    etapa: 'prealfa',
+    nombre: 'Lo que vive abajo',
+    resumen: 'Cuatro enemigos nuevos, uno por cada profundidad, y élites de noche.',
+    cambios: [
+      'Gólem de arenisca en el subsuelo del desierto',
+      'Espectro de hielo en el de la nieve',
+      'Araña en la selva, de día y de noche',
+      'Diablillos en el inframundo, que estaba vacío',
+      'De noche, en la superficie, salen enemigos de élite',
+      'La élite pega el doble y suelta el botín bueno',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -381,6 +395,8 @@ export const DESDE = {
   cana: '3.0.0',
   estructuras: '4.0.0',
   cuevasDeBioma: '5.2.0',
+  enemigosProfundos: '5.3.0',
+  elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',
   inframundo: '5.0.0',
   lianas: '5.0.0',

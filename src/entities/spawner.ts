@@ -20,6 +20,7 @@ import {
   crearEnemigo,
   ENEMIGOS,
   especieExisteEn,
+  PROBABILIDAD_ELITE,
   type Enemigo,
   type Especie,
 } from './enemies';
@@ -82,6 +83,11 @@ export interface ContextoAparicion {
   dif?: NivelDificultad;
   /** Versión del mundo. Sin ella, la actual: sale todo. */
   version?: string;
+  /**
+   * Fila en la que empieza el inframundo. Sin ella no hay inframundo, que es
+   * lo que corresponde en los mundos anteriores a 5.0.0.
+   */
+  inframundoTy?: number;
 }
 
 /** ¿Esta especie viene a hacer daño? Los animales, no. */
@@ -129,9 +135,25 @@ export function especiesPosibles(
 
 function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] {
   const bajoTierra = tyJugador > ctx.superficieTy + PROFUNDIDAD_PELIGRO;
-  // El esqueleto solo vive abajo: es lo que hace que la cueva sea otra cosa y
-  // no la superficie con menos luz.
-  if (bajoTierra) return ['slime', 'murcielago', 'zombi', 'esqueleto', 'esqueleto'];
+
+  // El inframundo manda sobre todo lo demás: se está bajo la roca infernal, y
+  // ahí ni hay biomas ni hay noche que valga.
+  if (ctx.inframundoTy !== undefined && tyJugador >= ctx.inframundoTy) {
+    return ['diablillo', 'diablillo', 'esqueleto'];
+  }
+
+  if (bajoTierra) {
+    // El subsuelo también tiene bioma. Es lo que da sentido a los setenta y
+    // ocho tiles que cada franja gana en 5.0.0: bajar por un desierto lleva a
+    // gólems, y bajar por la nieve a espectros, así que la elección de por
+    // dónde se cava importa.
+    if (ctx.bioma === 'desierto') return ['golem', 'esqueleto', 'murcielago', 'momia'];
+    if (ctx.bioma === 'nieve') return ['espectro', 'espectro', 'esqueleto', 'murcielago'];
+    if (ctx.bioma === 'jungla') return ['arana', 'arana', 'esqueleto', 'slime'];
+    // El esqueleto solo vive abajo: es lo que hace que la cueva sea otra cosa y
+    // no la superficie con menos luz.
+    return ['slime', 'murcielago', 'zombi', 'esqueleto', 'esqueleto'];
+  }
 
   // En la superficie manda el bioma. Los animales salen de día en todos menos
   // en el desierto: son la fuente de comida, así que tienen que estar donde el
@@ -150,7 +172,7 @@ function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] 
   // Hay caza —jabalíes— pero también serpientes de día y zombis de noche.
   if (ctx.bioma === 'jungla') {
     return ctx.esNoche
-      ? ['zombi', 'zombi', 'serpiente', 'slime']
+      ? ['zombi', 'arana', 'serpiente', 'slime']
       : ['jabali', 'serpiente', 'slime'];
   }
 
@@ -257,9 +279,39 @@ export function intentarAparicion(
     ? dif.fuerza * (ctx.esNoche ? 1 : FUERZA_DIURNA)
     : 1;
 
-  const e = crearEnemigo(especie, sitio.x, sitio.y, fuerza);
+  const enSuperficie = tyJugador <= ctx.superficieTy + PROFUNDIDAD_PELIGRO;
+  const e = crearEnemigo(
+    especie,
+    sitio.x,
+    sitio.y,
+    fuerza,
+    esElite(ctx, especie, enSuperficie, rng),
+  );
   enemigos.push(e);
   return e;
+}
+
+/**
+ * ¿Este bicho sale de élite?
+ *
+ * Solo de noche, solo en la superficie y solo si es hostil. Las tres
+ * condiciones son la misma idea: la élite es lo que le pasa a la noche, no una
+ * rareza que pueda tocar en cualquier sitio. Bajo tierra ya hay gólems y
+ * espectros haciendo ese papel, y una élite a doscientos tiles de profundidad
+ * sería el tercer enemigo duro del mismo pasillo.
+ */
+export function esElite(
+  ctx: ContextoAparicion,
+  especie: Especie,
+  enSuperficie: boolean,
+  rng: () => number,
+): boolean {
+  if (!ctx.esNoche || !enSuperficie || !esHostil(especie)) return false;
+  if (!hay('elitesNocturnos', ctx.version ?? VERSION_ACTUAL)) return false;
+  // La dificultad también manda aquí: en pacífico no hay hostiles y en brutal
+  // la noche tiene que dar miedo de verdad.
+  const dif = ctx.dif ?? dificultad(DIFICULTAD_POR_DEFECTO);
+  return rng() < PROBABILIDAD_ELITE * dif.fuerza;
 }
 
 /** Quita del array los que ya no están vivos. */

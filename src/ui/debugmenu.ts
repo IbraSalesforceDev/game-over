@@ -64,7 +64,7 @@ export interface OpcionesDebugMenu {
    */
   version?: string;
   darObjeto(objeto: number, cantidad: number): void;
-  generarCriatura(especie: Especie): void;
+  generarCriatura(especie: Especie, elite: boolean): void;
   rellenarVida(): void;
   establecerVidaMaxima(v: number): void;
   vidaMaximaActual(): number;
@@ -250,6 +250,10 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       <select id="dbg-especie">${opcionesEspecie}</select>
       <button id="dbg-generar">Generar</button>
     </div>
+    <div class="fila">
+      <label>De élite</label>
+      <span class="interruptor" id="dbg-elite">no</span>
+    </div>
 
     <h4>Estructuras</h4>
     <div class="fila">
@@ -276,6 +280,10 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   const danoVal = $('dbg-dano-val');
   const vidaMax = $<HTMLInputElement>('dbg-vidamax');
   const selEspecie = $<HTMLSelectElement>('dbg-especie');
+  const marcaElite = $('dbg-elite');
+  // Vive aquí y no en `trucos` porque no cambia nada del jugador: es solo con
+  // qué bandera nace la próxima criatura que se genere.
+  let elite = false;
   const selEstructura = $<HTMLSelectElement>('dbg-estructura');
 
   /**
@@ -342,6 +350,11 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   area.addEventListener('change', () => {
     op.trucos.radioMinado = Number(area.value);
   });
+  marcaElite.addEventListener('click', () => {
+    elite = !elite;
+    marcaElite.textContent = elite ? 'sí' : 'no';
+    marcaElite.classList.toggle('on', elite);
+  });
   volar.addEventListener('click', () => {
     op.trucos.volar = !op.trucos.volar;
     volar.textContent = op.trucos.volar ? 'sí' : 'no';
@@ -377,7 +390,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   });
   $('dbg-curar').addEventListener('click', () => op.rellenarVida());
   $('dbg-generar').addEventListener('click', () => {
-    op.generarCriatura(selEspecie.value as Especie);
+    op.generarCriatura(selEspecie.value as Especie, elite);
   });
 
   // --- La puerta -----------------------------------------------------------

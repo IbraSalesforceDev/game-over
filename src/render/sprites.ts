@@ -423,6 +423,10 @@ export type EspecieSprite =
   | 'serpiente'
   | 'momia'
   | 'gallina'
+  | 'golem'
+  | 'espectro'
+  | 'arana'
+  | 'diablillo'
   | 'guardian';
 
 interface Molde {
@@ -437,6 +441,37 @@ interface Molde {
 
 const GEL = tono('#5aa9d6', 40, 45);
 const GEL_NUCLEO = '#9fe3f5';
+
+/**
+ * Un tramo recto de puntos gordos entre dos puntos.
+ *
+ * Hace falta porque el canvas dibuja líneas antialiaseadas y aquí todo va a
+ * píxel entero: una pata de araña trazada con `lineTo` sale gris y borrosa,
+ * mientras que la misma pata pintada en cuadraditos de dos por dos se lee
+ * limpia al ampliarla cuatro veces, que es como se ve en el juego.
+ */
+function tramo(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  grosor: number,
+  color: string,
+): void {
+  const pasos = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
+  for (let k = 0; k <= pasos; k++) {
+    const t = k / pasos;
+    px(
+      ctx,
+      Math.round(x0 + (x1 - x0) * t),
+      Math.round(y0 + (y1 - y0) * t),
+      grosor,
+      grosor,
+      color,
+    );
+  }
+}
 
 const MOLDES: Record<EspecieSprite, Molde> = {
   slime: {
@@ -815,6 +850,262 @@ const MOLDES: Record<EspecieSprite, Molde> = {
       px(ctx, cx + 8, cy - 5, 3, 2, '#e8a12c');
       px(ctx, cx + 6, cy - 2, 2, 2, '#d63b3b');
       px(ctx, cx + 6, cy - 6, 1, 1, '#20242a');
+    },
+  },
+
+  /**
+   * El gólem: bloques de arenisca que no se tocan del todo.
+   *
+   * La separación entre las piezas es lo que lo hace un gólem y no un hombre
+   * de piedra: si el torso, los brazos y las piernas fueran una sola silueta
+   * sería una estatua andando. Con juntas visibles se lee como algo montado, y
+   * las grietas luminosas dicen qué lo mantiene de pie.
+   */
+  golem: {
+    ancho: 34,
+    alto: 50,
+    frames: 8,
+    offX: -3,
+    offY: -6,
+    pintar(ctx, ox, oy, f) {
+      const roca = tono('#c9a35e', 26, 42);
+      const veta = '#ff9b3d';
+      const t = (f / 8) * Math.PI * 2;
+      // Zancada corta y pesada, más lenta que la de cualquier humanoide.
+      const paso = Math.round(Math.sin(t) * 2);
+      const peso = Math.round(Math.abs(Math.cos(t)) * 1.5);
+      const cx = ox + 17;
+
+      // Piernas: dos columnas gruesas, sin rodilla.
+      px(ctx, cx - 9, oy + 34 + peso, 7, 14 - peso, roca.oscuro);
+      px(ctx, cx + 2, oy + 34 - peso, 7, 14 + peso, roca.base);
+      px(ctx, cx - 10, oy + 47, 9, 3, roca.oscuro);
+      px(ctx, cx + 1, oy + 47, 9, 3, roca.oscuro);
+
+      // Torso: un bloque ancho de arriba y otro más estrecho de abajo, con la
+      // junta marcada. Dos piezas cuentan "montado" mejor que un rectángulo.
+      px(ctx, cx - 11, oy + 12, 22, 13, roca.base);
+      px(ctx, cx - 11, oy + 12, 22, 3, roca.claro);
+      px(ctx, cx - 8, oy + 27, 16, 8, roca.base);
+      px(ctx, cx - 8, oy + 27, 16, 2, roca.claro);
+
+      // Grietas: el interior encendido que se ve por las juntas. Van en
+      // zigzag y no en cruz — la primera versión cruzaba una raya vertical con
+      // una horizontal y el gólem salía con un signo de más pintado en el
+      // pecho, que lo convertía en un robot de cartón. Una grieta se
+      // reconoce porque tuerce.
+      tramo(ctx, cx - 8, oy + 15, cx - 4, oy + 19, 2, veta);
+      tramo(ctx, cx - 4, oy + 19, cx - 6, oy + 23, 2, veta);
+      tramo(ctx, cx - 4, oy + 19, cx + 3, oy + 17, 2, veta);
+      tramo(ctx, cx + 3, oy + 17, cx + 7, oy + 21, 2, veta);
+      tramo(ctx, cx - 3, oy + 29, cx + 2, oy + 32, 2, veta);
+
+      // Brazos: dos bloques sueltos, separados del torso por un tile de aire,
+      // balanceándose al contrario que las piernas. Anchos a propósito: con
+      // cinco píxeles se leían como dos postes plantados al lado.
+      px(ctx, cx - 18, oy + 14 - paso, 7, 17, roca.oscuro);
+      px(ctx, cx - 19, oy + 30 - paso, 9, 7, roca.oscuro);
+      px(ctx, cx - 18, oy + 14 - paso, 7, 2, atras(roca).claro);
+      px(ctx, cx + 12, oy + 14 + paso, 7, 17, roca.base);
+      px(ctx, cx + 11, oy + 30 + paso, 9, 7, roca.base);
+      px(ctx, cx + 12, oy + 14 + paso, 7, 2, roca.claro);
+
+      // Cabeza: un bloque pequeño hundido entre los hombros, con dos ranuras
+      // encendidas por ojos. Sin cuello, que es lo que da la sensación de peso.
+      px(ctx, cx - 6, oy + 2, 13, 11, roca.base);
+      px(ctx, cx - 6, oy + 2, 13, 2, roca.claro);
+      px(ctx, cx - 3, oy + 6, 3, 3, veta);
+      px(ctx, cx + 2, oy + 6, 3, 3, veta);
+      px(ctx, cx - 4, oy + 11, 10, 1, roca.oscuro);
+    },
+  },
+
+  /**
+   * El espectro: una figura sin piernas que se deshace hacia abajo.
+   *
+   * Lo único que hay que acertar es que no toca el suelo. La cola de jirones y
+   * el degradado a transparente hacen ese trabajo sin necesidad de que el
+   * render sepa nada de fantasmas.
+   */
+  espectro: {
+    ancho: 32,
+    alto: 46,
+    frames: 6,
+    offX: -4,
+    offY: -6,
+    pintar(ctx, ox, oy, f) {
+      const hielo = tono('#a8e0f0', 22, 46);
+      const t = (f / 6) * Math.PI * 2;
+      const flota = Math.round(Math.sin(t) * 1.5);
+      const cx = ox + 16;
+      const cy = oy + 15 + flota;
+
+      // La cola: siete jirones cada vez más estrechos y más tenues, torcidos
+      // con desfase. Es larga a propósito —ocupa la mitad del sprite— porque
+      // es lo único que dice que esta cosa no anda: con una cola corta el
+      // espectro se leía como un bolo.
+      ctx.save();
+      for (let i = 0; i < 7; i++) {
+        ctx.globalAlpha = 0.8 - i * 0.1;
+        const ancho = 12 - i * 1.5;
+        const desvio = Math.round(Math.sin(t + i * 0.7) * 3);
+        px(ctx, cx - ancho / 2 + desvio, cy + 9 + i * 3, ancho, 3, hielo.oscuro);
+      }
+      ctx.restore();
+
+      // El torso: una campana con el borde de abajo dentado.
+      elipse(ctx, cx, cy + 2, 9, 11, hielo.base);
+      elipse(ctx, cx - 1.5, cy, 6, 8, hielo.claro);
+      for (let i = 0; i < 4; i++) {
+        px(ctx, cx - 8 + i * 4, cy + 11, 3, 2 + (i % 2), hielo.oscuro);
+      }
+
+      // Brazos: dos jirones que salen de los costados y caen, no manos. Salen
+      // bien fuera de la campana para que no se los trague al pintarla.
+      tramo(ctx, cx - 8, cy - 1 + flota, cx - 13, cy + 7 + flota, 3, hielo.oscuro);
+      tramo(ctx, cx + 8, cy - 1 - flota, cx + 13, cy + 7 - flota, 3, hielo.base);
+
+      // La cara: dos ojos huecos y nada más. Sin boca, que es lo que hace que
+      // no se lea como una sábana con dibujo.
+      px(ctx, cx - 5, cy - 4, 3, 4, '#0d2733');
+      px(ctx, cx + 2, cy - 4, 3, 4, '#0d2733');
+      px(ctx, cx - 5, cy - 4, 3, 1, '#e8fbff');
+      px(ctx, cx + 2, cy - 4, 3, 1, '#e8fbff');
+    },
+  },
+
+  /**
+   * La araña: cuerpo bajo y ocho patas dobladas que la levantan del suelo.
+   *
+   * Las patas van en dos grupos alternos como las del escarabajo, pero con un
+   * codo: es esa rodilla por encima del cuerpo la que separa una araña de un
+   * bicho cualquiera visto de lado.
+   */
+  arana: {
+    ancho: 38,
+    alto: 30,
+    frames: 6,
+    offX: -6,
+    offY: -10,
+    pintar(ctx, ox, oy, f) {
+      const quitina = tono('#3f7a3a', 26, 34);
+      const cx = ox + 19;
+      const cy = oy + 17;
+      const fase = f % 2 === 0 ? 1 : -1;
+
+      /**
+       * Una pata: sube del cuerpo a la rodilla y baja de la rodilla al suelo.
+       *
+       * La rodilla queda por encima del lomo y el pie por debajo de la panza,
+       * y ese es todo el motivo de que la araña se lea. El primer intento las
+       * dibujaba dentro de la silueta del cuerpo y el cuerpo, que se pinta
+       * después, se las comía enteras: quedaban dos manchas verdes.
+       */
+      const pata = (
+        anclaX: number,
+        rodillaX: number,
+        rodillaY: number,
+        pieX: number,
+        pieY: number,
+        color: string,
+      ): void => {
+        tramo(ctx, anclaX, cy - 1, rodillaX, rodillaY, 2, color);
+        tramo(ctx, rodillaX, rodillaY, pieX, pieY, 2, color);
+      };
+
+      // Las cuatro de detrás, más oscuras y un poco recogidas: dan las ocho
+      // sin tener que dibujar ocho siluetas distinguibles a esta escala.
+      for (let i = 0; i < 4; i++) {
+        const alt = (i % 2 === 0 ? -fase : fase) * 2;
+        pata(cx - 3 + i * 2, cx - 13 + i * 9, cy - 4 - alt, cx - 15 + i * 10, cy + 9, quitina.oscuro);
+      }
+      // Y las cuatro de delante, en el tono vivo y con el balanceo contrario.
+      // La rodilla apenas sobresale del lomo: subiéndola diez píxeles, como en
+      // el primer intento, las ocho patas se leían como una corona de púas.
+      for (let i = 0; i < 4; i++) {
+        const alt = (i % 2 === 0 ? fase : -fase) * 2;
+        pata(cx - 4 + i * 3, cx - 16 + i * 10, cy - 6 - alt, cx - 18 + i * 11, cy + 11 + alt, quitina.base);
+      }
+
+      // Abdomen detrás y cefalotórax delante, con la cintura marcada.
+      elipse(ctx, cx - 6, cy, 8, 6, quitina.base);
+      elipse(ctx, cx - 7, cy - 1.5, 5.5, 3.5, quitina.claro);
+      // Marca clara en el abdomen: el detalle que dice "esta no se toca".
+      px(ctx, cx - 7, cy - 2, 2, 5, '#d8e84a');
+      px(ctx, cx - 9, cy - 1, 6, 1, '#d8e84a');
+
+      elipse(ctx, cx + 6, cy, 6, 5, quitina.base);
+      elipse(ctx, cx + 5, cy - 1, 4, 3, quitina.claro);
+
+      // Cuatro ojos en dos filas y los quelíceros. Con dos ojos sería un
+      // escarabajo verde.
+      for (const [dx, dy] of [
+        [8, -3],
+        [11, -2],
+        [8, 0],
+        [11, 1],
+      ] as const) {
+        px(ctx, cx + dx, cy + dy, 2, 2, '#0f1a10');
+        px(ctx, cx + dx, cy + dy, 1, 1, '#e05a5a');
+      }
+      px(ctx, cx + 11, cy + 3, 3, 2, quitina.oscuro);
+    },
+  },
+
+  /**
+   * El diablillo: pequeño, con cuernos y alas de membrana.
+   *
+   * Las alas baten a doble velocidad que el resto de la animación, porque un
+   * bicho que vuela con las alas quietas se lee como un bicho colgado.
+   */
+  diablillo: {
+    ancho: 34,
+    alto: 32,
+    frames: 6,
+    offX: -6,
+    offY: -3,
+    pintar(ctx, ox, oy, f) {
+      const piel = tono('#e07040', 24, 44);
+      const ala = tono('#8a2f18', 22, 30);
+      const t = (f / 6) * Math.PI * 2;
+      const bate = Math.sin(t * 2);
+      const cx = ox + 17;
+      const cy = oy + 15;
+
+      // Alas: dos membranas triangulares que se abren y se cierran. Se pintan
+      // antes que el cuerpo para que queden por detrás.
+      for (const lado of [-1, 1] as const) {
+        const extension = 6 + bate * 4;
+        const alzado = Math.round(bate * 3);
+        px(ctx, cx + lado * 6, cy - 6 - alzado, extension * lado, 3, ala.base);
+        px(ctx, cx + lado * 6, cy - 3 - alzado, extension * lado * 0.8, 6, ala.oscuro);
+        px(ctx, cx + lado * 6, cy + 2 - alzado, extension * lado * 0.5, 4, ala.base);
+      }
+
+      // Cola con punta de flecha, ondulando por detrás.
+      const colaY = cy + 6 + Math.round(Math.sin(t) * 2);
+      px(ctx, cx - 10, colaY, 6, 2, piel.oscuro);
+      px(ctx, cx - 13, colaY - 2, 3, 5, piel.base);
+
+      // Cuerpo: un tronco corto y dos piernas encogidas, que es como vuela
+      // algo que también sabe posarse.
+      elipse(ctx, cx, cy + 2, 6, 7, piel.base);
+      elipse(ctx, cx - 1, cy, 4, 4.5, piel.claro);
+      px(ctx, cx - 4, cy + 8, 3, 4, piel.oscuro);
+      px(ctx, cx + 1, cy + 8, 3, 4, piel.base);
+
+      // Cabeza, cuernos y ojos. Los cuernos son casi todo el reconocimiento:
+      // sin ellos es un murciélago naranja.
+      elipse(ctx, cx + 1, cy - 7, 5, 4.5, piel.base);
+      px(ctx, cx - 3, cy - 14, 2, 4, piel.oscuro);
+      px(ctx, cx - 4, cy - 15, 2, 2, piel.oscuro);
+      px(ctx, cx + 3, cy - 14, 2, 4, piel.oscuro);
+      px(ctx, cx + 4, cy - 15, 2, 2, piel.oscuro);
+      px(ctx, cx + 1, cy - 8, 2, 2, '#ffe14a');
+      px(ctx, cx + 4, cy - 8, 2, 2, '#ffe14a');
+      // Dos colmillos: la boca es una raya, y esto la convierte en una mueca.
+      px(ctx, cx, cy - 4, 1, 2, '#f6efe0');
+      px(ctx, cx + 3, cy - 4, 1, 2, '#f6efe0');
     },
   },
 

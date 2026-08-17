@@ -44,7 +44,7 @@ import {
   type Estructura,
 } from './world/estructuras';
 import { puedeSembrar, tickCultivos } from './world/cultivo';
-import { plantarArbolEn } from './world/gen/worldgen';
+import { plantarArbolEn, techoInframundo } from './world/gen/worldgen';
 import { MotorLuz } from './world/lighting';
 import { Inventario } from './items/inventory';
 import { equipoInicial, nivelEnMano, potenciaContra } from './items/equipo';
@@ -89,6 +89,8 @@ import {
 import {
   actualizarEnemigos,
   botinDe,
+  botinRaroDe,
+  nombreDe,
   crearEnemigo,
   ENEMIGOS,
   esJefe,
@@ -559,9 +561,9 @@ async function arrancar(): Promise<void> {
       inventario.anadir(objeto, n);
       barra.refrescar(capa);
     },
-    generarCriatura: (especie) => {
+    generarCriatura: (especie, elite) => {
       const c = jugador.caja;
-      enemigos.push(crearEnemigo(especie, c.x + c.mirando * 60, c.y - 20));
+      enemigos.push(crearEnemigo(especie, c.x + c.mirando * 60, c.y - 20, 1, elite));
     },
     rellenarVida: () => {
       curar(salud, salud.vidaMax);
@@ -941,10 +943,11 @@ async function arrancar(): Promise<void> {
    * Está aparte porque hay dos formas de matar —el mandoble y la flecha— y
    * duplicar esto era duplicar el botín el día que cambiara la tabla.
    */
-  function morir(especie: Enemigo['especie'], caja: Enemigo['caja']): void {
+  function morir(e: Enemigo): void {
+    const { especie, caja } = e;
     const tx = Math.floor((caja.x + caja.ancho / 2) / TILE);
     const ty = Math.floor((caja.y + caja.alto / 2) / TILE);
-    repartirBotin(especie, tx, ty);
+    repartirBotin(especie, tx, ty, e.elite);
     const grande = esJefe(especie);
     particulas.emitir(caja.x + caja.ancho / 2, caja.y + caja.alto / 2, {
       cantidad: grande ? 90 : 18,
@@ -967,14 +970,24 @@ async function arrancar(): Promise<void> {
    * propia línea de `crearDrop`. Con dos sitios que reparten botín, el día que
    * cambie la tabla solo se acuerda uno de los dos.
    */
-  function repartirBotin(especie: Enemigo['especie'], tx: number, ty: number): void {
+  function repartirBotin(
+    especie: Enemigo['especie'],
+    tx: number,
+    ty: number,
+    elite = false,
+  ): void {
     /** Suelta algo solo si en esta versión ese algo existía. */
     const soltar = (objeto: number, cantidad: number): void => {
       if (filtrarObjeto(objeto, versionMundo) === NADA) return;
       drops.push(crearDrop(objeto, cantidad, tx, ty));
     };
-    const b = botinDe(especie);
+    const b = botinDe(especie, Math.random, elite);
     soltar(b.objeto, b.cantidad);
+    // El botín raro: el lingote de cobalto del gólem, el de titanio del
+    // espectro. La élite lo saca cuatro veces más a menudo, y es lo que hace
+    // que valga la pena plantarle cara en vez de subirse a un bloque.
+    const raro = botinRaroDe(especie, Math.random, elite);
+    if (raro !== null) soltar(raro, 1);
     if (sueltaReliquia(especie)) soltar(OBJETO_RELIQUIA, 1);
     // El guardián no suelta reliquia pero sí lo suyo: la espada, la esencia y
     // el oro del que estaba hecho.
@@ -1166,7 +1179,7 @@ async function arrancar(): Promise<void> {
       });
       sacudir(1.4);
     }
-    for (const muerto of r.muertos) morir(muerto.especie, muerto.caja);
+    for (const muerto of r.muertos) morir(muerto);
 
     // Las flechas van antes que los enemigos: una flecha que mata a un zombi
     // este tick tiene que impedir que ese zombi pegue en el mismo tick.
@@ -1181,7 +1194,7 @@ async function arrancar(): Promise<void> {
         tam: 2,
       });
       audio.sonar('golpe', 1.2);
-      if (golpeado.muerto) morir(golpeado.enemigo.especie, golpeado.enemigo.caja);
+      if (golpeado.muerto) morir(golpeado.enemigo);
     }
     for (const donde of rf.clavadas) {
       particulas.emitir(donde.x, donde.y, {
@@ -1231,7 +1244,7 @@ async function arrancar(): Promise<void> {
       }
     }
     for (const m of res.muertos) {
-      repartirBotin(m.especie, m.tx, m.ty);
+      repartirBotin(m.especie, m.tx, m.ty, m.elite);
       if (esJefe(m.especie)) caerJefe();
     }
 
@@ -1281,14 +1294,25 @@ async function arrancar(): Promise<void> {
       relojAparicion = INTERVALO_INTENTO;
       const txJugador = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
       const tyJugador = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
-      intentarAparicion(mundo, enemigos, jugador.caja, {
+      const salido = intentarAparicion(mundo, enemigos, jugador.caja, {
         esNoche: reloj.esNoche,
         superficieTy: motorLuz.alturaCielo[txJugador] ?? 0,
         bioma: biomaEn(mundo, txJugador, tyJugador),
         luzEn: (tx, ty) => motorLuz.luzEstimada(tx, ty, reloj.luzSolar),
         dif: nivelDif,
         version: versionMundo,
+        // Solo si el mundo llegó a tener inframundo: en uno de 4.1.0 esa fila
+        // es caverna corriente, y llenarla de diablillos sería meter en una
+        // versión vieja algo que entonces no existía.
+        inframundoTy: hay('inframundo', versionMundo)
+          ? techoInframundo(mundo.alto)
+          : undefined,
       });
+      // Un élite se anuncia. Aparece fuera de pantalla como todo lo demás, y
+      // enterarse de que ese zombi pegaba dos veces y media cuando ya te ha
+      // quitado media vida no es una sorpresa, es una emboscada: el aura solo
+      // sirve si da tiempo a mirarla.
+      if (salido?.elite) aviso.mostrar(`Se acerca un ${nombreDe(salido)}`, true);
     }
 
     if (salud.invulnerable > 0 || salud.desdeGolpe < 3) panelVida.refrescar(salud);

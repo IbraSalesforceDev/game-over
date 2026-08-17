@@ -703,6 +703,7 @@ export class Renderer {
       }
 
       const frame = Math.floor(e.animReloj * 0.35);
+
       this.sprites.enemigo(ctx, e.especie, frame, c.mirando, sx, sy, z);
 
       // Destello del impacto: el sprite se repinta en blanco puro encima de sí
@@ -872,9 +873,51 @@ export class Renderer {
     // La luz va después del mundo y del personaje, pero antes de la interfaz:
     // el recuadro del puntero tiene que verse igual dentro de una cueva.
     this.luz(e.motorLuz, e.reloj, recalculada, ox, oy);
+    // Las auras de élite van después de la luz y no con los demás enemigos.
+    // Dibujadas antes, la pasada de oscuridad las multiplicaba por el negro de
+    // la noche y el halo quedaba en una mancha parda: justo en el momento en
+    // que más falta hace ver que ese zombi no es un zombi normal.
+    this.aurasElite(e.enemigos, ox, oy);
     this.vineta(e.reloj);
     this.objetivo(e.objetivo, ox, oy);
     this.zonas(e.zonas, ox);
+  }
+
+  /**
+   * El halo de los enemigos de élite.
+   *
+   * Late en vez de quedarse fijo porque un resplandor constante se confunde
+   * con la luz de una antorcha del fondo, y lo que tiene que decir esto es
+   * "eso de ahí pega dos veces y media". Se dibuja en modo aditivo y por
+   * encima de la oscuridad para que se lea igual de noche cerrada que dentro
+   * de una casa alumbrada.
+   */
+  private aurasElite(lista: readonly Enemigo[], ox: number, oy: number): void {
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    let abierto = false;
+    for (const e of lista) {
+      if (!e.vivo || !e.elite) continue;
+      if (!abierto) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        abierto = true;
+      }
+      const c = e.caja;
+      const pulso = 0.5 + 0.5 * Math.sin(e.animReloj * 0.09);
+      const rx = ox + Math.round((c.x + c.ancho / 2) * z);
+      const ry = oy + Math.round((c.y + c.alto / 2) * z);
+      const radio = Math.max(c.ancho, c.alto) * z * (0.75 + pulso * 0.15);
+      const halo = ctx.createRadialGradient(rx, ry, 0, rx, ry, radio);
+      halo.addColorStop(0, `rgba(255,120,90,${0.5 + pulso * 0.2})`);
+      halo.addColorStop(0.45, `rgba(230,40,30,${0.3 + pulso * 0.14})`);
+      halo.addColorStop(1, 'rgba(200,20,20,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(rx, ry, radio, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (abierto) ctx.restore();
   }
 
   /**

@@ -1,6 +1,17 @@
 import { TILE } from '../core/constants';
 import { alMenos } from '../core/versiones';
-import { CARNE_CRUDA, ESENCIA, GEL, HUESO, PLUMA, RELIQUIA } from '../items/items';
+import {
+  CARNE_CRUDA,
+  CRISTAL,
+  ESENCIA,
+  GEL,
+  HUESO,
+  LINGOTE_COBALTO,
+  LINGOTE_INFERNITA,
+  LINGOTE_TITANIO,
+  PLUMA,
+  RELIQUIA,
+} from '../items/items';
 import type { Mundo } from '../world/world';
 import { moverX, moverY, solapaSolido, type Caja } from './physics';
 import { crearSalud, golpear, tickSalud, type Salud } from './salud';
@@ -28,6 +39,10 @@ export type Especie =
   | 'serpiente'
   | 'momia'
   | 'gallina'
+  | 'golem'
+  | 'espectro'
+  | 'arana'
+  | 'diablillo'
   | 'guardian';
 
 export interface DefEnemigo {
@@ -43,6 +58,17 @@ export interface DefEnemigo {
   /** Objeto que suelta y cuántos, como máximo. */
   readonly botin: number;
   readonly botinMax: number;
+  /**
+   * Un segundo objeto, mucho mejor y que casi nunca cae.
+   *
+   * Existe para poder colgar un lingote de cobalto de un gólem sin que matar
+   * gólems sustituya a picar cobalto. Un botín bueno garantizado convierte al
+   * bicho en una máquina expendedora: se le busca, se le farmea y el mineral
+   * del que era premio deja de valer nada. A una de cada seis veces sigue
+   * siendo un motivo para pelear y no una fuente de suministro.
+   */
+  readonly botinRaro?: number;
+  readonly probRaro?: number;
   /** Solo aparece de noche en la superficie. */
   readonly nocturno: boolean;
   /**
@@ -219,6 +245,89 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     nocturno: false,
     pasivo: true,
   },
+  // --- Los cuatro de la profundidad (5.3.0) ------------------------------
+  // Los biomas ganaron setenta y ocho tiles de subsuelo en 5.0.0 y cuevas
+  // propias en 5.2.0, pero seguían saliendo los mismos zombis de la superficie:
+  // bajar era más oscuro, no más peligroso. Estos cuatro son la otra mitad de
+  // esa profundidad. Cada uno vive en un sitio y solo en ese sitio, así que
+  // encontrárselos ya dice dónde está uno.
+
+  // El gólem: la piedra del desierto puesta de pie. Es el enemigo más duro que
+  // no es un jefe —aguanta como tres esqueletos— pero se arrastra, así que se
+  // le puede dejar atrás andando. Lo peligroso es encontrárselo en una cueva de
+  // arenisca, donde no hay hacia dónde retroceder.
+  golem: {
+    desde: '5.3.0',
+    nombre: 'gólem de arenisca',
+    vida: 150,
+    dano: 28,
+    ancho: 28,
+    alto: 44,
+    color: '#c9a35e',
+    colorOscuro: '#7a6033',
+    vuela: false,
+    botin: HUESO,
+    botinMax: 3,
+    botinRaro: LINGOTE_COBALTO,
+    probRaro: 0.18,
+    nocturno: false,
+  },
+  // El espectro: lo contrario del gólem. Poca vida y ninguna resistencia, pero
+  // vuela y se lanza en línea recta sin avisar, así que la caverna helada deja
+  // de ser un sitio por el que se puede caminar mirando el suelo.
+  espectro: {
+    desde: '5.3.0',
+    nombre: 'espectro de hielo',
+    vida: 70,
+    dano: 28,
+    ancho: 24,
+    alto: 30,
+    color: '#a8e0f0',
+    colorOscuro: '#4a7f95',
+    vuela: true,
+    botin: GEL,
+    botinMax: 3,
+    botinRaro: LINGOTE_TITANIO,
+    probRaro: 0.14,
+    nocturno: false,
+  },
+  // La araña: rápida y saltarina. La selva ya era incómoda de cruzar por lo
+  // apretado del terreno; esto es lo que hace que además haya que mirar arriba.
+  arana: {
+    desde: '5.3.0',
+    nombre: 'araña de la selva',
+    vida: 52,
+    dano: 24,
+    ancho: 26,
+    alto: 18,
+    color: '#3f7a3a',
+    colorOscuro: '#20401e',
+    vuela: false,
+    botin: GEL,
+    botinMax: 4,
+    botinRaro: CRISTAL,
+    probRaro: 0.1,
+    nocturno: false,
+  },
+  // El diablillo: el habitante del inframundo, que desde 5.0.0 estaba vacío.
+  // Un mar de lava sin nada volando encima es un decorado; con esto es un sitio
+  // al que se baja preparado.
+  diablillo: {
+    desde: '5.3.0',
+    nombre: 'diablillo',
+    vida: 95,
+    dano: 32,
+    ancho: 22,
+    alto: 26,
+    color: '#e07040',
+    colorOscuro: '#8a2f18',
+    vuela: true,
+    botin: HUESO,
+    botinMax: 2,
+    botinRaro: LINGOTE_INFERNITA,
+    probRaro: 0.12,
+    nocturno: false,
+  },
   // El guardián de la fortaleza. Vuela porque un jefe que anda se esquiva
   // subiéndose a un bloque, y la sala del altar tiene doce tiles de alto justo
   // para que pueda usarlos. Aguanta mucho y pega fuerte, pero no de un toque:
@@ -284,10 +393,47 @@ export interface Enemigo {
    * mundo y la hora entran por aquí.
    */
   fuerza: number;
+  /**
+   * Es una versión de élite: el mismo bicho, mucho más fuerte y con premio.
+   *
+   * Va como bandera y no como una especie aparte porque un "zombi de élite"
+   * duplicado en la tabla sería un zombi más que mantener, con su sprite, su
+   * IA y su entrada de versión, y a la tercera especie con élite tendríamos la
+   * tabla del doble de larga diciendo dos veces lo mismo. Aquí lo único que
+   * cambia es cuánto aguanta, cuánto pega, qué suelta y que se le ve el aura.
+   */
+  elite: boolean;
 }
 
 const GRAVEDAD = 0.4;
 const VEL_TERMINAL = 10;
+
+/**
+ * Cuánto multiplica la élite la vida y el daño de su especie.
+ *
+ * Dos y medio. Es mucho a propósito: un enemigo de élite que se mata igual que
+ * el normal solo cambia de color, y lo que se busca es que ver uno de noche
+ * cambie la decisión —correr, subirse a algo, gastar flechas— y no solo la
+ * paleta. Con armadura de hierro un zombi de élite quita casi la mitad de la
+ * vida por toque, así que dos errores seguidos matan.
+ */
+export const FUERZA_ELITE = 2.5;
+
+/**
+ * Con qué probabilidad un hostil nocturno de superficie sale de élite.
+ *
+ * Una de cada nueve. Es poco: la noche tiene que seguir siendo la noche de
+ * siempre, con su ración de zombis normales, y la élite tiene que ser la
+ * excepción que hace levantar la vista. Si saliera una de cada tres dejaría de
+ * ser un susto para ser el nuevo suelo de dificultad de la noche.
+ */
+export const PROBABILIDAD_ELITE = 1 / 9;
+
+/** Nombre con el que se anuncia un enemigo concreto, élite incluida. */
+export function nombreDe(e: Enemigo): string {
+  const n = ENEMIGOS[e.especie].nombre;
+  return e.elite ? `${n} de élite` : n;
+}
 
 /** Vida a la que el guardián se enfurece, como fracción de su máximo. */
 export const MITAD_JEFE = 0.5;
@@ -302,8 +448,13 @@ export function crearEnemigo(
   wx: number,
   wy: number,
   fuerza = 1,
+  elite = false,
 ): Enemigo {
   const def = ENEMIGOS[especie];
+  // La élite multiplica sobre lo que ya traía: la dificultad y la hora siguen
+  // contando. Un zombi de élite en brutal y de madrugada tiene que ser peor que
+  // uno de élite en normal, y con la élite como valor fijo no lo sería.
+  if (elite) fuerza *= FUERZA_ELITE;
   return {
     especie,
     caja: {
@@ -333,6 +484,7 @@ export function crearEnemigo(
     animReloj: Math.floor(Math.random() * 60),
     quemadura: 1,
     fuerza,
+    elite,
   };
 }
 
@@ -473,6 +625,72 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
       break;
     }
 
+    case 'golem': {
+      // Se arrastra, y cada cuatro segundos se tira encima. El paso lento es
+      // lo que lo hace evitable; el salto es lo que impide quitárselo de
+      // encima quedándose a dos tiles pegando espadazos, que es como se
+      // resuelve un enemigo lento cualquiera.
+      c.vx += (dir * 0.7 - c.vx) * 0.09;
+      c.mirando = dir;
+      if (c.enSuelo && e.reloj % 240 === 0 && Math.abs(dx) < 140) {
+        c.vy = -6.4;
+        c.vx = dir * 3.4;
+      }
+      break;
+    }
+
+    case 'espectro': {
+      // Deriva y se lanza. Fuera del ataque flota casi quieto, para que se le
+      // vea venir; durante el ataque va en línea recta a la posición que tenía
+      // el jugador al empezar, sin corregir, así que apartarse funciona.
+      e.fase += 0.06;
+      const t = e.reloj % 150;
+      if (t === 0) {
+        const d = Math.hypot(dx, dy) || 1;
+        c.vx = (dx / d) * 6.2;
+        c.vy = (dy / d) * 6.2;
+      } else if (t > 26) {
+        c.vx += (dir * 0.9 - c.vx) * 0.05;
+        c.vy += (Math.sign(dy) * 0.5 + Math.sin(e.fase) * 1.4 - c.vy) * 0.05;
+      }
+      c.mirando = dir;
+      break;
+    }
+
+    case 'arana': {
+      // Rápida y con brincos cortos y seguidos. No persigue mejor que un lobo,
+      // pero sube desniveles sin frenar, y en la selva el terreno es casi todo
+      // desnivel: es el único bicho al que no se le escapa uno hacia arriba.
+      c.vx += (dir * 2.9 - c.vx) * 0.2;
+      c.mirando = dir;
+      if (c.enSuelo && (Math.abs(c.vx) < 0.5 || e.reloj % 44 === 0)) c.vy = -4.8;
+      break;
+    }
+
+    case 'diablillo': {
+      // Ronda por encima y baja en picado. Se coloca unos tiles más arriba que
+      // el jugador y desde ahí se deja caer: por eso en el inframundo importa
+      // dónde se está parado, y no solo si hay lava debajo.
+      e.fase += 0.07;
+      const t = e.reloj % 110;
+      if (t < 70) {
+        // Rondar: acercarse en horizontal y mantenerse cinco tiles por encima.
+        c.vx += (dir * 2.2 - c.vx) * 0.07;
+        const alturaDeseada = dy + 5 * TILE;
+        c.vy += (Math.sign(alturaDeseada) * 1.2 + Math.sin(e.fase) * 0.8 - c.vy) * 0.08;
+      } else {
+        // Picado: recto hacia el jugador, rápido y sin corregir el rumbo una
+        // vez lanzado.
+        if (t === 70) {
+          const d = Math.hypot(dx, dy) || 1;
+          c.vx = (dx / d) * 5.4;
+          c.vy = (dy / d) * 5.4;
+        }
+      }
+      c.mirando = dir;
+      break;
+    }
+
     case 'guardian': {
       // Dos velocidades y una embestida. En reposo flota hacia el jugador
       // despacio, con un bamboleo que impide predecir su altura exacta; cada
@@ -601,7 +819,7 @@ export interface ResultadoEnemigos {
   /** Daño que han hecho al jugador este tick. */
   danoAlJugador: number;
   /** Enemigos que han muerto, con su posición, para soltar el botín. */
-  muertos: { especie: Especie; tx: number; ty: number }[];
+  muertos: { especie: Especie; tx: number; ty: number; elite: boolean }[];
 }
 
 /**
@@ -670,6 +888,7 @@ export function actualizarEnemigos(
         especie: e.especie,
         tx: Math.floor(mio.x / TILE),
         ty: Math.floor(mio.y / TILE),
+        elite: e.elite,
       });
     }
   }
@@ -707,12 +926,39 @@ export function danarEnemigo(e: Enemigo, dano: number, desdeX: number): boolean 
   return e.salud.muerto;
 }
 
-export function botinDe(especie: Especie, rng: () => number = Math.random): {
+export function botinDe(
+  especie: Especie,
+  rng: () => number = Math.random,
+  elite = false,
+): {
   objeto: number;
   cantidad: number;
 } {
   const def = ENEMIGOS[especie];
-  return { objeto: def.botin, cantidad: 1 + Math.floor(rng() * def.botinMax) };
+  const base = 1 + Math.floor(rng() * def.botinMax);
+  // La élite suelta el doble de lo común. Es la mitad barata del premio: la
+  // buena es el botín raro, que la élite se lleva casi siempre.
+  return { objeto: def.botin, cantidad: elite ? base * 2 : base };
+}
+
+/**
+ * El botín raro de un muerto, o null si no toca.
+ *
+ * La élite lo saca cuatro veces más a menudo que su especie. Ese multiplicador
+ * —y no el daño— es lo que hace que valga la pena pelear con una en vez de
+ * huir: el gólem normal da un lingote de cobalto una de cada seis veces, el de
+ * élite dos de cada tres. Con el tope en 0,9 nunca es seguro, porque un botín
+ * garantizado convierte al bicho en una expendedora.
+ */
+export function botinRaroDe(
+  especie: Especie,
+  rng: () => number = Math.random,
+  elite = false,
+): number | null {
+  const def = ENEMIGOS[especie];
+  if (def.botinRaro === undefined) return null;
+  const prob = Math.min(0.9, (def.probRaro ?? 0) * (elite ? 4 : 1));
+  return rng() < prob ? def.botinRaro : null;
 }
 
 /** ¿Existía esta especie en esta versión del juego? */
@@ -743,6 +989,12 @@ const VOCES_ESPECIE: Partial<Record<Especie, VozEnemigo>> = {
   escarabajo: 'gorgoteo',
   lobo: 'aullido',
   guardian: 'rugido',
+  // El gólem retumba como el jefe pero sin ser uno: es lo que avisa de que en
+  // esta cueva de arenisca hay algo que no se mata a espadazos.
+  golem: 'rugido',
+  espectro: 'chillido',
+  arana: 'chillido',
+  diablillo: 'gruñido',
 };
 
 export type VozEnemigo =
