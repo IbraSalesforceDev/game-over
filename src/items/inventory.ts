@@ -42,6 +42,14 @@ export class Inventario {
    * Primero completa pilas ya empezadas y solo después ocupa ranuras vacías,
    * que es lo que espera cualquiera que haya jugado a esto.
    */
+  /** Deja todas las ranuras vacías. Lo usa el menú de depuración. */
+  vaciar(): void {
+    for (const r of this.ranuras) {
+      r.objeto = 0;
+      r.cantidad = 0;
+    }
+  }
+
   anadir(objeto: number, cantidad: number): number {
     if (objeto === NADA || cantidad <= 0) return 0;
     const tope = maxPila(objeto);

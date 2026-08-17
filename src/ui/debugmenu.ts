@@ -20,6 +20,11 @@ import { ENEMIGOS, especieExisteEn } from '../entities/enemies';
  * Existe porque probar el juego sin él cuesta horas: para ver si el pico de oro
  * pica bien hay que bajar a por oro, y para ver si un jabalí se comporta hay que
  * encontrar uno. Desde aquí se hace en dos clics.
+ *
+ * Va por pestañas desde 6.6.0. Antes era una columna única de siete secciones y
+ * había que hacer scroll dentro del panel para llegar a las estructuras, con lo
+ * que la mitad de lo que había aquí no se usaba porque no se veía. Cuatro
+ * pestañas caben enteras en pantalla y ninguna necesita scroll.
  */
 
 export interface TrucosDebug {
@@ -37,6 +42,12 @@ export interface TrucosDebug {
   mapaCompleto: boolean;
   /** Ofrece también lo que no existe en la versión del mundo. */
   sinLimiteVersion: boolean;
+  /** El hambre deja de bajar. */
+  sinHambre: boolean;
+  /** No aparecen criaturas por su cuenta. */
+  sinApariciones: boolean;
+  /** El reloj se queda quieto a la hora que esté. */
+  congelarReloj: boolean;
 }
 
 export function crearTrucos(): TrucosDebug {
@@ -48,6 +59,9 @@ export function crearTrucos(): TrucosDebug {
     invulnerable: false,
     mapaCompleto: false,
     sinLimiteVersion: false,
+    sinHambre: false,
+    sinApariciones: false,
+    congelarReloj: false,
   };
 }
 
@@ -64,10 +78,17 @@ export interface OpcionesDebugMenu {
    */
   version?: string;
   darObjeto(objeto: number, cantidad: number): void;
+  vaciarInventario(): void;
   generarCriatura(especie: Especie, elite: boolean): void;
+  matarCriaturas(): void;
+  /** Cuántas hay ahora mismo, para el marcador. */
+  cuantasCriaturas(): number;
   rellenarVida(): void;
   establecerVidaMaxima(v: number): void;
   vidaMaximaActual(): number;
+  /** Minuto del día, 0-1439. */
+  horaActual(): number;
+  ponerHora(minutos: number): void;
   /**
    * Estructuras del mundo, para poder plantarse en ellas.
    *
@@ -77,54 +98,100 @@ export interface OpcionesDebugMenu {
    */
   estructuras(): readonly { nombre: string; tx: number; ty: number }[];
   viajarA(tx: number, ty: number): void;
+  volverAlSpawn(): void;
+  /** Datos del mundo abierto, para el marcador de la pestaña de mundo. */
+  informe(): {
+    semilla: string;
+    ancho: number;
+    alto: number;
+    tx: number;
+    ty: number;
+    bioma: string;
+    fps: number;
+  };
 }
 
 const ESTILO = `
 #depuracion {
   pointer-events: auto;
-  position: fixed; right: 14px; top: 14px; z-index: 95; width: min(94vw, 330px);
-  max-height: 88vh; overflow-y: auto; display: none; padding: 14px;
+  position: fixed; right: 14px; top: 14px; z-index: 95; width: min(94vw, 340px);
+  max-height: 88vh; overflow-y: auto; display: none; padding: 0;
   background: rgba(10,13,18,.97); border: 1px solid #48354f; border-radius: 10px;
   font: 11px ui-monospace, monospace; color: #cfc4d8;
   box-shadow: 0 18px 44px rgba(0,0,0,.6);
 }
 #depuracion.visible { display: block; }
+#depuracion .cabecera {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 12px 14px 10px; border-bottom: 1px solid #241c2a;
+}
 #depuracion h3 {
   font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
-  color: #c08fd8; margin-bottom: 10px;
+  color: #c08fd8; margin: 0; flex: 1;
 }
+#depuracion .marca { color: #5a4f66; font-size: 9px; }
+
+/* Las pestañas. Es lo que sustituye a la columna de siete secciones: se ve una
+   cosa a la vez y entera, sin scroll dentro del panel. */
+#depuracion .pestanas { display: flex; border-bottom: 1px solid #241c2a; }
+#depuracion .pestanas button {
+  flex: 1; padding: 8px 0; cursor: pointer; border: 0; border-bottom: 2px solid transparent;
+  background: transparent; color: #7a6a86; font: 10px ui-monospace, monospace;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+#depuracion .pestanas button:hover { color: #cfc4d8; background: #171320; }
+#depuracion .pestanas button.activa { color: #c08fd8; border-bottom-color: #c08fd8; }
+
+#depuracion .hoja { display: none; padding: 12px 14px 4px; }
+#depuracion .hoja.activa { display: block; }
+
 #depuracion h4 {
   font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
   color: #7a6a86; margin: 14px 0 6px; border-top: 1px solid #241c2a; padding-top: 10px;
 }
-#depuracion h4:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+#depuracion .hoja h4:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 #depuracion .fila { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 #depuracion .fila label { flex: 1; color: #9a8ea6; }
-#depuracion select, #depuracion input[type=number] {
+#depuracion select, #depuracion input[type=number], #depuracion input[type=text] {
   background: #171320; color: #cfc4d8; border: 1px solid #38304a; border-radius: 5px;
   padding: 4px 6px; font: 11px ui-monospace, monospace; min-width: 0;
 }
 #depuracion select { flex: 2; }
 #depuracion input[type=number] { width: 66px; }
+#depuracion input[type=text] { flex: 1; }
 #depuracion input[type=range] { flex: 2; accent-color: #c08fd8; }
-#depuracion .valor { width: 40px; text-align: right; color: #7a6a86; }
+#depuracion .valor { width: 46px; text-align: right; color: #7a6a86; }
 #depuracion button {
   padding: 5px 9px; cursor: pointer; border-radius: 5px;
   background: #241c2e; border: 1px solid #38304a; color: #cfc4d8;
   font: 11px ui-monospace, monospace;
 }
 #depuracion button:hover { background: #302640; }
+#depuracion .peligro { border-color: #6a3040; color: #e0a09a; }
+#depuracion .peligro:hover { background: #3a1c24; }
 #depuracion .interruptor { cursor: pointer; padding: 3px 10px; border-radius: 5px;
-  border: 1px solid #38304a; background: #171320; color: #7a6a86; }
+  border: 1px solid #38304a; background: #171320; color: #7a6a86; min-width: 26px;
+  text-align: center; }
 #depuracion .interruptor.on { background: #2a3a2a; border-color: #4c8b3a; color: #b8e0a8; }
-#depuracion .pie { color: #5a4f66; font-size: 9px; margin-top: 12px; line-height: 1.5; }
+#depuracion .pie {
+  color: #5a4f66; font-size: 9px; line-height: 1.5;
+  padding: 10px 14px; border-top: 1px solid #241c2a;
+}
+/* El marcador de la pestaña de mundo: parejas clave-valor en dos columnas. */
+#depuracion .datos {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
+  color: #7a6a86; margin-bottom: 8px;
+}
+#depuracion .datos b { color: #9a8ea6; font-weight: normal; }
+#depuracion .datos span { color: #cfc4d8; text-align: right; }
+#depuracion .vacio { color: #5a4f66; font-style: italic; padding: 2px 0 6px; }
 
 /* La puerta: una sola línea con un campo. Del panel de detrás no se enseña
    nada —ni los títulos ni los controles— hasta que la contraseña es correcta. */
 #depuracion-puerta {
   pointer-events: auto;
   position: fixed; right: 14px; top: 14px; z-index: 96; display: none;
-  width: min(94vw, 330px); padding: 14px;
+  width: min(94vw, 340px); padding: 14px;
   background: rgba(10,13,18,.97); border: 1px solid #48354f; border-radius: 10px;
   font: 11px ui-monospace, monospace; color: #cfc4d8;
   box-shadow: 0 18px 44px rgba(0,0,0,.6);
@@ -157,12 +224,51 @@ export function contrasenaCorrecta(texto: string): boolean {
   return texto.trim().toLowerCase() === CONTRASENA;
 }
 
+/**
+ * Las horas a las que se salta con un clic.
+ *
+ * Son las cuatro que cambian algo de verdad: dos para ver el mundo y dos para
+ * que salgan bichos. Un deslizador de mil cuatrocientos cuarenta minutos también
+ * está, pero acertar el amanecer arrastrándolo es imposible.
+ */
+export const HORAS: readonly { nombre: string; minutos: number }[] = [
+  { nombre: 'amanecer', minutos: 6 * 60 },
+  { nombre: 'mediodía', minutos: 12 * 60 },
+  { nombre: 'ocaso', minutos: 19 * 60 },
+  { nombre: 'noche', minutos: 0 },
+];
+
+/** Minutos a "hh:mm", con el cero delante. */
+export function comoHora(minutos: number): string {
+  const m = ((Math.round(minutos) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/**
+ * ¿Encaja este nombre con lo que se ha escrito en el buscador?
+ *
+ * Sin acentos y sin mayúsculas, porque nadie escribe "batería improvisada" con
+ * la tilde puesta cuando lo que quiere es encontrarla. Con doscientos objetos en
+ * la lista, el desplegable dejó de servir para buscar hace tiempo.
+ */
+export function encaja(nombre: string, filtro: string): boolean {
+  if (filtro === '') return true;
+  const limpio = (s: string): string =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  return limpio(nombre).includes(limpio(filtro));
+}
+
 export interface PanelDebug {
   alternar(): void;
   cerrar(): void;
   readonly abierto: boolean;
   /** ¿Se ha metido ya la contraseña en esta sesión? */
   readonly desbloqueado: boolean;
+  /** Refresca los marcadores en vivo. Lo llama el bucle, de vez en cuando. */
+  refrescarMarcadores(): void;
 }
 
 export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): PanelDebug {
@@ -174,91 +280,145 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   const panel = document.createElement('div');
   panel.id = 'depuracion';
 
-  const objetos = IDS_OBJETO.filter((id) => id !== NADA);
-  const opcionesObjeto = objetos
-    .map((id) => `<option value="${id}">${defObjeto(id).nombre}</option>`)
-    .join('');
-  const especies = Object.keys(ENEMIGOS) as Especie[];
-  const opcionesEspecie = especies
-    .map((e) => `<option value="${e}">${ENEMIGOS[e].nombre}</option>`)
-    .join('');
-
   panel.innerHTML = `
-    <h3>Depuración</h3>
-
-    <h4>Objetos</h4>
-    <div class="fila">
-      <canvas id="dbg-icono" width="${LADO_ICONO}" height="${LADO_ICONO}"
-        style="width:24px;height:24px;image-rendering:pixelated"></canvas>
-      <select id="dbg-objeto">${opcionesObjeto}</select>
+    <div class="cabecera">
+      <h3>Depuración</h3>
+      <span class="marca" id="dbg-version"></span>
     </div>
-    <div class="fila">
-      <input id="dbg-cantidad" type="number" min="1" max="999" value="10">
-      <button id="dbg-dar" style="flex:1">Dar</button>
+    <div class="pestanas">
+      <button data-hoja="objetos" class="activa">Objetos</button>
+      <button data-hoja="jugador">Jugador</button>
+      <button data-hoja="bichos">Bichos</button>
+      <button data-hoja="mundo">Mundo</button>
     </div>
 
-    <h4>Minado</h4>
-    <div class="fila">
-      <label>Velocidad</label>
-      <input id="dbg-vel" type="range" min="1" max="40" step="1" value="1">
-      <span class="valor" id="dbg-vel-val">×1</span>
-    </div>
-    <div class="fila">
-      <label>Área</label>
-      <select id="dbg-area">
-        <option value="1">1 × 1</option>
-        <option value="3">3 × 3</option>
-        <option value="5">5 × 5</option>
-        <option value="7">7 × 7</option>
-        <option value="9">9 × 9</option>
-      </select>
-    </div>
-
-    <h4>Jugador</h4>
-    <div class="fila">
-      <label>Volar</label>
-      <span class="interruptor" id="dbg-volar">no</span>
-    </div>
-    <div class="fila">
-      <label>Invulnerable</label>
-      <span class="interruptor" id="dbg-invuln">no</span>
-    </div>
-    <div class="fila">
-      <label>Mapa del mundo</label>
-      <span class="interruptor" id="dbg-mapa">no</span>
-    </div>
-    <div class="fila">
-      <label>Sin límite de versión</label>
-      <span class="interruptor" id="dbg-sinlimite">no</span>
-    </div>
-    <div class="fila">
-      <label>Daño</label>
-      <input id="dbg-dano" type="range" min="1" max="20" step="1" value="1">
-      <span class="valor" id="dbg-dano-val">×1</span>
-    </div>
-    <div class="fila">
-      <label>Vida máxima</label>
-      <input id="dbg-vidamax" type="number" min="20" max="2000" step="20">
-      <button id="dbg-aplicar-vida">Fijar</button>
-    </div>
-    <div class="fila">
-      <button id="dbg-curar" style="flex:1">Rellenar vida</button>
+    <div class="hoja activa" data-hoja="objetos">
+      <div class="fila">
+        <input id="dbg-buscar" type="text" placeholder="buscar…" autocomplete="off"
+          spellcheck="false">
+        <span class="valor" id="dbg-cuenta"></span>
+      </div>
+      <div class="fila">
+        <canvas id="dbg-icono" width="${LADO_ICONO}" height="${LADO_ICONO}"
+          style="width:24px;height:24px;image-rendering:pixelated"></canvas>
+        <select id="dbg-objeto" size="1"></select>
+      </div>
+      <div class="fila">
+        <input id="dbg-cantidad" type="number" min="1" max="999" value="10">
+        <button id="dbg-dar" style="flex:1">Dar</button>
+        <button id="dbg-pila">Pila</button>
+      </div>
+      <h4>Catálogo</h4>
+      <div class="fila">
+        <label>Sin límite de versión</label>
+        <span class="interruptor" id="dbg-sinlimite">no</span>
+      </div>
+      <div class="fila">
+        <button id="dbg-vaciar" class="peligro" style="flex:1">Vaciar el inventario</button>
+      </div>
     </div>
 
-    <h4>Criaturas</h4>
-    <div class="fila">
-      <select id="dbg-especie">${opcionesEspecie}</select>
-      <button id="dbg-generar">Generar</button>
-    </div>
-    <div class="fila">
-      <label>De élite</label>
-      <span class="interruptor" id="dbg-elite">no</span>
+    <div class="hoja" data-hoja="jugador">
+      <div class="fila">
+        <label>Volar</label>
+        <span class="interruptor" id="dbg-volar">no</span>
+      </div>
+      <div class="fila">
+        <label>Invulnerable</label>
+        <span class="interruptor" id="dbg-invuln">no</span>
+      </div>
+      <div class="fila">
+        <label>Sin hambre</label>
+        <span class="interruptor" id="dbg-sinhambre">no</span>
+      </div>
+      <div class="fila">
+        <label>Daño</label>
+        <input id="dbg-dano" type="range" min="1" max="20" step="1" value="1">
+        <span class="valor" id="dbg-dano-val">×1</span>
+      </div>
+      <div class="fila">
+        <label>Vida máxima</label>
+        <input id="dbg-vidamax" type="number" min="20" max="2000" step="20">
+        <button id="dbg-aplicar-vida">Fijar</button>
+      </div>
+      <div class="fila">
+        <button id="dbg-curar" style="flex:1">Rellenar vida</button>
+        <button id="dbg-spawn">Al spawn</button>
+      </div>
+
+      <h4>Minado</h4>
+      <div class="fila">
+        <label>Velocidad</label>
+        <input id="dbg-vel" type="range" min="1" max="40" step="1" value="1">
+        <span class="valor" id="dbg-vel-val">×1</span>
+      </div>
+      <div class="fila">
+        <label>Área</label>
+        <select id="dbg-area">
+          <option value="1">1 × 1</option>
+          <option value="3">3 × 3</option>
+          <option value="5">5 × 5</option>
+          <option value="7">7 × 7</option>
+          <option value="9">9 × 9</option>
+        </select>
+      </div>
     </div>
 
-    <h4>Estructuras</h4>
-    <div class="fila">
-      <select id="dbg-estructura"></select>
-      <button id="dbg-viajar">Ir</button>
+    <div class="hoja" data-hoja="bichos">
+      <div class="fila">
+        <input id="dbg-buscar-bicho" type="text" placeholder="buscar…" autocomplete="off"
+          spellcheck="false">
+        <span class="valor" id="dbg-vivos"></span>
+      </div>
+      <div class="fila">
+        <select id="dbg-especie"></select>
+      </div>
+      <div class="fila">
+        <label>De élite</label>
+        <span class="interruptor" id="dbg-elite">no</span>
+      </div>
+      <div class="fila">
+        <button id="dbg-generar" style="flex:1">Generar</button>
+        <button id="dbg-generar5">×5</button>
+      </div>
+      <h4>Apariciones</h4>
+      <div class="fila">
+        <label>Que no salga nada</label>
+        <span class="interruptor" id="dbg-sinaparicion">no</span>
+      </div>
+      <div class="fila">
+        <button id="dbg-matar" class="peligro" style="flex:1">Matar a todos</button>
+      </div>
+    </div>
+
+    <div class="hoja" data-hoja="mundo">
+      <div class="datos" id="dbg-datos"></div>
+
+      <h4>Hora</h4>
+      <div class="fila">
+        <input id="dbg-hora" type="range" min="0" max="1439" step="10" value="720">
+        <span class="valor" id="dbg-hora-val">12:00</span>
+      </div>
+      <div class="fila" id="dbg-horas"></div>
+      <div class="fila">
+        <label>Reloj parado</label>
+        <span class="interruptor" id="dbg-congelar">no</span>
+      </div>
+
+      <h4>Viajar</h4>
+      <div class="fila">
+        <select id="dbg-estructura"></select>
+        <button id="dbg-viajar">Ir</button>
+      </div>
+      <div class="fila">
+        <input id="dbg-tx" type="number" min="0" step="1" placeholder="x">
+        <input id="dbg-ty" type="number" min="0" step="1" placeholder="y">
+        <button id="dbg-ir-xy" style="flex:1">Ir ahí</button>
+      </div>
+      <div class="fila">
+        <label>Mapa del mundo</label>
+        <span class="interruptor" id="dbg-mapa">no</span>
+      </div>
     </div>
 
     <div class="pie">P + F3 para abrir y cerrar. No aparece en los controles.</div>
@@ -268,23 +428,64 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   const $ = <T extends HTMLElement>(id: string): T => panel.querySelector<T>(`#${id}`)!;
   const selObjeto = $<HTMLSelectElement>('dbg-objeto');
   const iconoObjeto = $<HTMLCanvasElement>('dbg-icono');
+  const buscar = $<HTMLInputElement>('dbg-buscar');
+  const cuenta = $('dbg-cuenta');
   const cantidad = $<HTMLInputElement>('dbg-cantidad');
   const vel = $<HTMLInputElement>('dbg-vel');
   const velVal = $('dbg-vel-val');
   const area = $<HTMLSelectElement>('dbg-area');
-  const volar = $('dbg-volar');
-  const invuln = $('dbg-invuln');
-  const mapaTodo = $('dbg-mapa');
-  const sinLimite = $('dbg-sinlimite');
   const dano = $<HTMLInputElement>('dbg-dano');
   const danoVal = $('dbg-dano-val');
   const vidaMax = $<HTMLInputElement>('dbg-vidamax');
   const selEspecie = $<HTMLSelectElement>('dbg-especie');
-  const marcaElite = $('dbg-elite');
+  const buscarBicho = $<HTMLInputElement>('dbg-buscar-bicho');
+  const vivos = $('dbg-vivos');
+  const selEstructura = $<HTMLSelectElement>('dbg-estructura');
+  const hora = $<HTMLInputElement>('dbg-hora');
+  const horaVal = $('dbg-hora-val');
+  const datos = $('dbg-datos');
   // Vive aquí y no en `trucos` porque no cambia nada del jugador: es solo con
   // qué bandera nace la próxima criatura que se genere.
   let elite = false;
-  const selEstructura = $<HTMLSelectElement>('dbg-estructura');
+
+  // --- Pestañas ------------------------------------------------------------
+  const botonesPestana = [...panel.querySelectorAll<HTMLButtonElement>('.pestanas button')];
+  const hojas = [...panel.querySelectorAll<HTMLElement>('.hoja')];
+  for (const boton of botonesPestana) {
+    boton.addEventListener('click', () => {
+      const cual = boton.dataset.hoja;
+      for (const b of botonesPestana) b.classList.toggle('activa', b === boton);
+      for (const h of hojas) h.classList.toggle('activa', h.dataset.hoja === cual);
+      if (cual === 'mundo') refrescarMundo();
+    });
+  }
+
+  /**
+   * Un interruptor de sí/no atado a un campo de los trucos.
+   *
+   * Eran diez copias del mismo bloque de cuatro líneas —cambiar el valor, poner
+   * el texto, poner la clase— y en esas diez copias es donde se cuela el día que
+   * uno alterna una cosa y pinta otra.
+   */
+  function interruptor(
+    id: string,
+    leer: () => boolean,
+    escribir: (v: boolean) => void,
+    despues?: () => void,
+  ): void {
+    const el = $(id);
+    const pintar = (): void => {
+      const v = leer();
+      el.textContent = v ? 'sí' : 'no';
+      el.classList.toggle('on', v);
+    };
+    el.addEventListener('click', () => {
+      escribir(!leer());
+      pintar();
+      despues?.();
+    });
+    pintar();
+  }
 
   /**
    * Rellena la lista de destinos.
@@ -314,17 +515,18 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     const v = op.version ?? VERSION_ACTUAL;
     const todo = op.trucos.sinLimiteVersion;
     const objetos = IDS_OBJETO.filter(
-      (id) => id !== NADA && (todo || objetoExisteEn(id, v)),
+      (id) => id !== NADA && (todo || objetoExisteEn(id, v)) && encaja(defObjeto(id).nombre, buscar.value),
     );
     const antes = selObjeto.value;
     selObjeto.innerHTML = objetos
       .map((id) => `<option value="${id}">${defObjeto(id).nombre}</option>`)
       .join('');
     if (objetos.includes(Number(antes))) selObjeto.value = antes;
+    cuenta.textContent = String(objetos.length);
     pintarIcono();
 
     const especies = (Object.keys(ENEMIGOS) as Especie[]).filter(
-      (e) => todo || especieExisteEn(e, v),
+      (e) => (todo || especieExisteEn(e, v)) && encaja(ENEMIGOS[e].nombre, buscarBicho.value),
     );
     const especieAntes = selEspecie.value;
     selEspecie.innerHTML = especies
@@ -333,15 +535,76 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     if (especies.includes(especieAntes as Especie)) selEspecie.value = especieAntes;
   }
 
-  function pintarIcono(): void {
-    iconos.pintarEn(iconoObjeto, Number(selObjeto.value));
+  /** El marcador de la pestaña de mundo. */
+  function refrescarMundo(): void {
+    const i = op.informe();
+    datos.innerHTML = [
+      ['semilla', i.semilla],
+      ['tamaño', `${i.ancho} × ${i.alto}`],
+      ['estás en', `${i.tx}, ${i.ty}`],
+      ['bioma', i.bioma],
+      ['fps', String(Math.round(i.fps))],
+    ]
+      .map(([k, v]) => `<b>${k}</b><span>${v}</span>`)
+      .join('');
+    const m = op.horaActual();
+    hora.value = String(m);
+    horaVal.textContent = comoHora(m);
   }
-  pintarIcono();
-  vidaMax.value = String(op.vidaMaximaActual());
 
+  function pintarIcono(): void {
+    const id = Number(selObjeto.value);
+    if (Number.isFinite(id) && id > 0) iconos.pintarEn(iconoObjeto, id);
+  }
+  vidaMax.value = String(op.vidaMaximaActual());
+  $('dbg-version').textContent = `v${op.version ?? VERSION_ACTUAL}`;
+
+  // Los cuatro saltos de hora, generados de la tabla.
+  $('dbg-horas').innerHTML = HORAS.map(
+    (h, i) => `<button data-hora="${i}" style="flex:1">${h.nombre}</button>`,
+  ).join('');
+  for (const boton of panel.querySelectorAll<HTMLButtonElement>('[data-hora]')) {
+    boton.addEventListener('click', () => {
+      const h = HORAS[Number(boton.dataset.hora)];
+      if (!h) return;
+      op.ponerHora(h.minutos);
+      refrescarMundo();
+    });
+  }
+
+  // --- Objetos -------------------------------------------------------------
   selObjeto.addEventListener('change', pintarIcono);
-  $('dbg-dar').addEventListener('click', () => {
-    op.darObjeto(Number(selObjeto.value), Math.max(1, Number(cantidad.value) || 1));
+  buscar.addEventListener('input', refrescarCatalogos);
+  buscar.addEventListener('keydown', (e) => e.stopPropagation());
+  buscar.addEventListener('keyup', (e) => e.stopPropagation());
+  const dar = (n: number): void => {
+    const id = Number(selObjeto.value);
+    if (Number.isFinite(id) && id > 0) op.darObjeto(id, n);
+  };
+  $('dbg-dar').addEventListener('click', () => dar(Math.max(1, Number(cantidad.value) || 1)));
+  // "Pila" da lo máximo que cabe en una ranura de ese objeto: para probar el
+  // apilado y el desbordamiento, que es donde vive la mitad de los fallos del
+  // inventario, pedir 999 de algo que se apila de uno en uno no vale.
+  $('dbg-pila').addEventListener('click', () => {
+    const id = Number(selObjeto.value);
+    if (Number.isFinite(id) && id > 0) op.darObjeto(id, defObjeto(id).maxPila);
+  });
+  $('dbg-vaciar').addEventListener('click', () => op.vaciarInventario());
+  interruptor(
+    'dbg-sinlimite',
+    () => op.trucos.sinLimiteVersion,
+    (v) => (op.trucos.sinLimiteVersion = v),
+    refrescarCatalogos,
+  );
+
+  // --- Jugador -------------------------------------------------------------
+  interruptor('dbg-volar', () => op.trucos.volar, (v) => (op.trucos.volar = v));
+  interruptor('dbg-invuln', () => op.trucos.invulnerable, (v) => (op.trucos.invulnerable = v));
+  interruptor('dbg-sinhambre', () => op.trucos.sinHambre, (v) => (op.trucos.sinHambre = v));
+  interruptor('dbg-mapa', () => op.trucos.mapaCompleto, (v) => (op.trucos.mapaCompleto = v));
+  dano.addEventListener('input', () => {
+    op.trucos.danoMultiplicador = Number(dano.value);
+    danoVal.textContent = `×${dano.value}`;
   });
   vel.addEventListener('input', () => {
     op.trucos.velocidadMinado = Number(vel.value);
@@ -350,48 +613,64 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   area.addEventListener('change', () => {
     op.trucos.radioMinado = Number(area.value);
   });
-  marcaElite.addEventListener('click', () => {
-    elite = !elite;
-    marcaElite.textContent = elite ? 'sí' : 'no';
-    marcaElite.classList.toggle('on', elite);
+  $('dbg-aplicar-vida').addEventListener('click', () => {
+    op.establecerVidaMaxima(Math.max(20, Number(vidaMax.value) || 100));
   });
-  volar.addEventListener('click', () => {
-    op.trucos.volar = !op.trucos.volar;
-    volar.textContent = op.trucos.volar ? 'sí' : 'no';
-    volar.classList.toggle('on', op.trucos.volar);
+  $('dbg-curar').addEventListener('click', () => op.rellenarVida());
+  $('dbg-spawn').addEventListener('click', () => op.volverAlSpawn());
+
+  // --- Bichos --------------------------------------------------------------
+  buscarBicho.addEventListener('input', refrescarCatalogos);
+  buscarBicho.addEventListener('keydown', (e) => e.stopPropagation());
+  buscarBicho.addEventListener('keyup', (e) => e.stopPropagation());
+  interruptor('dbg-elite', () => elite, (v) => (elite = v));
+  interruptor(
+    'dbg-sinaparicion',
+    () => op.trucos.sinApariciones,
+    (v) => (op.trucos.sinApariciones = v),
+  );
+  const generar = (n: number): void => {
+    const especie = selEspecie.value as Especie;
+    if (!especie) return;
+    for (let i = 0; i < n; i++) op.generarCriatura(especie, elite);
+    refrescarMarcadores();
+  };
+  $('dbg-generar').addEventListener('click', () => generar(1));
+  $('dbg-generar5').addEventListener('click', () => generar(5));
+  $('dbg-matar').addEventListener('click', () => {
+    op.matarCriaturas();
+    refrescarMarcadores();
   });
-  invuln.addEventListener('click', () => {
-    op.trucos.invulnerable = !op.trucos.invulnerable;
-    invuln.textContent = op.trucos.invulnerable ? 'sí' : 'no';
-    invuln.classList.toggle('on', op.trucos.invulnerable);
-  });
-  sinLimite.addEventListener('click', () => {
-    op.trucos.sinLimiteVersion = !op.trucos.sinLimiteVersion;
-    sinLimite.textContent = op.trucos.sinLimiteVersion ? 'sí' : 'no';
-    sinLimite.classList.toggle('on', op.trucos.sinLimiteVersion);
-    refrescarCatalogos();
-  });
-  mapaTodo.addEventListener('click', () => {
-    op.trucos.mapaCompleto = !op.trucos.mapaCompleto;
-    mapaTodo.textContent = op.trucos.mapaCompleto ? 'sí' : 'no';
-    mapaTodo.classList.toggle('on', op.trucos.mapaCompleto);
-  });
-  dano.addEventListener('input', () => {
-    op.trucos.danoMultiplicador = Number(dano.value);
-    danoVal.textContent = `×${dano.value}`;
+
+  // --- Mundo ---------------------------------------------------------------
+  interruptor('dbg-congelar', () => op.trucos.congelarReloj, (v) => (op.trucos.congelarReloj = v));
+  hora.addEventListener('input', () => {
+    op.ponerHora(Number(hora.value));
+    horaVal.textContent = comoHora(Number(hora.value));
   });
   $('dbg-viajar').addEventListener('click', () => {
     const i = Number(selEstructura.value);
     const destino = op.estructuras()[i];
     if (destino) op.viajarA(destino.tx, destino.ty);
   });
-  $('dbg-aplicar-vida').addEventListener('click', () => {
-    op.establecerVidaMaxima(Math.max(20, Number(vidaMax.value) || 100));
+  $('dbg-ir-xy').addEventListener('click', () => {
+    const tx = Number($<HTMLInputElement>('dbg-tx').value);
+    const ty = Number($<HTMLInputElement>('dbg-ty').value);
+    if (Number.isFinite(tx) && Number.isFinite(ty)) op.viajarA(tx, ty);
   });
-  $('dbg-curar').addEventListener('click', () => op.rellenarVida());
-  $('dbg-generar').addEventListener('click', () => {
-    op.generarCriatura(selEspecie.value as Especie, elite);
-  });
+  for (const id of ['dbg-tx', 'dbg-ty', 'dbg-cantidad', 'dbg-vidamax']) {
+    const el = $(id);
+    el.addEventListener('keydown', (e) => e.stopPropagation());
+    el.addEventListener('keyup', (e) => e.stopPropagation());
+  }
+
+  /** Los números que cambian solos: cuántos bichos hay y qué hora es. */
+  function refrescarMarcadores(): void {
+    if (!panel.classList.contains('visible')) return;
+    vivos.textContent = String(op.cuantasCriaturas());
+    const activa = panel.querySelector<HTMLElement>('.hoja.activa');
+    if (activa?.dataset.hoja === 'mundo') refrescarMundo();
+  }
 
   // --- La puerta -----------------------------------------------------------
   const puerta = document.createElement('div');
@@ -413,6 +692,14 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     puerta.classList.remove('visible');
   }
 
+  function abrirPanel(): void {
+    panel.classList.add('visible');
+    refrescarEstructuras();
+    refrescarCatalogos();
+    refrescarMundo();
+    refrescarMarcadores();
+  }
+
   function probar(): void {
     if (!contrasenaCorrecta(clave.value)) {
       clave.classList.add('mal');
@@ -426,9 +713,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     clave.value = '';
     clave.classList.remove('mal');
     puerta.classList.remove('visible');
-    panel.classList.add('visible');
-    refrescarEstructuras();
-    refrescarCatalogos();
+    abrirPanel();
   }
 
   puerta.querySelector('#dbg-entrar')!.addEventListener('click', probar);
@@ -445,12 +730,8 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   return {
     alternar() {
       if (desbloqueado) {
-        const abriendo = !panel.classList.contains('visible');
-        panel.classList.toggle('visible', abriendo);
-        if (abriendo) {
-        refrescarEstructuras();
-        refrescarCatalogos();
-      }
+        if (panel.classList.contains('visible')) panel.classList.remove('visible');
+        else abrirPanel();
         return;
       }
       const abriendo = !puerta.classList.contains('visible');
@@ -467,5 +748,6 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     get desbloqueado() {
       return desbloqueado;
     },
+    refrescarMarcadores,
   };
 }

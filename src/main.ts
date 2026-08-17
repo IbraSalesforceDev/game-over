@@ -600,6 +600,30 @@ async function arrancar(): Promise<void> {
       panelVida.refrescar(salud);
     },
     vidaMaximaActual: () => salud.vidaMax,
+    vaciarInventario: () => {
+      inventario.vaciar();
+      barra.refrescar(capa);
+    },
+    matarCriaturas: () => {
+      for (const e of enemigos) e.vivo = false;
+      limpiarEnemigos(enemigos);
+    },
+    cuantasCriaturas: () => enemigos.filter((e) => e.vivo).length,
+    horaActual: () => Math.round(reloj.minutos),
+    ponerHora: (m) => {
+      reloj.ir(m);
+      motorLuz.marcarSucio();
+    },
+    volverAlSpawn: () => reaparecer(jugador),
+    informe: () => ({
+      semilla: partida.estado.semilla,
+      ancho: mundo.ancho,
+      alto: mundo.alto,
+      tx: Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),
+      ty: Math.floor((jugador.caja.y + jugador.caja.alto) / TILE),
+      bioma: biomaDelFondo(),
+      fps: bucle.fps,
+    }),
     estructuras: () =>
       partida.estado.estructuras.map((e) => ({
         nombre: nombreEstructura(e.tipo),
@@ -1217,7 +1241,15 @@ async function arrancar(): Promise<void> {
       Math.abs(jugador.caja.vx) > 0.6 || !jugador.caja.enSuelo || picado.progreso > 0;
     // Antes de 2.3.0 no se comía: la barra ni se mueve ni se enseña.
     if (tiene('hambre')) {
-      const rh = tickHambre(hambre, salud, jugador.caja, activo, nivelDif.hambre, nivelDif.castigo);
+      const rh = tickHambre(
+        hambre,
+        salud,
+        jugador.caja,
+        activo,
+        // Ritmo cero: el hambre deja de bajar sin tener que tocar `tickHambre`.
+        trucos.sinHambre ? 0 : nivelDif.hambre,
+        nivelDif.castigo,
+      );
       if (rh.curado || rh.danado) panelVida.refrescar(salud);
       if (rh.danado) aviso.mostrar('Tienes hambre', true);
       panelVida.refrescarHambre(hambre);
@@ -1383,7 +1415,7 @@ async function arrancar(): Promise<void> {
 
     limpiarEnemigos(enemigos);
 
-    if (--relojAparicion <= 0) {
+    if (--relojAparicion <= 0 && !trucos.sinApariciones) {
       const txJugador = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
       const tyJugador = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
       // Dentro de una estructura sale el doble de deprisa. Fuera no se nota
@@ -2190,7 +2222,7 @@ async function arrancar(): Promise<void> {
   const bucle = crearBucle(
     () => {
       // Antes de 1.5.0 no había ciclo: el sol no se movía de mediodía.
-      if (tiene('diaNoche')) reloj.avanzar(TICK);
+      if (tiene('diaNoche') && !trucos.congelarReloj) reloj.avanzar(TICK);
       if (esperaAvisoPico > 0) esperaAvisoPico--;
       if (esperaAvisoVersion > 0) esperaAvisoVersion--;
       if (esperaAvisoFlechas > 0) esperaAvisoFlechas--;
@@ -2249,6 +2281,11 @@ async function arrancar(): Promise<void> {
           biomaFondoAhora === 'inframundo' ? motorLuz.techoInframundo * TILE : 0,
       });
 
+      // Los marcadores en vivo del panel de depuración, cuatro veces por
+      // segundo: son lectura del DOM y no hace falta ir a sesenta.
+      if (depuracion.abierto && bucle.fps > 0 && relojAparicion % 15 === 0) {
+        depuracion.refrescarMarcadores();
+      }
       debug.fps = bucle.fps;
       debug.msFrame = bucle.msFrame;
       debug.chunksVivos = renderer.cache.tamano;

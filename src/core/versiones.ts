@@ -482,6 +482,21 @@ export const VERSIONES: readonly Version[] = [
       'Alumbrar una mina entera obliga a repartir baterías, no a poner una en la entrada',
     ],
   },
+  {
+    id: '6.6.0',
+    etapa: 'prealfa',
+    nombre: 'El panel de servicio, ordenado',
+    resumen: 'El menú de depuración va por pestañas y trae bastantes más perillas.',
+    cambios: [
+      'Cuatro pestañas —objetos, jugador, bichos y mundo— en vez de una columna con scroll',
+      'Buscador en las listas de objetos y de criaturas, que ya no caben en un desplegable',
+      'Hora del día, con saltos a amanecer, mediodía, ocaso y noche, y el reloj se puede parar',
+      'Interruptores para el hambre y para las apariciones',
+      'Matar a todos, vaciar el inventario, dar una pila entera y volver al spawn',
+      'Viajar a unas coordenadas concretas, no solo a las estructuras',
+      'Marcador en vivo: semilla, tamaño, dónde estás, bioma, fps y bichos vivos',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
