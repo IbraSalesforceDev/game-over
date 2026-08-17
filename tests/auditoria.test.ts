@@ -36,7 +36,30 @@ import { Mundo } from '../src/world/world';
 import { crearCaja } from '../src/entities/physics';
 import { TILE } from '../src/core/constants';
 import { ENEMIGOS } from '../src/entities/enemies';
-import { ARENA, BARRO, MADERA, MESA, TIERRA, TILES, TRONCO, versionTile } from '../src/world/tiles';
+import {
+  AIRE,
+  ALTAR,
+  ARENA,
+  ARENISCA,
+  BARRO,
+  CARBON,
+  COFRE,
+  GRAVA,
+  HIELO,
+  INFERNITA,
+  LADRILLO,
+  LADRILLO_INFERNAL,
+  LIANA,
+  MADERA,
+  MESA,
+  PIEDRA,
+  PINCHOS,
+  ROCA_INFERNAL,
+  TIERRA,
+  TILES,
+  TRONCO,
+  versionTile,
+} from '../src/world/tiles';
 import { alMenos, hay, VERSION_ACTUAL, VERSIONES } from '../src/core/versiones';
 import { generarMundo } from '../src/world/gen/worldgen';
 import { destinosPosibles } from '../src/world/migracion';
@@ -260,5 +283,95 @@ describe('los bloques de adorno se fabrican de verdad', () => {
     expect(craftear(inv, receta, new Set([MESA]))).toBe(true);
     expect(inv.contar(TRONCO)).toBe(receta.cantidad);
     expect(inv.contar(MADERA)).toBe(18);
+  });
+});
+
+describe('los cofres no guardan cosas del futuro', () => {
+  /**
+   * Un agujero que la auditoría de tiles no veía.
+   *
+   * El botín de un cofre no pasa por el filtro de versión al abrirlo: se
+   * adopta tal cual del guardado. Así que ampliar las tablas de botín en 6.3.0
+   * —lingotes de cobalto en la fortaleza, flechas de hueso en la cueva helada—
+   * metió objetos de 5.0.0 y 5.4.0 en cofres que abre igual un mundo de 4.0.0.
+   * Se filtra al generar, que es el único momento en que se sabe la versión.
+   */
+  it('en ninguna versión', () => {
+    const malas: string[] = [];
+    // Solo las que tienen estructuras: antes de 4.0.0 no hay cofres que mirar.
+    for (const v of VERSIONES) {
+      if (!hay('estructuras', v.id)) continue;
+      const { cofres } = generarMundo({ ancho: 700, alto: 500, semilla: 'COFRES', version: v.id });
+      for (const c of cofres) {
+        for (const [objeto] of c.ranuras) {
+          if (!objetoExisteEn(objeto, v.id)) {
+            malas.push(`${v.id}: ${nombre(objeto)}, de ${versionObjeto(objeto)}`);
+          }
+        }
+      }
+    }
+    expect([...new Set(malas)]).toEqual([]);
+  });
+
+  it('y ningún cofre sale vacío por haberlo filtrado', () => {
+    // Filtrando después de sortear, un cofre de un mundo viejo podía quedarse
+    // sin nada porque los dos premios que le tocaron eran de más adelante.
+    for (const v of ['4.0.0', '5.0.0', '5.4.0', VERSION_ACTUAL]) {
+      const { cofres } = generarMundo({ ancho: 700, alto: 500, semilla: 'COFRES', version: v });
+      expect(cofres.length).toBeGreaterThan(0);
+      for (const c of cofres) expect(c.ranuras.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('la tabla de tiles está en su sitio', () => {
+  /**
+   * La invariante que faltaba, y que costó un bug de verdad.
+   *
+   * `TILES` es un vector posicional: el tile número 51 es el que está en la
+   * posición 51, y las constantes exportadas —`LIANA = 51`— son la otra mitad
+   * del acuerdo. Al añadir dos tiles en 6.2.0 y 6.3.0 se insertaron sus
+   * definiciones donde caía bien de leer, no donde tocaba, y todo lo posterior
+   * se desplazó: la liana pasó a tener las propiedades del ladrillo infernal y
+   * el ladrillo infernal las de los pinchos, o sea que las paredes de la
+   * fortaleza del inframundo dejaban pasar y hacían veintidós de daño.
+   *
+   * Ninguna prueba lo vio porque los ids que escribe el generador y los que lee
+   * el render son los mismos: lo que estaba mal era lo que la tabla decía de
+   * ellos. Este test compara nombre a nombre.
+   */
+  it('cada constante apunta al tile que dice su nombre', () => {
+    const esperado: [number, string][] = [
+      [AIRE, 'aire'],
+      [TIERRA, 'tierra'],
+      [PIEDRA, 'piedra'],
+      [MADERA, 'madera'],
+      [COFRE, 'cofre'],
+      [ARENISCA, 'arenisca'],
+      [HIELO, 'hielo'],
+      [GRAVA, 'grava'],
+      [LADRILLO, 'ladrillo de fortaleza'],
+      [ALTAR, 'altar antiguo'],
+      [CARBON, 'carbón'],
+      [INFERNITA, 'infernita'],
+      [ROCA_INFERNAL, 'roca infernal'],
+      [LIANA, 'liana'],
+      [LADRILLO_INFERNAL, 'ladrillo infernal'],
+      [PINCHOS, 'pinchos'],
+    ];
+    for (const [id, nom] of esperado) {
+      expect(`${id}=${TILES[id]?.nombre}`).toBe(`${id}=${nom}`);
+    }
+  });
+
+  it('no hay huecos ni sobrantes al final de la tabla', () => {
+    // Un hueco significa que alguien añadió una constante sin su definición, o
+    // al revés. Las dos cosas se leen como "el tile existe" hasta que alguien
+    // lo coloca y no pasa nada.
+    expect(TILES[PINCHOS]).toBeDefined();
+    expect(TILES.length).toBe(PINCHOS + 1);
+    for (let id = 0; id < TILES.length; id++) {
+      expect(TILES[id], `falta el tile #${id}`).toBeDefined();
+    }
   });
 });

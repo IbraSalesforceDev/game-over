@@ -415,6 +415,22 @@ export const VERSIONES: readonly Version[] = [
       'Un paso de líquidos cuesta lo mismo en cualquier tamaño',
     ],
   },
+  {
+    id: '6.3.0',
+    etapa: 'prealfa',
+    nombre: 'Las estructuras se defienden',
+    resumen: 'Más grandes, con guarnición, trampas, mejor botín y paredes más duras.',
+    cambios: [
+      'La fortaleza pasa de doce salas a veinticuatro',
+      'Minas del doble de largas y cuevas de bioma mucho más anchas',
+      'Cada estructura tiene sus propios bichos, y salen al doble de ritmo',
+      'Dentro puede haber élites a cualquier hora y profundidad',
+      'Trampas de pinchos por los suelos',
+      'El ladrillo de fortaleza pide pico de hierro',
+      'Cofres bastante mejores, con lingotes y flechas buenas',
+      'Las cabañas se quedan como estaban: son el refugio',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -483,6 +499,8 @@ export const DESDE = {
   mundoHondo: '6.0.0',
   sueloInfernal: '6.1.0',
   fortalezaInfernal: '6.2.0',
+  guarnicionEstructuras: '6.3.0',
+  trampas: '6.3.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

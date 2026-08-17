@@ -11,6 +11,7 @@ import {
   CACTUS,
   CAMA,
   CANA,
+  PINCHOS,
   CULTIVOS,
   OBSIDIANA,
   VIDRIO,
@@ -526,6 +527,38 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       // Brillo en diagonal, desplazado por variante.
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       for (let i = 0; i < 6; i++) ctx.fillRect(ox + 3 + i + (v % 3), oy + 9 - i, 1, 1);
+    }
+  }
+
+  // Pinchos: una fila de púas apoyadas en una base baja, no un bloque.
+  //
+  // Se dibujan a propósito con la punta a la altura de los ojos del sprite y no
+  // rellenando el tile: lo que tiene que leerse de un vistazo es "eso pincha",
+  // y una casilla gris uniforme se lee como piedra clara. Las púas van
+  // desiguales entre variantes para que una hilera larga no se vea como una
+  // reja de fábrica.
+  ctx.clearRect(0, PINCHOS * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+  for (let m = 0; m < MASCARAS; m++) {
+    const oy = (PINCHOS * MASCARAS + m) * TILE;
+    for (let v = 0; v < VARIANTES; v++) {
+      const ox = v * TILE;
+      // Base: la placa de la que salen.
+      ctx.fillStyle = '#4a4f59';
+      ctx.fillRect(ox, oy + TILE - 3, TILE, 3);
+      ctx.fillStyle = '#5f6672';
+      ctx.fillRect(ox, oy + TILE - 3, TILE, 1);
+      // Cuatro púas, cada una con su altura.
+      for (let p = 0; p < 4; p++) {
+        const px0 = ox + 1 + p * 4;
+        const alto = 8 + ((v + p) % 3);
+        for (let i = 0; i < alto; i++) {
+          // Triángulo: se estrecha hacia arriba.
+          const w = i < alto - 4 ? 3 : i < alto - 1 ? 2 : 1;
+          const x = px0 + Math.floor((3 - w) / 2);
+          ctx.fillStyle = i > alto - 4 ? '#d8dee8' : '#8f96a3';
+          ctx.fillRect(x, oy + TILE - 3 - i, w, 1);
+        }
+      }
     }
   }
 

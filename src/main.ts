@@ -40,6 +40,7 @@ import { confirmarVersion } from './ui/confirmarversion';
 import { faltaParaOfrenda, pagarOfrenda, textoFalta } from './world/altar';
 import {
   estructuraMasCercana,
+  estructuraEn,
   nombreEstructura,
   type Estructura,
 } from './world/estructuras';
@@ -77,6 +78,7 @@ import {
   materialDe,
   TIERRA,
   TIERRA_LABRADA,
+  danoEnCaja,
 } from './world/tiles';
 import { Particulas } from './render/particles';
 import {
@@ -158,6 +160,7 @@ import {
   biomaEn,
   intentarAparicion,
   INTERVALO_INTENTO,
+  RITMO_ESTRUCTURA,
   limpiarEnemigos,
 } from './entities/spawner';
 import { crearPanelVida } from './ui/vida';
@@ -1354,9 +1357,17 @@ async function arrancar(): Promise<void> {
     limpiarEnemigos(enemigos);
 
     if (--relojAparicion <= 0) {
-      relojAparicion = INTERVALO_INTENTO;
       const txJugador = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
       const tyJugador = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
+      // Dentro de una estructura sale el doble de deprisa. Fuera no se nota
+      // nada: la lista de estructuras de un mundo son un par de docenas de
+      // puntos y esto se pregunta una vez cada cuarenta ticks.
+      const dentro = tiene('guarnicionEstructuras')
+        ? estructuraEn(partida.estado.estructuras, txJugador, tyJugador)
+        : null;
+      relojAparicion = dentro === null
+        ? INTERVALO_INTENTO
+        : Math.max(6, Math.round(INTERVALO_INTENTO / RITMO_ESTRUCTURA));
       const salido = intentarAparicion(mundo, enemigos, jugador.caja, {
         esNoche: reloj.esNoche,
         superficieTy: motorLuz.alturaCielo[txJugador] ?? 0,
@@ -1370,6 +1381,7 @@ async function arrancar(): Promise<void> {
         inframundoTy: hay('inframundo', versionMundo)
           ? techoInframundo(mundo.alto, hay('mundoHondo', versionMundo))
           : undefined,
+        estructura: dentro,
       });
       // Un élite se anuncia. Aparece fuera de pantalla como todo lo demás, y
       // enterarse de que ese zombi pegaba dos veces y media cuando ya te ha
@@ -1818,8 +1830,44 @@ async function arrancar(): Promise<void> {
       audio.sonar(r.motivo === 'ahogo' ? 'chapoteo' : 'quemar');
     }
     panelVida.refrescarAliento(aliento);
+
+    // Trampas: los pinchos de las estructuras. Van aquí y no en la física
+    // porque son daño, no colisión —se entra en ellos—, y comparten con la
+    // lava la regla de que hacen daño por rato y no por tick: sin espera, una
+    // caída sobre pinchos quitaría la vida entera en medio segundo.
+    if (relojTrampa > 0) relojTrampa--;
+    const pincha = danoEnCaja(
+      mundo,
+      jugador.caja.x,
+      jugador.caja.y,
+      jugador.caja.ancho,
+      jugador.caja.alto,
+      TILE,
+    );
+    if (pincha > 0 && relojTrampa <= 0) {
+      relojTrampa = INTERVALO_TRAMPA;
+      const dano = Math.max(1, Math.round(pincha * nivelDif.castigo));
+      if (golpear(salud, jugador.caja, dano, jugador.caja.x + jugador.caja.ancho / 2, 18)) {
+        panelVida.refrescar(salud);
+        aviso.mostrar('¡Pinchos!', true);
+        audio.sonar('dano');
+        sacudir(2.6);
+      }
+    }
+
     return s.fraccion;
   }
+
+  /**
+   * Ticks entre pinchazo y pinchazo.
+   *
+   * Medio segundo. Es el mismo criterio que la lava: una trampa que cobra cada
+   * tick mata en medio segundo y no enseña nada, porque no da tiempo a
+   * reaccionar. Cobrando cada treinta, quien cae encima se levanta y sale, y
+   * quien se queda ahí plantado se lo ha buscado.
+   */
+  let relojTrampa = 0;
+  const INTERVALO_TRAMPA = 30;
 
   /** Ticks que llevaba el jugador dentro del agua, para el chapoteo de entrada. */
   let mojadoAntes = false;

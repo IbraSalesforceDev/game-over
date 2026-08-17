@@ -11,6 +11,7 @@ import {
   LADRILLO_INFERNAL,
   MADERA,
   PIEDRA,
+  PINCHOS,
   PLATAFORMA,
   TITANIO,
 } from '../tiles';
@@ -27,6 +28,8 @@ import {
 import { DESIERTO, NIEVE_B, type MapaBiomas } from './biomas';
 import {
   FLECHA,
+  FLECHA_HIERRO,
+  FLECHA_HUESO,
   GEL,
   HUESO,
   LINGOTE_HIERRO,
@@ -41,6 +44,8 @@ import {
   LINGOTE_INFERNITA,
   LINGOTE_TITANIO,
 } from '../../items/items';
+import { hay, VERSION_ACTUAL } from '../../core/versiones';
+import { objetoExisteEn } from '../../items/items';
 import type { DatosCofre } from '../contenedores';
 import type { Mundo } from '../world';
 import type { Rng } from './rng';
@@ -69,14 +74,24 @@ export interface ResultadoEstructuras {
 /** Sala de la fortaleza, en tiles. */
 const SALA_ANCHO = 11;
 const SALA_ALTO = 8;
-/** Salas de la fortaleza a lo ancho y a lo alto, sin contar la del altar. */
-const SALAS_X = 4;
-const SALAS_Y = 3;
+/**
+ * Salas de la fortaleza a lo ancho y a lo alto, sin contar la del altar.
+ *
+ * De 4×3 a 6×4 en 6.3.0. Con doce salas se recorría entera en menos de un
+ * minuto y el altar quedaba a tres saltos de la entrada; con veinticuatro hay
+ * que buscarlo, que es lo que convierte la fortaleza en un sitio y no en un
+ * pasillo con un jefe al final.
+ */
+const SALAS_X = 6;
+const SALAS_Y = 4;
+/** Las de antes de 6.3.0, para que un mundo viejo tenga la fortaleza de su época. */
+const SALAS_X_VIEJO = 4;
+const SALAS_Y_VIEJO = 3;
 
-const FORTALEZA_ANCHO = SALAS_X * SALA_ANCHO + 1;
 /** La sala del altar ocupa el ancho entero y va debajo de las demás. */
 const ALTAR_ALTO = 13;
-const FORTALEZA_ALTO = SALAS_Y * SALA_ALTO + 1 + ALTAR_ALTO;
+const anchoFortaleza = (sx: number): number => sx * SALA_ANCHO + 1;
+const altoFortaleza = (sy: number): number => sy * SALA_ALTO + 1 + ALTAR_ALTO;
 
 /**
  * Levanta todas las estructuras del mundo.
@@ -103,18 +118,39 @@ export function levantarEstructuras(
   escala = 1,
   /** Techo y suelo del inframundo, si este mundo lo tiene. */
   inframundo?: { techo: number; suelo: number },
+  /**
+   * Versión del mundo. Decide dos cosas que no se pueden dar por hechas.
+   *
+   * Una: si hay trampas y salas grandes, que llegaron en 6.3.0 — un mundo de
+   * 4.0.0 tiene la fortaleza de 4×3 salas que tenía entonces, sin un solo
+   * pincho. Y dos, y más importante: qué puede haber dentro de los cofres.
+   *
+   * Lo segundo se le pasó a la auditoría porque solo mira tiles, y por ahí se
+   * coló al ampliar las tablas de botín: la fortaleza pasó a guardar lingotes
+   * de cobalto y flechas de hueso, que son de 5.0.0 y de 5.4.0, y esos cofres
+   * los abre igual un mundo de 4.0.0. El botín de un cofre no pasa por el
+   * filtro de versión al abrirlo —se adopta tal cual del guardado—, así que hay
+   * que filtrarlo aquí, al ponerlo.
+   */
+  version: string = VERSION_ACTUAL,
 ): ResultadoEstructuras {
   const salida: ResultadoEstructuras = { estructuras: [], cofres: [] };
+  const reforzadas = hay('guarnicionEstructuras', version);
+  const ctx: Contexto = {
+    version,
+    reforzadas,
+    trampas: hay('trampas', version),
+  };
 
-  construirFortaleza(mundo, superficie, caverna, fondo, rng, salida);
+  construirFortaleza(mundo, superficie, caverna, fondo, rng, salida, ctx);
 
   // Las cuevas de bioma van antes que las cabañas y las minas para que, si dos
   // quisieran el mismo sitio, gane la que da nombre al lugar.
   if (biomas) {
     const cuantas = Math.max(1, Math.floor((mundo.ancho / 700) * escala));
     for (let i = 0; i < cuantas; i++) {
-      excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, DESIERTO);
-      excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, NIEVE_B);
+      excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, DESIERTO, ctx);
+      excavarCuevaDeBioma(mundo, superficie, biomas, rng, salida, NIEVE_B, ctx);
     }
   }
 
@@ -124,18 +160,18 @@ export function levantarEstructuras(
   // hallazgo y no parte del paisaje.
   const cabanas = Math.max(1, Math.floor(mundo.ancho / 800));
   for (let i = 0; i < cabanas; i++) {
-    construirCabana(mundo, superficie, rng, salida);
+    construirCabana(mundo, superficie, rng, salida, ctx);
   }
   const minas = Math.max(1, Math.floor((mundo.ancho / 500) * escala));
   for (let i = 0; i < minas; i++) {
-    construirMina(mundo, superficie, caverna, fondo, rng, salida);
+    construirMina(mundo, superficie, caverna, fondo, rng, salida, ctx);
   }
 
   // Y las fortalezas del inframundo, si el mundo llega a tener inframundo.
   if (inframundo) {
     const cuantas = Math.max(1, Math.floor(mundo.ancho / 900));
     for (let i = 0; i < cuantas; i++) {
-      levantarFortalezaInfernal(mundo, inframundo.techo, inframundo.suelo, rng, salida);
+      levantarFortalezaInfernal(mundo, inframundo.techo, inframundo.suelo, rng, salida, ctx);
     }
   }
 
@@ -236,13 +272,64 @@ function ponerCofre(
   });
 }
 
-/** Tira dos o tres premios de una tabla. Cada uno puede salir una sola vez. */
+/**
+ * Siembra pinchos por el suelo de una sala.
+ *
+ * En grupos de dos o tres y nunca pegados al cofre: una trampa que cobra por
+ * abrir el premio es un impuesto, y lo que se busca es castigar el cruzar la
+ * sala sin mirar. Tampoco delante de las puertas, para que no haya forma de
+ * entrar sin poder evitarlos.
+ */
+function sembrarPinchos(
+  mundo: Mundo,
+  tx0: number,
+  ty: number,
+  tx1: number,
+  rng: Rng,
+  probabilidad: number,
+): void {
+  let tx = tx0 + 1;
+  while (tx < tx1 - 1) {
+    if (rng.suerte(probabilidad)) {
+      const largo = rng.entero(2, 3);
+      for (let d = 0; d < largo && tx + d < tx1 - 1; d++) {
+        const x = tx + d;
+        // Solo sobre suelo firme y solo en aire: un pincho flotando en mitad de
+        // la sala se lee como un fallo, y uno dentro del cofre lo tapa.
+        if (mundo.getTile(x, ty) !== AIRE) continue;
+        if (!esSolido(mundo.getTile(x, ty + 1))) continue;
+        mundo.setTile(x, ty, PINCHOS);
+      }
+      tx += largo + rng.entero(3, 6);
+    } else {
+      tx += rng.entero(2, 4);
+    }
+  }
+}
+
+/** Lo que hace falta saber de la versión del mundo mientras se construye. */
+interface Contexto {
+  version: string;
+  /** Salas grandes y botín bueno: de 6.3.0 en adelante. */
+  reforzadas: boolean;
+  /** Pinchos por los suelos. */
+  trampas: boolean;
+}
+
+/**
+ * Tira dos o tres premios de una tabla. Cada uno puede salir una sola vez.
+ *
+ * Se filtra por versión antes de sortear, no después: quitando después, un
+ * cofre de un mundo viejo podía salir vacío porque los dos premios que le
+ * tocaron eran de una versión posterior.
+ */
 function sortearBotin(
   rng: Rng,
   tabla: readonly (readonly [number, number, number])[],
   cuantos: number,
+  version: string = VERSION_ACTUAL,
 ): [number, number][] {
-  const disponibles = [...tabla];
+  const disponibles = tabla.filter(([objeto]) => objetoExisteEn(objeto, version));
   const salida: [number, number][] = [];
   for (let i = 0; i < cuantos && disponibles.length > 0; i++) {
     const j = rng.entero(0, disponibles.length - 1);
@@ -257,14 +344,16 @@ function sortearBotin(
 
 /** Lo que puede haber en un cofre de la fortaleza. */
 const BOTIN_FORTALEZA: readonly (readonly [number, number, number])[] = [
-  [LINGOTE_ORO, 3, 8],
-  [LINGOTE_PLATA, 4, 12],
-  [LINGOTE_HIERRO, 6, 14],
-  [FLECHA, 25, 60],
-  [HUESO, 4, 9],
-  [GEL, 12, 30],
-  [CRISTAL, 1, 1],
-  [CARNE_ASADA, 2, 4],
+  [LINGOTE_ORO, 8, 18],
+  [LINGOTE_PLATA, 10, 24],
+  [LINGOTE_HIERRO, 14, 30],
+  [LINGOTE_COBALTO, 4, 10],
+  [FLECHA_HUESO, 20, 45],
+  [FLECHA, 40, 90],
+  [HUESO, 10, 22],
+  [GEL, 25, 60],
+  [CRISTAL, 1, 2],
+  [CARNE_ASADA, 4, 8],
 ];
 
 /**
@@ -282,7 +371,12 @@ function construirFortaleza(
   fondo: number,
   rng: Rng,
   salida: ResultadoEstructuras,
+  ctx: Contexto,
 ): void {
+  const salasX = ctx.reforzadas ? SALAS_X : SALAS_X_VIEJO;
+  const salasY = ctx.reforzadas ? SALAS_Y : SALAS_Y_VIEJO;
+  const FORTALEZA_ANCHO = anchoFortaleza(salasX);
+  const FORTALEZA_ALTO = altoFortaleza(salasY);
   const centro = mundo.ancho / 2;
   // A un lado o al otro, entre el 25 % y el 42 % del ancho desde el centro.
   const lado = rng.suerte(0.5) ? -1 : 1;
@@ -312,8 +406,8 @@ function construirFortaleza(
   macizar(mundo, izquierda, arriba, derecha, abajo, LADRILLO);
 
   // --- Los tres pisos de salas ---
-  for (let fila = 0; fila < SALAS_Y; fila++) {
-    for (let col = 0; col < SALAS_X; col++) {
+  for (let fila = 0; fila < salasY; fila++) {
+    for (let col = 0; col < salasX; col++) {
       const sx0 = izquierda + 1 + col * SALA_ANCHO;
       const sy0 = arriba + 1 + fila * SALA_ALTO;
       const sx1 = sx0 + SALA_ANCHO - 2;
@@ -322,13 +416,13 @@ function construirFortaleza(
 
       // Puerta a la sala de la derecha, a ras de suelo: dos tiles de alto, que
       // es justo lo que mide el jugador.
-      if (col < SALAS_X - 1) {
+      if (col < salasX - 1) {
         limpiarPuerta(mundo, sx1 + 1, sy1 - 1, sx1 + 1, sy1);
       }
       // Y un hueco al piso de abajo, en una columna de la sala, con plataformas
       // para poder subir. Sin ellas la fortaleza se recorre de arriba abajo y
       // ya no se puede volver.
-      if (fila < SALAS_Y - 1) {
+      if (fila < salasY - 1) {
         const hx = sx0 + rng.entero(1, SALA_ANCHO - 4);
         limpiarPuerta(mundo, hx, sy1 + 1, hx + 1, sy1 + 1);
         mundo.setTile(hx, sy1 + 1, PLATAFORMA);
@@ -347,14 +441,19 @@ function construirFortaleza(
           salida,
           sx0 + rng.entero(2, SALA_ANCHO - 4),
           sy1,
-          sortearBotin(rng, BOTIN_FORTALEZA, rng.entero(2, 3)),
+          sortearBotin(rng, BOTIN_FORTALEZA, rng.entero(3, 4), ctx.version),
         );
+      } else if (ctx.trampas && rng.suerte(0.55)) {
+        // Y pinchos en las salas que no tienen cofre. Nunca en las dos cosas: un
+        // premio custodiado por una trampa que no se puede esquivar es un
+        // impuesto, no un reto.
+        sembrarPinchos(mundo, sx0, sy1, sx1, rng, 0.4);
       }
     }
   }
 
   // --- La sala del altar ---
-  const ay0 = arriba + SALAS_Y * SALA_ALTO + 1;
+  const ay0 = arriba + salasY * SALA_ALTO + 1;
   const ay1 = abajo - 1;
   ahuecar(mundo, izquierda + 1, ay0, derecha - 1, ay1, LADRILLO);
   // Bajada desde el último piso, en el centro.
@@ -371,6 +470,12 @@ function construirFortaleza(
   // Antorchas escoltándolo, para que se vea entrando desde arriba.
   mundo.setTile(cx - 3, ay1 - 1, ANTORCHA);
   mundo.setTile(cx + 3, ay1 - 1, ANTORCHA);
+  // Y pinchos por el suelo de la sala, lejos del pedestal: la pelea con el
+  // guardián deja de ser un sitio llano donde solo hay que retroceder.
+  if (ctx.trampas) {
+    sembrarPinchos(mundo, izquierda + 1, ay1, cx - 5, rng, 0.5);
+    sembrarPinchos(mundo, cx + 5, ay1, derecha - 1, rng, 0.5);
+  }
 
   anotar(salida, FORTALEZA, cx, ay1 - 1);
 }
@@ -397,22 +502,26 @@ function limpiarPuerta(
 
 /** Lo que guarda una cueva de arenisca. */
 const BOTIN_DESIERTO: readonly (readonly [number, number, number])[] = [
-  [COBALTO, 8, 20],
-  [LINGOTE_ORO, 5, 12],
-  [FLECHA, 30, 70],
-  [HUESO, 6, 14],
-  [CRISTAL, 1, 1],
-  [CARNE_ASADA, 2, 5],
+  [COBALTO, 18, 40],
+  [LINGOTE_ORO, 10, 22],
+  [LINGOTE_COBALTO, 4, 9],
+  [FLECHA_FUEGO, 12, 28],
+  [FLECHA, 50, 110],
+  [HUESO, 12, 26],
+  [CRISTAL, 1, 2],
+  [CARNE_ASADA, 4, 9],
 ];
 
 /** Lo que guarda una cueva helada. */
 const BOTIN_NIEVE: readonly (readonly [number, number, number])[] = [
-  [TITANIO, 6, 16],
-  [LINGOTE_PLATA, 6, 14],
-  [FLECHA, 30, 70],
-  [PEDERNAL, 5, 12],
-  [CRISTAL, 1, 1],
-  [GEL, 15, 32],
+  [TITANIO, 14, 34],
+  [LINGOTE_PLATA, 12, 28],
+  [LINGOTE_TITANIO, 3, 8],
+  [FLECHA_HUESO, 15, 34],
+  [FLECHA, 50, 110],
+  [PEDERNAL, 10, 24],
+  [CRISTAL, 1, 2],
+  [GEL, 30, 65],
 ];
 
 /**
@@ -435,6 +544,7 @@ function excavarCuevaDeBioma(
   rng: Rng,
   salida: ResultadoEstructuras,
   bioma: number,
+  ctx: Contexto,
 ): void {
   const desierto = bioma === DESIERTO;
   const forro = desierto ? ARENISCA : HIELO;
@@ -453,7 +563,8 @@ function excavarCuevaDeBioma(
     const cy = superficie[cx]! + rng.entero(34, 68);
     if (cy >= mundo.alto - 20) continue;
 
-    const radio = rng.rango(9, 14);
+    // De 9-14 a 13-20 en 6.3.0: la sala se cruzaba de dos saltos.
+    const radio = ctx.reforzadas ? rng.rango(13, 20) : rng.rango(9, 14);
 
     // Ni un ladrillo cerca: la fortaleza se construye antes y va en esta misma
     // franja de profundidad, así que una cueva puesta encima le abriría un
@@ -500,7 +611,13 @@ function excavarCuevaDeBioma(
 
     // El cofre, apoyado en el suelo de la sala.
     const sy = suelo(mundo, cx, cy);
-    ponerCofre(mundo, salida, cx, sy, sortearBotin(rng, botin, rng.entero(3, 4)));
+    ponerCofre(mundo, salida, cx, sy, sortearBotin(rng, botin, rng.entero(4, 5), ctx.version));
+    // Pinchos a los dos lados del cofre, pero no debajo: hay que cruzar la sala
+    // para llegar, y eso es lo que cuesta.
+    if (ctx.trampas) {
+      sembrarPinchos(mundo, cx - Math.round(radio), sy, cx - 4, rng, 0.45);
+      sembrarPinchos(mundo, cx + 4, sy, cx + Math.round(radio), rng, 0.45);
+    }
 
     // Y antorchas escoltándolo. No están por decorar: sin una sola fuente de
     // luz la sala es un rectángulo negro idéntico a la roca sin picar, y el
@@ -629,9 +746,9 @@ const BOTIN_INFERNAL: readonly (readonly [number, number, number])[] = [
   [LINGOTE_TITANIO, 8, 18],
   [LINGOTE_COBALTO, 8, 18],
   [FLECHA_FUEGO, 20, 45],
-  [CRISTAL, 1, 2],
-  [CARNE_ASADA, 4, 8],
-  [HUESO, 10, 20],
+  [CRISTAL, 2, 3],
+  [CARNE_ASADA, 6, 12],
+  [HUESO, 15, 30],
 ];
 
 /** Alto y ancho de una sala de la fortaleza infernal, en tiles. */
@@ -657,8 +774,10 @@ function levantarFortalezaInfernal(
   suelo: number,
   rng: Rng,
   salida: ResultadoEstructuras,
+  ctx: Contexto,
 ): void {
-  const salas = rng.entero(2, 4);
+  // De 2-4 a 3-5 salas en 6.3.0.
+  const salas = ctx.reforzadas ? rng.entero(3, 5) : rng.entero(2, 4);
   const ancho = salas * SALA_INF_ANCHO + 1;
   const pisos = rng.entero(2, 3);
   const alto = pisos * SALA_INF_ALTO + 1;
@@ -726,15 +845,18 @@ function levantarFortalezaInfernal(
           mundo.setTile(hx, sy1 + 1, PLATAFORMA);
           mundo.setTile(hx + 1, sy1 + 1, PLATAFORMA);
         }
-        // Un cofre en poco menos de la mitad de las salas.
+        // Un cofre en poco menos de la mitad de las salas, y pinchos en las
+        // que no lo tienen.
         if (rng.suerte(0.45)) {
           ponerCofre(
             mundo,
             salida,
             sx0 + rng.entero(2, SALA_INF_ANCHO - 4),
             sy1,
-            sortearBotin(rng, BOTIN_INFERNAL, rng.entero(2, 3)),
+            sortearBotin(rng, BOTIN_INFERNAL, rng.entero(3, 4), ctx.version),
           );
+        } else if (ctx.trampas) {
+          sembrarPinchos(mundo, sx0, sy1, sx1, rng, 0.5);
         }
       }
     }
@@ -777,6 +899,7 @@ function construirCabana(
   superficie: Int32Array,
   rng: Rng,
   salida: ResultadoEstructuras,
+  ctx: Contexto,
 ): void {
   const ancho = rng.entero(9, 13);
   const alto = 6;
@@ -824,7 +947,7 @@ function construirCabana(
       salida,
       tx + ancho - 3,
       suelo - 1,
-      sortearBotin(rng, BOTIN_CABANA, rng.entero(2, 3)),
+      sortearBotin(rng, BOTIN_CABANA, rng.entero(2, 3), ctx.version),
     );
 
     anotar(salida, CABANA, tx + ancho / 2, suelo - 2);
@@ -835,12 +958,14 @@ function construirCabana(
 // --- La mina abandonada ------------------------------------------------------
 
 const BOTIN_MINA: readonly (readonly [number, number, number])[] = [
-  [LINGOTE_HIERRO, 3, 7],
-  [LINGOTE_PLATA, 2, 6],
-  [FLECHA, 15, 35],
-  [PEDERNAL, 3, 8],
-  [GEL, 8, 20],
-  [CRISTAL, 1, 1],
+  [LINGOTE_HIERRO, 8, 16],
+  [LINGOTE_PLATA, 6, 14],
+  [FLECHA_HIERRO, 12, 28],
+  [FLECHA, 30, 70],
+  [PEDERNAL, 8, 18],
+  [GEL, 18, 40],
+  [CRISTAL, 1, 2],
+  [CARNE_ASADA, 2, 5],
 ];
 
 /**
@@ -858,8 +983,11 @@ function construirMina(
   fondo: number,
   rng: Rng,
   salida: ResultadoEstructuras,
+  ctx: Contexto,
 ): void {
-  const largo = rng.entero(26, 46);
+  // De 26-46 a 44-78 en 6.3.0: una galería que se recorre en diez segundos no
+  // llega a sentirse como una mina abandonada.
+  const largo = ctx.reforzadas ? rng.entero(44, 78) : rng.entero(26, 46);
   const alto = 4;
 
   for (let intento = 0; intento < 120; intento++) {
@@ -890,13 +1018,20 @@ function construirMina(
       else if (d % 11 === 4) mundo.setTile(x, ty, ANTORCHA);
     }
 
-    ponerCofre(
-      mundo,
-      salida,
-      tx + rng.entero(4, largo - 5),
-      ty + alto - 1,
-      sortearBotin(rng, BOTIN_MINA, rng.entero(1, 3)),
-    );
+    // Dos cofres en las galerías largas, uno en las cortas.
+    const cofres = largo > 60 ? 2 : 1;
+    for (let k = 0; k < cofres; k++) {
+      ponerCofre(
+        mundo,
+        salida,
+        tx + rng.entero(4 + k * Math.floor(largo / 2), Math.min(largo - 5, (k + 1) * Math.floor(largo / 2))),
+        ty + alto - 1,
+        sortearBotin(rng, BOTIN_MINA, rng.entero(2, 3), ctx.version),
+      );
+    }
+    // Y pinchos por el suelo: la galería es recta y se cruza corriendo, que es
+    // justo lo que una trampa tiene que castigar.
+    if (ctx.trampas) sembrarPinchos(mundo, tx + 2, ty + alto - 1, tx + largo - 2, rng, 0.28);
 
     anotar(salida, MINA, tx + largo / 2, ty + alto - 1);
     return;

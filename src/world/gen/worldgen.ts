@@ -325,6 +325,7 @@ export function* generarMundoPasos(
         tiene('cuevasDeBioma') ? biomas : undefined,
         c.escala,
         tiene('fortalezaInfernal') ? { techo: c.inframundo, suelo: c.fondo } : undefined,
+        v,
       )
     : { estructuras: [], cofres: [] };
 

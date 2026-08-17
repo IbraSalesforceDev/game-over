@@ -69,6 +69,10 @@ export const LIANA = 51;
 // dureza, una fortaleza del inframundo se abriría por un costado con el mismo
 // pico con el que se llegó hasta ella.
 export const LADRILLO_INFERNAL = 52;
+// 6.3.0: los pinchos de las trampas. No frenan —se entra en ellos— porque una
+// trampa que además bloquea el paso es un muro con pinchos, y lo que tiene que
+// hacer es castigar el descuido, no cerrar el camino.
+export const PINCHOS = 53;
 
 /**
  * Cultivos: primera etapa, última y qué se planta con qué semilla.
@@ -155,6 +159,14 @@ export interface DefTile {
    * fabricar uno mejor era una comodidad y no un requisito.
    */
   readonly nivelPico?: number;
+  /**
+   * Daño por contacto al pisarlo o meterse dentro.
+   *
+   * Es lo que convierte un tile decorativo en una trampa. Va en la tabla y no
+   * en un caso especial del jugador porque el día que haya una segunda trampa
+   * —una zarza, una placa al rojo— tiene que bastar con añadir una fila.
+   */
+  readonly dano?: number;
 }
 
 export const TILES: readonly DefTile[] = [
@@ -276,9 +288,13 @@ export const TILES: readonly DefTile[] = [
     nombre: 'ladrillo de fortaleza',
     solido: true,
     plataforma: false,
-    dureza: 110,
+    // Sube de 110 a 240 y de nivel 2 a 3 en 6.3.0. Con pico de cobre se abría
+    // un boquete en la pared exterior y se entraba por detrás sin ver una sola
+    // sala: la fortaleza tenía puertas y nadie las usaba. Ahora hay que
+    // recorrerla.
+    dureza: 240,
     color: '#4b4757',
-    nivelPico: 2,
+    nivelPico: 3,
   },
   // El altar. No frena —se entra en él, como en cualquier mueble— y alumbra
   // poco, con esa luz morada que se ve desde el otro lado de la sala y dice
@@ -350,6 +366,18 @@ export const TILES: readonly DefTile[] = [
   },
   // El ladrillo de las fortalezas de ahí abajo. Alumbra menos que la roca de la
   // que sale —está prensado, no al rojo— pero lo justo para que una sala se lea
+  // Pinchos. Hacen daño al pisarlos y no se pueden atravesar sin pagarlo, que
+  // es toda la trampa: no cierran el paso, lo encarecen. Se pican fácil —quien
+  // los vea y tenga paciencia los quita— porque el castigo es para quien va
+  // Las lianas cuelgan y no frenan, como las hojas. Se agarran al techo de la
+  // selva y son lo que hace que mirar hacia arriba ahí signifique algo.
+  {
+    nombre: 'liana',
+    solido: false,
+    plataforma: false,
+    dureza: 6,
+    color: '#4f9a3a',
+  },
   // al entrar sin tener que ir poniendo antorchas.
   {
     nombre: 'ladrillo infernal',
@@ -360,14 +388,14 @@ export const TILES: readonly DefTile[] = [
     luz: 70,
     nivelPico: 6,
   },
-  // Las lianas cuelgan y no frenan, como las hojas. Se agarran al techo de la
-  // selva y son lo que hace que mirar hacia arriba ahí signifique algo.
+  // corriendo, no para quien mira dónde pisa.
   {
-    nombre: 'liana',
+    nombre: 'pinchos',
     solido: false,
     plataforma: false,
-    dureza: 6,
-    color: '#4f9a3a',
+    dureza: 30,
+    color: '#8f96a3',
+    dano: 22,
   },
 ];
 
@@ -393,6 +421,39 @@ export function esEstacion(id: number): boolean {
 }
 
 /** Nivel de pico necesario. 0 = se saca con las manos. */
+/**
+ * Daño por contacto de un tile, o 0 si no hace ninguno.
+ *
+ * Se pregunta por la tabla y no por el id para que añadir una trampa nueva sea
+ * añadir una fila y no tocar la física del jugador.
+ */
+export function danoTile(id: number): number {
+  return TILES[id]?.dano ?? 0;
+}
+
+/** ¿Hay algún tile que haga daño dentro de este rectángulo de píxeles? */
+export function danoEnCaja(
+  mundo: { getTile(tx: number, ty: number): number },
+  x: number,
+  y: number,
+  ancho: number,
+  alto: number,
+  TILE: number,
+): number {
+  let peor = 0;
+  const tx0 = Math.floor(x / TILE);
+  const tx1 = Math.floor((x + ancho - 1e-6) / TILE);
+  const ty0 = Math.floor(y / TILE);
+  const ty1 = Math.floor((y + alto - 1e-6) / TILE);
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const d = danoTile(mundo.getTile(tx, ty));
+      if (d > peor) peor = d;
+    }
+  }
+  return peor;
+}
+
 export function nivelPicoTile(id: number): number {
   return defTile(id).nivelPico ?? 0;
 }
@@ -466,6 +527,7 @@ const TILE_DESDE: Readonly<Record<number, string>> = {
   [ROCA_INFERNAL]: '5.0.0',
   [LIANA]: '5.0.0',
   [LADRILLO_INFERNAL]: '6.2.0',
+  [PINCHOS]: '6.3.0',
 };
 
 /** En qué se convierte cada tile cuando su versión queda por delante. */
@@ -513,6 +575,7 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [INFERNITA]: PIEDRA,
   [ROCA_INFERNAL]: PIEDRA,
   [LADRILLO_INFERNAL]: ROCA_INFERNAL,
+  [PINCHOS]: AIRE,
   [LIANA]: AIRE,
 };
 

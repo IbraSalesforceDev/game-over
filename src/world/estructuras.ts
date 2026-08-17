@@ -73,6 +73,45 @@ export const COLOR_ESTRUCTURA: Readonly<Record<number, string>> = {
   [FORTALEZA_INFERNAL]: '#ff7a3a',
 };
 
+/**
+ * Radio en tiles dentro del cual se considera que estás "en" cada estructura.
+ *
+ * Se guarda aquí y no en el generador porque lo necesita la partida, que no
+ * vuelve a generar nada: solo tiene la lista de centros. Son radios generosos a
+ * propósito —una fortaleza mide sesenta y siete columnas y cuarenta y seis
+ * filas— porque el efecto que producen es "aquí dentro sale más cosa", y que
+ * empiece un par de tiles antes de cruzar la puerta no se nota; que empiece un
+ * par de tiles después, sí.
+ */
+export const RADIO_ESTRUCTURA: Readonly<Record<number, number>> = {
+  [FORTALEZA]: 46,
+  [CABANA]: 0,
+  [MINA]: 42,
+  [CUEVA_DESIERTO]: 24,
+  [CUEVA_NIEVE]: 24,
+  [FORTALEZA_INFERNAL]: 40,
+};
+
+/**
+ * ¿Dentro de qué estructura está este punto? Devuelve el tipo, o null.
+ *
+ * Las cabañas no cuentan y su radio es cero: son el refugio de la superficie,
+ * el sitio donde uno se mete a pasar la noche, y llenarlas de bichos sería
+ * quitarles justo aquello para lo que existen.
+ */
+export function estructuraEn(
+  lista: readonly Estructura[],
+  tx: number,
+  ty: number,
+): TipoEstructura | null {
+  for (const e of lista) {
+    const r = RADIO_ESTRUCTURA[e.tipo] ?? 0;
+    if (r === 0) continue;
+    if (Math.abs(e.tx - tx) <= r && Math.abs(e.ty - ty) <= r) return e.tipo;
+  }
+  return null;
+}
+
 export function nombreEstructura(tipo: number): string {
   return NOMBRE_ESTRUCTURA[tipo] ?? 'Estructura';
 }

@@ -21,7 +21,14 @@ import {
   HIELO,
   LADRILLO,
   LADRILLO_INFERNAL,
+  PINCHOS,
+  danoTile,
+  danoEnCaja,
+  nivelPicoTile,
 } from '../src/world/tiles';
+import { Mundo } from '../src/world/world';
+import { estructuraEn } from '../src/world/estructuras';
+import { especiesPosibles, esElite } from '../src/entities/spawner';
 import { Inventario } from '../src/items/inventory';
 import {
   faltaParaOfrenda,
@@ -389,5 +396,111 @@ describe('fortalezas del inframundo (6.2.0)', () => {
   it('no existen antes de 6.2.0', () => {
     const { estructuras } = generarMundo({ ...OP, version: '6.1.0' });
     expect(estructuras.some((e) => e.tipo === FORTALEZA_INFERNAL)).toBe(false);
+  });
+});
+
+describe('las estructuras se defienden (6.3.0)', () => {
+  const OP = { ancho: 2400, alto: 900, semilla: 'DEFENSA' };
+
+  it('hay trampas por los suelos, y no en las cabañas', () => {
+    const { mundo, estructuras } = generarMundo(OP);
+    let pinchos = 0;
+    for (let i = 0; i < mundo.tileId.length; i++) {
+      if (mundo.tileId[i] === PINCHOS) pinchos++;
+    }
+    expect(pinchos).toBeGreaterThan(20);
+
+    // La cabaña es el refugio de la superficie: el sitio donde uno se mete a
+    // pasar la noche. Llenarla de pinchos sería quitarle aquello para lo que
+    // existe.
+    for (const cabana of estructuras.filter((e) => e.tipo === CABANA)) {
+      for (let ty = cabana.ty - 6; ty <= cabana.ty + 3; ty++) {
+        for (let tx = cabana.tx - 8; tx <= cabana.tx + 8; tx++) {
+          expect(mundo.getTile(tx, ty)).not.toBe(PINCHOS);
+        }
+      }
+    }
+  });
+
+  it('ningún pincho queda flotando ni encima de un cofre', () => {
+    const { mundo } = generarMundo(OP);
+    for (let ty = 1; ty < mundo.alto - 1; ty++) {
+      for (let tx = 1; tx < mundo.ancho - 1; tx++) {
+        if (mundo.getTile(tx, ty) !== PINCHOS) continue;
+        // Siempre apoyados: uno en el aire se lee como un fallo del generador.
+        expect(esSolido(mundo.getTile(tx, ty + 1))).toBe(true);
+        expect(mundo.getTile(tx, ty)).not.toBe(COFRE);
+      }
+    }
+  });
+
+  it('los pinchos hacen daño y el resto de bloques no', () => {
+    expect(danoTile(PINCHOS)).toBeGreaterThan(0);
+    expect(danoTile(LADRILLO)).toBe(0);
+    expect(danoTile(AIRE)).toBe(0);
+    // Y se detectan por la caja del jugador, no por un punto.
+    const m = new Mundo(10, 10);
+    m.setTile(5, 5, PINCHOS);
+    expect(danoEnCaja(m, 5 * 16, 5 * 16, 16, 16, 16)).toBe(danoTile(PINCHOS));
+    expect(danoEnCaja(m, 0, 0, 16, 16, 16)).toBe(0);
+  });
+
+  it('la fortaleza es el doble de grande que antes', () => {
+    const nueva = generarMundo(OP);
+    const vieja = generarMundo({ ...OP, version: '6.2.1' });
+    const contar = (r: typeof nueva): number => {
+      let n = 0;
+      for (let i = 0; i < r.mundo.tileId.length; i++) {
+        if (r.mundo.tileId[i] === LADRILLO) n++;
+      }
+      return n;
+    };
+    expect(contar(nueva)).toBeGreaterThan(contar(vieja) * 1.4);
+  });
+
+  it('un mundo anterior a 6.3.0 no tiene ni un pincho', () => {
+    const { mundo } = generarMundo({ ...OP, version: '6.2.1' });
+    expect(mundo.tileId.includes(PINCHOS)).toBe(false);
+  });
+
+  it('el ladrillo pide ya pico de hierro', () => {
+    // Con pico de cobre se abría un boquete en la pared exterior y se entraba
+    // por detrás sin ver una sola sala: la fortaleza tenía puertas y nadie las
+    // usaba.
+    expect(nivelPicoTile(LADRILLO)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('la guarnición de cada estructura', () => {
+  it('dentro salen los bichos del sitio, y fuera no', () => {
+    const lista = [{ tipo: FORTALEZA, tx: 500, ty: 400 } as const];
+    const dentro = estructuraEn(lista, 500, 400);
+    expect(dentro).toBe(FORTALEZA);
+    // Y a doscientos tiles, no.
+    expect(estructuraEn(lista, 700, 400)).toBeNull();
+
+    const ctx = { esNoche: false, superficieTy: 100, bioma: 'bosque' } as const;
+    const conGuarnicion = especiesPosibles({ ...ctx, estructura: FORTALEZA }, 400);
+    const sin = especiesPosibles(ctx, 400);
+    // La fortaleza está hecha de huesos y ladrillo: esqueletos.
+    expect(conGuarnicion.filter((e) => e === 'esqueleto').length).toBeGreaterThan(
+      sin.filter((e) => e === 'esqueleto').length,
+    );
+  });
+
+  it('la cabaña no tiene guarnición: es el refugio', () => {
+    const lista = [{ tipo: CABANA, tx: 500, ty: 100 } as const];
+    expect(estructuraEn(lista, 500, 100)).toBeNull();
+  });
+
+  it('dentro puede haber élites a cualquier hora y profundidad', () => {
+    const siempre = () => 0;
+    const dia = { esNoche: false, superficieTy: 100, bioma: 'bosque' } as const;
+    // Fuera, de día y bajo tierra: no.
+    expect(esElite(dia, 'esqueleto', false, siempre)).toBe(false);
+    // Dentro de una fortaleza, sí.
+    expect(esElite({ ...dia, estructura: FORTALEZA }, 'esqueleto', false, siempre)).toBe(true);
+    // Pero sigue sin haberlos entre los animales.
+    expect(esElite({ ...dia, estructura: FORTALEZA }, 'conejo', false, siempre)).toBe(false);
   });
 });

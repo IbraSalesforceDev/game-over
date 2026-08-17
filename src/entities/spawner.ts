@@ -17,6 +17,13 @@ import {
 import type { Mundo } from '../world/world';
 import { hay, VERSION_ACTUAL } from '../core/versiones';
 import {
+  CUEVA_DESIERTO,
+  CUEVA_NIEVE,
+  FORTALEZA,
+  FORTALEZA_INFERNAL,
+  MINA,
+} from '../world/estructuras';
+import {
   crearEnemigo,
   ENEMIGOS,
   especieExisteEn,
@@ -88,7 +95,44 @@ export interface ContextoAparicion {
    * lo que corresponde en los mundos anteriores a 5.0.0.
    */
   inframundoTy?: number;
+  /**
+   * Estructura en la que está el jugador, si está en alguna.
+   *
+   * Cambia tres cosas a la vez: qué sale, cuánto sale y si puede ser de élite.
+   * Una fortaleza vacía es un decorado —se entra, se abren los cofres y se sale
+   * sin haber peleado— y eso convertía la mejor recompensa del juego en la más
+   * barata de conseguir.
+   */
+  estructura?: number | null;
 }
+
+/**
+ * Lo que vive en cada estructura, además de lo que ya salga por el sitio.
+ *
+ * Cada una tiene lo suyo, y esa es la mitad de la gracia: los esqueletos de la
+ * fortaleza dicen de qué está hecha, las momias de la cueva de arenisca dicen
+ * en qué bioma estás, y los diablillos de la fortaleza infernal dicen a qué
+ * profundidad has llegado. Salen repetidos en la lista porque la lista es la
+ * tabla de pesos: dos entradas es el doble de probable.
+ */
+const GUARNICION: Readonly<Record<number, readonly Especie[]>> = {
+  [FORTALEZA]: ['esqueleto', 'esqueleto', 'esqueleto', 'zombi', 'murcielago'],
+  [MINA]: ['esqueleto', 'esqueleto', 'murcielago', 'murcielago', 'slime'],
+  [CUEVA_DESIERTO]: ['momia', 'momia', 'golem', 'esqueleto'],
+  [CUEVA_NIEVE]: ['espectro', 'espectro', 'lobo', 'esqueleto'],
+  [FORTALEZA_INFERNAL]: ['diablillo', 'diablillo', 'diablillo', 'esqueleto'],
+};
+
+/**
+ * Cuánto más deprisa aparecen los bichos dentro de una estructura.
+ *
+ * El doble. No es un número sacado del aire: el aforo y el intervalo están
+ * ajustados para el mundo abierto, donde el jugador se mueve y va dejando
+ * bichos atrás. Dentro de una fortaleza no se avanza, se registra —se entra en
+ * una sala, se abre un cofre, se vuelve—, así que con la tasa normal daba
+ * tiempo a vaciarla entera entre aparición y aparición.
+ */
+export const RITMO_ESTRUCTURA = 2;
 
 /** ¿Esta especie viene a hacer daño? Los animales, no. */
 export function esHostil(especie: Especie): boolean {
@@ -136,8 +180,25 @@ export function especiesPosibles(
 function especiesDelSitio(ctx: ContextoAparicion, tyJugador: number): Especie[] {
   const bajoTierra = tyJugador > ctx.superficieTy + PROFUNDIDAD_PELIGRO;
 
+  // Dentro de una estructura manda su guarnición, mezclada con lo que saldría
+  // por el sitio: si solo saliera la guarnición, una fortaleza en la nieve y
+  // otra en el desierto tendrían exactamente los mismos bichos.
+  const guarnicion = ctx.estructura != null ? GUARNICION[ctx.estructura] : undefined;
+  if (guarnicion) {
+    return [...guarnicion, ...especiesDelSitioBase(ctx, tyJugador, bajoTierra)];
+  }
+  return especiesDelSitioBase(ctx, tyJugador, bajoTierra);
+}
+
+function especiesDelSitioBase(
+  ctx: ContextoAparicion,
+  tyJugador: number,
+  bajoTierra: boolean,
+): Especie[] {
+
   // El inframundo manda sobre todo lo demás: se está bajo la roca infernal, y
   // ahí ni hay biomas ni hay noche que valga.
+  //
   if (ctx.inframundoTy !== undefined && tyJugador >= ctx.inframundoTy) {
     return ['diablillo', 'diablillo', 'esqueleto'];
   }
@@ -243,7 +304,11 @@ export function intentarAparicion(
   const vivos = enemigos.filter((e) => e.vivo).length;
   // El aforo sube con la dificultad, pero nunca baja de uno mientras haya algo
   // que pueda salir: los animales tienen que caber aunque el mundo sea pacífico.
-  const tope = Math.max(1, Math.round(TOPE_ENEMIGOS * Math.max(dif.aforo, 0.5)));
+  const dentro = ctx.estructura != null;
+  const tope = Math.max(
+    1,
+    Math.round(TOPE_ENEMIGOS * Math.max(dif.aforo, 0.5) * (dentro ? RITMO_ESTRUCTURA : 1)),
+  );
   if (vivos >= tope) return null;
 
   const txJugador = Math.floor((jugador.x + jugador.ancho / 2) / TILE);
@@ -306,12 +371,21 @@ export function esElite(
   enSuperficie: boolean,
   rng: () => number,
 ): boolean {
-  if (!ctx.esNoche || !enSuperficie || !esHostil(especie)) return false;
+  if (!esHostil(especie)) return false;
+  // Dentro de una estructura hay élites a cualquier hora y a cualquier
+  // profundidad. La regla de "solo de noche y arriba" era para el mundo
+  // abierto, donde de día no pasa nada y bajo tierra ya hay gólems haciendo ese
+  // papel; una fortaleza es lo contrario, un sitio al que se va a propósito
+  // sabiendo lo que hay, y ahí una élite es la razón de ir preparado.
+  const dentro = ctx.estructura != null;
+  if (!dentro && (!ctx.esNoche || !enSuperficie)) return false;
   if (!hay('elitesNocturnos', ctx.version ?? VERSION_ACTUAL)) return false;
   // La dificultad también manda aquí: en pacífico no hay hostiles y en brutal
   // la noche tiene que dar miedo de verdad.
   const dif = ctx.dif ?? dificultad(DIFICULTAD_POR_DEFECTO);
-  return rng() < PROBABILIDAD_ELITE * dif.fuerza;
+  // Y dentro salen el doble: es lo que hace que la fortaleza se sienta
+  // defendida y no solo habitada.
+  return rng() < PROBABILIDAD_ELITE * dif.fuerza * (dentro ? 2 : 1);
 }
 
 /** Quita del array los que ya no están vivos. */
