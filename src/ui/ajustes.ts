@@ -19,7 +19,7 @@ interface Preferencias {
   volumen: number;
   silenciado: boolean;
   sacudida: boolean;
-  /** Zoom de la cámara: 0 es el adaptativo, 2-4 lo fija a mano. */
+  /** Zoom de la cámara: 0 es el adaptativo, 1-6 lo fija a mano. */
   zoom: number;
   /** Índice dentro de `OSCURIDADES`. */
   oscuridad: number;
@@ -58,6 +58,29 @@ export const RESOLUCIONES: readonly { nombre: string; dpr: number }[] = [
   { nombre: 'nítida', dpr: 2 },
 ];
 
+/**
+ * Los escalones de zoom.
+ *
+ * Iban de ×2 a ×4 y nada más, que es una franja estrecha: ×2 ya era "lo más
+ * lejos que se puede mirar" y ×4 "lo más cerca". Ahora hay dos escalones más a
+ * cada lado. El ×1 es el mapa táctico —se ven ochenta columnas de golpe, que es
+ * con lo que se planea un túnel o se busca la entrada de una cueva— y el ×6 es
+ * para mirar de cerca lo que uno está construyendo, o para jugar en una
+ * pantalla pequeña sin dejarse los ojos.
+ *
+ * El automático sigue siendo el de por defecto: acierta en casi todas las
+ * pantallas, y quien no toque esto no debería notar que existe.
+ */
+export const ZOOMS: readonly { valor: number; nombre: string }[] = [
+  { valor: 0, nombre: 'automático' },
+  { valor: 1, nombre: '×1 · se ve todo' },
+  { valor: 2, nombre: '×2' },
+  { valor: 3, nombre: '×3' },
+  { valor: 4, nombre: '×4' },
+  { valor: 5, nombre: '×5' },
+  { valor: 6, nombre: '×6 · muy cerca' },
+];
+
 const POR_DEFECTO: Preferencias = {
   volumen: 0.55,
   silenciado: false,
@@ -77,7 +100,7 @@ function cargar(): Preferencias {
       volumen: typeof p.volumen === 'number' ? Math.max(0, Math.min(1, p.volumen)) : POR_DEFECTO.volumen,
       silenciado: p.silenciado === true,
       sacudida: p.sacudida !== false,
-      zoom: [0, 2, 3, 4].includes(p.zoom ?? -1) ? p.zoom! : POR_DEFECTO.zoom,
+      zoom: ZOOMS.some((z) => z.valor === p.zoom) ? p.zoom! : POR_DEFECTO.zoom,
       oscuridad: enRango(p.oscuridad, OSCURIDADES.length, POR_DEFECTO.oscuridad),
       resolucion: enRango(p.resolucion, RESOLUCIONES.length, POR_DEFECTO.resolucion),
     };
@@ -158,6 +181,17 @@ export interface PanelAjustes {
   readonly abierto: boolean;
   readonly sacudidaActiva: boolean;
   readonly graficos: Graficos;
+  /**
+   * Sube o baja un escalón de zoom. Devuelve cómo se llama el que queda.
+   *
+   * Existe para las teclas `+` y `−`. El zoom es lo único de este panel que se
+   * quiere cambiar sin dejar de mirar el mundo —se acerca uno para colocar un
+   * bloque y se aleja para ver por dónde sigue el túnel—, y abrir un menú para
+   * eso rompe justo lo que se estaba haciendo. Desde el automático, el primer
+   * paso salta al escalón que el automático estaba usando, para que no dé un
+   * tirón.
+   */
+  cambiarZoom(delta: number, zoomActual: number): string;
 }
 
 export function crearAjustes(
@@ -198,12 +232,9 @@ export function crearAjustes(
     <h3 class="seccion">Gráficos</h3>
     <div class="fila">
       <label for="aj-zoom">Zoom</label>
-      <select id="aj-zoom">
-        <option value="0">automático</option>
-        <option value="2">×2 (se ve más)</option>
-        <option value="3">×3</option>
-        <option value="4">×4 (se ve menos)</option>
-      </select>
+      <select id="aj-zoom">${ZOOMS.map(
+        (z) => `<option value="${z.valor}">${z.nombre}</option>`,
+      ).join('')}</select>
     </div>
     <div class="fila">
       <label for="aj-osc">Oscuridad</label>
@@ -262,6 +293,22 @@ export function crearAjustes(
     prefs.zoom = Number(selZoom.value);
     cambiarGraficos();
   });
+
+  /** Índices de `ZOOMS` que son un zoom fijo, en orden. */
+  const escalones = ZOOMS.filter((z) => z.valor > 0);
+
+  function cambiarZoom(delta: number, zoomAuto: number): string {
+    // Desde el automático se arranca en el escalón que ya se estaba viendo: si
+    // no, pulsar `+` en una pantalla que estaba a ×3 daría un salto a ×2.
+    const actual =
+      prefs.zoom > 0
+        ? escalones.findIndex((z) => z.valor === prefs.zoom)
+        : escalones.findIndex((z) => z.valor === zoomAuto);
+    const i = Math.max(0, Math.min(escalones.length - 1, (actual < 0 ? 0 : actual) + delta));
+    prefs.zoom = escalones[i]!.valor;
+    cambiarGraficos();
+    return escalones[i]!.nombre;
+  }
   selOsc.addEventListener('change', () => {
     prefs.oscuridad = Number(selOsc.value);
     cambiarGraficos();
@@ -313,5 +360,6 @@ export function crearAjustes(
     get graficos() {
       return graficos();
     },
+    cambiarZoom,
   };
 }

@@ -44,7 +44,14 @@ import {
   BOTAS_ORO,
   GUANTES_ORO,
   ARCO,
+  HUESO,
+  ARCO_CAZA,
+  ARCO_COBALTO,
+  ARCO_INFERNAL,
   FLECHA,
+  FLECHA_FUEGO,
+  FLECHA_HUESO,
+  FLECHA_HIERRO,
   PALA_HIERRO,
   AZADA,
   PAPEL,
@@ -218,6 +225,90 @@ export const RECETAS: readonly Receta[] = [
     resultado: FLECHA,
     cantidad: 5,
     estacion: MESA,
+  },
+
+  // --- La escalera de arcos (5.4.0) ---
+  //
+  // Cada uno pide el metal de su tramo, y el infernal además huesos: no se
+  // fabrica sin haber bajado a matar cosas, que es exactamente cuando toca.
+  {
+    id: 'arco-caza',
+    desde: '5.4.0',
+    ingredientes: [
+      [MADERA, 8],
+      [LINGOTE_HIERRO, 6],
+    ],
+    resultado: ARCO_CAZA,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  {
+    id: 'arco-cobalto',
+    desde: '5.4.0',
+    ingredientes: [
+      [MADERA, 6],
+      [LINGOTE_COBALTO, 10],
+    ],
+    resultado: ARCO_COBALTO,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+  {
+    id: 'arco-infernal',
+    desde: '5.4.0',
+    ingredientes: [
+      [LINGOTE_INFERNITA, 12],
+      [HUESO, 4],
+    ],
+    resultado: ARCO_INFERNAL,
+    cantidad: 1,
+    estacion: YUNQUE,
+  },
+
+  // --- Las tres puntas ---
+  //
+  // Las de hueso y las de fuego salen de sobras —huesos de los esqueletos,
+  // carbón del subsuelo— y solo la de hierro pide metal. Es a propósito: una
+  // munición que compite por el mismo lingote que la armadura no se llega a
+  // usar nunca, así que solo el primer escalón lo hace, y barato.
+  //
+  // Ojo con el nombre: ya había desde 3.2.0 unas "flechas de pedernal" que son
+  // otra cosa —la misma flecha de siempre pero saliendo de ocho en ocho—. Esa
+  // es una mejora de cantidad; esta, de daño. Llamar igual a las dos era el
+  // camino más corto a que nadie entendiera ninguna.
+  {
+    id: 'flechas-hierro',
+    desde: '5.4.0',
+    ingredientes: [
+      [MADERA, 2],
+      [LINGOTE_HIERRO, 1],
+    ],
+    resultado: FLECHA_HIERRO,
+    cantidad: 10,
+    estacion: YUNQUE,
+  },
+  {
+    id: 'flechas-hueso',
+    desde: '5.4.0',
+    ingredientes: [
+      [MADERA, 1],
+      [HUESO, 1],
+    ],
+    resultado: FLECHA_HUESO,
+    cantidad: 6,
+    estacion: MESA,
+  },
+  {
+    id: 'flechas-fuego',
+    desde: '5.4.0',
+    ingredientes: [
+      [MADERA, 2],
+      [CARBON, 1],
+      [GEL, 2],
+    ],
+    resultado: FLECHA_FUEGO,
+    cantidad: 6,
+    estacion: HORNO,
   },
   // La cama: madera y gel de relleno. Con ella se pasa la noche de un tirón, así
   // que se paga con lo que sobra de la primera noche que se aguanta despierto.

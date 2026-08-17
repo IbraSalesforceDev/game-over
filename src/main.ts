@@ -148,7 +148,8 @@ import {
   esComida,
   esCristal,
   esCubo,
-  municionDe,
+  FLECHAS,
+  puntaDe,
   ESENCIA,
   ESPADA_GUARDIAN,
   LINGOTE_ORO,
@@ -762,6 +763,17 @@ async function arrancar(): Promise<void> {
     debug.activo = debug.nivel !== 'nada';
   });
   entrada.alPulsar('F4', () => tuner.alternar());
+  // Zoom con las teclas de más y menos, del teclado y del numérico. El zoom es
+  // lo único de los ajustes que se quiere cambiar sin dejar de mirar el mundo
+  // —acercarse para colocar un bloque, alejarse para ver por dónde sigue el
+  // túnel— y abrir un menú para eso rompe justo lo que se estaba haciendo.
+  const escalonZoom = (delta: number): void => {
+    aviso.mostrar(`Zoom ${opciones.cambiarZoom(delta, renderer.camara.zoom)}`);
+  };
+  for (const tecla of ['Equal', 'NumpadAdd']) entrada.alPulsar(tecla, () => escalonZoom(1));
+  for (const tecla of ['Minus', 'NumpadSubtract']) {
+    entrada.alPulsar(tecla, () => escalonZoom(-1));
+  }
   entrada.alPulsar('F5', () => (debug.chunks = !debug.chunks));
   entrada.alPulsar('F2', () => void guardar('manual'));
   entrada.alPulsar('Tab', () => {
@@ -909,6 +921,27 @@ async function arrancar(): Promise<void> {
 
   /** Ticks de espera antes de repetir el aviso de "no te quedan flechas". */
   let esperaAvisoFlechas = 0;
+
+  /**
+   * La mejor flecha que se lleva encima, o NADA si no hay ninguna.
+   *
+   * El arco gasta siempre la mejor. Es la regla más simple que se entiende sin
+   * explicarla, y evita tener que inventar una ranura de munición aparte con su
+   * caja en la interfaz y su campo en el guardado. Quien quiera reservar las de
+   * fuego, las deja en un cofre.
+   *
+   * Se filtra por versión: en un mundo de 4.0.0 las de hueso no existen, y
+   * dispararlas porque el jugador las trajera de otra partida sería colar en ese
+   * mundo algo que no le pertenece.
+   */
+  function mejorFlecha(): number {
+    for (let i = FLECHAS.length - 1; i >= 0; i--) {
+      const f = FLECHAS[i]!;
+      if (filtrarObjeto(f, versionMundo) === NADA) continue;
+      if (inventario.contar(f) > 0) return f;
+    }
+    return NADA;
+  }
 
   function avisarSinFlechas(): void {
     if (esperaAvisoFlechas > 0) return;
@@ -1195,6 +1228,28 @@ async function arrancar(): Promise<void> {
       });
       audio.sonar('golpe', 1.2);
       if (golpeado.muerto) morir(golpeado.enemigo);
+    }
+    // El fogonazo de las flechas de fuego. Va antes que las clavadas para que,
+    // si una estalla y otra se clava en el mismo tick, el orden de las
+    // partículas sea el mismo que el de los hechos.
+    for (const e of rf.estallidos) {
+      particulas.emitir(e.x, e.y, {
+        cantidad: 26,
+        color: '#ff8a3a',
+        dispersion: 4.2,
+        vida: 26,
+        tam: 3,
+        gravedad: 0.04,
+      });
+      particulas.emitir(e.x, e.y, {
+        cantidad: 10,
+        color: '#ffe08a',
+        dispersion: 2.4,
+        vida: 16,
+        tam: 2,
+      });
+      audio.sonar('golpe', 0.55);
+      sacudir(2.2);
     }
     for (const donde of rf.clavadas) {
       particulas.emitir(donde.x, donde.y, {
@@ -1484,8 +1539,8 @@ async function arrancar(): Promise<void> {
       derAnterior = puntero.der;
       if (!puntero.izq || !puedeGolpear(golpe)) return;
       const def = defObjeto(enMano);
-      const municion = municionDe(enMano);
-      if (inventario.contar(municion) <= 0) {
+      const municion = mejorFlecha();
+      if (municion === NADA) {
         avisarSinFlechas();
         return;
       }
@@ -1504,6 +1559,7 @@ async function arrancar(): Promise<void> {
           wy,
           def.velocidad ?? 9,
           (def.dano ?? 0) * trucos.danoMultiplicador,
+          puntaDe(municion),
         ),
       );
       audio.sonar('flechazo', 0.92 + Math.random() * 0.2);

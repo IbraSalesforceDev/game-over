@@ -13,7 +13,24 @@ import {
   type Flecha,
 } from '../src/entities/proyectiles';
 import { Inventario } from '../src/items/inventory';
-import { ARCO, defObjeto, esArco, FLECHA, municionDe, NADA } from '../src/items/items';
+import {
+  ARCO,
+  ARCO_CAZA,
+  ARCO_COBALTO,
+  ARCO_INFERNAL,
+  defObjeto,
+  esArco,
+  esMunicion,
+  FLECHA,
+  FLECHA_FUEGO,
+  FLECHA_HIERRO,
+  FLECHA_HUESO,
+  FLECHAS,
+  municionDe,
+  NADA,
+  objetoExisteEn,
+  puntaDe,
+} from '../src/items/items';
 import { RECETAS } from '../src/items/recipes';
 import { PIEDRA, TIERRA } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
@@ -237,5 +254,174 @@ describe('el tope de flechas', () => {
     limpiarFlechas(lista);
     expect(lista).toHaveLength(1);
     expect(lista[0]!.x).toBe(1);
+  });
+});
+
+describe('las tres puntas (5.4.0)', () => {
+  /** Un mundo vacío con suelo, para que nada estorbe. */
+  function cielo(): Mundo {
+    const m = new Mundo(120, 40);
+    m.rellenar(0, 35, 119, 39, PIEDRA);
+    return m;
+  }
+
+  /**
+   * Una fila de bichos, todos a la misma altura y separados.
+   *
+   * Zombis y no slimes: el slime mide dieciséis píxeles de alto y la flecha,
+   * que cae con la gravedad, le pasa por debajo antes de llegar al tercero. Con
+   * cuarenta píxeles de alto el blanco aguanta la caída de todo el recorrido, y
+   * lo que se está probando aquí es la perforación, no la balística.
+   */
+  function fila(cuantos: number, x0: number, paso: number): Enemigo[] {
+    const lista: Enemigo[] = [];
+    for (let i = 0; i < cuantos; i++) {
+      lista.push(crearEnemigo('zombi', x0 + i * paso, 20 * TILE, 1));
+    }
+    return lista;
+  }
+
+  /** Un disparo tenso y corto: la caída no debe decidir estos tests. */
+  const tiro = (dano: number, punta = {}): Flecha =>
+    crearFlecha(24 * TILE, 20 * TILE + 18, 12, 0, dano, punta);
+
+  it('una flecha lisa se gasta en el primer bicho', () => {
+    const m = cielo();
+    const bichos = fila(3, 26 * TILE, 24);
+    const f = tiro(10);
+    const flechas = [f];
+    let tocados = new Set<Enemigo>();
+    for (let t = 0; t < 60; t++) {
+      for (const i of actualizarFlechas(m, flechas, bichos).impactos) tocados.add(i.enemigo);
+    }
+    expect(tocados.size).toBe(1);
+    expect(f.vivo).toBe(false);
+  });
+
+  it('la de hueso atraviesa la fila entera', () => {
+    const m = cielo();
+    const bichos = fila(3, 26 * TILE, 24);
+    const f = tiro(10, { perfora: 2, extra: 9 });
+    const flechas = [f];
+    const tocados = new Set<Enemigo>();
+    for (let t = 0; t < 60; t++) {
+      for (const i of actualizarFlechas(m, flechas, bichos).impactos) tocados.add(i.enemigo);
+    }
+    expect(tocados.size).toBe(3);
+    // Y el extra de la punta se suma al daño del arco.
+    expect(f.dano).toBe(19);
+  });
+
+  it('la perforación no se gasta dos veces en el mismo bicho', () => {
+    // A ocho píxeles por tick una flecha da dos pasos dentro de un slime de 22
+    // de ancho. Sin llevar la cuenta de a quién ya tocó, ese slime se comería
+    // la perforación entera él solo y la flecha no llegaría al segundo.
+    const m = cielo();
+    const bichos = fila(2, 26 * TILE, 24);
+    const f = tiro(10, { perfora: 1 });
+    const flechas = [f];
+    const veces = new Map<Enemigo, number>();
+    for (let t = 0; t < 60; t++) {
+      for (const i of actualizarFlechas(m, flechas, bichos).impactos) {
+        veces.set(i.enemigo, (veces.get(i.enemigo) ?? 0) + 1);
+      }
+    }
+    expect([...veces.values()]).toEqual([1, 1]);
+  });
+
+  it('la de fuego reparte a todo lo que hay alrededor', () => {
+    const m = cielo();
+    // Tres slimes muy juntos: uno en el camino y dos al lado.
+    // Muy juntos y muy cerca del tirador: lo que se prueba es el reparto en
+    // círculo, y a diez tiles la caída de la flecha decidiría el resultado por
+    // su cuenta.
+    // Los tres apiñados alrededor del punto de impacto, que es el primero de
+    // ellos: lo que se prueba es el reparto en círculo.
+    const bichos = [
+      crearEnemigo('zombi', 26 * TILE, 20 * TILE, 1),
+      crearEnemigo('zombi', 26 * TILE + 18, 20 * TILE, 1),
+      crearEnemigo('zombi', 26 * TILE, 20 * TILE + 14, 1),
+    ];
+    const f = tiro(10, { estalla: 2.2 });
+    const flechas = [f];
+    const r = { impactos: [] as { enemigo: Enemigo }[], estallidos: [] as unknown[] };
+    for (let t = 0; t < 60; t++) {
+      const paso = actualizarFlechas(m, flechas, bichos);
+      r.impactos.push(...paso.impactos);
+      r.estallidos.push(...paso.estallidos);
+    }
+    expect(r.estallidos).toHaveLength(1);
+    expect(new Set(r.impactos.map((i) => i.enemigo)).size).toBe(3);
+    // Y la flecha se consume: no sigue volando tras reventar.
+    expect(f.vivo).toBe(false);
+  });
+
+  it('la de fuego estalla también contra la pared', () => {
+    const m = cielo();
+    // Un slime pegado al suelo y la flecha apuntada al suelo de al lado.
+    const bicho = crearEnemigo('zombi', 30 * TILE, 34 * TILE - 40, 1);
+    const vidaAntes = bicho.salud.vida;
+    const f = crearFlecha(29 * TILE, 31 * TILE, 4, 6, 20, { estalla: 2.2 });
+    const flechas = [f];
+    let estallidos = 0;
+    for (let t = 0; t < 60; t++) estallidos += actualizarFlechas(m, flechas, [bicho]).estallidos.length;
+    expect(estallidos).toBe(1);
+    // Le ha llegado sin haberle acertado.
+    expect(bicho.salud.vida).toBeLessThan(vidaAntes);
+    // Y no se queda clavada de adorno.
+    expect(f.clavada).toBe(false);
+  });
+
+  it('el daño de la explosión baja con la distancia', () => {
+    const m = cielo();
+    const cerca = crearEnemigo('zombi', 26 * TILE, 20 * TILE, 1);
+    const lejos = crearEnemigo('zombi', 26 * TILE + 26, 20 * TILE, 1);
+    const f = tiro(40, { estalla: 2.2 });
+    const flechas = [f];
+    for (let t = 0; t < 60; t++) actualizarFlechas(m, flechas, [cerca, lejos]);
+    expect(cerca.salud.vida).toBeLessThan(lejos.salud.vida);
+  });
+});
+
+describe('la escalera de arcos y flechas', () => {
+  it('cada arco pega más, dispara antes y lanza más rápido que el anterior', () => {
+    const escalera = [ARCO, ARCO_CAZA, ARCO_COBALTO, ARCO_INFERNAL];
+    for (let i = 1; i < escalera.length; i++) {
+      const antes = defObjeto(escalera[i - 1]!);
+      const ahora = defObjeto(escalera[i]!);
+      expect(ahora.dano!).toBeGreaterThan(antes.dano!);
+      expect(ahora.cadencia!).toBeLessThan(antes.cadencia!);
+      expect(ahora.velocidad!).toBeGreaterThan(antes.velocidad!);
+      expect(esArco(escalera[i]!)).toBe(true);
+    }
+  });
+
+  it('las puntas no son una escalera: cada una sirve para otra cosa', () => {
+    // Si fueran tres números en fila, la última haría inútiles a las otras dos.
+    expect(puntaDe(FLECHA).extra).toBe(0);
+    expect(puntaDe(FLECHA_HIERRO).extra).toBeGreaterThan(0);
+    expect(puntaDe(FLECHA_HIERRO).perfora).toBe(0);
+    expect(puntaDe(FLECHA_HUESO).perfora).toBeGreaterThan(0);
+    expect(puntaDe(FLECHA_FUEGO).estalla).toBeGreaterThan(0);
+    // Y la de más daño bruto no es la que más efectos tiene.
+    expect(puntaDe(FLECHA_HUESO).extra).toBeGreaterThan(puntaDe(FLECHA_FUEGO).extra);
+  });
+
+  it('la lista de flechas va de peor a mejor y las incluye todas', () => {
+    expect(FLECHAS[0]).toBe(FLECHA);
+    expect(FLECHAS).toContain(FLECHA_HIERRO);
+    expect(FLECHAS).toContain(FLECHA_HUESO);
+    expect(FLECHAS).toContain(FLECHA_FUEGO);
+    for (const f of FLECHAS) expect(esMunicion(f)).toBe(true);
+  });
+
+  it('nada de esto existe antes de 5.4.0', () => {
+    for (const id of [ARCO_CAZA, ARCO_COBALTO, ARCO_INFERNAL, FLECHA_HIERRO, FLECHA_HUESO, FLECHA_FUEGO]) {
+      expect(objetoExisteEn(id, '5.3.1')).toBe(false);
+      expect(objetoExisteEn(id, '5.4.0')).toBe(true);
+    }
+    // Pero el arco y la flecha de siempre siguen siendo de 3.0.0.
+    expect(objetoExisteEn(ARCO, '3.0.0')).toBe(true);
+    expect(objetoExisteEn(FLECHA, '3.0.0')).toBe(true);
   });
 });

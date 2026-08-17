@@ -55,6 +55,7 @@ const GRUPOS: Grupo[] = [
     filas: [
       ['E', 'Inventario, equipo y fabricación'],
       ['M', 'Mapa — hace falta llevar uno encima'],
+      ['+ −', 'Acercar y alejar la cámara'],
       ['H', 'Esta ayuda'],
       ['⚙', 'Ajustes: volumen, zoom, oscuridad y resolución'],
       ['Esc', 'Cerrar paneles · menú de pausa'],

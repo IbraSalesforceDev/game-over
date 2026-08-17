@@ -42,7 +42,50 @@ export interface Flecha {
   clavada: boolean;
   /** Ángulo con el que se dibuja; se congela al clavarse. */
   angulo: number;
+  /**
+   * Enemigos que todavía puede atravesar antes de pararse.
+   *
+   * Es lo que hace distinta a la flecha de hueso. Una flecha normal se gasta en
+   * el primer bicho al que acierta, así que contra un grupo hay que disparar
+   * tantas veces como bichos haya; la de hueso cruza la fila. Con eso el pasillo
+   * estrecho, que era el peor sitio para el arco, pasa a ser el mejor.
+   */
+  perfora: number;
+  /**
+   * Radio en tiles de la explosión al pararse, o 0 si no estalla.
+   *
+   * La de fuego cambia a qué se apunta: contra un enemigo suelto no da más que
+   * la de hueso, pero contra tres juntos reparte a los tres, y contra uno que
+   * esquiva basta con acertarle al suelo de al lado.
+   */
+  estalla: number;
+  /** Color con el que se dibuja, para distinguir los tipos en el aire. */
+  color: string;
+  /**
+   * A quién ha tocado ya, para no cobrarle dos veces.
+   *
+   * Vive en la flecha y no en el tick, y esa es toda la diferencia entre que la
+   * perforación funcione o no. Un zombi mide veinte píxeles de ancho y la
+   * flecha avanza ocho por tick: pasa dentro de él dos o tres ticks seguidos.
+   * Con el registro por tick, el primer zombi se comía las tres perforaciones
+   * él solo y la flecha no llegaba nunca al segundo — que es justo lo único
+   * que la flecha de hueso tiene que hacer.
+   */
+  readonly tocados: Set<Enemigo>;
 }
+
+/** Lo que la munición aporta al disparo, por encima de lo que pone el arco. */
+export interface Punta {
+  /** Daño que suma a lo que pega el arco. */
+  extra?: number;
+  /** Enemigos que atraviesa antes de pararse. */
+  perfora?: number;
+  /** Radio de la explosión al pararse, en tiles. */
+  estalla?: number;
+  color?: string;
+}
+
+const PUNTA_LISA: Punta = {};
 
 export function crearFlecha(
   x: number,
@@ -50,17 +93,22 @@ export function crearFlecha(
   vx: number,
   vy: number,
   dano: number,
+  punta: Punta = PUNTA_LISA,
 ): Flecha {
   return {
     x,
     y,
     vx,
     vy,
-    dano,
+    dano: dano + (punta.extra ?? 0),
     vivo: true,
     edad: 0,
     clavada: false,
     angulo: Math.atan2(vy, vx),
+    perfora: punta.perfora ?? 0,
+    estalla: punta.estalla ?? 0,
+    color: punta.color ?? '#b8a882',
+    tocados: new Set(),
   };
 }
 
@@ -76,6 +124,7 @@ export function dispararDesde(
   haciaY: number,
   velocidad: number,
   dano: number,
+  punta: Punta = PUNTA_LISA,
 ): Flecha {
   const ox = tirador.x + tirador.ancho / 2;
   const oy = tirador.y + tirador.alto * 0.4;
@@ -85,7 +134,7 @@ export function dispararDesde(
   // Apuntar exactamente a uno mismo tiene que dar algo: sale hacia donde mira.
   const ux = largo < 1e-6 ? tirador.mirando : dx / largo;
   const uy = largo < 1e-6 ? 0 : dy / largo;
-  return crearFlecha(ox, oy, ux * velocidad, uy * velocidad, dano);
+  return crearFlecha(ox, oy, ux * velocidad, uy * velocidad, dano, punta);
 }
 
 export interface ImpactoFlecha {
@@ -99,6 +148,8 @@ export interface ResultadoFlechas {
   impactos: ImpactoFlecha[];
   /** Dónde se han clavado, para las partículas. */
   clavadas: { x: number; y: number }[];
+  /** Dónde ha estallado alguna, y con qué radio, para el fogonazo. */
+  estallidos: { x: number; y: number; radio: number }[];
 }
 
 /**
@@ -114,7 +165,7 @@ export function actualizarFlechas(
   flechas: Flecha[],
   enemigos: readonly Enemigo[],
 ): ResultadoFlechas {
-  const salida: ResultadoFlechas = { impactos: [], clavadas: [] };
+  const salida: ResultadoFlechas = { impactos: [], clavadas: [], estallidos: [] };
 
   for (const f of flechas) {
     if (!f.vivo) continue;
@@ -150,23 +201,72 @@ export function actualizarFlechas(
         // cara del tile se ve; clavada dentro, no se ve nada.
         f.x -= f.vx / pasos;
         f.y -= f.vy / pasos;
-        f.clavada = true;
-        f.edad = 0;
-        salida.clavadas.push({ x: f.x, y: f.y });
+        // Una flecha que estalla no se queda clavada de adorno: revienta contra
+        // la pared. Es lo que permite usarla apuntando al suelo de al lado en
+        // vez de al bicho, que es media gracia de tenerla.
+        if (f.estalla > 0) {
+          estallar(f, enemigos, salida);
+          f.vivo = false;
+        } else {
+          f.clavada = true;
+          f.edad = 0;
+          salida.clavadas.push({ x: f.x, y: f.y });
+        }
         break;
       }
 
-      const tocado = primerEnemigoEn(enemigos, f.x, f.y);
+      const tocado = primerEnemigoEn(enemigos, f.x, f.y, f.tocados);
       if (tocado) {
         const muerto = danarEnemigo(tocado, f.dano, f.x);
         salida.impactos.push({ flecha: f, enemigo: tocado, muerto });
-        f.vivo = false;
-        break;
+        if (f.estalla > 0) {
+          estallar(f, enemigos, salida);
+          f.vivo = false;
+          break;
+        }
+        // Perforando sigue de largo, pero sin volver a pegarle al mismo nunca
+        // más: el registro va en la flecha porque atravesar a un bicho lleva
+        // varios ticks, no varios pasos de uno.
+        f.tocados.add(tocado);
+        if (f.perfora > 0) {
+          f.perfora--;
+        } else {
+          f.vivo = false;
+          break;
+        }
       }
     }
   }
 
   return salida;
+}
+
+/**
+ * La explosión de una flecha de fuego: daño a todo bicho dentro del radio.
+ *
+ * No toca el terreno. Un proyectil que además rompe bloques convierte el arco
+ * en una herramienta de excavación, y para eso ya está la dinamita; lo que se
+ * quiere aquí es poder repartir a un grupo, no abrir un túnel.
+ */
+function estallar(
+  f: Flecha,
+  enemigos: readonly Enemigo[],
+  salida: ResultadoFlechas,
+): void {
+  const radio = f.estalla * TILE;
+  salida.estallidos.push({ x: f.x, y: f.y, radio });
+  for (const e of enemigos) {
+    if (!e.vivo) continue;
+    const cx = e.caja.x + e.caja.ancho / 2;
+    const cy = e.caja.y + e.caja.alto / 2;
+    const d = Math.hypot(cx - f.x, cy - f.y);
+    if (d > radio) continue;
+    // El daño cae con la distancia, hasta la mitad en el borde: si repartiera
+    // lo mismo en todo el círculo, apuntar dejaría de importar.
+    const dano = Math.max(1, Math.round(f.dano * (1 - 0.5 * (d / radio))));
+    const muerto = danarEnemigo(e, dano, f.x);
+    salida.impactos.push({ flecha: f, enemigo: e, muerto });
+  }
 }
 
 function fueraDelMundo(mundo: Mundo, f: Flecha): boolean {
@@ -178,10 +278,12 @@ function primerEnemigoEn(
   enemigos: readonly Enemigo[],
   x: number,
   y: number,
+  excluidos?: ReadonlySet<Enemigo>,
 ): Enemigo | null {
   const punto = { x, y, ancho: 1, alto: 1 } as Caja;
   for (const e of enemigos) {
     if (!e.vivo) continue;
+    if (excluidos?.has(e)) continue;
     if (solapan(punto, e.caja)) return e;
   }
   return null;

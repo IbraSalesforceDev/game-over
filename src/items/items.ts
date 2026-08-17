@@ -158,6 +158,18 @@ export const ESPADA_COBALTO = 134;
 export const ESPADA_TITANIO = 135;
 export const ESPADA_INFERNITA = 136;
 
+// --- Arquería (5.4.0) -------------------------------------------------------
+// El arco llevaba desde 3.0.0 siendo uno solo con una sola flecha: una vez
+// fabricado no había nada más que hacer con él, y a partir de la espada de
+// hierro dejaba de merecer la pena. Ahora hay una escalera de arcos y, sobre
+// todo, tres puntas que cambian a qué se apunta y no solo cuánto quita.
+export const ARCO_CAZA = 137;
+export const ARCO_COBALTO = 138;
+export const ARCO_INFERNAL = 139;
+export const FLECHA_HIERRO = 140;
+export const FLECHA_HUESO = 141;
+export const FLECHA_FUEGO = 142;
+
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
  *
@@ -244,6 +256,17 @@ export interface DefObjeto {
   readonly municion?: number;
   /** Velocidad de salida del proyectil, en píxeles por tick. */
   readonly velocidad?: number;
+  /**
+   * Lo que aporta una munición por encima del arco que la lanza.
+   *
+   * Va en la munición y no en el arco porque es lo que hace que elegir flecha
+   * sea una decisión: el arco decide cuánto pega de base y cada cuánto, y la
+   * punta decide contra qué es buena. Un arco malo con flechas de fuego resuelve
+   * un grupo mejor que un arco bueno con flechas lisas.
+   */
+  readonly danoExtra?: number;
+  readonly perfora?: number;
+  readonly estalla?: number;
   /** Nivel del mapa, si es un mapa: 1 el más pequeño. */
   readonly nivelMapa?: number;
   /** Primera etapa del cultivo que planta, si es una semilla. */
@@ -508,6 +531,91 @@ const ENTRADAS: [number, DefObjeto][] = [
     },
   ],
   [FLECHA, { nombre: 'flecha', tipo: 'municion', color: '#b8a882', maxPila: PILA }],
+
+  // --- La escalera de arcos (5.4.0) ---
+  //
+  // Cada uno pega más y dispara antes que el anterior, y sobre todo lanza más
+  // rápido: la velocidad de salida es lo que decide si hay que apuntar por
+  // encima del bicho o directamente a él, y es la mejora que más se nota
+  // disparando aunque no salga en ningún número de la ficha.
+  [
+    ARCO_CAZA,
+    {
+      nombre: 'arco de caza',
+      tipo: 'arco',
+      color: '#9a7a4a',
+      maxPila: 1,
+      dano: 20,
+      cadencia: 20,
+      municion: FLECHA,
+      velocidad: 12,
+    },
+  ],
+  [
+    ARCO_COBALTO,
+    {
+      nombre: 'arco de cobalto',
+      tipo: 'arco',
+      color: '#3f6fd8',
+      maxPila: 1,
+      dano: 27,
+      cadencia: 17,
+      municion: FLECHA,
+      velocidad: 14,
+    },
+  ],
+  [
+    ARCO_INFERNAL,
+    {
+      nombre: 'arco infernal',
+      tipo: 'arco',
+      color: '#e05a28',
+      maxPila: 1,
+      dano: 36,
+      cadencia: 14,
+      municion: FLECHA,
+      velocidad: 16.5,
+    },
+  ],
+
+  // --- Las tres puntas ---
+  //
+  // Ninguna es "la flecha buena": la de pedernal sube el daño y ya, la de hueso
+  // cruza una fila de bichos y la de fuego reparte en un círculo. Contra un
+  // enemigo suelto gana el pedernal; en un pasillo, el hueso; contra un grupo,
+  // el fuego. Eso es lo que se quería, y no tres números en escalera.
+  [
+    FLECHA_HIERRO,
+    {
+      nombre: 'flecha de hierro',
+      tipo: 'municion',
+      color: '#9aa3ad',
+      maxPila: PILA,
+      danoExtra: 6,
+    },
+  ],
+  [
+    FLECHA_HUESO,
+    {
+      nombre: 'flecha de hueso',
+      tipo: 'municion',
+      color: '#e4dfcc',
+      maxPila: PILA,
+      danoExtra: 9,
+      perfora: 2,
+    },
+  ],
+  [
+    FLECHA_FUEGO,
+    {
+      nombre: 'flecha de fuego',
+      tipo: 'municion',
+      color: '#ff8a3a',
+      maxPila: PILA,
+      danoExtra: 7,
+      estalla: 2.2,
+    },
+  ],
   lingote(PAPEL, 'papel', '#e6e0cc'),
   lingote(PEDERNAL, 'pedernal', '#5a5f68'),
   lingote(PLUMA, 'pluma', '#e8e4d8'),
@@ -680,6 +788,11 @@ export function alcanceDeMapa(id: number): number {
 }
 
 /** ¿Es un arma a distancia? */
+/** ¿Es munición, o sea, algo que un arco puede gastar? */
+export function esMunicion(id: number): boolean {
+  return defObjeto(id).tipo === 'municion';
+}
+
 export function esArco(id: number): boolean {
   return defObjeto(id).tipo === 'arco';
 }
@@ -687,6 +800,37 @@ export function esArco(id: number): boolean {
 /** Munición que gasta este arma, o NADA si no gasta ninguna. */
 export function municionDe(id: number): number {
   return defObjeto(id).municion ?? NADA;
+}
+
+/**
+ * Todas las flechas que existen, de la peor a la mejor.
+ *
+ * El orden es el de la escalera, y se recorre del final al principio para
+ * elegir cuál se dispara: el arco gasta siempre la mejor que lleves encima.
+ *
+ * Se decidió así y no con una ranura de munición aparte porque una ranura es
+ * otra caja en la interfaz, otro campo en el guardado y otra cosa que explicar,
+ * y lo que compra —guardarte las flechas buenas para luego— no vale eso en un
+ * juego donde la munición se fabrica de sobras. La regla "gasta la mejor" se
+ * entiende sin que nadie la explique, y quien quiera reservar las de fuego las
+ * deja en un cofre.
+ */
+export const FLECHAS: readonly number[] = [FLECHA, FLECHA_HIERRO, FLECHA_HUESO, FLECHA_FUEGO];
+
+/** Lo que la punta suma al disparo, para que el proyectil no importe items. */
+export function puntaDe(id: number): {
+  extra: number;
+  perfora: number;
+  estalla: number;
+  color: string;
+} {
+  const d = defObjeto(id);
+  return {
+    extra: d.danoExtra ?? 0,
+    perfora: d.perfora ?? 0,
+    estalla: d.estalla ?? 0,
+    color: d.color,
+  };
 }
 
 /** Hueco donde va esta pieza, o null si no es armadura. */
@@ -725,6 +869,12 @@ const DESCRIPCIONES: Readonly<Record<number, string>> = {
   [AZADA]: 'Clic derecho sobre hierba o tierra: la deja labrada para sembrar.',
   [ARCO]: 'Clic izquierdo hacia donde apunte el ratón. Gasta una flecha por disparo.',
   [FLECHA]: 'Munición del arco. Se clava en el terreno y se puede recoger.',
+  [ARCO_CAZA]: 'Pega más y dispara antes que el de madera, y la flecha sale más tensa.',
+  [ARCO_COBALTO]: 'Casi el doble de daño que el arco de madera, y a más velocidad.',
+  [ARCO_INFERNAL]: 'El arco del inframundo. Dispara casi cada dos disparos del de madera.',
+  [FLECHA_HIERRO]: 'Punta de metal: seis de daño más. La mejora de todos los días.',
+  [FLECHA_HUESO]: 'Atraviesa hasta tres bichos seguidos. Para pasillos y filas.',
+  [FLECHA_FUEGO]: 'Estalla al chocar y reparte alrededor. Vale apuntar al suelo de al lado.',
   [CUBO]: 'Recoge y vierte líquidos. La única forma de mover un lago.',
   [CUBO_AGUA]: 'Vertido sobre lava la apaga y deja obsidiana.',
   [CUBO_LAVA]: 'Quema a todo lo que toque, incluido a ti.',
@@ -857,6 +1007,10 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
       PICO_COBALTO, PICO_TITANIO, PICO_INFERNITA,
       ESPADA_COBALTO, ESPADA_TITANIO, ESPADA_INFERNITA,
     ],
+  ],
+  [
+    '5.4.0',
+    [ARCO_CAZA, ARCO_COBALTO, ARCO_INFERNAL, FLECHA_HIERRO, FLECHA_HUESO, FLECHA_FUEGO],
   ],
 ];
 

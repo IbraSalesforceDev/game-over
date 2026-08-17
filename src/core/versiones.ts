@@ -331,6 +331,32 @@ export const VERSIONES: readonly Version[] = [
       'La élite pega el doble y suelta el botín bueno',
     ],
   },
+  {
+    id: '5.3.1',
+    etapa: 'prealfa',
+    nombre: 'La lava con fondo',
+    resumen: 'Los lagos del inframundo se cavan antes de llenarse, y hay un mar.',
+    cambios: [
+      'Se acabaron las láminas de lava de un tile cruzando la pantalla',
+      'Cuencas cavadas en la roca: los lagos tienen calado',
+      'Un mar de lava en el fondo, con islas de roca',
+      'Casi el triple de lava que antes',
+    ],
+  },
+  {
+    id: '5.4.0',
+    etapa: 'prealfa',
+    nombre: 'Arquería',
+    resumen: 'Tres arcos más y tres puntas de flecha que cambian a qué apuntas.',
+    cambios: [
+      'Arco de caza, de cobalto e infernal',
+      'Flecha de pedernal: más daño y barata',
+      'Flecha de hueso: atraviesa hasta tres bichos',
+      'Flecha de fuego: estalla y reparte alrededor',
+      'El arco gasta siempre la mejor flecha que lleves',
+      'Zoom de ×1 a ×6, con las teclas + y −',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -395,6 +421,7 @@ export const DESDE = {
   cana: '3.0.0',
   estructuras: '4.0.0',
   cuevasDeBioma: '5.2.0',
+  arqueria: '5.4.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

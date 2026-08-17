@@ -790,7 +790,10 @@ export class Renderer {
       ctx.save();
       ctx.translate(ox + f.x * z, oy + f.y * z);
       ctx.rotate(f.angulo);
-      ctx.fillStyle = '#b8a882';
+      // El asta va del color de la punta: es lo único que distingue en el aire
+      // una flecha de hueso de una de fuego, y saber cuál estás gastando sin
+      // abrir el inventario importa cuando las buenas se acaban.
+      ctx.fillStyle = f.color;
       ctx.fillRect(-9 * z, -0.5 * z, 10 * z, z);
       ctx.fillStyle = '#d8d2c0';
       ctx.fillRect(-9 * z, -1.5 * z, 3 * z, z);

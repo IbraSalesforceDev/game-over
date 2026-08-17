@@ -1,10 +1,11 @@
 import { ANTORCHA, COFRE, defTile, HORNO, MESA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
 import {
-  ARCO,
   CUBO,
   CUBO_AGUA,
   CUBO_LAVA,
   defObjeto,
+  esArco,
+  esMunicion,
   esArma,
   esAzada,
   esBrujula,
@@ -18,7 +19,6 @@ import {
   CARNE_ASADA,
   CARNE_CRUDA,
   ESENCIA,
-  FLECHA,
   GEL,
   HUESO,
   PAN,
@@ -296,13 +296,22 @@ const arcoIcono: Dibujo = (ctx, ox, oy, color) => {
   px(ctx, ox + 11, oy + 18, 2, 1, t.oscuro);
 };
 
-/** Flecha: punta, astil y plumas, en diagonal para que quepa. */
+/**
+ * Flecha: punta, astil y plumas, en diagonal para que quepa.
+ *
+ * La punta va del color del objeto y el astil siempre de madera. Es al revés
+ * de lo que parece natural, y es a propósito: lo que distingue una flecha de
+ * otra es de qué es la punta, así que es la punta la que tiene que llevar el
+ * color en la ranura. Con el astil teñido, cuatro flechas en la barra se leían
+ * como cuatro palos de colores.
+ */
 const flechaIcono: Dibujo = (ctx, ox, oy, color) => {
-  const t = tono(color, 24, 30);
-  for (let i = 0; i < 12; i++) px(ctx, ox + 4 + i, oy + 15 - i, 1, 1, t.base);
-  // Punta de piedra.
-  px(ctx, ox + 15, oy + 3, 3, 3, '#8d8d97');
-  px(ctx, ox + 16, oy + 3, 2, 1, '#b4b4bd');
+  const madera = tono('#8a6a3f', 24, 30);
+  const t = tono(color, 26, 34);
+  for (let i = 0; i < 12; i++) px(ctx, ox + 4 + i, oy + 15 - i, 1, 1, madera.base);
+  px(ctx, ox + 15, oy + 3, 3, 3, t.base);
+  px(ctx, ox + 16, oy + 3, 2, 1, t.claro);
+  px(ctx, ox + 14, oy + 5, 2, 1, t.oscuro);
   // Plumas.
   px(ctx, ox + 3, oy + 15, 3, 1, '#d8d2c0');
   px(ctx, ox + 4, oy + 16, 1, 3, '#d8d2c0');
@@ -553,8 +562,12 @@ function dibujoDe(id: number): Dibujo {
   if (id === CUBO || id === CUBO_AGUA || id === CUBO_LAVA) return cuboIcono;
   if (esCristal(id)) return cristalIcono;
   if (esMapa(id)) return ICONOS_MAPA[Math.min(4, (defObjeto(id).nivelMapa ?? 1) - 1)]!;
-  if (id === ARCO) return arcoIcono;
-  if (id === FLECHA) return flechaIcono;
+  // Los arcos y las flechas comparten dibujo y se distinguen por el color, que
+  // ya sale de la definición de cada objeto. Cuatro arcos con el mismo asta y
+  // distinto tono se leen como una escalera; cuatro siluetas distintas se leen
+  // como cuatro armas sin relación entre ellas, que es justo lo contrario.
+  if (esArco(id)) return arcoIcono;
+  if (esMunicion(id)) return flechaIcono;
   if (esBrujula(id)) return brujulaIcono;
   if (id === RELIQUIA) return reliquiaIcono;
   if (id === ESENCIA) return esenciaIcono;
