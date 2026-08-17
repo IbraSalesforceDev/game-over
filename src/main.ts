@@ -26,7 +26,12 @@ import { crearMapa } from './ui/mapa';
 import { crearBrujula } from './ui/brujula';
 import { crearPanelJefe } from './ui/jefe';
 import { crearPausa } from './ui/pausa';
-import { crearDebugMenu, crearTrucos } from './ui/debugmenu';
+import {
+  crearDebugMenu,
+  crearTrucos,
+  destinoDeViaje,
+  MARGEN_VIAJE,
+} from './ui/debugmenu';
 import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
@@ -706,10 +711,11 @@ async function arrancar(): Promise<void> {
         ty: e.ty,
       })),
     viajarA: (tx, ty) => {
-      // Un par de tiles por encima del punto anotado: el centro de la sala del
-      // altar es el altar mismo, y aparecer dentro de un mueble es feo.
-      jugador.caja.x = tx * TILE;
-      jugador.caja.y = (ty - 3) * TILE;
+      // Dentro del mundo, siempre: la regla vive en el módulo del panel, junto
+      // a la de leer las coordenadas, para poder probarla sin montar el DOM.
+      const destino = destinoDeViaje(tx, ty, mundo.ancho, mundo.alto);
+      jugador.caja.x = destino.tx * TILE;
+      jugador.caja.y = (destino.ty - MARGEN_VIAJE) * TILE;
       jugador.caja.vx = 0;
       jugador.caja.vy = 0;
       jugador.xPrev = jugador.caja.x;

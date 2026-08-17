@@ -188,6 +188,10 @@ const ESTILO = `
   color: #5a4f66; font-size: 9px; line-height: 1.5;
   padding: 10px 14px; border-top: 1px solid #241c2a;
 }
+/* Recado corto debajo de un control, para decir por qué no ha hecho nada. Se
+   queda vacío mientras todo va bien y entonces no ocupa ni una línea. */
+#depuracion .nota { color: #c88a3a; font-size: 9px; min-height: 0; }
+#depuracion .nota:empty { display: none; }
 /* El marcador de la pestaña de mundo: parejas clave-valor en dos columnas. */
 #depuracion .datos {
   display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
@@ -270,6 +274,49 @@ export function encaja(nombre: string, filtro: string): boolean {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
   return limpio(nombre).includes(limpio(filtro));
+}
+
+/**
+ * Una coordenada escrita a mano, o null si no hay ninguna que valga.
+ *
+ * Se mira el texto y no el número, y ahí está todo el asunto: `Number('')` es
+ * **cero**, no un error. Con la comprobación hecha sobre el número, pulsar "Ir
+ * ahí" con los campos en blanco viajaba a la casilla 0,0 —el borde de arriba a
+ * la izquierda del mundo, un cielo sin suelo del que se cae— en vez de no hacer
+ * nada. Vacío, en blanco y "hola" significan los tres lo mismo: que todavía no
+ * se ha dicho a dónde.
+ */
+export function coordenadaEscrita(texto: string): number | null {
+  const limpio = texto.trim();
+  if (limpio === '') return null;
+  const n = Number(limpio);
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
+/**
+ * El destino de un viaje, recortado para que caiga dentro del mundo.
+ *
+ * Recortar y no rechazar: quien escribe un número enorme quiere el borde de
+ * allí, y devolverle un aviso no le acerca. Fuera del mapa no hay nada que
+ * hacer —por la derecha se cae al vacío hasta que la red de seguridad devuelve
+ * al spawn, y por arriba se aparece en un cielo sin suelo—, así que el borde es
+ * la respuesta más parecida a lo que se pedía.
+ *
+ * Los tres tiles de margen de arriba son los mismos que el viaje deja siempre
+ * por encima del punto anotado, para no nacer metido dentro del altar.
+ */
+export const MARGEN_VIAJE = 3;
+
+export function destinoDeViaje(
+  tx: number,
+  ty: number,
+  ancho: number,
+  alto: number,
+): { tx: number; ty: number } {
+  return {
+    tx: Math.min(Math.max(tx, 1), Math.max(1, ancho - 2)),
+    ty: Math.min(Math.max(ty, MARGEN_VIAJE), Math.max(MARGEN_VIAJE, alto - 2)),
+  };
 }
 
 export interface PanelDebug {
@@ -437,6 +484,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
         <input id="dbg-ty" type="number" min="0" step="1" placeholder="y">
         <button id="dbg-ir-xy" style="flex:1">Ir ahí</button>
       </div>
+      <div class="nota" id="dbg-viaje-nota"></div>
       <div class="fila">
         <label>Mapa del mundo</label>
         <span class="interruptor" id="dbg-mapa">no</span>
@@ -509,6 +557,11 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       despues?.();
     });
     pintar();
+  }
+
+  /** El recado de debajo del viaje. Cadena vacía = se esconde. */
+  function nota(texto: string): void {
+    $('dbg-viaje-nota').textContent = texto;
   }
 
   /**
@@ -690,12 +743,21 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   $('dbg-viajar').addEventListener('click', () => {
     const i = Number(selEstructura.value);
     const destino = op.estructuras()[i];
+    nota(destino ? '' : 'Este mundo no tiene estructuras a las que ir');
     if (destino) op.viajarA(destino.tx, destino.ty);
   });
   $('dbg-ir-xy').addEventListener('click', () => {
-    const tx = Number($<HTMLInputElement>('dbg-tx').value);
-    const ty = Number($<HTMLInputElement>('dbg-ty').value);
-    if (Number.isFinite(tx) && Number.isFinite(ty)) op.viajarA(tx, ty);
+    // Un campo vacío no es un cero. `Number('')` sí lo es, y por eso hasta aquí
+    // pulsar "Ir ahí" sin escribir nada te dejaba flotando sobre la esquina de
+    // arriba a la izquierda del mundo, que es donde nadie quería ir nunca.
+    const tx = coordenadaEscrita($<HTMLInputElement>('dbg-tx').value);
+    const ty = coordenadaEscrita($<HTMLInputElement>('dbg-ty').value);
+    if (tx === null || ty === null) {
+      nota('Escribe las dos coordenadas');
+      return;
+    }
+    nota('');
+    op.viajarA(tx, ty);
   });
   for (const id of ['dbg-tx', 'dbg-ty', 'dbg-cantidad', 'dbg-vidamax']) {
     const el = $(id);

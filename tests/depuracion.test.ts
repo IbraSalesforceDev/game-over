@@ -3,9 +3,12 @@ import {
   comoHora,
   contrasenaCorrecta,
   CONTRASENA,
+  coordenadaEscrita,
   crearTrucos,
+  destinoDeViaje,
   encaja,
   HORAS,
+  MARGEN_VIAJE,
 } from '../src/ui/debugmenu';
 
 /**
@@ -53,6 +56,52 @@ describe('el buscador de las listas', () => {
 
   it('busca también por el final del nombre', () => {
     expect(encaja('casco de infernita', 'infernita')).toBe(true);
+  });
+});
+
+describe('el viaje del panel', () => {
+  it('un campo vacío no es un cero', () => {
+    // El fallo que arregla esto: `Number('')` vale 0, así que pulsar "Ir ahí"
+    // sin escribir nada teleportaba a la esquina 0,0 del mundo —cielo sin
+    // suelo— en vez de no hacer nada.
+    for (const nada of ['', '   ', '\t']) expect(coordenadaEscrita(nada)).toBe(null);
+  });
+
+  it('lo que no es un número tampoco', () => {
+    for (const mal of ['hola', '--3', 'e', 'NaN', '1,5,7']) {
+      expect(coordenadaEscrita(mal), mal).toBe(null);
+    }
+  });
+
+  it('un número escrito se lee, con espacios y todo', () => {
+    expect(coordenadaEscrita('548')).toBe(548);
+    expect(coordenadaEscrita('  447 ')).toBe(447);
+    expect(coordenadaEscrita('-12')).toBe(-12);
+    // Medio tile no existe: la casilla es entera.
+    expect(coordenadaEscrita('12.6')).toBe(13);
+  });
+
+  it('el cero escrito a mano sí vale: es una casilla como otra', () => {
+    expect(coordenadaEscrita('0')).toBe(0);
+  });
+
+  it('el destino se recorta al mundo en vez de dejarte fuera', () => {
+    expect(destinoDeViaje(9999, 9999, 1400, 675)).toEqual({ tx: 1398, ty: 673 });
+    expect(destinoDeViaje(-50, -50, 1400, 675)).toEqual({ tx: 1, ty: MARGEN_VIAJE });
+  });
+
+  it('y un destino que ya está dentro no se toca', () => {
+    expect(destinoDeViaje(548, 447, 1400, 675)).toEqual({ tx: 548, ty: 447 });
+  });
+
+  it('la fila 0 se baja al margen: ahí arriba no hay suelo ninguno', () => {
+    expect(destinoDeViaje(0, 0, 1400, 675)).toEqual({ tx: 1, ty: MARGEN_VIAJE });
+  });
+
+  it('en un mundo diminuto no se sale por el otro lado', () => {
+    const d = destinoDeViaje(500, 500, 2, 2);
+    expect(d.tx).toBeGreaterThanOrEqual(1);
+    expect(d.ty).toBeGreaterThanOrEqual(MARGEN_VIAJE);
   });
 });
 
