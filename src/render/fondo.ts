@@ -140,50 +140,203 @@ function tiraNubes(semilla: number): HTMLCanvasElement {
   return c;
 }
 
-/** Biomas que el fondo distingue. Es el mismo nombre que usa el generador. */
-export type BiomaFondo = 'bosque' | 'desierto' | 'nieve' | 'jungla';
+// --- Siluetas propias de cada bioma -----------------------------------------
+//
+// Hasta 5.1.0 el fondo era el mismo en todo el mundo y solo cambiaba de color:
+// el desierto tenía las montañas del bosque teñidas de ocre. Y teñir no basta.
+// Lo que hace que un sitio se lea como otro sitio es la silueta —una duna no
+// tiene la forma de un pico nevado— y por eso ahora cada bioma trae la suya.
+
+/** Una pirámide en la arena. Es lo que dice "desierto" desde el otro lado. */
+function tiraDesierto(cerca: boolean): HTMLCanvasElement {
+  const c = lienzo(ANCHO_TIRA, ALTO_TIRA);
+  const ctx = contexto(c);
+  // Dunas: mucha escala y poca amplitud. Una duna es una loma larga, y con el
+  // ruido de las montañas salían crestas puntiagudas de arena.
+  const h = perfil(cerca ? 71 : 37, cerca ? 48 : 34, cerca ? 1 / 260 : 1 / 340);
+  ctx.fillStyle = '#ffffff';
+  for (let x = 0; x < ANCHO_TIRA; x++) {
+    ctx.fillRect(x, ALTO_TIRA - h[x]!, 1, h[x]!);
+  }
+  if (cerca) {
+    // La pirámide, en la capa cercana para que se vea grande. Un triángulo con
+    // la arista central marcada: sin ella se lee como un montículo.
+    const base = 190;
+    const altura = 118;
+    const cx = 300;
+    for (let i = 0; i < altura; i++) {
+      const ancho = Math.round((base * (altura - i)) / altura);
+      ctx.fillRect(cx - ancho / 2, ALTO_TIRA - 24 - i, ancho, 1);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    for (let i = 0; i < altura; i++) {
+      const ancho = Math.round((base * (altura - i)) / altura);
+      ctx.fillRect(cx - ancho / 2, ALTO_TIRA - 24 - i, ancho / 2, 1);
+    }
+  }
+  return c;
+}
 
 /**
- * Color y fuerza con la que cada bioma tiñe las cordilleras.
+ * La selva: una pared de árboles altísimos.
  *
- * Suave a propósito: el fondo no puede competir con el terreno. Lo que se busca
- * es que al entrar en el desierto el horizonte se vuelva cálido sin que nadie
- * sepa decir exactamente qué ha cambiado.
+ * Mucho más altos que nada del terreno de verdad, y ese es el punto — el fondo
+ * de la selva no es un paisaje lejano, es la sensación de estar dentro de algo
+ * que te tapa el cielo.
  */
-const TINTE_BIOMA: Record<BiomaFondo, readonly [string, number]> = {
-  bosque: ['#54708f', 0],
-  desierto: ['#c9a163', 0.45],
-  nieve: ['#dbe8f5', 0.42],
-  jungla: ['#2f6b4a', 0.4],
+function tiraJungla(cerca: boolean): HTMLCanvasElement {
+  const c = lienzo(ANCHO_TIRA, ALTO_TIRA);
+  const ctx = contexto(c);
+  const cuantos = cerca ? 11 : 17;
+  ctx.fillStyle = '#ffffff';
+  for (let n = 0; n < cuantos; n++) {
+    const x = (n / cuantos) * ANCHO_TIRA + hash2(n, cerca ? 5 : 9) * 22;
+    const alto = (cerca ? 150 : 108) + hash2(n, 13) * (cerca ? 44 : 40);
+    const grosor = cerca ? 9 : 5;
+    ctx.fillRect(Math.round(x), ALTO_TIRA - alto, grosor, alto);
+    // Copa: tres bolas solapadas en la punta, y un par de brazos a media
+    // altura. Es lo que separa un árbol de un poste.
+    const cy = ALTO_TIRA - alto + 14;
+    for (const [dx, dy, r] of [
+      [0, 0, cerca ? 34 : 24],
+      [-20, 12, cerca ? 24 : 17],
+      [22, 10, cerca ? 26 : 18],
+    ] as const) {
+      ctx.beginPath();
+      ctx.ellipse(x + grosor / 2 + dx, cy + dy, r, r * 0.62, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Y el sotobosque, para que los troncos no floten sobre el cielo.
+  const h = perfil(101, 30, 1 / 90);
+  for (let x = 0; x < ANCHO_TIRA; x++) ctx.fillRect(x, ALTO_TIRA - h[x]!, 1, h[x]!);
+  return c;
+}
+
+/** La nieve: un pico enorme, mucho más alto que las montañas del bosque. */
+function tiraNieve(cerca: boolean): HTMLCanvasElement {
+  const c = lienzo(ANCHO_TIRA, ALTO_TIRA);
+  const ctx = contexto(c);
+  const h = perfil(cerca ? 61 : 23, cerca ? 96 : 74, cerca ? 1 / 150 : 1 / 210);
+  ctx.fillStyle = '#ffffff';
+  for (let x = 0; x < ANCHO_TIRA; x++) ctx.fillRect(x, ALTO_TIRA - h[x]!, 1, h[x]!);
+
+  // El pico: un triángulo agudo que sobresale por encima de todo lo demás. Va
+  // en las dos capas, desplazado, para que se vea uno detrás de otro.
+  const cx = cerca ? 150 : 380;
+  const altura = cerca ? 196 : 168;
+  const base = cerca ? 200 : 170;
+  for (let i = 0; i < altura; i++) {
+    const ancho = Math.round((base * (altura - i)) / altura);
+    ctx.fillRect(cx - ancho / 2, ALTO_TIRA - i, ancho, 1);
+  }
+  return c;
+}
+
+/** El mar: casi todo horizonte, con dos islas pequeñas a lo lejos. */
+function tiraMar(cerca: boolean): HTMLCanvasElement {
+  const c = lienzo(ANCHO_TIRA, ALTO_TIRA);
+  const ctx = contexto(c);
+  ctx.fillStyle = '#ffffff';
+  if (cerca) {
+    // La lámina de agua: una franja baja y plana. Lo que hace "mar" es
+    // justamente que no hay relieve, y por eso el horizonte se ve tan lejos.
+    ctx.fillRect(0, ALTO_TIRA - 26, ANCHO_TIRA, 26);
+    for (const [x, ancho, alto] of [
+      [120, 78, 22],
+      [370, 52, 15],
+    ] as const) {
+      for (let i = 0; i < alto; i++) {
+        const w = Math.round((ancho * (alto - i)) / alto) + 8;
+        ctx.fillRect(x - w / 2, ALTO_TIRA - 26 - i, w, 1);
+      }
+    }
+    return c;
+  }
+  const h = perfil(83, 22, 1 / 300);
+  for (let x = 0; x < ANCHO_TIRA; x++) ctx.fillRect(x, ALTO_TIRA - h[x]!, 1, h[x]!);
+  return c;
+}
+
+/** Biomas que el fondo distingue. Es el mismo nombre que usa el generador. */
+export type BiomaFondo = 'bosque' | 'desierto' | 'nieve' | 'jungla' | 'mar';
+
+/** Cómo es el fondo de cada bioma: silueta, color, altura y separación. */
+interface RecetaFondo {
+  /** La silueta de cada capa, de lejos a cerca. */
+  tira(cerca: boolean): HTMLCanvasElement;
+  /** Color de la capa lejana y de la cercana. */
+  colores: readonly [string, string];
+  /** Dónde se apoya cada capa, en fracción de pantalla. */
+  anclajes: readonly [number, number];
+}
+
+const RECETAS: Record<BiomaFondo, RecetaFondo> = {
+  bosque: {
+    tira: (cerca) =>
+      cerca ? tiraMontanas(29, 120, 1 / 120) : tiraMontanas(11, 92, 1 / 190),
+    colores: ['#7d93b5', '#54708f'],
+    anclajes: [0.5, 0.62],
+  },
+  // El desierto no tira a ocre por un tinte: es ocre porque lo que hay al
+  // fondo es arena.
+  desierto: {
+    tira: tiraDesierto,
+    colores: ['#d8b978', '#b58f4e'],
+    anclajes: [0.58, 0.68],
+  },
+  jungla: {
+    tira: tiraJungla,
+    // Verde de verdad, no un azul teñido de verde: la selva es el bioma que
+    // más se pedía que se notara, y se nota por el color tanto como por la
+    // forma.
+    colores: ['#2e7a4e', '#1c5436'],
+    anclajes: [0.52, 0.66],
+  },
+  nieve: {
+    tira: tiraNieve,
+    colores: ['#cfe0f0', '#9db8d2'],
+    // Más alto que los demás: el pico tiene que salirse por arriba.
+    anclajes: [0.44, 0.6],
+  },
+  mar: {
+    tira: tiraMar,
+    colores: ['#6f9ec4', '#3f74a3'],
+    anclajes: [0.6, 0.72],
+  },
 };
 
 export class Fondo {
-  private readonly capas: Capa[];
+  /**
+   * Las capas de cada bioma, generadas la primera vez que se ven.
+   *
+   * Cinco biomas por dos capas son diez tiras de 512×200. Hacerlas todas al
+   * arrancar sería medio megabyte de lienzos y unos milisegundos de más en una
+   * pantalla de carga que ya tiene bastante que hacer, y en una partida entera
+   * puede que no se pise ni la mitad de los biomas.
+   */
+  private readonly porBioma = new Map<BiomaFondo, Capa[]>();
   private readonly nubes: HTMLCanvasElement;
 
   constructor() {
-    const crear = (
-      semilla: number,
-      amplitud: number,
-      escala: number,
-      parallax: number,
-      color: string,
-      anclaje: number,
-    ): Capa => ({
-      tira: tiraMontanas(semilla, amplitud, escala),
-      parallax,
-      color,
-      anclaje,
+    this.nubes = tiraNubes(53);
+  }
+
+  private capasDe(bioma: BiomaFondo): Capa[] {
+    let capas = this.porBioma.get(bioma);
+    if (capas) return capas;
+    const receta = RECETAS[bioma];
+    capas = [false, true].map((cerca, i) => ({
+      tira: receta.tira(cerca),
+      // La lejana casi no se mueve; la cercana, el doble largo.
+      parallax: cerca ? 0.14 : 0.06,
+      color: receta.colores[i]!,
+      anclaje: receta.anclajes[i]!,
       tenida: lienzo(ANCHO_TIRA, ALTO_TIRA),
       colorTenido: '',
-    });
-    this.capas = [
-      // Cordillera lejana: casi no se mueve y está muy desaturada.
-      crear(11, 92, 1 / 190, 0.06, '#7d93b5', 0.5),
-      // Colinas de en medio, más oscuras y más rápidas.
-      crear(29, 120, 1 / 120, 0.14, '#54708f', 0.62),
-    ];
-    this.nubes = tiraNubes(53);
+    }));
+    this.porBioma.set(bioma, capas);
+    return capas;
   }
 
   /**
@@ -225,17 +378,12 @@ export class Fondo {
     }
     ctx.restore();
 
-    // --- Cordilleras ---
-    for (const capa of this.capas) {
+    // --- El fondo del bioma ---
+    for (const capa of this.capasDe(bioma)) {
       // La bruma de la distancia: cuanto más lejos está la capa, más se mezcla
       // su color con el del cielo. Es niebla atmosférica sin niebla de verdad.
-      // Además de la bruma, el tinte del bioma: las montañas del desierto
-      // tiran a ocre y las de la nieve a azul pálido. Es lo que hace que se
-      // note el cambio de bioma antes de mirar al suelo — y como se aplica al
-      // color y no al lienzo, no cuesta un repintado más.
-      const [tinte, fuerza] = TINTE_BIOMA[bioma];
-      const conBioma = mezclar(capa.color, tinte, fuerza);
-      const color = mezclar(conBioma, cielo, 0.42 - capa.parallax);
+      // El color ya viene del bioma: aquí solo se le echa la distancia encima.
+      const color = mezclar(capa.color, cielo, 0.42 - capa.parallax);
       if (color !== capa.colorTenido) {
         tenir(capa.tenida, capa.tira, color);
         capa.colorTenido = color;

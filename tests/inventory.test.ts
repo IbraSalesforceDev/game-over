@@ -50,9 +50,14 @@ describe('catálogo de objetos', () => {
 });
 
 describe('lo que suelta cada tile', () => {
-  it('la hierba suelta tierra y el tronco madera', () => {
-    expect(dropDeTile(HIERBA)).toBe(TIERRA);
-    expect(dropDeTile(TRONCO)).toBe(MADERA);
+  it('la hierba suelta tierra casi siempre y el tronco madera', () => {
+    // La hierba tiene un 12 % de dar semillas, así que preguntarle una sola vez
+    // era un test que fallaba una de cada ocho ejecuciones. Se muestrea.
+    let tierra = 0;
+    for (let i = 0; i < 400; i++) if (dropDeTile(HIERBA) === TIERRA) tierra++;
+    expect(tierra).toBeGreaterThan(300);
+    // El tronco sí es determinista: siempre madera.
+    for (let i = 0; i < 20; i++) expect(dropDeTile(TRONCO)).toBe(MADERA);
   });
 
   it('las hojas casi nunca sueltan nada, y a veces un brote', () => {

@@ -70,6 +70,7 @@ habría partida que jugar ni forma de guardarla.
 | 4.2.2 | Ningún objeto se cuela: cada uno dice de qué versión es y no aparece en las anteriores |
 | 4.3.0 | Cambiar de versión un mundo ya creado, hacia delante y hacia atrás |
 | 5.0.0 | Varios biomas de cada clase, biomas profundos, tamaño titánico, cuatro minerales más, el inframundo y las lianas |
+| 5.1.0 | Cada bioma tiene su propio horizonte: pirámide, selva altísima, pico nevado y mar |
 
 ## Por dónde se comprueba
 

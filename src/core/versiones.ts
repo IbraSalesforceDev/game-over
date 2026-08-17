@@ -292,6 +292,19 @@ export const VERSIONES: readonly Version[] = [
       'Lianas colgando de la selva',
     ],
   },
+  {
+    id: '5.1.0',
+    etapa: 'prealfa',
+    nombre: 'Cada bioma tiene su horizonte',
+    resumen: 'El fondo deja de ser el mismo teñido de otro color y cambia de forma.',
+    cambios: [
+      'Desierto: dunas largas y una pirámide',
+      'Selva: una pared de árboles altísimos, verde de verdad',
+      'Nieve: un pico enorme, más alto que ninguna montaña',
+      'Mar: casi todo horizonte, con dos islas a lo lejos',
+      'El bosque conserva sus cordilleras',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -374,6 +387,7 @@ export const DESDE = {
   // una versión vieja se parezca a lo que fue.
   spritesAnimados: '2.2.0',
   fondoParallax: '2.2.0',
+  fondoPorBioma: '5.1.0',
   sombras: '2.2.0',
   objetoEnMano: '2.2.1',
   astros: '1.5.0',

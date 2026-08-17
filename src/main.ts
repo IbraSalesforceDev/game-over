@@ -18,6 +18,7 @@ import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
 import { ARMADURA_DESNUDA } from './render/sprites';
 import { Renderer, type EpocaVisual, type Objetivo } from './render/renderer';
+import type { BiomaFondo } from './render/fondo';
 import { crearAviso } from './ui/aviso';
 import { crearBarra } from './ui/hotbar';
 import { mostrarMenu, type Eleccion } from './ui/menu';
@@ -174,6 +175,9 @@ const INTERVALO_AUTOGUARDADO = 30_000;
 
 /** Lo que la azada puede convertir en tierra labrada. */
 const LABRABLES: readonly number[] = [HIERBA, TIERRA];
+
+/** Columnas a cada lado que se miran para decidir si esto es el mar. */
+const RADIO_MAR = 30;
 
 /** Hasta dónde se oye a un bicho quejarse, en píxeles de mundo. */
 const RADIO_VOZ = 26 * TILE;
@@ -800,6 +804,33 @@ async function arrancar(): Promise<void> {
    */
   function sacudir(fuerza: number): void {
     if (opciones.sacudidaActiva) renderer.camara.sacudir(fuerza);
+  }
+
+  /**
+   * Qué fondo toca pintar.
+   *
+   * Es el bioma del suelo salvo cuando hay mar alrededor, y entonces manda el
+   * mar. Se mira aparte y no dentro de `biomaEn` porque ese decide también qué
+   * bichos salen, y el mar no es un bioma de aparición: no hay nada que viva en
+   * él. Aquí solo decide qué se ve al fondo.
+   */
+  function biomaDelFondo(): BiomaFondo {
+    const tx = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
+    const ty = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
+    // Solo en la superficie: bajo tierra el fondo no se ve y contar agua de
+    // cuevas pondría el horizonte del mar dentro de una caverna.
+    if (ty < (motorLuz.alturaCielo[tx] ?? 0) + 12) {
+      let agua = 0;
+      for (let d = -RADIO_MAR; d <= RADIO_MAR; d += 3) {
+        const x = tx + d;
+        const suelo = motorLuz.alturaCielo[x];
+        if (suelo === undefined) continue;
+        if (mundo.getLiquido(x, suelo) > 0 && !mundo.esLava(x, suelo)) agua++;
+      }
+      // Un tercio de las columnas de alrededor con agua ya no es un charco.
+      if (agua >= Math.floor((RADIO_MAR * 2) / 3 / 3)) return 'mar';
+    }
+    return biomaEn(mundo, tx, ty);
   }
 
   /** ¿Se lleva una brújula encima? Es lo que enciende la aguja y el mapa. */
@@ -1919,11 +1950,7 @@ async function arrancar(): Promise<void> {
         // Hasta 4.1.0 la armadura se llevaba pero no se veía.
         armadura: tiene('armaduraVisible') ? coloresEquipo(equipo) : ARMADURA_DESNUDA,
         epoca,
-      bioma: biomaEn(
-        mundo,
-        Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),
-        Math.floor((jugador.caja.y + jugador.caja.alto) / TILE),
-      ),
+      bioma: tiene('fondoPorBioma') ? biomaDelFondo() : 'bosque',
       });
 
       debug.fps = bucle.fps;

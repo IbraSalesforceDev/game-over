@@ -181,6 +181,18 @@ export async function crearAlmacen(): Promise<{ almacen: SaveAdapter; persistent
   }
 }
 
+/**
+ * Identificador de mundo.
+ *
+ * La parte de azar era de un millón de valores, y con doscientos mundos
+ * creados en el mismo milisegundo la probabilidad de que dos coincidieran
+ * rondaba el 2 % — que es poco para una partida y demasiado para un test, que
+ * es justo quien lo destapó. Con dos tiradas de un millón son un billón de
+ * combinaciones y el problema desaparece; y como la marca de tiempo va delante,
+ * dos mundos creados en milisegundos distintos no pueden chocar de ninguna
+ * forma.
+ */
 export function nuevoId(): string {
-  return `m${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+  const azar = (): string => Math.floor(Math.random() * 1e6).toString(36);
+  return `m${Date.now().toString(36)}${azar()}${azar()}`;
 }
