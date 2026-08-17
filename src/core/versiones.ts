@@ -537,6 +537,23 @@ export const VERSIONES: readonly Version[] = [
       'Distintivos en pantalla con lo que llevas puesto y los segundos que le quedan',
     ],
   },
+  {
+    id: '6.10.0',
+    etapa: 'prealfa',
+    nombre: 'Ataques especiales',
+    resumen: 'Los bichos dejan de limitarse a andar hacia ti.',
+    cambios: [
+      'La momia y el diablillo lanzan bolas de fuego, y prenden',
+      'El gólem escupe tres puños de arena en abanico',
+      'El lobo de hielo suelta ventisca, que te deja lento',
+      'La araña escupe veneno en arco: se esquiva subiéndose a algo',
+      'El esqueleto tira huesos, rápidos y sin efecto',
+      'Ninguno dispara a través de una pared ni a bocajarro',
+      'Las élites disparan casi el doble de seguido y sacan un proyectil más',
+      'Salen bastantes más élites, y ahora también bajo tierra',
+      'Y la mitad de las veces la élite suelta algo del botiquín',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -613,6 +630,8 @@ export const DESDE = {
   guardianReforzado: '6.8.0',
   efectos: '6.9.0',
   alquimia: '6.9.0',
+  ataquesEspeciales: '6.10.0',
+  elitesPorTodas: '6.10.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

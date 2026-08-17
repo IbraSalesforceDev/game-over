@@ -27,6 +27,7 @@ import {
   crearEnemigo,
   ENEMIGOS,
   especieExisteEn,
+  ELITE_BAJO_TIERRA,
   PROBABILIDAD_ELITE,
   type Enemigo,
   type Especie,
@@ -393,14 +394,25 @@ export function esElite(
   // papel; una fortaleza es lo contrario, un sitio al que se va a propósito
   // sabiendo lo que hay, y ahí una élite es la razón de ir preparado.
   const dentro = ctx.estructura != null;
-  if (!dentro && (!ctx.esNoche || !enSuperficie)) return false;
-  if (!hay('elitesNocturnos', ctx.version ?? VERSION_ACTUAL)) return false;
+  const version = ctx.version ?? VERSION_ACTUAL;
+  if (!hay('elitesNocturnos', version)) return false;
+  // Desde 6.10.0 también las hay bajo tierra, a la mitad de a menudo. Antes no,
+  // y el motivo escrito entonces era que ahí abajo los gólems y los espectros
+  // ya hacían de enemigo duro; lo que ese razonamiento no vio es que dejaba sin
+  // ninguna variación la mitad del juego en la que más tiempo se pasa.
+  const hondas = hay('elitesPorTodas', version);
+  const fuera = !dentro && (!ctx.esNoche || !enSuperficie);
+  if (fuera && !hondas) return false;
+  // De día y en la superficie sigue sin haber: el día es el rato tranquilo, y
+  // eso no lo cambia esta versión.
+  if (fuera && enSuperficie) return false;
   // La dificultad también manda aquí: en pacífico no hay hostiles y en brutal
   // la noche tiene que dar miedo de verdad.
   const dif = ctx.dif ?? dificultad(DIFICULTAD_POR_DEFECTO);
   // Y dentro salen el doble: es lo que hace que la fortaleza se sienta
   // defendida y no solo habitada.
-  return rng() < PROBABILIDAD_ELITE * dif.fuerza * (dentro ? 2 : 1) * (ctx.ritmoElite ?? 1);
+  const sitio = dentro ? 2 : fuera ? ELITE_BAJO_TIERRA : 1;
+  return rng() < PROBABILIDAD_ELITE * dif.fuerza * sitio * (ctx.ritmoElite ?? 1);
 }
 
 /** Quita del array los que ya no están vivos. */

@@ -15,6 +15,7 @@ import type { Zona } from '../world/testLevel';
 import { Camara } from './camera';
 import { CacheChunks, CHUNK_RENDER } from './chunkCache';
 import { CIELO_INFRAMUNDO, Fondo, fondoSubterraneo, type BiomaFondo } from './fondo';
+import { ATAQUES, type Disparo } from '../entities/ataques';
 import type { Explosivo } from '../entities/explosivos';
 import { crearIconos, type Iconos } from './iconos';
 import type { Particulas } from './particles';
@@ -91,6 +92,8 @@ export interface Escena {
   flechas: readonly Flecha[];
   /** Bombas y dinamita en vuelo. Opcional: antes de 6.4.0 no existían. */
   explosivos?: readonly Explosivo[];
+  /** Lo que lanzan los bichos. */
+  disparos?: readonly Disparo[];
   particulas: Particulas;
   /** Fracción del jugador bajo líquido, para elegir la pose de nado. */
   sumergido: number;
@@ -832,6 +835,55 @@ export class Renderer {
   }
 
   /**
+   * Los proyectiles de los bichos.
+   *
+   * Una bola con estela y un núcleo claro, todo del color de su ataque. La
+   * estela no es adorno: dice hacia dónde va sin tener que comparar dos
+   * fotogramas, y con tres bolas de fuego cruzando la pantalla eso es la
+   * diferencia entre esquivar y adivinar. Y el halo, para que se vean sobre el
+   * terreno oscuro de una cueva, que es donde más falta hace.
+   */
+  private disparos(lista: readonly Disparo[], ox: number, oy: number): void {
+    if (lista.length === 0) return;
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    for (const d of lista) {
+      if (!d.vivo) continue;
+      const def = ATAQUES[d.clase];
+      const x = ox + d.x * z;
+      const y = oy + d.y * z;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(d.angulo);
+      // Estela: un triángulo que se estrecha hacia atrás.
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.moveTo(0, -def.radio * z * 0.7);
+      ctx.lineTo(-def.radio * 3.2 * z, 0);
+      ctx.lineTo(0, def.radio * z * 0.7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.arc(x, y, def.radio * 1.9 * z, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, def.radio * z, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff6e0';
+      ctx.beginPath();
+      ctx.arc(x - def.radio * 0.3 * z, y - def.radio * 0.3 * z, def.radio * 0.42 * z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /**
    * Bombas y dinamita por el aire.
    *
    * Lo importante no es el cuerpo sino la mecha: parpadea cada vez más deprisa
@@ -925,6 +977,7 @@ export class Renderer {
     this.picado(e.mundo, e.picado, ox, oy);
     this.drops(e.drops, ox, oy);
     this.flechas(e.flechas, ox, oy);
+    if (e.disparos) this.disparos(e.disparos, ox, oy);
     if (e.explosivos) this.explosivos(e.explosivos, ox, oy);
     this.enemigos(e.enemigos, ox, oy, e.epoca);
     if (e.jugador.caja.enSuelo && e.epoca.sombras) {

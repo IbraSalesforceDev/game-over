@@ -29,6 +29,7 @@ import {
 import { Mundo } from '../src/world/world';
 import { estructuraEn } from '../src/world/estructuras';
 import { especiesPosibles, esElite } from '../src/entities/spawner';
+import { PROBABILIDAD_ELITE } from '../src/entities/enemies';
 import { Inventario } from '../src/items/inventory';
 import {
   faltaParaOfrenda,
@@ -523,10 +524,16 @@ describe('la guarnición de cada estructura', () => {
   it('dentro puede haber élites a cualquier hora y profundidad', () => {
     const siempre = () => 0;
     const dia = { esNoche: false, superficieTy: 100, bioma: 'bosque' } as const;
-    // Fuera, de día y bajo tierra: no.
-    expect(esElite(dia, 'esqueleto', false, siempre)).toBe(false);
-    // Dentro de una fortaleza, sí.
+    // Fuera, de día y en la superficie: no.
+    expect(esElite(dia, 'esqueleto', true, siempre)).toBe(false);
+    // Dentro de una fortaleza, sí, y al doble de a menudo que fuera: una
+    // tirada que fuera se queda corta, dentro pasa.
     expect(esElite({ ...dia, estructura: FORTALEZA }, 'esqueleto', false, siempre)).toBe(true);
+    const justo = PROBABILIDAD_ELITE * 1.5;
+    expect(esElite({ ...dia, estructura: FORTALEZA }, 'esqueleto', false, () => justo)).toBe(
+      true,
+    );
+    expect(esElite(dia, 'esqueleto', false, () => justo)).toBe(false);
     // Pero sigue sin haberlos entre los animales.
     expect(esElite({ ...dia, estructura: FORTALEZA }, 'conejo', false, siempre)).toBe(false);
   });

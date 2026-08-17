@@ -307,9 +307,10 @@ orden, y cada punto es una versión:
 2. **Efectos y pociones** ✅ 6.9.0 · siete efectos de estado, el caldero y seis
    pociones. Es la base de lo que viene detrás: sin efectos, un ataque especial
    solo puede quitar vida.
-3. **Ataques especiales y más élites** · cada bicho pega distinto según su
-   bioma —bola de fuego y arena en el desierto, ventisca en la nieve—, el bosque
-   también saca élites y la probabilidad de élite sube, con mejor botín.
+3. **Ataques especiales y más élites** ✅ 6.10.0 · cada bicho pega distinto
+   según su bioma —bola de fuego y arena en el desierto, ventisca en la nieve,
+   veneno en la selva, huesos en la cueva—, sube la probabilidad de élite, ahora
+   también las hay bajo tierra y la mitad de las veces sueltan botiquín.
 4. **Un jefe por bioma** · pradera, jungla, cueva, desierto, nieve e infierno,
    cada uno de dificultad parecida al guardián de hoy y con su propio ritual de
    invocación hecho de materiales de ese bioma (el del infierno, por ejemplo,

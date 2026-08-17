@@ -40,6 +40,7 @@ const GRUPOS: Grupo[] = [
       ['Biomas', 'Cada uno tira de un metal: cobre, hierro, plata y oro'],
       ['Lava', 'Quema a todos · el agua la apaga y deja obsidiana · y sales ardiendo'],
       ['Caldero', 'La cuarta estación · ahí se preparan las pociones'],
+      ['Bichos', 'Algunos lanzan cosas · ponerse detrás de algo los para'],
       ['Pociones', 'Clic der. para beber · lo que llevas puesto sale a la derecha'],
       ['Semillas', 'Salen de segar hierba · clic der. sobre tierra labrada'],
       ['Cama', 'Clic der. de noche: se duerme hasta el amanecer'],

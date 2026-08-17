@@ -4,12 +4,17 @@ import {
   CARNE_CRUDA,
   CRISTAL,
   ESENCIA,
+  FRASCO,
   GEL,
   HUESO,
   LINGOTE_COBALTO,
   LINGOTE_INFERNITA,
   LINGOTE_TITANIO,
   PLUMA,
+  POCION_REGENERACION,
+  POCION_REMEDIO,
+  POCION_VIDA,
+  POLVORA,
   RELIQUIA,
 } from '../items/items';
 import type { Mundo } from '../world/world';
@@ -19,6 +24,7 @@ import {
   tickEfectos,
   type Efectos,
 } from './efectos';
+import { hayVista, lanzarAtaque, ATAQUES, CADENCIA_ELITE, type ClaseAtaque, type Disparo } from './ataques';
 import { moverX, moverY, solapaSolido, type Caja } from './physics';
 import { crearSalud, golpear, tickSalud, type Salud } from './salud';
 
@@ -88,6 +94,14 @@ export interface DefEnemigo {
    * que la única forma de verlo es despertarlo.
    */
   readonly jefe?: boolean;
+  /**
+   * Ataque especial a distancia, si tiene.
+   *
+   * Va por especie y no por bioma porque el bioma no está en ninguna parte
+   * cuando el bicho pelea: lo que hay es un zombi o una momia, y que la momia
+   * lance fuego *es* lo que hace que el desierto se sienta distinto.
+   */
+  readonly ataque?: ClaseAtaque;
   /** Versión en la que apareció esta especie. */
   readonly desde: string;
 }
@@ -201,6 +215,10 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     vuela: false,
     botin: HUESO,
     botinMax: 3,
+    // El esqueleto tira huesos, que es lo que tiene a mano. Sin efecto pero
+    // rápidos: en una galería estrecha no da tiempo a apartarse, hay que
+    // ponerse detrás de algo.
+    ataque: 'hueso',
     nocturno: false,
   },
   // La serpiente es baja y rápida: por debajo de la espada si no se apunta al
@@ -232,6 +250,10 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     vuela: false,
     botin: HUESO,
     botinMax: 2,
+    // El desierto tira fuego: la momia lanza bolas que además prenden. Es lo
+    // que convierte una duna abierta en un sitio donde hay que buscar sombra
+    // detrás de algo en vez de cruzar en línea recta.
+    ataque: 'bolaDeFuego',
     nocturno: true,
   },
   // La gallina existe por las plumas: sin ellas no hay flechas de verdad, y
@@ -276,6 +298,10 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     botinMax: 3,
     botinRaro: LINGOTE_COBALTO,
     probRaro: 0.18,
+    // El gólem no lanza fuego: lanza el desierto. Tres puños de arena en
+    // abanico, que no queman pero llenan el pasillo, y contra algo que se
+    // arrastra eso es lo único que lo hace peligroso a distancia.
+    ataque: 'arena',
     nocturno: false,
   },
   // El espectro: lo contrario del gólem. Poca vida y ninguna resistencia, pero
@@ -313,6 +339,10 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     botinMax: 4,
     botinRaro: CRISTAL,
     probRaro: 0.1,
+    // La selva envenena. El escupitajo va en arco, así que subirse a una rama
+    // lo esquiva y agacharse no: es el único ataque del juego que se responde
+    // mirando la altura y no los lados.
+    ataque: 'veneno',
     nocturno: false,
   },
   // El diablillo: el habitante del inframundo, que desde 5.0.0 estaba vacío.
@@ -332,6 +362,9 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     botinMax: 2,
     botinRaro: LINGOTE_INFERNITA,
     probRaro: 0.12,
+    // El infierno también tira fuego, claro. En el inframundo, además, arder
+    // encima de un lago de lava es exactamente el problema.
+    ataque: 'bolaDeFuego',
     nocturno: false,
   },
   // El guardián de la fortaleza. Vuela porque un jefe que anda se esquiva
@@ -372,6 +405,10 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     vuela: false,
     botin: HUESO,
     botinMax: 2,
+    // La nieve congela. Un lobo que además te deja lento es lo que impide la
+    // solución de siempre en la taiga —correr hasta perderlo—, y por eso el
+    // bioma helado por fin se nota distinto y no solo blanco.
+    ataque: 'ventisca',
     nocturno: true,
   },
 };
@@ -425,6 +462,8 @@ export interface Enemigo {
    * del lado del jugador, todo lo que se bebiera sería defensivo.
    */
   efectos: Efectos;
+  /** Ticks hasta que puede volver a usar su ataque especial. */
+  recarga: number;
   /**
    * Es una versión de élite: el mismo bicho, mucho más fuerte y con premio.
    *
@@ -454,12 +493,67 @@ export const FUERZA_ELITE = 2.5;
 /**
  * Con qué probabilidad un hostil nocturno de superficie sale de élite.
  *
- * Una de cada nueve. Es poco: la noche tiene que seguir siendo la noche de
- * siempre, con su ración de zombis normales, y la élite tiene que ser la
- * excepción que hace levantar la vista. Si saliera una de cada tres dejaría de
- * ser un susto para ser el nuevo suelo de dificultad de la noche.
+ * Era una de cada nueve, y el argumento de entonces era que la élite tenía que
+ * ser la excepción que hace levantar la vista. Con los ataques especiales el
+ * cálculo cambia: lo que distingue a una élite ya no es solo que aguante más,
+ * sino que dispara casi el doble de seguido y saca un proyectil de más, así que
+ * ahora *se pelea* distinto y no solo se tarda más. Una de cada cuatro es la
+ * frecuencia a la que eso se nota sin que la noche entera se convierta en una
+ * fila de mini-jefes.
  */
-export const PROBABILIDAD_ELITE = 1 / 9;
+export const PROBABILIDAD_ELITE = 1 / 4;
+
+/**
+ * Cuánto se rebaja bajo tierra.
+ *
+ * A la mitad. En 5.3.0 se decidió que abajo no hubiera élites porque los
+ * gólems y los espectros ya hacían de enemigo duro; el problema es que eso
+ * dejaba la mitad del juego —la mitad en la que se pasa más tiempo— sin la
+ * única variación que tiene el combate. Rebajadas a la mitad conviven con los
+ * duros de sitio en vez de sustituirlos.
+ */
+export const ELITE_BAJO_TIERRA = 0.5;
+
+/**
+ * Con qué probabilidad una élite, además de lo suyo, suelta algo del botiquín.
+ *
+ * La mitad de las veces. Es el premio que hace que ver el aura sea una buena
+ * noticia y no solo una mala: pelear con una cuesta pociones, y que la mitad
+ * las devuelva es lo que permite plantarse en vez de salir corriendo.
+ */
+export const PROBABILIDAD_BOTIQUIN = 0.5;
+
+/**
+ * Lo que puede caer de ese botiquín.
+ *
+ * Cosas de gastar, nunca equipo. Una élite que suelte armadura sustituiría a la
+ * forja, y entonces lo que se haría es farmear élites en vez de bajar a picar;
+ * un par de pociones y algo de pólvora se consumen y hay que volver a por más.
+ */
+export const BOTIQUIN_ELITE: readonly number[] = [
+  POCION_VIDA,
+  POCION_REGENERACION,
+  POCION_REMEDIO,
+  FRASCO,
+  POLVORA,
+];
+
+/**
+ * El extra de una élite, o null si esta vez no cae.
+ *
+ * Solo en mundos de 6.10.0 en adelante, y con las pociones ya inventadas: en
+ * uno de 3.0.0 no existe ni el frasco.
+ */
+export function botiquinDe(
+  elite: boolean,
+  versionMundo: string = VERSION_ACTUAL,
+  rng: () => number = Math.random,
+): number | null {
+  if (!elite || !hay('elitesPorTodas', versionMundo)) return null;
+  if (rng() >= PROBABILIDAD_BOTIQUIN) return null;
+  const i = Math.min(BOTIQUIN_ELITE.length - 1, Math.floor(rng() * BOTIQUIN_ELITE.length));
+  return BOTIQUIN_ELITE[i]!;
+}
 
 /** Nombre con el que se anuncia un enemigo concreto, élite incluida. */
 export function nombreDe(e: Enemigo): string {
@@ -547,6 +641,10 @@ export function crearEnemigo(
     salud: crearSalud(Math.max(1, Math.round(base.vida * fuerza))),
     version: versionMundo,
     efectos: crearEfectos(),
+    // La primera recarga sale al azar: si todos empezaran a cero, los tres
+    // bichos de una sala dispararían a la vez en el mismo tick y lo que se ve
+    // no es una emboscada sino una salva.
+    recarga: 30 + Math.floor(Math.random() * 120),
     reloj: Math.floor(Math.random() * 60),
     olvidado: 0,
     vivo: true,
@@ -900,6 +998,14 @@ export const INTERVALO_LAVA_ENEMIGO = 22;
 export interface ResultadoEnemigos {
   /** Daño que han hecho al jugador este tick. */
   danoAlJugador: number;
+  /**
+   * Proyectiles que han lanzado en este tick.
+   *
+   * Se devuelven en vez de guardarse en una lista propia del módulo porque
+   * quien los tiene que mover, dibujar y cobrar es el bucle del juego, que es
+   * el único que sabe dónde está el jugador de verdad y qué armadura lleva.
+   */
+  disparos: Disparo[];
   /** Enemigos que han muerto, con su posición, para soltar el botín. */
   muertos: { especie: Especie; tx: number; ty: number; elite: boolean }[];
 }
@@ -916,7 +1022,7 @@ export function actualizarEnemigos(
   distanciaOlvido = 90 * TILE,
 ): ResultadoEnemigos {
   const objetivo = centro(jugador);
-  const salida: ResultadoEnemigos = { danoAlJugador: 0, muertos: [] };
+  const salida: ResultadoEnemigos = { danoAlJugador: 0, disparos: [], muertos: [] };
 
   for (const e of enemigos) {
     if (!e.vivo) continue;
@@ -937,6 +1043,7 @@ export function actualizarEnemigos(
     pensar(e, objetivo);
     moverEnemigo(mundo, e);
     aplicarEfectosA(e);
+    salida.disparos.push(...intentarAtaque(mundo, e, objetivo));
 
     // La lava quema a todo el mundo. Es lo que hace que una colada sea un
     // accidente del terreno y no un adorno naranja: se puede usar de trampa, y
@@ -977,6 +1084,42 @@ export function actualizarEnemigos(
   }
 
   return salida;
+}
+
+/**
+ * El ataque especial de un bicho, si le toca y si puede.
+ *
+ * Tres condiciones, y las tres importan. La distancia, para que no dispare a
+ * quien no ve venir. La línea despejada, para que no dispare a través de un
+ * muro —recibir un hueso desde dentro de la roca es de lo que peor se lee en un
+ * juego de bloques—. Y la recarga, que es lo que impide que un ataque a
+ * distancia sea sencillamente mejor que acercarse.
+ */
+function intentarAtaque(
+  mundo: Mundo,
+  e: Enemigo,
+  objetivo: { x: number; y: number },
+): Disparo[] {
+  const clase = ENEMIGOS[e.especie].ataque;
+  // La puerta de versión va aquí y no en la tabla: la momia existe desde 3.0.0
+  // y solo desde 6.10.0 lanza fuego, así que un mundo de 5.0.0 tiene que seguir
+  // teniendo momias que se limitan a caminar hacia ti.
+  if (clase === undefined || !hay('ataquesEspeciales', e.version)) return [];
+  if (e.recarga > 0) {
+    e.recarga--;
+    return [];
+  }
+  const def = ATAQUES[clase];
+  const mio = centro(e.caja);
+  const distancia = Math.hypot(objetivo.x - mio.x, objetivo.y - mio.y);
+  // Muy pegado tampoco dispara: a bocajarro el proyectil no se puede esquivar,
+  // y entonces el ataque especial deja de ser una amenaza a distancia para ser
+  // daño extra por estar cerca, que es lo que ya hace el contacto.
+  if (distancia > def.alcance * TILE || distancia < TILE * 2.5) return [];
+  if (!hayVista(mundo, mio.x, mio.y, objetivo.x, objetivo.y)) return [];
+
+  e.recarga = Math.round(def.cadencia * (e.elite ? CADENCIA_ELITE : 1));
+  return lanzarAtaque(clase, mio.x, mio.y, objetivo.x, objetivo.y, e.fuerza, e.elite);
 }
 
 /**

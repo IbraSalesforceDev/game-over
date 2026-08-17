@@ -20,6 +20,12 @@ import {
   tickEfectos,
 } from './entities/efectos';
 import { crearPanelEstados } from './ui/estados';
+import {
+  ATAQUES,
+  avanzarDisparos,
+  limpiarDisparos,
+  type Disparo,
+} from './entities/ataques';
 import { crearAjustes, type Graficos } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
 import { crearMapa } from './ui/mapa';
@@ -111,6 +117,7 @@ import {
   actualizarEnemigos,
   botinDe,
   botinRaroDe,
+  botiquinDe,
   nombreDe,
   crearEnemigo,
   ENEMIGOS,
@@ -569,6 +576,14 @@ async function arrancar(): Promise<void> {
   const golpe = crearGolpe();
   const flechas: Flecha[] = [];
   const bombas: Explosivo[] = [];
+  /**
+   * Los proyectiles que lanzan los bichos.
+   *
+   * Lista aparte de las flechas del jugador aunque las dos cosas vuelen: van en
+   * direcciones contrarias —una busca bichos y la otra busca al jugador— y
+   * juntarlas obligaría a preguntar de quién es cada una en cada comprobación.
+   */
+  const tiros: Disparo[] = [];
   /**
    * Los sucesos del mundo.
    *
@@ -1155,6 +1170,10 @@ async function arrancar(): Promise<void> {
     // que valga la pena plantarle cara en vez de subirse a un bloque.
     const raro = botinRaroDe(especie, Math.random, elite);
     if (raro !== null) soltar(raro, 1);
+    // Y el botiquín de la élite: la mitad de las veces devuelve algo de lo que
+    // ha costado matarla. Sin esto, pelear con una era gasto puro.
+    const botiquin = botiquinDe(elite, versionMundo, Math.random);
+    if (botiquin !== null) soltar(botiquin, 1);
     if (sueltaReliquia(especie)) soltar(OBJETO_RELIQUIA, 1);
     // El guardián no suelta reliquia pero sí lo suyo: la espada, la esencia y
     // el oro del que estaba hecho.
@@ -1425,6 +1444,11 @@ async function arrancar(): Promise<void> {
     }
 
     const res = actualizarEnemigos(mundo, enemigos, jugador.caja, salud);
+    if (res.disparos.length > 0) {
+      tiros.push(...res.disparos);
+      audio.sonar('golpe', 1.5);
+    }
+    actualizarTiros();
     if (res.danoAlJugador > 0) {
       // El empujón sale del enemigo más cercano, para que aparte en la
       // dirección correcta.
@@ -2324,6 +2348,53 @@ async function arrancar(): Promise<void> {
   }
 
   /**
+   * Los proyectiles que ya vuelan: moverlos y cobrar lo que acierten.
+   *
+   * El daño de un disparo pasa por la armadura igual que un golpe —es un
+   * impacto, no una quemadura— pero el efecto que trae, no: llevar peto de
+   * infernita no debería impedir que una bola de fuego te prenda, porque
+   * entonces el ataque especial dejaría de existir en cuanto uno se equipa.
+   */
+  function actualizarTiros(): void {
+    if (tiros.length === 0) return;
+    const r = avanzarDisparos(mundo, tiros, jugador.caja);
+    for (const golpe of r.aciertos) {
+      const def = ATAQUES[golpe.disparo.clase];
+      const encaja = danoTrasArmadura(
+        golpe.disparo.dano,
+        defensaTotal(equipo) + defensaExtra(estados),
+      );
+      const entra = golpear(salud, jugador.caja, encaja, golpe.x);
+      if (entra) {
+        panelVida.refrescar(salud);
+        sacudir(2.6);
+        audio.sonar('dano', 1.2);
+        if (def.efecto !== undefined && tiene('efectos')) {
+          aplicarEfecto(estados, def.efecto, def.duracionEfecto);
+          panelEstados.refrescar(estados);
+        }
+      }
+      particulas.emitir(golpe.x, golpe.y, {
+        cantidad: entra ? 14 : 6,
+        color: def.color,
+        dispersion: 2.4,
+        vida: 24,
+        tam: 2,
+      });
+    }
+    for (const choque of r.choques) {
+      particulas.emitir(choque.x, choque.y, {
+        cantidad: 5,
+        color: ATAQUES[choque.disparo.clase].color,
+        dispersion: 1.6,
+        vida: 16,
+        tam: 2,
+      });
+    }
+    limpiarDisparos(tiros);
+  }
+
+  /**
    * Los ajustes de física, con lo que le hayan hecho los efectos.
    *
    * Se devuelve el objeto de siempre cuando no hay nada puesto, que es casi
@@ -2535,6 +2606,7 @@ async function arrancar(): Promise<void> {
         golpe,
       flechas,
         explosivos: bombas,
+        disparos: tiros,
         particulas,
         sumergido: sumergidoAhora,
         enMano: barra.objetoActivo(),

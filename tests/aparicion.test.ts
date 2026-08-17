@@ -329,23 +329,38 @@ describe('lo que vive abajo (5.3.0)', () => {
 });
 
 describe('élites nocturnos', () => {
-  it('solo de noche, solo arriba y solo si es hostil', () => {
+  it('de noche arriba sí, de día arriba no, y nunca un animal', () => {
     const siempre = () => 0;
     const noche = contexto({ esNoche: true });
     expect(esElite(noche, 'zombi', true, siempre)).toBe(true);
-    // De día no, aunque la tirada salga redonda.
+    // De día en la superficie no, aunque la tirada salga redonda: el día es el
+    // rato tranquilo y eso no lo cambió 6.10.0.
     expect(esElite(contexto({ esNoche: false }), 'zombi', true, siempre)).toBe(false);
-    // Bajo tierra tampoco: ahí ya están los gólems haciendo ese papel.
-    expect(esElite(noche, 'zombi', false, siempre)).toBe(false);
     // Y un conejo de élite sería un conejo que sigue sin morder.
     expect(esElite(noche, 'conejo', true, siempre)).toBe(false);
   });
 
-  it('es la excepción, no la regla', () => {
+  it('desde 6.10.0 también las hay bajo tierra, y a mitad de ritmo', () => {
+    const siempre = () => 0;
+    const noche = contexto({ esNoche: true });
+    expect(esElite(noche, 'zombi', false, siempre)).toBe(true);
+    // Antes de 6.10.0, ahí abajo no había ninguna.
+    const antes = contexto({ esNoche: true, version: '6.9.0' });
+    expect(esElite(antes, 'zombi', false, siempre)).toBe(false);
+    // Y sale la mitad de a menudo que en la superficie: una tirada que arriba
+    // pasa, abajo se queda corta.
+    const justo = PROBABILIDAD_ELITE * 0.75;
+    expect(esElite(noche, 'zombi', true, () => justo)).toBe(true);
+    expect(esElite(noche, 'zombi', false, () => justo)).toBe(false);
+  });
+
+  it('sigue sin ser la regla', () => {
     const noche = contexto({ esNoche: true });
     // Con la tirada justo por encima del umbral no sale élite.
     expect(esElite(noche, 'zombi', true, () => PROBABILIDAD_ELITE + 0.01)).toBe(false);
-    expect(PROBABILIDAD_ELITE).toBeLessThan(0.2);
+    // Subió de 1/9 a 1/4 en 6.10.0, pero la mayoría de los bichos de la noche
+    // siguen siendo bichos normales.
+    expect(PROBABILIDAD_ELITE).toBeLessThan(0.5);
   });
 
   it('antes de 5.3.0 no había élites', () => {
