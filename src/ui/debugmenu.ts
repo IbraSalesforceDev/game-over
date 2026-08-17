@@ -1,7 +1,8 @@
-import { defObjeto, IDS_OBJETO, NADA } from '../items/items';
+import { defObjeto, IDS_OBJETO, NADA, objetoExisteEn } from '../items/items';
+import { VERSION_ACTUAL } from '../core/versiones';
 import { crearIconos, LADO_ICONO } from '../render/iconos';
 import type { Especie } from '../entities/enemies';
-import { ENEMIGOS } from '../entities/enemies';
+import { ENEMIGOS, especieExisteEn } from '../entities/enemies';
 
 /**
  * Menú de trucos y depuración.
@@ -34,6 +35,8 @@ export interface TrucosDebug {
   invulnerable: boolean;
   /** El mapa enseña el mundo entero sin necesidad de fabricarlo. */
   mapaCompleto: boolean;
+  /** Ofrece también lo que no existe en la versión del mundo. */
+  sinLimiteVersion: boolean;
 }
 
 export function crearTrucos(): TrucosDebug {
@@ -44,11 +47,22 @@ export function crearTrucos(): TrucosDebug {
     danoMultiplicador: 1,
     invulnerable: false,
     mapaCompleto: false,
+    sinLimiteVersion: false,
   };
 }
 
 export interface OpcionesDebugMenu {
   trucos: TrucosDebug;
+  /**
+   * Versión del mundo abierto.
+   *
+   * El panel es una puerta de servicio, pero no es una puerta a otro juego:
+   * por defecto solo ofrece lo que existe en este mundo. Dar un mapa en una
+   * partida de 1.4.0 no es hacer trampa, es meter en el mundo algo que no
+   * pertenece a él, y ni siquiera para probar sirve de nada. Para eso está el
+   * interruptor de "sin límite de versión", que lo dice en voz alta.
+   */
+  version?: string;
   darObjeto(objeto: number, cantidad: number): void;
   generarCriatura(especie: Especie): void;
   rellenarVida(): void;
@@ -214,6 +228,10 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       <span class="interruptor" id="dbg-mapa">no</span>
     </div>
     <div class="fila">
+      <label>Sin límite de versión</label>
+      <span class="interruptor" id="dbg-sinlimite">no</span>
+    </div>
+    <div class="fila">
       <label>Daño</label>
       <input id="dbg-dano" type="range" min="1" max="20" step="1" value="1">
       <span class="valor" id="dbg-dano-val">×1</span>
@@ -253,6 +271,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   const volar = $('dbg-volar');
   const invuln = $('dbg-invuln');
   const mapaTodo = $('dbg-mapa');
+  const sinLimite = $('dbg-sinlimite');
   const dano = $<HTMLInputElement>('dbg-dano');
   const danoVal = $('dbg-dano-val');
   const vidaMax = $<HTMLInputElement>('dbg-vidamax');
@@ -274,6 +293,36 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     if (lista.length === 0) {
       selEstructura.innerHTML = '<option value="-1">este mundo no tiene</option>';
     }
+  }
+
+  /**
+   * Rellena las listas de objetos y criaturas con lo que existe en el mundo.
+   *
+   * Se rehacen al abrir el panel y al tocar el interruptor, no una sola vez al
+   * crearlo: cuando el menú se construye la partida todavía se está montando y
+   * la versión aún no está decidida.
+   */
+  function refrescarCatalogos(): void {
+    const v = op.version ?? VERSION_ACTUAL;
+    const todo = op.trucos.sinLimiteVersion;
+    const objetos = IDS_OBJETO.filter(
+      (id) => id !== NADA && (todo || objetoExisteEn(id, v)),
+    );
+    const antes = selObjeto.value;
+    selObjeto.innerHTML = objetos
+      .map((id) => `<option value="${id}">${defObjeto(id).nombre}</option>`)
+      .join('');
+    if (objetos.includes(Number(antes))) selObjeto.value = antes;
+    pintarIcono();
+
+    const especies = (Object.keys(ENEMIGOS) as Especie[]).filter(
+      (e) => todo || especieExisteEn(e, v),
+    );
+    const especieAntes = selEspecie.value;
+    selEspecie.innerHTML = especies
+      .map((e) => `<option value="${e}">${ENEMIGOS[e].nombre}</option>`)
+      .join('');
+    if (especies.includes(especieAntes as Especie)) selEspecie.value = especieAntes;
   }
 
   function pintarIcono(): void {
@@ -302,6 +351,12 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     op.trucos.invulnerable = !op.trucos.invulnerable;
     invuln.textContent = op.trucos.invulnerable ? 'sí' : 'no';
     invuln.classList.toggle('on', op.trucos.invulnerable);
+  });
+  sinLimite.addEventListener('click', () => {
+    op.trucos.sinLimiteVersion = !op.trucos.sinLimiteVersion;
+    sinLimite.textContent = op.trucos.sinLimiteVersion ? 'sí' : 'no';
+    sinLimite.classList.toggle('on', op.trucos.sinLimiteVersion);
+    refrescarCatalogos();
   });
   mapaTodo.addEventListener('click', () => {
     op.trucos.mapaCompleto = !op.trucos.mapaCompleto;
@@ -360,6 +415,7 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     puerta.classList.remove('visible');
     panel.classList.add('visible');
     refrescarEstructuras();
+    refrescarCatalogos();
   }
 
   puerta.querySelector('#dbg-entrar')!.addEventListener('click', probar);
@@ -378,7 +434,10 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
       if (desbloqueado) {
         const abriendo = !panel.classList.contains('visible');
         panel.classList.toggle('visible', abriendo);
-        if (abriendo) refrescarEstructuras();
+        if (abriendo) {
+        refrescarEstructuras();
+        refrescarCatalogos();
+      }
         return;
       }
       const abriendo = !puerta.classList.contains('visible');

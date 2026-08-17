@@ -189,7 +189,7 @@ export const VERSIONES: readonly Version[] = [
     etapa: 'prealfa',
     nombre: 'El mundo crece',
     resumen: 'Selva, taiga, montañas y mares. Cada bioma tira de un metal.',
-    cambios: ['Selva y taiga', 'Montañas con cumbre pelada', 'Mares con playa', 'Grava y pedernal'],
+    cambios: ['Selva y taiga', 'Montañas con cumbre pelada', 'Mares con playa', 'Grava'],
   },
   {
     id: '3.2.0',
@@ -251,6 +251,18 @@ export const VERSIONES: readonly Version[] = [
       'Antes de 2.2.1, los objetos son cuadrados de color',
       'Antes de 1.5.0, sin sol, luna ni estrellas',
       'Los medidores del HUD aparecen cuando aparecieron',
+    ],
+  },
+  {
+    id: '4.2.2',
+    etapa: 'prealfa',
+    nombre: 'Ningún objeto se cuela',
+    resumen: 'Cada objeto dice de qué versión es, y no aparece en las anteriores.',
+    cambios: [
+      'El menú de depuración solo ofrece lo que existe en el mundo',
+      'Los bloques y los bichos no sueltan lo que aún no se había inventado',
+      'El equipo de salida también depende de la versión',
+      'Lo que se cuele en el zurrón no se puede usar',
     ],
   },
 ];

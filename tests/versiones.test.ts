@@ -14,7 +14,20 @@ import { generarMundo } from '../src/world/gen/worldgen';
 import { RECETAS, recetasVisibles, existeEn } from '../src/items/recipes';
 import { ENEMIGOS, especieExisteEn, type Especie } from '../src/entities/enemies';
 import { especiesPosibles } from '../src/entities/spawner';
-import { MESA, HORNO, YUNQUE, CANA, HIERBA_JUNGLA, ARENA } from '../src/world/tiles';
+import { MESA, HORNO, YUNQUE, CANA, HIERBA_JUNGLA, ARENA, TIERRA } from '../src/world/tiles';
+import {
+  ESPADA_GUARDIAN,
+  ESPADA_MADERA,
+  filtrarObjeto,
+  IDS_OBJETO,
+  MAPA_1,
+  NADA,
+  objetoExisteEn,
+  PRIMERA_VERSION_OBJETO,
+  SEMILLAS,
+  versionObjeto,
+} from '../src/items/items';
+import { equipoInicial } from '../src/items/equipo';
 import { FORTALEZA } from '../src/world/estructuras';
 
 describe('el catálogo de versiones', () => {
@@ -185,6 +198,71 @@ describe('un mundo trae solo lo de su versión', () => {
     const a = generarMundo({ ...OP, version: '2.1.0' });
     const b = generarMundo({ ...OP, version: VERSION_ACTUAL });
     expect(a.mundo.tileId).not.toEqual(b.mundo.tileId);
+  });
+});
+
+describe('ningún objeto se cuela en un mundo que no lo conoce', () => {
+  it('lo que no existía no se puede tener', () => {
+    // Los tres casos que se colaban: el mapa y la espada del jefe desde el
+    // menú de depuración, y las semillas desde una mata de hierba.
+    expect(objetoExisteEn(MAPA_1, '1.4.0')).toBe(false);
+    expect(objetoExisteEn(ESPADA_GUARDIAN, '3.2.0')).toBe(false);
+    expect(objetoExisteEn(SEMILLAS, '2.1.0')).toBe(false);
+    expect(objetoExisteEn(MAPA_1, '3.0.0')).toBe(true);
+  });
+
+  it('el filtro devuelve nada en vez de reventar', () => {
+    expect(filtrarObjeto(SEMILLAS, '2.1.0')).toBe(NADA);
+    expect(filtrarObjeto(SEMILLAS, '3.2.0')).toBe(SEMILLAS);
+    // La tierra ha estado desde que hay inventario y no se filtra nunca.
+    expect(filtrarObjeto(TIERRA, PRIMERA_VERSION_OBJETO)).toBe(TIERRA);
+  });
+
+  it('todo el catálogo llega en una versión real, y en la actual está entero', () => {
+    for (const id of IDS_OBJETO) {
+      if (id === NADA) continue;
+      expect(
+        indiceVersion(versionObjeto(id)),
+        `${id} dice venir de ${versionObjeto(id)}`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(objetoExisteEn(id, VERSION_ACTUAL)).toBe(true);
+    }
+  });
+
+  it('el resultado de una receta no puede ser más nuevo que la receta', () => {
+    // Si una receta de 2.0.0 fabricara un objeto de 3.0.0, el objeto entraría
+    // en el mundo por la puerta de atrás sin que nadie lo notara.
+    for (const r of RECETAS) {
+      expect(
+        alMenos(r.desde!, versionObjeto(r.resultado)),
+        `${r.id} es de ${r.desde} pero hace algo de ${versionObjeto(r.resultado)}`,
+      ).toBe(true);
+      for (const [ingrediente] of r.ingredientes) {
+        expect(
+          alMenos(r.desde!, versionObjeto(ingrediente)),
+          `${r.id} es de ${r.desde} y pide algo de ${versionObjeto(ingrediente)}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('el botín de una especie no puede ser más nuevo que la especie', () => {
+    for (const especie of Object.keys(ENEMIGOS) as Especie[]) {
+      const def = ENEMIGOS[especie];
+      expect(
+        alMenos(def.desde, versionObjeto(def.botin)),
+        `${especie} es de ${def.desde} y suelta algo de ${versionObjeto(def.botin)}`,
+      ).toBe(true);
+    }
+  });
+
+  it('el equipo de salida se encoge en las versiones antiguas', () => {
+    const hoy = equipoInicial(VERSION_ACTUAL).ranuras.filter((r) => r.cantidad > 0).length;
+    const viejo = equipoInicial('1.6.0').ranuras.filter((r) => r.cantidad > 0).length;
+    expect(viejo).toBeLessThan(hoy);
+    // En 1.6.0 no había espada, porque no había con qué pelear.
+    expect(equipoInicial('1.6.0').contar(ESPADA_MADERA)).toBe(0);
+    expect(equipoInicial(VERSION_ACTUAL).contar(ESPADA_MADERA)).toBe(1);
   });
 });
 

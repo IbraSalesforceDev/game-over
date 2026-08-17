@@ -46,6 +46,7 @@ import {
   VIDRIO as VIDRIO_TILE,
   YUNQUE,
 } from '../world/tiles';
+import { alMenos } from '../core/versiones';
 
 /**
  * Catálogo de objetos.
@@ -62,6 +63,8 @@ import {
  */
 
 export const NADA = 0;
+
+// La comparación de versiones vive en `core/versiones`; aquí solo se usa.
 
 /** Primer id que no corresponde a un tile. */
 export const BASE_NO_TILE = 64;
@@ -748,6 +751,93 @@ export function resumenDe(id: number): string {
     partes.push(Number.isFinite(alcance) ? `${alcance} tiles alrededor` : 'el mundo entero');
   }
   return partes.join(' · ');
+}
+
+/**
+ * En qué versión apareció cada objeto.
+ *
+ * Es la última puerta que faltaba. Las recetas y las especies ya decían de
+ * cuándo eran, pero los objetos no, y por ahí se colaba todo lo demás: el menú
+ * de depuración te daba un mapa en un mundo de 1.4.0, la hierba soltaba
+ * semillas en uno de 2.1.0 —las semillas son de 3.2.0— y la espada del
+ * guardián se podía llevar a cualquier parte. Un mundo cuya versión solo se
+ * respeta mientras nadie la ponga a prueba no es un mundo versionado.
+ *
+ * Se escribe por versión y no objeto a objeto porque así se lee como lo que es:
+ * la lista de lo que trajo cada tanda. Añadir un objeto nuevo es añadirlo a la
+ * fila de la versión que lo trae, y un test se encarga de que nadie se olvide.
+ */
+const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
+  // Antes de 1.6.0 no había inventario, así que no había objetos: lo que se
+  // picaba desaparecía. Esta es la primera hornada, y la antorcha entra aquí
+  // aunque el tile sea de 1.5.0 — el bloque existía, el objeto no.
+  ['1.6.0', [ANTORCHA, TIERRA, HIERBA, PIEDRA, MADERA, PLATAFORMA, COBRE, HIERRO, PLATA, ORO, TRONCO, HOJAS]],
+  [
+    '1.7.0',
+    [MESA, HORNO, YUNQUE, COFRE, LINGOTE_COBRE, LINGOTE_HIERRO, PICO_MADERA, PICO_COBRE, PICO_HIERRO],
+  ],
+  ['2.0.0', [GEL, HUESO, ESPADA_MADERA, ESPADA_COBRE, ESPADA_HIERRO]],
+  ['2.1.0', [CUBO, CUBO_AGUA, CUBO_LAVA, ARENA, ARENISCA, CACTUS, NIEVE, HIELO]],
+  ['2.3.0', [CARNE_CRUDA, CARNE_ASADA, BAYAS]],
+  [
+    '3.0.0',
+    [
+      LINGOTE_PLATA, LINGOTE_ORO, PICO_PIEDRA, PICO_PLATA, PICO_ORO, ESPADA_PIEDRA,
+      CRISTAL, ARCO, FLECHA, PALA_HIERRO, AZADA, PAPEL, CANA,
+      CASCO_COBRE, PETO_COBRE, GREBAS_COBRE,
+      CASCO_HIERRO, PETO_HIERRO, GREBAS_HIERRO,
+      CASCO_PLATA, PETO_PLATA, GREBAS_PLATA,
+      CASCO_ORO, PETO_ORO, GREBAS_ORO,
+      ...MAPAS,
+    ],
+  ],
+  [
+    '3.1.0',
+    [BARRO, HIERBA_JUNGLA, TRONCO_JUNGLA, HOJAS_JUNGLA, TRONCO_ABEDUL, HOJAS_PINO, GRAVA],
+  ],
+  [
+    '3.2.0',
+    [
+      PEDERNAL, VIDRIO, OBSIDIANA,
+      BOTAS_COBRE, GUANTES_COBRE, BOTAS_HIERRO, GUANTES_HIERRO,
+      BOTAS_PLATA, GUANTES_PLATA, BOTAS_ORO, GUANTES_ORO,
+      SEMILLAS, SEMILLAS_ZANAHORIA, TRIGO, PAN, PLUMA, CAMA, BROTE,
+      ZANAHORIA_3, TIERRA_LABRADA,
+    ],
+  ],
+  ['4.0.0', [LADRILLO, RELIQUIA, BRUJULA, ESPADA_GUARDIAN, ESENCIA]],
+];
+
+const VERSION_DE_OBJETO = new Map<number, string>();
+for (const [v, ids] of OBJETOS_POR_VERSION) {
+  for (const id of ids) VERSION_DE_OBJETO.set(id, v);
+}
+
+/** Versión en la que apareció este objeto. */
+export function versionObjeto(id: number): string {
+  return VERSION_DE_OBJETO.get(id) ?? PRIMERA_VERSION_OBJETO;
+}
+
+/** La versión con la que nació el inventario: el suelo de todo el catálogo. */
+export const PRIMERA_VERSION_OBJETO = '1.6.0';
+
+/** ¿Existía este objeto en esta versión del juego? */
+export function objetoExisteEn(id: number, versionMundo: string): boolean {
+  if (id === NADA) return true;
+  return alMenos(versionMundo, versionObjeto(id));
+}
+
+/**
+ * El objeto, o nada si en esta versión todavía no se había inventado.
+ *
+ * Es el filtro que va en cada sitio por el que un objeto entra en el mundo:
+ * lo que suelta un bloque, lo que suelta un bicho, el equipo de salida y el
+ * menú de depuración. Devolver `NADA` y no lanzar un error es deliberado —
+ * romper una mata de hierba en un mundo de 2.1.0 no es un fallo del programa,
+ * es que entonces la hierba no daba semillas.
+ */
+export function filtrarObjeto(id: number, versionMundo: string): number {
+  return objetoExisteEn(id, versionMundo) ? id : NADA;
 }
 
 /** Traduce un id guardado por una versión anterior del formato. */

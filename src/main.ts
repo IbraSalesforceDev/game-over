@@ -52,7 +52,15 @@ import {
   danoTrasArmadura,
   defensaTotal,
 } from './items/equipado';
-import { defObjeto, dropDePared, dropDeTile, nombrePicoDeNivel } from './items/items';
+import {
+  defObjeto,
+  dropDePared,
+  dropDeTile,
+  filtrarObjeto,
+  NADA,
+  nombrePicoDeNivel,
+  objetoExisteEn,
+} from './items/items';
 import { estacionesCerca } from './items/recipes';
 import { Contenedores, type DatosCofre } from './world/contenedores';
 import {
@@ -418,7 +426,10 @@ async function arrancar(): Promise<void> {
   const inventario =
     partida.estado.inventario.length > 0
       ? Inventario.desdeDatos(partida.estado.inventario)
-      : equipoInicial();
+      // El equipo de salida también pasa por la versión: en 1.6.0 no había
+      // espada porque no había con qué pelear, y en 1.4.0 no había ni
+      // inventario, así que se empieza con las manos vacías.
+      : equipoInicial(partida.estado.versionJuego);
   const drops: Drop[] = [];
   const enemigos: Enemigo[] = [];
   const particulas = new Particulas();
@@ -498,6 +509,7 @@ async function arrancar(): Promise<void> {
   const trucos = crearTrucos();
   const depuracion = crearDebugMenu(capaUI, {
     trucos,
+    version: versionMundo,
     darObjeto: (objeto, n) => {
       inventario.anadir(objeto, n);
       barra.refrescar(capa);
@@ -818,6 +830,8 @@ async function arrancar(): Promise<void> {
    * tick por nada.
    */
   let esperaAvisoPico = 0;
+  /** Ticks de espera antes de repetir el aviso de objeto fuera de su versión. */
+  let esperaAvisoVersion = 0;
 
   /** Ticks de espera antes de repetir el aviso de "no te quedan flechas". */
   let esperaAvisoFlechas = 0;
@@ -882,17 +896,20 @@ async function arrancar(): Promise<void> {
    * cambie la tabla solo se acuerda uno de los dos.
    */
   function repartirBotin(especie: Enemigo['especie'], tx: number, ty: number): void {
+    /** Suelta algo solo si en esta versión ese algo existía. */
+    const soltar = (objeto: number, cantidad: number): void => {
+      if (filtrarObjeto(objeto, versionMundo) === NADA) return;
+      drops.push(crearDrop(objeto, cantidad, tx, ty));
+    };
     const b = botinDe(especie);
-    drops.push(crearDrop(b.objeto, b.cantidad, tx, ty));
-    if (sueltaReliquia(especie)) {
-      drops.push(crearDrop(OBJETO_RELIQUIA, 1, tx, ty));
-    }
+    soltar(b.objeto, b.cantidad);
+    if (sueltaReliquia(especie)) soltar(OBJETO_RELIQUIA, 1);
     // El guardián no suelta reliquia pero sí lo suyo: la espada, la esencia y
     // el oro del que estaba hecho.
     if (esJefe(especie)) {
-      drops.push(crearDrop(ESPADA_GUARDIAN, 1, tx, ty));
-      drops.push(crearDrop(ESENCIA, 1, tx, ty));
-      drops.push(crearDrop(LINGOTE_ORO, 12, tx, ty));
+      soltar(ESPADA_GUARDIAN, 1);
+      soltar(ESENCIA, 1);
+      soltar(LINGOTE_ORO, 12);
     }
   }
 
@@ -1222,6 +1239,20 @@ async function arrancar(): Promise<void> {
     debug.ratonTy = ty;
 
     const enMano = barra.objetoActivo();
+    // Última red: aunque algo se cuele en el zurrón —un guardado retocado a
+    // mano, el menú de depuración sin límite—, no se puede usar en un mundo
+    // que no lo conoce. Es una sola comprobación porque colocar, comer, minar
+    // y disparar salen todos de aquí.
+    if (!objetoExisteEn(enMano, versionMundo)) {
+      objetivo.valido = false;
+      reiniciarPicado(picado);
+      derAnterior = puntero.der;
+      if ((puntero.izq || puntero.der) && esperaAvisoVersion <= 0) {
+        esperaAvisoVersion = 120;
+        aviso.mostrar(`${defObjeto(enMano).nombre} no existe en la versión ${versionMundo}`, true);
+      }
+      return;
+    }
     const tileEnMano = defObjeto(enMano).tile;
     // Antes de 3.0.0 cualquier pico rompía cualquier cosa: no había niveles.
     const nivel = tiene('nivelesHerramienta') ? nivelEnMano(enMano) : Infinity;
@@ -1440,10 +1471,15 @@ async function arrancar(): Promise<void> {
     if (puntero.izq) {
       if (previo.ok) {
         // Lo que suelta el tile se calcula antes de romperlo: después ya es aire.
-        const soltado =
+        // El filtro de versión va aquí y no dentro de `dropDeTile`: la tabla
+        // de drops es del catálogo y no sabe de partidas. En un mundo de
+        // 2.1.0 la hierba existe pero las semillas no, así que da tierra.
+        const soltado = filtrarObjeto(
           capa === 'bloque'
             ? dropDeTile(mundo.getTile(tx, ty))
-            : dropDePared(mundo.getPared(tx, ty));
+            : dropDePared(mundo.getPared(tx, ty)),
+          versionMundo,
+        );
         // Chispas del pico mientras se pica, no solo al romper: el bloque
         // avisa de que le está pasando algo antes de partirse.
         const colorTile =
@@ -1797,6 +1833,7 @@ async function arrancar(): Promise<void> {
       // Antes de 1.5.0 no había ciclo: el sol no se movía de mediodía.
       if (tiene('diaNoche')) reloj.avanzar(TICK);
       if (esperaAvisoPico > 0) esperaAvisoPico--;
+      if (esperaAvisoVersion > 0) esperaAvisoVersion--;
       if (esperaAvisoFlechas > 0) esperaAvisoFlechas--;
       if (esperaAvisoSiembra > 0) esperaAvisoSiembra--;
       editar();

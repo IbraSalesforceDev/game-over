@@ -67,6 +67,25 @@ habría partida que jugar ni forma de guardarla.
 | 4.1.0 | Armadura visible, audio por material y fichas de objeto |
 | 4.2.0 | Elegir versión al crear el mundo |
 | 4.2.1 | Las versiones viejas también se ven viejas: sprites, fondo, luz e iconos de su época |
+| 4.2.2 | Ningún objeto se cuela: cada uno dice de qué versión es y no aparece en las anteriores |
+
+## Por dónde se comprueba
+
+La versión no es una etiqueta que se mire al crear el mundo y luego se olvide:
+cada cosa que puede entrar en una partida declara de cuándo es y se filtra.
+
+- **Los objetos**, en `items.ts`. Se filtran en las cuatro puertas por las que
+  entran —lo que suelta un bloque, lo que suelta un bicho, el equipo de salida
+  y el menú de depuración— y hay una última red en el momento de usarlos, por
+  si algo se cuela de un guardado retocado a mano.
+- **Las recetas**, en `recipes.ts`. Un test comprueba además que ninguna receta
+  fabrique o pida algo más nuevo que ella misma.
+- **Las especies**, en `enemies.ts`, con la misma comprobación sobre su botín.
+- **La generación y los sistemas**, con la tabla `DESDE` de `versiones.ts`.
+
+El menú de depuración solo ofrece lo que existe en el mundo abierto. Tiene un
+interruptor de «sin límite de versión» para cuando de verdad haga falta, y lo
+dice en voz alta en vez de dejarlo pasar por descuido.
 
 ## Lo que queda pendiente
 

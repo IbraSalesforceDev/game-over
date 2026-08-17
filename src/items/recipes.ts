@@ -90,7 +90,9 @@ export const RECETAS: readonly Receta[] = [
   // --- A mano ---
   {
     id: 'antorchas',
-    desde: '1.5.0',
+    // No antes: fabricar llegó con la mesa, en 1.7.0. La antorcha existía
+    // desde 1.5.0 como bloque, pero no había forma de hacerla.
+    desde: '1.7.0',
     ingredientes: [[MADERA, 1]],
     resultado: ANTORCHA,
     cantidad: 3,

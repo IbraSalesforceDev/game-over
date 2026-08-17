@@ -1,11 +1,13 @@
 import { ANTORCHA, esBlando } from '../world/tiles';
 import { Inventario } from './inventory';
+import { VERSION_ACTUAL } from '../core/versiones';
 import {
   defObjeto,
   esHerramienta,
   esPala,
   ESPADA_MADERA,
   nivelHerramienta,
+  objetoExisteEn,
   PICO_MADERA,
 } from './items';
 
@@ -24,11 +26,18 @@ export const PICO_INICIAL = PICO_MADERA;
 export const ESPADA_INICIAL = ESPADA_MADERA;
 export const ANTORCHA_INICIAL = 20;
 
-export function equipoInicial(): Inventario {
+export function equipoInicial(versionMundo: string = VERSION_ACTUAL): Inventario {
   const inv = new Inventario();
-  inv.anadir(PICO_INICIAL, 1);
-  inv.anadir(ESPADA_INICIAL, 1);
-  inv.anadir(ANTORCHA, ANTORCHA_INICIAL);
+  // Cada pieza del equipo de salida se da solo si en esa versión existía. En
+  // 1.6.0 no había espada porque no había con qué pelear, y antes de 1.5.0 no
+  // había antorchas: se empieza con lo que hubiera y no con lo de hoy.
+  for (const [objeto, cuantos] of [
+    [PICO_INICIAL, 1],
+    [ESPADA_INICIAL, 1],
+    [ANTORCHA, ANTORCHA_INICIAL],
+  ] as const) {
+    if (objetoExisteEn(objeto, versionMundo)) inv.anadir(objeto, cuantos);
+  }
   return inv;
 }
 
