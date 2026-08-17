@@ -175,6 +175,8 @@ export interface OpcionesBarra {
   conEquipo?: boolean;
   /** ¿Existe la ficha de objeto en esta versión? */
   conFicha?: boolean;
+  /** ¿Existen los iconos dibujados, o los objetos son cuadrados de color? */
+  conIconos?: boolean;
 }
 
 /** Etiqueta gris que se ve en cada hueco vacío del equipo. */
@@ -195,7 +197,8 @@ export function crearBarra(
   const estilo = document.createElement('style');
   estilo.textContent = ESTILO;
   document.head.appendChild(estilo);
-  const iconos = crearIconos();
+  // Hasta 2.2.1 los objetos eran cuadrados de color en la ranura.
+  const iconos = crearIconos(opciones.conIconos !== false);
 
   let seleccion = 0;
   let abierto = false;

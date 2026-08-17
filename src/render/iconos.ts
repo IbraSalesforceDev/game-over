@@ -596,7 +596,21 @@ export interface Iconos {
   ): void;
 }
 
-export function crearIconos(): Iconos {
+/**
+ * Icono de antes de 2.2.1: un cuadrado del color del objeto.
+ *
+ * Es literalmente lo que había —"cada objeto se pintaba como un cuadrado de su
+ * color", dice el comentario de arriba desde el día que se arregló—, y por eso
+ * se conserva en vez de reinventarse: un inventario de 1.7.0 con los iconos
+ * dibujados de hoy sería un inventario de hoy.
+ */
+const cuadradoIcono: Dibujo = (ctx, ox, oy, color) => {
+  px(ctx, ox + 2, oy + 2, 16, 16, color);
+  px(ctx, ox + 2, oy + 2, 16, 2, mezclar(color, '#ffffff', 0.3));
+  px(ctx, ox + 2, oy + 16, 16, 2, mezclar(color, '#000000', 0.35));
+};
+
+export function crearIconos(detallados = true): Iconos {
   // Un atlas de una fila con todos los objetos del catálogo. Se indexa por
   // posición dentro de `IDS_OBJETO` porque los ids tienen huecos.
   const orden = new Map<number, number>();
@@ -611,7 +625,7 @@ export function crearIconos(): Iconos {
     // Los bloques toman el color de su tile, que es el que se ve en el mundo;
     // el resto, el suyo del catálogo.
     const color = def.tile !== undefined ? defTile(def.tile).color : def.color;
-    dibujoDe(id)(ctx, ox, 0, color);
+    (detallados ? dibujoDe(id) : cuadradoIcono)(ctx, ox, 0, color);
     contornear(ctx, ox, 0, LADO_ICONO, LADO_ICONO, 'rgba(8,10,14,0.8)');
   });
 

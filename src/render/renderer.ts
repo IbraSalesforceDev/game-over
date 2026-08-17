@@ -3,7 +3,7 @@ import { css, type Reloj } from '../engine/time';
 import type { Jugador } from '../entities/player';
 import { LUZ_MINIMA, type MotorLuz } from '../world/lighting';
 import { TAMANO_DROP, type Drop } from '../entities/drop';
-import type { Enemigo } from '../entities/enemies';
+import { ENEMIGOS, type Enemigo } from '../entities/enemies';
 import { cajaGolpe, type Golpe } from '../entities/combat';
 import { VIDA_CLAVADA, type Flecha } from '../entities/proyectiles';
 import { defObjeto, NADA } from '../items/items';
@@ -26,6 +26,38 @@ import {
   type Sprites,
 } from './sprites';
 import { crearTileset, type Tileset } from './tileset';
+
+/**
+ * Lo que existía visualmente en la versión del mundo.
+ *
+ * El render no sabe de versiones ni quiere saber: recibe seis interruptores y
+ * ya. Traducir la versión a interruptores se hace una vez, en el arranque, y
+ * así este fichero no acaba lleno de comparaciones de cadenas.
+ */
+export interface EpocaVisual {
+  /** Sprites animados. Sin ellos, el personaje y los bichos son cajas. */
+  sprites: boolean;
+  /** Montañas y nubes del fondo. */
+  fondo: boolean;
+  /** Sol, luna y estrellas. */
+  astros: boolean;
+  /** Sombra elíptica bajo lo que está apoyado. */
+  sombras: boolean;
+  /** El objeto que se lleva, dibujado en la mano. */
+  enMano: boolean;
+  /** Barra de vida sobre los enemigos heridos. */
+  barrasEnemigo: boolean;
+}
+
+/** Todo encendido: lo que ve un mundo de la versión actual. */
+export const EPOCA_COMPLETA: EpocaVisual = {
+  sprites: true,
+  fondo: true,
+  astros: true,
+  sombras: true,
+  enMano: true,
+  barrasEnemigo: true,
+};
 
 /** Lo que el render necesita saber del puntero de construcción. */
 export interface Objetivo {
@@ -63,6 +95,8 @@ export interface Escena {
   enMano: number;
   /** Armadura puesta: un color por hueco, en el orden de `HUECOS`. */
   armadura: ClaveArmadura;
+  /** Qué se puede dibujar en esta versión del mundo. */
+  epoca: EpocaVisual;
   /** Bioma donde está el jugador, para teñir las montañas del fondo. */
   bioma: BiomaFondo;
 }
@@ -162,7 +196,7 @@ export class Renderer {
   /** Bioma en el que está el jugador, para teñir el fondo. Lo pone la escena. */
   private biomaFondo: BiomaFondo = 'bosque';
 
-  private cielo(reloj: Reloj): void {
+  private cielo(reloj: Reloj, epoca: EpocaVisual): void {
     const { ctx } = this;
     const [alto, medio, bajo] = reloj.colorCielo;
     const g = ctx.createLinearGradient(0, 0, 0, this.altoCanvas);
@@ -171,8 +205,15 @@ export class Renderer {
     g.addColorStop(1, css(bajo));
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.anchoCanvas, this.altoCanvas);
-    this.estrellas(reloj);
-    this.astro(reloj);
+    // Antes de 1.5.0 el cielo era un degradado y nada más: ni sol, ni luna, ni
+    // estrellas, porque no había hora que representar.
+    if (epoca.astros) {
+      this.estrellas(reloj);
+      this.astro(reloj);
+    }
+    // Y hasta 2.2.0 no había nada detrás del terreno: el horizonte era el
+    // degradado pelado. Las montañas y las nubes llegaron con el parallax.
+    if (!epoca.fondo) return;
     this.fondo.dibujar(
       ctx,
       reloj,
@@ -404,6 +445,7 @@ export class Renderer {
     sumergido: number,
     enMano: number,
     armadura: ClaveArmadura,
+    epoca: EpocaVisual,
   ): void {
     const { ctx, camara } = this;
     // Interpolación entre el tick anterior y el actual: el movimiento se ve
@@ -413,22 +455,37 @@ export class Renderer {
     const u = camara.zoom;
     const { pose, frame } = this.animarJugador(j, sumergido, performance.now());
 
-    this.sprites.jugador(
-      ctx,
-      pose,
-      frame,
-      j.caja.mirando,
-      ox + Math.round((wx + JUGADOR_OFF_X) * u),
-      oy + Math.round((wy + JUGADOR_OFF_Y) * u),
-      u,
-      armadura,
-    );
+    if (epoca.sprites) {
+      this.sprites.jugador(
+        ctx,
+        pose,
+        frame,
+        j.caja.mirando,
+        ox + Math.round((wx + JUGADOR_OFF_X) * u),
+        oy + Math.round((wy + JUGADOR_OFF_Y) * u),
+        u,
+        armadura,
+      );
+    } else {
+      // Antes de 2.2.0 el personaje era exactamente esto: su caja de colisión
+      // pintada, con una franja clara arriba para saber hacia dónde miraba. No
+      // es un marcador de posición, es como se veía.
+      this.caja(
+        ox + Math.round(wx * u),
+        oy + Math.round(wy * u),
+        j.caja.ancho * u,
+        j.caja.alto * u,
+        '#3f6f9a',
+        '#26445f',
+        j.caja.mirando,
+      );
+    }
 
     // Lo que se lleva en la mano se ve. Es la confirmación visual de que el
     // objeto seleccionado importa: desde que la velocidad de picado depende de
     // la mano, ver el pico ahí es la mitad de la explicación de por qué con la
     // antorcha no se avanza.
-    if (enMano === NADA) return;
+    if (enMano === NADA || !epoca.enMano) return;
     const lado = 13;
     // La mano del brazo delantero, en coordenadas de la caja física.
     const manoX = j.caja.mirando > 0 ? wx + 14 : wx + j.caja.ancho - 14 - lado;
@@ -440,6 +497,57 @@ export class Renderer {
       oy + Math.round(manoY * u),
       lado * u,
     );
+  }
+
+  /**
+   * Una caja de colisión pintada: así se veían el personaje y los bichos antes
+   * de que en 2.2.0 llegaran los sprites.
+   *
+   * No es un cuadrado plano. Lleva la franja clara de arriba, el borde oscuro y
+   * la marca del lado hacia el que mira, que es exactamente lo que tenía
+   * entonces y lo único que permitía leer hacia dónde iba algo.
+   */
+  private caja(
+    sx: number,
+    sy: number,
+    ancho: number,
+    alto: number,
+    color: string,
+    oscuro: string,
+    mirando: 1 | -1,
+  ): void {
+    const { ctx } = this;
+    const borde = Math.max(1, Math.round(this.camara.zoom / 2));
+    ctx.fillStyle = color;
+    ctx.fillRect(sx, sy, ancho, alto);
+    ctx.fillStyle = oscuro;
+    ctx.fillRect(sx, sy + alto - borde * 2, ancho, borde * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(sx, sy, ancho, borde * 2);
+    // La marca del lado: un mordisco claro pegado a la cara que mira.
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    const m = Math.max(2, Math.round(ancho * 0.22));
+    ctx.fillRect(mirando > 0 ? sx + ancho - m : sx, sy + alto * 0.22, m, m);
+    ctx.strokeStyle = 'rgba(6,9,14,0.75)';
+    ctx.lineWidth = borde;
+    ctx.strokeRect(sx + borde / 2, sy + borde / 2, ancho - borde, alto - borde);
+  }
+
+  /** Barra de vida sobre un enemigo herido. */
+  private barraEnemigo(e: Enemigo, ox: number, oy: number): void {
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    const c = e.caja;
+    if (e.salud.vida >= e.salud.vidaMax) return;
+    const pct = e.salud.vida / e.salud.vidaMax;
+    const bx = ox + Math.round(c.x * z);
+    const by = oy + Math.round((c.y - 6) * z);
+    const bw = c.ancho * z;
+    const bh = Math.max(2, Math.round(2 * z));
+    ctx.fillStyle = 'rgba(8,10,14,0.7)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = pct > 0.5 ? '#6fbf46' : pct > 0.25 ? '#e0a83a' : '#d94f4f';
+    ctx.fillRect(bx, by, bw * pct, bh);
   }
 
   /**
@@ -565,7 +673,7 @@ export class Renderer {
   }
 
   /** Enemigos. Destellan en blanco el instante que sigue a un golpe. */
-  private enemigos(lista: readonly Enemigo[], ox: number, oy: number): void {
+  private enemigos(lista: readonly Enemigo[], ox: number, oy: number, epoca: EpocaVisual): void {
     const { ctx, camara } = this;
     const z = camara.zoom;
     for (const e of lista) {
@@ -575,7 +683,24 @@ export class Renderer {
       const sx = ox + Math.round((c.x + molde.offX) * z);
       const sy = oy + Math.round((c.y + molde.offY) * z);
 
-      if (c.enSuelo) this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy, 0.85);
+      if (c.enSuelo && epoca.sombras) this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy, 0.85);
+
+      const def = ENEMIGOS[e.especie];
+      if (!epoca.sprites) {
+        // Los colores de cada especie existen desde 2.0.0 justo porque así se
+        // dibujaban: una caja de su color con la base en sombra.
+        this.caja(
+          ox + Math.round(c.x * z),
+          oy + Math.round(c.y * z),
+          c.ancho * z,
+          c.alto * z,
+          def.color,
+          def.colorOscuro,
+          c.mirando,
+        );
+        if (epoca.barrasEnemigo) this.barraEnemigo(e, ox, oy);
+        continue;
+      }
 
       const frame = Math.floor(e.animReloj * 0.35);
       this.sprites.enemigo(ctx, e.especie, frame, c.mirando, sx, sy, z);
@@ -595,7 +720,7 @@ export class Renderer {
 
       // Barra de vida solo cuando está herido: llenar la pantalla de barras
       // llenas no informa de nada.
-      if (e.salud.vida < e.salud.vidaMax) {
+      if (epoca.barrasEnemigo && e.salud.vida < e.salud.vidaMax) {
         const pct = e.salud.vida / e.salud.vidaMax;
         const bx = ox + Math.round(c.x * z);
         const by = oy + Math.round(c.y * z) - 6 * z;
@@ -728,17 +853,17 @@ export class Renderer {
     const recalculada = e.motorLuz.actualizar(tx0, ty0, tx1, ty1, e.reloj.luzSolar);
 
     this.biomaFondo = e.bioma;
-    this.cielo(e.reloj);
+    this.cielo(e.reloj, e.epoca);
     this.chunks(e.mundo, ox, oy);
     this.picado(e.mundo, e.picado, ox, oy);
     this.drops(e.drops, ox, oy);
     this.flechas(e.flechas, ox, oy);
-    this.enemigos(e.enemigos, ox, oy);
-    if (e.jugador.caja.enSuelo) {
+    this.enemigos(e.enemigos, ox, oy, e.epoca);
+    if (e.jugador.caja.enSuelo && e.epoca.sombras) {
       const c = e.jugador.caja;
       this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy);
     }
-    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido, e.enMano, e.armadura);
+    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido, e.enMano, e.armadura, e.epoca);
     this.golpe(e.golpe, e.jugador, ox, oy);
     // Las partículas van delante de los cuerpos pero detrás del agua: los
     // cascotes que caen a un lago tienen que verse a través de él.

@@ -18,11 +18,16 @@
  * eso el orden importa y por eso cada entrada dice qué trajo — es a la vez el
  * registro de cambios y la tabla que decide qué existe en cada partida.
  *
- * Una advertencia honesta, que también aparece en el menú: el motor siempre es
- * el de hoy. Jugar a 1.4.0 no rebobina el código —las físicas, el render y el
- * guardado son los actuales—; lo que se rebobina es el contenido: qué bloques,
- * bichos, recetas, biomas y sistemas existen en ese mundo. Es una
- * reconstrucción, no una máquina del tiempo.
+ * Se rebobinan dos cosas, y las dos importan: **qué hay** —bloques, bichos,
+ * recetas, biomas, sistemas— y **cómo se ve**. Lo segundo se olvidó en la
+ * primera entrega de esto y el resultado era un 1.4.0 con sprites animados,
+ * montañas de fondo y el sol poniéndose, ninguno de los cuales existía: no era
+ * una reconstrucción de 1.4.0, era el juego de hoy con menos bloques.
+ *
+ * Lo que no se rebobina es el motor: las físicas, la caché de chunks, el
+ * formato de guardado y la carpintería de la interfaz —menús, pausa, ajustes—
+ * son los de hoy en todas las versiones. Es una reconstrucción, no una máquina
+ * del tiempo, y conviene decirlo en voz alta en vez de dejarlo entender.
  */
 
 export type Etapa = 'prealfa' | 'alfa' | 'beta' | 'estable';
@@ -91,7 +96,11 @@ export const VERSIONES: readonly Version[] = [
     etapa: 'prealfa',
     nombre: 'Luz y día-noche',
     resumen: 'Las cuevas se oscurecen, las antorchas alumbran y el sol se mueve.',
-    cambios: ['Iluminación propagada', 'Antorchas', 'Ciclo de día y noche'],
+    cambios: [
+      'Iluminación propagada',
+      'Antorchas',
+      'Ciclo de día y noche, con sol, luna y estrellas',
+    ],
   },
   {
     id: '1.6.0',
@@ -126,14 +135,24 @@ export const VERSIONES: readonly Version[] = [
     etapa: 'prealfa',
     nombre: 'Se ve y se oye',
     resumen: 'Sprites animados, partículas, fondo con parallax y sonido.',
-    cambios: ['Sprites del personaje y de los bichos', 'Partículas', 'Audio sintetizado'],
+    cambios: [
+      'Sprites animados del personaje y de los bichos, que hasta aquí eran cajas',
+      'Montañas y nubes de fondo con parallax',
+      'Partículas y sombras',
+      'Audio sintetizado',
+    ],
   },
   {
     id: '2.2.1',
     etapa: 'prealfa',
     nombre: 'Pulido de navegador',
     resumen: 'Iconos de objeto con forma propia y el panel de controles.',
-    cambios: ['Iconos dibujados', 'Panel de ayuda', 'El overlay ya no sale de serie'],
+    cambios: [
+      'Iconos de objeto con forma propia, que eran cuadrados de color',
+      'El objeto que llevas se ve en la mano',
+      'Panel de ayuda',
+      'El overlay ya no sale de serie',
+    ],
   },
   {
     id: '2.3.0',
@@ -221,6 +240,19 @@ export const VERSIONES: readonly Version[] = [
       'La versión se guarda con el mundo',
     ],
   },
+  {
+    id: '4.2.1',
+    etapa: 'prealfa',
+    nombre: 'Las versiones viejas se ven viejas',
+    resumen: 'El aspecto también retrocede: sprites, fondo, luz e iconos de su época.',
+    cambios: [
+      'Antes de 2.2.0, el personaje y los bichos vuelven a ser cajas',
+      'Antes de 2.2.0, sin montañas de fondo ni sombras',
+      'Antes de 2.2.1, los objetos son cuadrados de color',
+      'Antes de 1.5.0, sin sol, luna ni estrellas',
+      'Los medidores del HUD aparecen cuando aparecieron',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -292,6 +324,20 @@ export const DESDE = {
   combate: '2.0.0',
   particulas: '2.2.0',
   audio: '2.2.0',
+  // --- Lo que se ve ---------------------------------------------------------
+  //
+  // El aspecto también tiene fecha. Un mundo de 1.4.0 con sprites animados,
+  // montañas de fondo y sol poniéndose no es una reconstrucción de 1.4.0: es
+  // el juego de hoy con menos bloques. Estas entradas son las que hacen que
+  // una versión vieja se parezca a lo que fue.
+  spritesAnimados: '2.2.0',
+  fondoParallax: '2.2.0',
+  sombras: '2.2.0',
+  objetoEnMano: '2.2.1',
+  astros: '1.5.0',
+  iconosDibujados: '2.2.1',
+  barraVida: '2.0.0',
+  barraAliento: '2.1.0',
   hambre: '2.3.0',
   danoCaida: '2.3.1',
   nivelesHerramienta: '3.0.0',

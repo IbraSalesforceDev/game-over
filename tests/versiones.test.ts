@@ -94,12 +94,55 @@ describe('el catálogo de versiones', () => {
   });
 });
 
+describe('las versiones viejas también se ven viejas', () => {
+  it('los sprites, el fondo y las sombras llegan en 2.2.0', () => {
+    for (const que of ['spritesAnimados', 'fondoParallax', 'sombras'] as const) {
+      expect(hay(que, '2.1.0')).toBe(false);
+      expect(hay(que, '2.2.0')).toBe(true);
+    }
+  });
+
+  it('los iconos dibujados y el objeto en la mano llegan en 2.2.1', () => {
+    expect(hay('iconosDibujados', '2.2.0')).toBe(false);
+    expect(hay('iconosDibujados', '2.2.1')).toBe(true);
+    expect(hay('objetoEnMano', '2.2.0')).toBe(false);
+    expect(hay('objetoEnMano', '2.2.1')).toBe(true);
+  });
+
+  it('el sol y la luna llegan con el ciclo de día y noche', () => {
+    expect(hay('astros', '1.4.0')).toBe(false);
+    expect(hay('astros', '1.5.0')).toBe(true);
+    // Van juntos por definición: no tiene sentido un sol que no se mueve ni un
+    // ciclo de día sin sol que lo represente.
+    expect(DESDE.astros).toBe(DESDE.diaNoche);
+  });
+
+  it('cada medidor del HUD aparece con el sistema que mide', () => {
+    expect(DESDE.barraVida).toBe(DESDE.combate);
+    expect(DESDE.barraAliento).toBe(DESDE.liquidos);
+    expect(hay('barraVida', '1.7.0')).toBe(false);
+    expect(hay('hambre', '2.2.1')).toBe(false);
+  });
+
+  it('lo visual no puede llegar antes que lo que dibuja', () => {
+    // La armadura no se puede ver antes de que exista la armadura, y no puede
+    // haber barra de enemigo antes de que haya enemigos.
+    expect(alMenos(DESDE.armaduraVisible, DESDE.armadura)).toBe(true);
+    expect(alMenos(DESDE.barraVida, DESDE.combate)).toBe(true);
+    expect(alMenos(DESDE.audioPorMaterial, DESDE.audio)).toBe(true);
+    expect(alMenos(DESDE.mares, DESDE.liquidos)).toBe(true);
+    expect(alMenos(DESDE.jefe, DESDE.estructuras)).toBe(true);
+  });
+});
+
 describe('un mundo trae solo lo de su versión', () => {
   const OP = { ancho: 400, alto: 300, semilla: 'VERSIONES' };
 
-  it('4.2.0 tiene fortaleza; 3.2.0 no', () => {
+  it('la versión actual tiene fortaleza; 3.2.0 no', () => {
     expect(
-      generarMundo({ ...OP, version: '4.2.0' }).estructuras.some((e) => e.tipo === FORTALEZA),
+      generarMundo({ ...OP, version: VERSION_ACTUAL }).estructuras.some(
+        (e) => e.tipo === FORTALEZA,
+      ),
     ).toBe(true);
     expect(generarMundo({ ...OP, version: '3.2.0' }).estructuras).toEqual([]);
     expect(generarMundo({ ...OP, version: '3.2.0' }).cofres).toEqual([]);
@@ -140,7 +183,7 @@ describe('un mundo trae solo lo de su versión', () => {
 
   it('la misma semilla en versiones distintas da mundos distintos', () => {
     const a = generarMundo({ ...OP, version: '2.1.0' });
-    const b = generarMundo({ ...OP, version: '4.2.0' });
+    const b = generarMundo({ ...OP, version: VERSION_ACTUAL });
     expect(a.mundo.tileId).not.toEqual(b.mundo.tileId);
   });
 });

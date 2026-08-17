@@ -72,7 +72,23 @@ export interface PanelVida {
   mostrarMuerte(visible: boolean, texto?: string): void;
 }
 
-export function crearPanelVida(contenedor: HTMLElement): PanelVida {
+/**
+ * Qué medidores existen en esta versión.
+ *
+ * Los corazones llegaron con el combate en 2.0.0, la burbuja de aire con los
+ * líquidos en 2.1.0 y el estómago con el hambre en 2.3.0. Enseñar los tres en
+ * un mundo de 1.4.0 sería enseñar tres barras que no miden nada.
+ */
+export interface MedidoresVisibles {
+  vida?: boolean;
+  aliento?: boolean;
+  hambre?: boolean;
+}
+
+export function crearPanelVida(
+  contenedor: HTMLElement,
+  visibles: MedidoresVisibles = {},
+): PanelVida {
   const estilo = document.createElement('style');
   estilo.textContent = ESTILO;
   document.head.appendChild(estilo);
@@ -105,6 +121,11 @@ export function crearPanelVida(contenedor: HTMLElement): PanelVida {
   muerte.append(titulo, detalle);
 
   contenedor.append(panel, hambre, aliento, muerte);
+  // Se esconden de una vez y para siempre: ninguno de los tres puede aparecer
+  // a mitad de partida, porque la versión del mundo no cambia.
+  if (visibles.vida === false) panel.style.display = 'none';
+  if (visibles.hambre === false) hambre.style.display = 'none';
+  if (visibles.aliento === false) aliento.style.display = 'none';
 
   const iconos: HTMLElement[] = [];
   let ultimoTotal = -1;

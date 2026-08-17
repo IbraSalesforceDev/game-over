@@ -17,7 +17,7 @@ import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
 import { ARMADURA_DESNUDA } from './render/sprites';
-import { Renderer, type Objetivo } from './render/renderer';
+import { Renderer, type EpocaVisual, type Objetivo } from './render/renderer';
 import { crearAviso } from './ui/aviso';
 import { crearBarra } from './ui/hotbar';
 import { mostrarMenu, type Eleccion } from './ui/menu';
@@ -394,6 +394,22 @@ async function arrancar(): Promise<void> {
    */
   const versionMundo = partida.estado.versionJuego;
   const tiene = (q: Caracteristica): boolean => hay(q, versionMundo);
+  /**
+   * Cómo se veía el juego en esta versión.
+   *
+   * La primera entrega de este bloque se saltó justo esto: un mundo de 1.4.0
+   * salía con sprites animados, montañas de fondo y el sol poniéndose, y nada
+   * de eso existía hasta 2.2.0. Un mundo viejo con los gráficos de hoy no es
+   * una reconstrucción, es el juego de hoy con menos bloques.
+   */
+  const epoca: EpocaVisual = {
+    sprites: tiene('spritesAnimados'),
+    fondo: tiene('fondoParallax'),
+    astros: tiene('astros'),
+    sombras: tiene('sombras'),
+    enMano: tiene('objetoEnMano'),
+    barrasEnemigo: tiene('combate'),
+  };
 
   const ajustes: Ajustes = { ...AJUSTES_POR_DEFECTO };
   const debug = crearEstadoDebug();
@@ -435,7 +451,11 @@ async function arrancar(): Promise<void> {
   // congelada hasta que alguien la tocase.
   const liquidos = new SimuladorLiquidos(mundo);
   liquidos.despertarTodo();
-  const panelVida = crearPanelVida(capaUI);
+  const panelVida = crearPanelVida(capaUI, {
+    vida: tiene('barraVida'),
+    aliento: tiene('barraAliento'),
+    hambre: tiene('hambre'),
+  });
   panelVida.refrescar(salud);
   panelVida.refrescarAliento(aliento);
   panelVida.refrescarHambre(hambre);
@@ -548,6 +568,7 @@ async function arrancar(): Promise<void> {
     version: versionMundo,
     conEquipo: tiene('armadura'),
     conFicha: tiene('fichaObjeto'),
+    conIconos: tiene('iconosDibujados'),
     alCambiar: () => reiniciarPicado(picado),
     estaciones: () => estacionesCerca(mundo, jugador.caja),
     alFabricar: () => audio.sonar('craftear'),
@@ -1819,6 +1840,7 @@ async function arrancar(): Promise<void> {
         enMano: barra.objetoActivo(),
         // Hasta 4.1.0 la armadura se llevaba pero no se veía.
         armadura: tiene('armaduraVisible') ? coloresEquipo(equipo) : ARMADURA_DESNUDA,
+        epoca,
       bioma: biomaEn(
         mundo,
         Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),

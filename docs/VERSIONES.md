@@ -28,11 +28,19 @@ no tiene selva, ni fortaleza, ni hambre, ni mapas, y sus recetas son las de
 entonces no había generación de mundo — y el laboratorio sigue en el código,
 así que no hay nada que reconstruir.
 
-**Es una reconstrucción, no una máquina del tiempo.** El motor siempre es el de
-hoy: las físicas, el render, el guardado y la interfaz son los actuales. Lo que
-se rebobina es el contenido. Cosas como el inventario o el propio menú de
-mundos están desde el principio aunque llegaran en la 1.6.0 y la 1.4.0, porque
-sin ellas no habría partida que jugar.
+Y no solo el contenido: **también el aspecto**. Antes de 2.2.0 el personaje y
+los bichos son cajas de colisión pintadas, no hay montañas ni nubes de fondo ni
+sombras; antes de 2.2.1 los objetos son cuadrados de color en el inventario;
+antes de 1.5.0 no hay sol, ni luna, ni estrellas, ni sombra en las cuevas; y
+cada medidor del HUD —corazones, aire, estómago— aparece con el sistema que
+mide.
+
+**Es una reconstrucción, no una máquina del tiempo.** Lo que no retrocede es el
+motor: las físicas, la caché de chunks, el formato de guardado y la carpintería
+de la interfaz —menús, pausa, ajustes, panel de depuración— son los de hoy en
+todas las versiones. El inventario y el propio menú de mundos también están
+desde el principio, aunque llegaran en la 1.6.0 y la 1.4.0, porque sin ellos no
+habría partida que jugar ni forma de guardarla.
 
 ## Historia
 
@@ -58,6 +66,7 @@ sin ellas no habría partida que jugar.
 | 4.0.0 | Fortaleza, altar, guardián y brújula |
 | 4.1.0 | Armadura visible, audio por material y fichas de objeto |
 | 4.2.0 | Elegir versión al crear el mundo |
+| 4.2.1 | Las versiones viejas también se ven viejas: sprites, fondo, luz e iconos de su época |
 
 ## Lo que queda pendiente
 

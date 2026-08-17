@@ -260,8 +260,9 @@ export function mostrarMenu(
           `<div>${v.resumen}</div><ul>${cambios}</ul>` +
           (v.id === VERSION_ACTUAL
             ? ''
-            : '<div class="aviso-version">Reconstrucción: el motor es el de hoy; ' +
-              'lo que cambia es qué hay en el mundo.</div>');
+            : '<div class="aviso-version">Reconstrucción: el contenido y el ' +
+              'aspecto son los de entonces —sprites, fondo, luz, iconos—, pero ' +
+              'el motor y los menús son los de hoy.</div>');
 
         const d = dificultad(Number(sDif.value));
         const extra =
