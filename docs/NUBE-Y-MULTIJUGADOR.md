@@ -137,30 +137,54 @@ restaurar, así que no se pierde nada — pero es una piedra en el camino cada v
 La documentación dice que **«unas pocas peticiones al día bastan»** para
 evitarlo. La solución, y también gratis:
 
-> **Un workflow programado de GitHub Actions** que cada pocas horas haga una
-> consulta trivial a la base de datos. El repositorio es público, así que los
-> minutos de Actions son gratis e ilimitados.
+> **Un workflow programado de GitHub Actions** que haga una consulta trivial a la
+> base de datos. El repositorio es público, así que los minutos de Actions son
+> gratis e ilimitados.
 
 Es mejor que un cron de Vercel, que en el plan Hobby solo permite una ejecución
 al día. Único cuidado: GitHub desactiva los workflows programados de un repo sin
 actividad en 60 días, cosa que aquí no pasa.
 
-### 2. Organización nueva, no solo proyecto nuevo
+**Sobre la frecuencia: cada dos días se queda corto.** La documentación habla de
+*«unas pocas peticiones **cada día** durante la semana anterior»*, así que dejar
+48 h de hueco es apurar justo el criterio que ellos describen. Y hay un segundo
+motivo: los cron de GitHub Actions **no son puntuales** —bajo carga se retrasan e
+incluso se saltan ejecuciones—, así que la frecuencia real es menor que la
+programada. Como no cuesta nada:
 
-Dos detalles que se combinan mal:
+> **Recomendación: cada 12 horas.** Dos latidos al día, con margen de sobra para
+> que se salte alguno sin consecuencias. El mismo workflow aprovecha para borrar
+> los usuarios invitados caducados (ver la sección de seguridad).
+
+### 2. Organización: sí se puede tener otra, pero es opcional
+
+Lo que hay hoy en la cuenta, comprobado: **una organización** (`Nordack's Org`)
+con **un proyecto** dentro (`IbraSalesforceDev's Project`, en `eu-central-1`).
+O sea, va **1 de los 2 proyectos gratis**.
+
+Sobre si se puede tener más de una organización: **sí**. La documentación lo dice
+literalmente — *«podrías tener dos organizaciones Free con un proyecto cada una,
+o una organización Free con dos proyectos»*. El límite de dos es de **proyectos**,
+no de organizaciones. Lo que no puedo hacer **yo** es crearla: no existe
+herramienta para crear organizaciones, solo proyectos, así que ese paso es tuyo
+desde el panel (gratis, un minuto).
+
+¿Por qué recomendarla, entonces? Por dos cosas que se combinan mal:
 
 - **Las cuotas son por organización**, sumando todos sus proyectos.
 - La Fair Use Policy, cuando te pasas de cuota repetidamente, aplica
-  restricciones **a todos los proyectos de esa organización**: pausarlos,
-  ponerlos en solo lectura o responder 402 a todo.
+  restricciones **a todos los proyectos de esa organización**: pausarlos, dejarlos
+  en solo lectura o responder 402 a todo.
 
 O sea: si algún día el juego se pasara de egress, se llevaría por delante **tu
-otro proyecto**. Y como tienes derecho a **dos proyectos gratis**, que cuentan
-sobre todas las organizaciones donde seas Owner:
+otro proyecto**.
 
-> **Recomendación: crear una organización Free nueva con un solo proyecto
-> dentro, solo para el juego.** No cuesta nada, le da al juego su propia cuota
-> completa de 5 GB y 2 M de mensajes, y aísla del todo tu proyecto de siempre.
+> **Pero es un seguro, no una necesidad.** Con dos órdenes de magnitud de margen
+> en todas las cuotas, la probabilidad de rozar la Fair Use jugando tú y dos
+> amigos es prácticamente nula. Si prefieres no complicarte: **un segundo
+> proyecto en la organización que ya tienes vale**, y se puede mover a otra
+> organización más adelante sin perder nada (Supabase permite transferir
+> proyectos). La recomendación se mantiene, pero no es un bloqueo.
 
 ### 3. La caché sube el techo
 
@@ -250,7 +274,8 @@ El pero clásico de WebRTC es que entre un 10 % y un 20 % de las redes doméstic
 no consiguen conexión directa y necesitan un servidor TURN de relevo. Lo he
 mirado, porque era el único cabo suelto que podía obligar a pagar:
 
-- **STUN de Cloudflare** (`stun.cloudflare.com`): gratis e ilimitado.
+- **STUN de Cloudflare** (`stun.cloudflare.com`): gratis e ilimitado, **y sin
+  cuenta de nada**.
 - **TURN de Cloudflare Realtime**: 0,05 $/GB **con los primeros 1 000 GB al mes
   gratis**.
 
@@ -258,9 +283,28 @@ Una partida de tres relayada entera por TURN gasta unos **86 MB a la hora**. Con
 1 000 GB gratis al mes eso son más de **11 000 horas de juego**. En la práctica,
 gratis.
 
+### Lo que el TURN sí exige, y no es solo darse de alta
+
+Dos cosas que conviene saber antes de contar con él:
+
+1. **Hace falta una cuenta de Cloudflare** (gratuita). Es tuya y la creas tú: no
+   hay forma de que la genere yo, ni sería buena idea que una cuenta a tu nombre
+   la abriera otro.
+2. **La clave de TURN no puede vivir en el navegador.** Cloudflare da una clave
+   larga que es un secreto de servidor, y con ella se acuñan credenciales
+   **cortas y caducas** para cada jugador mediante una llamada de servidor a
+   servidor. En una página estática como esta eso significa **un endpoint
+   pequeño**: una Edge Function de Supabase (500 000 invocaciones gratis al mes)
+   o una función serverless de Vercel. Poco código, pero no es «pegar una URL».
+
+**Por eso el TURN se deja para cuando haga falta de verdad.** La fase A puede ir
+**solo con STUN**, sin cuenta de Cloudflare ni endpoint ninguno: la mayoría de
+las redes domésticas conectan directas. Cuando una conexión falle, se dice
+claramente y ahí se decide si merece la pena montar el TURN.
+
 **Conclusión: el multijugador entero cabe en planes gratuitos.** Supabase Free
-para señalizar y guardar, Cloudflare Free para STUN/TURN, y el resto entre
-navegadores.
+para señalizar y guardar, STUN gratis para empezar, y el TURN de Cloudflare Free
+solo cuando se demuestre que hace falta.
 
 ## Qué se manda y cuánto ocupa
 
@@ -308,13 +352,127 @@ para la ventana visible), las partículas, el audio, la cámara y todo el dibujo
 
 | | Qué | Por qué |
 |---|---|---|
-| **Fase A** | Dos jugadores en el mismo mundo: conexión, envío del mundo, movimiento con predicción, picar y colocar. **Sin bichos.** | Quita más de la mitad del trabajo —bichos, jefes, botín, arbitrar daño— y ya deja algo real: construir juntos. Y prueba lo difícil cuanto antes |
+| **Fase A** | Dos jugadores en el mismo mundo: conexión, envío del mundo, movimiento con predicción, picar y colocar. **Sin bichos.** Solo STUN, sin TURN | Quita más de la mitad del trabajo —bichos, jefes, botín, arbitrar daño— y ya deja algo real: construir juntos. Y prueba lo difícil cuanto antes |
 | **Fase B** | Bichos, combate, botín, cofres, jefes y sucesos con el anfitrión de árbitro | Lo que queda, ya con transporte y predicción probados |
 | **Fase C** | El tercer jugador, reconexión y el guardado v17 con estado por jugador | |
 
 Si la fase A sale mal, se ha perdido una fracción del esfuerzo y se sabe pronto.
 
+### ¿Se puede añadir todo lo demás después? Sí, con una condición
+
+La fase B es **añadir tipos de entidad a un protocolo que ya existe**, no rehacer
+nada — pero solo si la fase A se escribe pensando en el juego entero. Cuatro
+cosas tienen que estar bien desde el primer día:
+
+1. **El reparto de autoridad**: el anfitrión simula, los clientes piden. Aunque en
+   la fase A lo único que se simule sea andar.
+2. **Un sobre de mensaje genérico**, con sitio para tipos de entidad que todavía
+   no existen. Si el mensaje se llama «posición de jugador», la fase B lo tira.
+3. **Predicción y reconciliación del jugador local**, que es lo mismo para
+   siempre.
+4. **Los dos canales separados**: uno no fiable para instantáneas y otro fiable y
+   ordenado para tiles, cofres e inventario.
+
+Con esas cuatro, un bicho es «una entidad más en la instantánea» y un jefe es «un
+bicho con más campos». Lo que convertiría la fase B en una reescritura es dar por
+hecho en la A que **lo único que existe son los jugadores**.
+
+Y conviene decirlo al revés de como suena: **la fase A no es la mitad fácil, es
+la mitad arriesgada**. Los bichos son bastante mecánicos; lo difícil —predecir,
+reconciliar, romper el supuesto de un solo jugador— está todo en la A. Por eso va
+primero.
+
 ---
+
+---
+
+# Poder volverse atrás
+
+Pregunta justa: *si a mitad de camino decidimos que la nube no compensa, ¿se
+puede volver al guardado local sin drama?* **Sí, y sale casi gratis si se diseña
+así desde el principio.** Cinco reglas:
+
+1. **IndexedDB no deja de ser el almacén principal.** La nube es un espejo, nunca
+   la única copia. Se escribe primero en local y luego se sube. Así, «revertir»
+   es *dejar de subir*: todas las partidas ya están en el disco, ninguna hay que
+   rescatar de ningún sitio.
+2. **El blob es idéntico byte a byte** en local y en la nube — es la misma salida
+   de `empaquetar()`. No hay formato «de nube» del que convertir nada de vuelta.
+3. **El adaptador de Supabase envuelve al local, no lo sustituye.** Sigue
+   habiendo un solo `SaveAdapter`, y el de la nube llama por dentro al de
+   IndexedDB. Quitarlo es dejar de envolverlo.
+4. **Un interruptor en ajustes.** «Guardar también en la nube»: apagado, el juego
+   se comporta exactamente como hoy. Eso hace que revertir no necesite ni
+   desplegar.
+5. **Una etiqueta de git antes de empezar** (`prealfa-sin-nube-7.3.0`), para que
+   exista un punto literal al que volver, y cada cambio en su propia versión para
+   poder revertir piezas sueltas en vez de un bloque.
+
+**Y el dato que más tranquiliza: toda la parte de la nube no necesita tocar el
+formato de guardado.** Ni un campo nuevo, ni subir `VERSION_FORMATO`. Es
+reversible al 100 %.
+
+La única puerta que sí es de un solo sentido llega mucho después: el **formato
+v17** del multijugador, con estado por jugador. Por eso conviene no subirlo hasta
+la fase C, cuando de verdad haga falta — hasta ahí, todo lo anterior se puede
+deshacer.
+
+---
+
+# Seguridad, y qué cambia por ser plan gratis
+
+Lo primero, para quitarlo de en medio: **la clave pública del cliente (`anon` /
+publishable) está pensada para ir en el navegador**. Que se vea no es un fallo.
+La seguridad no viene de esconderla.
+
+**Viene del RLS, y ahí no hay red de seguridad.** Las políticas por fila, atadas
+a `auth.uid()`, son *todo* el modelo: hay que ponerlas en la tabla de partidas
+**y en el bucket de Storage**. Sin ellas, cualquiera lee y escribe las partidas
+de cualquiera. Es el único punto donde un error se paga caro.
+
+Lo que **nunca** puede acabar en el frontend: la clave `service_role` y la clave
+de TURN de Cloudflare. Esas van en secretos de GitHub Actions o de la Edge
+Function.
+
+### Lo que sí cambia por el plan gratis
+
+En un plan de pago, el peor caso de un abuso es una factura. **Aquí el peor caso
+es que te restrinjan la organización**: la Fair Use Policy puede pausar los
+proyectos, dejarlos en solo lectura o responder 402 a todo. O sea, el ataque no
+te cuesta dinero, te tira el juego. Eso cambia las prioridades:
+
+- **El invitado es el vector de abuso.** Cada sesión anónima es una fila en tu
+  base de datos, y un bot puede crear miles. Supabase limita a **30 altas
+  anónimas por hora y por IP** y **recomienda expresamente CAPTCHA**. Con
+  Cloudflare Turnstile, gratis. Y no hay limpieza automática: hace falta un
+  `delete from auth.users where is_anonymous and created_at < now() - interval
+  '30 days'`, que puede correr en el mismo workflow del latido.
+- **Topes propios, además del RLS.** Tamaño máximo por subida (2 MB va sobradísimo
+  cuando el mundo más grande son 345 KB), número máximo de partidas por usuario, y
+  poco más. Son cuatro líneas y son las que impiden que una cuenta sola se coma
+  los 5 GB.
+- **El blob lo escribe el cliente.** Un cliente modificado puede subir lo que
+  quiera. En un juego con la lógica en el navegador eso no se evita: se acota el
+  daño con esos topes. Hacer trampas en tu propia partida no le hace nada a nadie.
+
+### Una trampa del login por correo
+
+La que menos se ve venir: **el SMTP que Supabase da por defecto solo entrega
+correos a las direcciones del equipo de tu organización**, y la documentación dice
+explícitamente que no es para producción. O sea, el «correo y contraseña» funciona
+para ti y falla en silencio para cualquier otra persona.
+
+Para usuarios de verdad hace falta **SMTP propio** — Resend y compañía tienen plan
+gratuito suficiente. Es gratis, pero es un paso más que hay que contar en la
+versión del login.
+
+### Multijugador
+
+- **WebRTC enseña tu IP a los otros jugadores.** Es inherente al P2P, no un fallo
+  de implementación. Jugando con amigos da igual, pero conviene decirlo en voz
+  alta. Forzar que todo pase por TURN la esconde, a cambio de gastar ancho de banda.
+- **El anfitrión es la verdad**, así que un anfitrión tramposo estropea la partida
+  a los demás. Entre amigos es asumible; es el mismo trato que hace Terraria.
 
 ## Orden que recomiendo
 
@@ -328,15 +486,19 @@ del mundo para que alguien se una. Las dos cosas las deja hechas la nube.
 
 ## Lo que hace falta decidir
 
-1. **¿Organización Free nueva solo para el juego?** Recomiendo que sí: cuesta
-   cero, duplica la cuota disponible y protege tu otro proyecto de la Fair Use
-   Policy. Gasta el segundo de tus dos proyectos gratis.
-2. **¿El latido por GitHub Actions?** Es la forma gratis de que el proyecto no se
-   pause a los 7 días. Recomiendo que sí, desde el primer día.
-3. **¿Fase A sin bichos, o multijugador completo de una vez?** Recomiendo la
-   fase A.
-4. **¿Hasta dónde llega el offline?** Desde «sin red no hay nube» hasta una cola
+1. **¿Organización Free nueva, o segundo proyecto en la que ya tienes?** Se puede
+   tener otra organización, pero la crearías tú desde el panel. Es un seguro
+   contra la Fair Use, no una necesidad: si prefieres no complicarte, el segundo
+   proyecto en la organización de siempre vale, y se puede mover luego.
+2. **¿Hasta dónde llega el offline?** Desde «sin red no hay nube» hasta una cola
    de sincronización completa. Es lo que más cambia el tamaño de la parte 1.
+3. **¿SMTP propio para el login por correo?** Hace falta si va a entrar alguien
+   más que tú. Es gratis, pero es trabajo extra en esa versión.
+4. **¿Fase A sin bichos, o multijugador completo de una vez?** Recomiendo la
+   fase A.
+
+Ya decidido en esta ronda: **latido cada 12 horas** por GitHub Actions, **fase A
+solo con STUN** y el TURN aplazado a cuando se demuestre que hace falta.
 
 Lo que **ya no** hace falta decidir, porque el plan gratis lo decide solo:
 el transporte es WebRTC con Cloudflare para STUN/TURN, y Supabase Realtime se
