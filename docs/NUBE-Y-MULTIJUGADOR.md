@@ -573,16 +573,14 @@ del mundo para que alguien se una. Las dos cosas las deja hechas la nube.
 
 ## Lo que hace falta decidir
 
-1. **¿Proyecto propio, o compartir el que ya hay arreglando antes sus políticas?**
-   Recomiendo proyecto propio, por lo de `auth.users` compartido. Es la única
-   decisión que queda con peso de verdad.
-2. **¿Fase A sin bichos, o multijugador completo de una vez?** Recomiendo la
-   fase A.
+Queda una sola: **¿fase A sin bichos, o multijugador completo de una vez?**
+Recomiendo la fase A.
 
-Ya decidido: **el plan gratis como marco**, **entrar con Google y sin sesiones
-anónimas**, **latido cada 12 horas** por GitHub Actions, **fase A solo con STUN**
-con el TURN aplazado, el **modelo de mundo local o de nube pero nunca los dos**, y
-un **administrador por tabla y política**, nunca por comprobación en el navegador.
+Ya decidido: **el plan gratis como marco**, **proyecto propio** (`GameOver`, ya
+creado y vacío), **entrar con Google y sin sesiones anónimas**, **latido cada 12
+horas** por GitHub Actions, **fase A solo con STUN** con el TURN aplazado, el
+**modelo de mundo local o de nube pero nunca los dos**, y un **administrador por
+tabla y política**, nunca por comprobación en el navegador.
 
 ---
 
@@ -728,12 +726,47 @@ recomendación.
 
 ## Estado de la cuenta
 
-Comprobado: hay **una organización** (`Nordack's Org`) con **un proyecto**
-(`IbraSalesforceDev's Project`, `eu-central-1`). El `GameOver` que se creó es un
-repositorio de GitHub, no un proyecto de Supabase — de ahí que no apareciera.
+**Decidido y hecho: el juego tiene proyecto propio.**
 
-Si se comparte el proyecto que ya existe, se sigue en **1 de 2 proyectos gratis**
-y queda uno de reserva.
+| Proyecto | Ref | Región | Estado |
+|---|---|---|---|
+| `GameOver` | `aazwkoccddlmscgdcwpy` | `eu-west-1` | activo y **vacío**, 0 tablas |
+| `IbraSalesforceDev's Project` | `magoionhitrqcihrracn` | `eu-central-1` | activo, el de siempre |
+
+Los dos en la organización `Nordack's Org`. Comprobado: el esquema `public` del
+proyecto nuevo no tiene ni una tabla, así que se empieza de cero y no hay nada
+que respetar.
+
+**Con esto se resuelve lo importante**: `auth.users` es **por proyecto**, así que
+los jugadores del juego no existen para la otra aplicación y aquellas políticas
+de «Admin» que conceden a cualquier autenticado dejan de ser un problema del
+juego. Siguen siendo un fallo de ese proyecto y conviene arreglarlo algún día,
+pero ya no bloquea nada de aquí.
+
+Lo que sigue compartido, por estar en la misma organización, y por qué da igual:
+
+- **La cuota** (5 GB de egress, 1 GB de Storage, 2 M de mensajes). El juego usa
+  ~1,4 %, así que no se rozan.
+- **La Fair Use Policy**, que restringe por organización. Con ese margen, la
+  probabilidad es prácticamente nula; queda como el único motivo por el que algún
+  día se movería el proyecto a una organización aparte, cosa que Supabase permite
+  sin perder nada.
+
+Dos apuntes menores:
+
+- **Regiones distintas** (Irlanda el nuevo, Fráncfort el viejo). Da igual: para
+  las partidas es una descarga de 129 KB, y para el multijugador la región solo
+  afecta a la señalización, que son unas decenas de mensajes. Los datos de juego
+  van entre navegadores.
+- **Cupo agotado: 2 de 2 proyectos gratis.** No habría un tercero sin pausar uno.
+
+### Lo que queda por hacer en el panel, cuando se dé la salida
+
+Nada de esto está hecho ni se hará hasta que lo digas:
+
+1. Activar **Google** como proveedor, y dejar las sesiones anónimas **apagadas**.
+2. Crear el esquema del juego, las tablas y el bucket `mundos`, con su RLS.
+3. Añadir el secreto del proyecto a **GitHub Actions** para el latido de 12 h.
 
 Lo que **ya no** hace falta decidir, porque el plan gratis lo decide solo:
 el transporte es WebRTC con Cloudflare para STUN/TURN, y Supabase Realtime se
