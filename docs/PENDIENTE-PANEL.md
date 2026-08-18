@@ -20,9 +20,13 @@ además lo que ya habías decidido al principio.
 
 En **Authentication → Sign In / Providers**:
 
-- [ ] **Email**: activado
-- [ ] **Confirm email**: **desactivado** ← esto es lo importante
-- [ ] **Anonymous sign-ins**: desactivado (viene así)
+- [x] **Email**: activado ✅
+- [x] **Confirm email**: desactivado ✅
+- [x] **Anonymous sign-ins**: desactivado ✅
+
+**Comprobado en el servidor**: hay una cuenta creada, confirmada al instante,
+con sesión abierta y ninguna sesión anónima. Los tres están como tienen que
+estar.
 
 Por qué apagar la confirmación: el correo de confirmación **no llegaría**. El
 SMTP que trae Supabase solo entrega a las direcciones del equipo de tu
@@ -68,31 +72,28 @@ es un usuario más y el resto del sistema no se entera.
 
 ---
 
-## 2. Hacerte administrador
+## 2. Hacerte administrador ✅ hecho
 
-Cuando tengas cuenta creada en el juego, en **SQL Editor**:
+Ya está: tu cuenta está en `juego.admins`.
+
+Para añadir a otra persona algún día, en **SQL Editor** (no se puede desde la
+aplicación a propósito — es lo que impide que nadie se auto-nombre):
 
 ```sql
 insert into juego.admins (usuario)
-select id from auth.users where email = 'PON-AQUI-TU-CORREO';
+select id from auth.users where email = 'EL-CORREO-DE-ESA-PERSONA';
 ```
-
-(Pon tu correo al ejecutarlo, pero no lo dejes escrito aquí: este repositorio es
-público.)
-
-Esa tabla no se puede tocar desde la aplicación a propósito — es lo que impide
-que nadie se auto-nombre administrador. Por eso este paso es a mano y solo se
-hace una vez.
 
 ---
 
 ## 3. El latido, para que el proyecto no se pause
 
 Los proyectos del plan gratis **se pausan solos tras 7 días de poca actividad**.
-El workflow lo escribo yo, pero el secreto lo tienes que meter tú, porque yo no
-debo ver ni guardar claves en el repositorio.
+El workflow ya está escrito y subido (`.github/workflows/latido-supabase.yml`,
+cada 12 horas). Solo faltan los dos secretos, que los tienes que poner tú.
 
-En **GitHub → Settings → Secrets and variables → Actions**:
+En **GitHub → Settings → Secrets and variables → Actions → New repository
+secret**:
 
 - [ ] `SUPABASE_URL` = `https://aazwkoccddlmscgdcwpy.supabase.co`
 - [ ] `SUPABASE_ANON_KEY` = la clave publicable del proyecto
@@ -113,9 +114,9 @@ secreto de Actions se cambia en un sitio si algún día rota.)
 
 ## Resumen
 
-| Paso | ¿Bloquea? | Esfuerzo |
-|---|---|---|
-| 1. Activar Email y apagar Confirm email | **Sí, para probar el login** | 2 minutos |
-| 2. Añadirte a `admins` | No | 1 minuto, cuando tengas cuenta |
-| 3. Secretos de GitHub Actions | No, pero el proyecto se pausa a los 7 días | 2 minutos |
-| 4. Cloudflare / dominio | No | más adelante, o nunca |
+| Paso | Estado |
+|---|---|
+| 1. Activar Email y apagar Confirm email | ✅ hecho y comprobado |
+| 2. Añadirte a `admins` | ✅ hecho |
+| 3. Secretos de GitHub Actions | ⬜ **lo único que queda**, 2 minutos |
+| 4. Cloudflare / dominio | más adelante, o nunca |

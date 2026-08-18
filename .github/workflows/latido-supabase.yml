@@ -1,0 +1,56 @@
+# Mantiene despierto el proyecto de Supabase.
+#
+# Los proyectos del plan gratis se pausan solos tras 7 días de poca actividad de
+# base de datos, y al volver hay que ir al panel a reanudarlos a mano. La
+# documentación dice que "unas pocas peticiones cada día" bastan para evitarlo.
+#
+# Cada 12 horas y no cada dos días: los cron de Actions se retrasan e incluso se
+# saltan ejecuciones bajo carga, así que la frecuencia real es menor que la
+# programada. Dos al día deja margen de sobra y no cuesta nada — en un
+# repositorio público los minutos de Actions son gratis.
+name: Latido de Supabase
+
+on:
+  schedule:
+    - cron: '17 5,17 * * *'
+  # Para poder dispararlo a mano si llega un aviso de pausa.
+  workflow_dispatch:
+
+jobs:
+  latido:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tocar la base de datos
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          CLAVE: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${URL:-}" ] || [ -z "${CLAVE:-}" ]; then
+            echo "Faltan los secretos SUPABASE_URL o SUPABASE_ANON_KEY."
+            echo "Se ponen en Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # Una consulta de verdad contra el esquema del juego. Pedir la raíz de
+          # la API no vale: lo que cuenta para no pausar es actividad de base de
+          # datos, y ahí no la hay.
+          #
+          # Sin sesión, el RLS no deja ver ninguna partida y devuelve una lista
+          # vacía. Da igual: la consulta se ejecuta, que es de lo que se trata.
+          codigo=$(curl -s -o /tmp/respuesta -w '%{http_code}' \
+            "$URL/rest/v1/partidas?select=id&limit=1" \
+            -H "apikey: $CLAVE" \
+            -H "Accept-Profile: juego")
+
+          echo "HTTP $codigo"
+          cat /tmp/respuesta
+
+          # 200 y 401 valen los dos: los dos significan que Postgres ha
+          # respondido. Un 404 sí es un problema, porque querría decir que el
+          # esquema juego ha dejado de estar expuesto en la API.
+          case "$codigo" in
+            200|401) echo "Proyecto despierto." ;;
+            404) echo "El esquema 'juego' no responde: revisar Exposed schemas."; exit 1 ;;
+            *) echo "Respuesta inesperada."; exit 1 ;;
+          esac
