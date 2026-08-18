@@ -1,0 +1,418 @@
+import { describe, expect, it } from 'vitest';
+import { JUGADOR_ALTO, JUGADOR_ANCHO, TILE } from '../src/core/constants';
+import {
+  AJUSTES_POR_DEFECTO,
+  actualizarFisica,
+  crearCaja,
+  type Entrada,
+} from '../src/entities/physics';
+import { Mundo } from '../src/world/world';
+import { AIRE, PIEDRA, TIERRA } from '../src/world/tiles';
+import { ALCANCE_TILES, Anfitrion, type Enlace } from '../src/red/anfitrion';
+import { Invitado } from '../src/red/invitado';
+import type { CambioTile } from '../src/red/protocolo';
+
+/**
+ * Un cable de mentira, con retraso y pérdidas.
+ *
+ * Es lo que permite probar la partida entera sin abrir un navegador. El canal
+ * en vivo pierde paquetes a propósito, porque en la vida real los pierde: si el
+ * juego solo funcionara con la red perfecta, no funcionaría.
+ */
+class Cable {
+  private cola: { enTick: number; datos: Uint8Array; firme: boolean; haciaA: boolean }[] = [];
+  private tick = 0;
+  private semilla = 12345;
+
+  constructor(
+    private readonly retraso: number,
+    private readonly perdidaViva: number,
+  ) {}
+
+  private azar(): number {
+    this.semilla = (this.semilla * 1103515245 + 12345) & 0x7fffffff;
+    return this.semilla / 0x7fffffff;
+  }
+
+  private meter(datos: Uint8Array, firme: boolean, haciaA: boolean): void {
+    // Solo el canal en vivo pierde: el firme reenvía hasta que llega.
+    if (!firme && this.azar() < this.perdidaViva) return;
+    this.cola.push({ enTick: this.tick + this.retraso, datos, firme, haciaA });
+  }
+
+  /** El enlace que ve el anfitrión (manda hacia el invitado). */
+  haciaInvitado(): Enlace {
+    return {
+      mandarVivo: (d) => this.meter(d, false, false),
+      mandarFirme: (d) => this.meter(d, true, false),
+    };
+  }
+
+  /** El que ve el invitado (manda hacia el anfitrión). */
+  haciaAnfitrion(): Enlace {
+    return {
+      mandarVivo: (d) => this.meter(d, false, true),
+      mandarFirme: (d) => this.meter(d, true, true),
+    };
+  }
+
+  /** Entrega lo que toque en este tick. */
+  avanzar(aAnfitrion: (d: Uint8Array) => void, aInvitado: (d: Uint8Array) => void): void {
+    this.tick++;
+    const listos = this.cola.filter((p) => p.enTick <= this.tick);
+    this.cola = this.cola.filter((p) => p.enTick > this.tick);
+    for (const p of listos) (p.haciaA ? aAnfitrion : aInvitado)(p.datos);
+  }
+
+  /** Vacía la cola de golpe, para el saludo y el envío del mundo. */
+  vaciar(aAnfitrion: (d: Uint8Array) => void, aInvitado: (d: Uint8Array) => void): void {
+    for (let i = 0; i < 200 && this.cola.length > 0; i++) this.avanzar(aAnfitrion, aInvitado);
+  }
+}
+
+function mundoDePruebas(): Mundo {
+  const m = new Mundo(200, 60);
+  for (let tx = 0; tx < 200; tx++) {
+    for (let ty = 40; ty < 60; ty++) m.setTile(tx, ty, PIEDRA);
+  }
+  return m;
+}
+
+const quieto: Entrada = { izq: false, der: false, abajo: false, salto: false, saltoPulsado: false };
+
+function teclasDe(t: number): Entrada {
+  return {
+    izq: t % 101 > 85,
+    der: t % 101 <= 85,
+    abajo: false,
+    salto: t % 19 < 5,
+    saltoPulsado: t % 19 === 0,
+  };
+}
+
+/** Monta anfitrión, invitado y cable, ya saludados y con el mundo entregado. */
+async function montarPartida(retraso = 6, perdida = 0) {
+  const mundoAnf = mundoDePruebas();
+  const mundoInv = mundoDePruebas();
+  const cable = new Cable(retraso, perdida);
+
+  const tilesEnElInvitado: CambioTile[] = [];
+  let bytesPedidos = 0;
+
+  const anfitrion = new Anfitrion({
+    mundo: mundoAnf,
+    ajustes: AJUSTES_POR_DEFECTO,
+    idPartida: 'p1',
+    spawnTx: 10,
+    spawnTy: 38,
+    bytesDelMundo: async () => {
+      bytesPedidos++;
+      return new Uint8Array(40 * 1024).fill(7);
+    },
+  });
+
+  let mundoRecibido: Uint8Array | null = null;
+  const invitado = new Invitado({
+    enlace: cable.haciaAnfitrion(),
+    nombre: 'Invitado',
+    idPartida: 'p1',
+    ajustes: AJUSTES_POR_DEFECTO,
+    alLlegarMundo: (b) => {
+      mundoRecibido = b;
+    },
+    alCambiarTiles: (cs) => {
+      for (const c of cs) {
+        tilesEnElInvitado.push(c);
+        if (c.pared) mundoInv.setPared(c.tx, c.ty, c.id);
+        else mundoInv.setTile(c.tx, c.ty, c.id);
+      }
+    },
+  });
+
+  let quien: number | null = null;
+  const alAnfitrion = (d: Uint8Array) => {
+    quien = anfitrion.recibir(cable.haciaInvitado(), d, quien);
+  };
+  const alInvitado = (d: Uint8Array) => invitado.recibir(d);
+
+  invitado.saludar();
+  cable.vaciar(alAnfitrion, alInvitado);
+  if (quien !== null) await anfitrion.mandarMundo(quien);
+  cable.vaciar(alAnfitrion, alInvitado);
+
+  return {
+    cable,
+    anfitrion,
+    invitado,
+    mundoAnf,
+    mundoInv,
+    alAnfitrion,
+    alInvitado,
+    tilesEnElInvitado,
+    get mundoRecibido() {
+      return mundoRecibido;
+    },
+    get bytesPedidos() {
+      return bytesPedidos;
+    },
+    get quien() {
+      return quien;
+    },
+  };
+}
+
+describe('entrar en una partida', () => {
+  it('saluda, le dan número y recibe el mundo entero', async () => {
+    const p = await montarPartida();
+    expect(p.quien).not.toBeNull();
+    expect(p.invitado.miId).toBe(2); // el 1 es el anfitrión
+    expect(p.invitado.dentro).toBe(true);
+    expect(p.mundoRecibido).not.toBeNull();
+    expect(p.mundoRecibido!.length).toBe(40 * 1024);
+    expect(p.bytesPedidos).toBe(1);
+  });
+
+  it('con la versión de protocolo cambiada, se rechaza y se explica', async () => {
+    const mundo = mundoDePruebas();
+    const anf = new Anfitrion({
+      mundo,
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const salida: Uint8Array[] = [];
+    const enlace: Enlace = { mandarVivo: (d) => salida.push(d), mandarFirme: (d) => salida.push(d) };
+    // Un hola con versión 99.
+    const hola = new Uint8Array([1, 0, 99, 0, 2, 104, 105, 0, 2, 112, 49]);
+    expect(anf.recibir(enlace, hola, null)).toBeNull();
+
+    let motivo = '';
+    const inv = new Invitado({
+      enlace,
+      nombre: 'x',
+      idPartida: 'p1',
+      ajustes: AJUSTES_POR_DEFECTO,
+      alLlegarMundo: () => {},
+      alCambiarTiles: () => {},
+      alRechazar: (m) => {
+        motivo = m;
+      },
+    });
+    inv.recibir(salida[0]!);
+    expect(motivo).toMatch(/versiones distintas/i);
+  });
+
+  it('a la partida equivocada no se entra', async () => {
+    const anf = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'la-buena',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const salida: Uint8Array[] = [];
+    const enlace: Enlace = { mandarVivo: (d) => salida.push(d), mandarFirme: (d) => salida.push(d) };
+    const inv = new Invitado({
+      enlace,
+      nombre: 'x',
+      idPartida: 'la-mala',
+      ajustes: AJUSTES_POR_DEFECTO,
+      alLlegarMundo: () => {},
+      alCambiarTiles: () => {},
+    });
+    inv.saludar();
+    expect(anf.recibir(enlace, salida[0]!, null)).toBeNull();
+    expect(anf.conectados).toHaveLength(0);
+  });
+});
+
+describe('jugar en red', () => {
+  /**
+   * **La prueba de que la fase A funciona.**
+   *
+   * Anfitrión e invitado corren 400 ticks con retraso de red y pérdidas en el
+   * canal en vivo. Al final, el personaje del invitado tiene que estar donde el
+   * anfitrión dice que está — porque el anfitrión es quien manda — y donde
+   * estaría jugando solo, porque si no, se sentiría raro.
+   */
+  it('el invitado acaba donde dice el anfitrión, con retraso y pérdidas', async () => {
+    const p = await montarPartida(6, 0.1);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const invCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+
+    for (let t = 0; t < 400; t++) {
+      // El invitado mueve su personaje en local y manda las teclas.
+      const teclas = teclasDe(t);
+      actualizarFisica(p.mundoInv, invCaja, teclas, AJUSTES_POR_DEFECTO);
+      p.invitado.avanzar(p.mundoInv, invCaja, teclas);
+
+      // El anfitrión mueve el suyo (quieto) y simula a los demás.
+      actualizarFisica(p.mundoAnf, miCaja, quieto, AJUSTES_POR_DEFECTO);
+      p.anfitrion.avanzar(miCaja);
+
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+
+    const suyo = p.anfitrion.conectados[0]!.caja;
+    // El invitado va por delante del anfitrión (predice), así que no coinciden
+    // al píxel; lo que importa es que no se hayan separado.
+    expect(Math.abs(invCaja.x - suyo.x)).toBeLessThan(3 * TILE);
+    expect(Math.abs(invCaja.y - suyo.y)).toBeLessThan(3 * TILE);
+    // Y que de verdad se ha movido, no que los dos estén parados.
+    expect(invCaja.x).toBeGreaterThan(20 * TILE);
+  });
+
+  it('el anfitrión ve moverse al invitado, y el invitado al anfitrión', async () => {
+    const p = await montarPartida(4);
+    const miCaja = crearCaja(30 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const invCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const derecha: Entrada = { ...quieto, der: true };
+
+    for (let t = 0; t < 120; t++) {
+      actualizarFisica(p.mundoInv, invCaja, derecha, AJUSTES_POR_DEFECTO);
+      p.invitado.avanzar(p.mundoInv, invCaja, derecha);
+      actualizarFisica(p.mundoAnf, miCaja, derecha, AJUSTES_POR_DEFECTO);
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+
+    // El invitado tiene al anfitrión en su lista y lo ve donde toca.
+    const anfitrionVisto = p.invitado.demas.find((o) => o.id === 1);
+    expect(anfitrionVisto).toBeDefined();
+    const donde = anfitrionVisto!.interpolador.donde()!;
+    expect(Math.abs(donde.x - miCaja.x)).toBeLessThan(3 * TILE);
+  });
+});
+
+describe('los tiles los decide el anfitrión', () => {
+  it('un bloque que se pica llega al otro lado', async () => {
+    const p = await montarPartida(4);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const invCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+
+    p.invitado.pedirTile({ tx: 11, ty: 40, id: AIRE, pared: false });
+
+    for (let t = 0; t < 40; t++) {
+      p.invitado.avanzar(p.mundoInv, invCaja, quieto);
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+
+    expect(p.mundoAnf.getTile(11, 40)).toBe(AIRE);
+    expect(p.tilesEnElInvitado).toContainEqual({ tx: 11, ty: 40, id: AIRE, pared: false });
+  });
+
+  /**
+   * El motivo de que el alcance se compruebe en el anfitrión.
+   *
+   * Si solo lo mirara el cliente, un cliente modificado desmontaría el mundo
+   * entero sin moverse del sitio.
+   */
+  it('no se pica un bloque que queda lejísimos', async () => {
+    const p = await montarPartida(4);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const invCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+
+    const lejos = 10 + ALCANCE_TILES + 20;
+    p.invitado.pedirTile({ tx: lejos, ty: 40, id: AIRE, pared: false });
+
+    for (let t = 0; t < 40; t++) {
+      p.invitado.avanzar(p.mundoInv, invCaja, quieto);
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+
+    expect(p.mundoAnf.getTile(lejos, 40)).toBe(PIEDRA);
+    expect(p.tilesEnElInvitado).toHaveLength(0);
+  });
+
+  it('un bloque fuera del mundo no rompe nada', async () => {
+    const p = await montarPartida(4);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    p.invitado.pedirTile({ tx: -5, ty: -5, id: TIERRA, pared: false });
+    for (let t = 0; t < 20; t++) {
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+    expect(p.tilesEnElInvitado).toHaveLength(0);
+  });
+
+  it('lo que pica el anfitrión también se difunde', async () => {
+    const p = await montarPartida(4);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    p.mundoAnf.setTile(12, 40, AIRE);
+    p.anfitrion.anunciarTile({ tx: 12, ty: 40, id: AIRE, pared: false });
+    for (let t = 0; t < 20; t++) {
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+    expect(p.mundoInv.getTile(12, 40)).toBe(AIRE);
+  });
+});
+
+describe('desconfiar de lo que llega', () => {
+  it('un tick de entrada repetido no cuenta dos veces', async () => {
+    const p = await montarPartida(1);
+    const j = p.anfitrion.conectados[0]!;
+    // Dos entradas con el mismo tick: la segunda se ignora.
+    const dos = new Uint8Array([5, 0, 0, 0, 5, 2, 0, 0, 0, 0]); // ENTRADA tick 5, DERECHA
+    p.anfitrion.recibir(j.enlace, dos, j.id);
+    expect(j.ultimoTick).toBe(5);
+    const vieja = new Uint8Array([5, 0, 0, 0, 3, 1, 0, 0, 0, 0]); // tick 3, IZQUIERDA
+    p.anfitrion.recibir(j.enlace, vieja, j.id);
+    expect(j.ultimoTick).toBe(5); // no ha retrocedido
+    expect(j.entrada.der).toBe(true);
+  });
+
+  it('basura por el cable no tumba al anfitrión', async () => {
+    const p = await montarPartida(1);
+    const j = p.anfitrion.conectados[0]!;
+    expect(() => p.anfitrion.recibir(j.enlace, new Uint8Array([200, 1, 2]), j.id)).not.toThrow();
+    expect(() => p.anfitrion.recibir(j.enlace, new Uint8Array(0), j.id)).not.toThrow();
+    expect(p.anfitrion.conectados).toHaveLength(1);
+  });
+
+  /**
+   * El flanco de salto se deduce en el anfitrión y no viaja.
+   *
+   * Si viajara, un cliente modificado podría afirmar «he pulsado salto» en cada
+   * tick y saltar sin tocar el suelo.
+   */
+  it('mantener salto no cuenta como pulsarlo cada tick', async () => {
+    const p = await montarPartida(1);
+    const j = p.anfitrion.conectados[0]!;
+    const conSalto = (tick: number) =>
+      new Uint8Array([5, 0, 0, 0, tick, 16, 0, 0, 0, 0]); // botón SALTO
+    p.anfitrion.recibir(j.enlace, conSalto(1), j.id);
+    expect(j.entrada.saltoPulsado).toBe(true);
+    p.anfitrion.recibir(j.enlace, conSalto(2), j.id);
+    expect(j.entrada.saltoPulsado).toBe(false);
+  });
+});
+
+describe('irse', () => {
+  it('quien dice adiós desaparece de la lista', async () => {
+    const p = await montarPartida(1);
+    const j = p.anfitrion.conectados[0]!;
+    expect(p.anfitrion.recibir(j.enlace, new Uint8Array([9]), j.id)).toBeNull();
+    expect(p.anfitrion.conectados).toHaveLength(0);
+  });
+
+  it('el invitado se olvida de los demás al salir', async () => {
+    const p = await montarPartida(2);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const invCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    for (let t = 0; t < 30; t++) {
+      p.invitado.avanzar(p.mundoInv, invCaja, quieto);
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+    expect(p.invitado.demas.length).toBeGreaterThan(0);
+    p.invitado.olvidar();
+    expect(p.invitado.demas).toHaveLength(0);
+    expect(p.invitado.dentro).toBe(false);
+  });
+});
