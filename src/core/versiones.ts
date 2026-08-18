@@ -641,6 +641,19 @@ export const VERSIONES: readonly Version[] = [
       'Se le manda una copia de las capas, nunca las del mundo que se está jugando',
     ],
   },
+  {
+    id: '7.4.0',
+    etapa: 'prealfa',
+    nombre: 'Partidas en la nube',
+    resumen: 'Cuenta propia, mundos que no viven solo en este navegador y códigos para invitar.',
+    cambios: [
+      'Cuenta con correo y contraseña, para las partidas de la nube',
+      'Un mundo o es de este navegador o es de la nube, nunca las dos cosas',
+      'Subir un mundo es un viaje de ida, y se avisa antes de hacerlo',
+      'Códigos de invitación de ocho letras para que entre quien tú digas',
+      'Sin cuenta, todo sigue funcionando igual que siempre y sin descargar nada',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

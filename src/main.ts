@@ -70,7 +70,7 @@ import { Renderer, type EpocaVisual, type Objetivo } from './render/renderer';
 import type { BiomaFondo } from './render/fondo';
 import { crearAviso } from './ui/aviso';
 import { crearBarra } from './ui/hotbar';
-import { mostrarMenu, type Eleccion } from './ui/menu';
+import { mostrarMenu, type Eleccion, type Fuente, type FuenteNube } from './ui/menu';
 import { crearTuner } from './ui/tuner';
 import { crearAlmacen, nuevoId, type MetaMundo, type SaveAdapter } from './world/almacen';
 import {
@@ -325,6 +325,14 @@ interface Partida {
   guardable: boolean;
   /** Acaba de cambiar de versión: hay que guardarla en cuanto se pueda. */
   migrada?: boolean;
+  /**
+   * De dónde salió, y por tanto dónde se guarda.
+   *
+   * Un mundo o es local o es de la nube, nunca las dos cosas. Sin este dato, un
+   * mundo abierto desde la nube se autoguardaría en el navegador y las dos
+   * copias empezarían a separarse en silencio.
+   */
+  fuente?: Fuente;
 }
 
 /**
@@ -408,11 +416,92 @@ function partidaNueva(
   };
 }
 
+/**
+ * La nube, montada para el menú.
+ *
+ * Todo lo de Supabase entra por importaciones dinámicas: quien juegue en local
+ * no descarga la librería ni una vez. Y si la nube no está disponible —sin red,
+ * o el proyecto pausado— el menú lo enseña y el juego local sigue igual.
+ */
+function crearFuenteNube(capaUI: HTMLElement, local: SaveAdapter): FuenteNube {
+  let almacenNube: SaveAdapter | null = null;
+
+  async function traerAlmacen(): Promise<SaveAdapter> {
+    if (!almacenNube) {
+      const { AlmacenNube } = await import('./nube/adaptador');
+      almacenNube = new AlmacenNube();
+    }
+    return almacenNube;
+  }
+
+  return {
+    // Se envuelve para que la carga siga siendo perezosa: pedir el almacén no
+    // debe traerse la librería hasta que de verdad se vaya a usar.
+    get almacen(): SaveAdapter {
+      return {
+        listar: async () => (await traerAlmacen()).listar(),
+        cargar: async (id) => (await traerAlmacen()).cargar(id),
+        guardar: async (id, meta, datos) => (await traerAlmacen()).guardar(id, meta, datos),
+        borrar: async (id) => (await traerAlmacen()).borrar(id),
+      };
+    },
+
+    async quien(): Promise<string | null> {
+      const { quienSoy } = await import('./nube/sesion');
+      return (await quienSoy())?.correo ?? null;
+    },
+
+    async entrar(): Promise<boolean> {
+      const [{ pedirEntrada }, sesion] = await Promise.all([
+        import('./ui/cuenta'),
+        import('./nube/sesion'),
+      ]);
+      return pedirEntrada(capaUI, {
+        entrar: sesion.entrar,
+        registrarse: sesion.registrarse,
+      });
+    },
+
+    async salir(): Promise<void> {
+      const { salir } = await import('./nube/sesion');
+      await salir();
+    },
+
+    /**
+     * Llevar un mundo local a la nube. **De ida.**
+     *
+     * El orden es sagrado: subir, comprobar que está arriba, y solo entonces
+     * borrar el local. Al revés, un fallo de red entre los dos pasos se lleva la
+     * partida entera. Se prefiere quedarse con dos copias un rato —y borrar la
+     * local después— que arriesgarse a quedarse con ninguna.
+     */
+    async subir(meta: MetaMundo): Promise<void> {
+      const bytes = await local.cargar(meta.id);
+      const arriba = await traerAlmacen();
+      await arriba.guardar(meta.id, meta, bytes);
+
+      // Comprobación de verdad: que aparezca en la lista de allí. Sin esto se
+      // estaría borrando el original por fiarse de que no hubo excepción.
+      const lista = await arriba.listar();
+      if (!lista.some((m) => m.id === meta.id)) {
+        throw new Error('El mundo no ha llegado a la nube. No se ha borrado el local.');
+      }
+      await local.borrar(meta.id);
+    },
+
+    async canjear(codigo: string): Promise<void> {
+      const { AlmacenNube } = await import('./nube/adaptador');
+      await new AlmacenNube().canjear(codigo);
+    },
+  };
+}
+
 /** Decide con qué partida se arranca: URL directa, menú, o carga de disco. */
 async function elegirPartida(
   capaUI: HTMLElement,
   almacen: SaveAdapter,
   persistente: boolean,
+  nube: FuenteNube,
 ): Promise<Partida> {
   const op = leerOpciones(window.location.search);
   const params = new URLSearchParams(window.location.search);
@@ -433,7 +522,7 @@ async function elegirPartida(
   }
 
   ocultarCargador();
-  const eleccion: Eleccion = await mostrarMenu(capaUI, almacen, persistente);
+  const eleccion: Eleccion = await mostrarMenu(capaUI, almacen, persistente, nube);
   mostrarCargador();
   await siguienteFrame();
 
@@ -458,7 +547,8 @@ async function elegirPartida(
 
   progreso(30, 'Abriendo el mundo…');
   await siguienteFrame();
-  const bytes = await almacen.cargar(eleccion.meta.id);
+  const tienda = eleccion.fuente === 'nube' ? nube.almacen : almacen;
+  const bytes = await tienda.cargar(eleccion.meta.id);
   progreso(70, 'Descomprimiendo…');
   await siguienteFrame();
   const { mundo, estado } = await desempaquetar(bytes);
@@ -496,6 +586,7 @@ async function elegirPartida(
       nombre: eleccion.meta.nombre,
       guardable: true,
       migrada: true,
+      fuente: eleccion.fuente,
     };
   }
 
@@ -506,6 +597,7 @@ async function elegirPartida(
     id: eleccion.meta.id,
     nombre: eleccion.meta.nombre,
     guardable: true,
+    fuente: eleccion.fuente,
   };
 }
 
@@ -516,7 +608,11 @@ async function arrancar(): Promise<void> {
   if (!capaUI) throw new Error('Falta la capa de interfaz #capa-ui');
 
   const { almacen, persistente } = await crearAlmacen();
-  const partida = await elegirPartida(capaUI, almacen, persistente);
+  const nube = crearFuenteNube(capaUI, almacen);
+  const partida = await elegirPartida(capaUI, almacen, persistente, nube);
+  // Un mundo de la nube se guarda en la nube y uno local en el navegador. Es lo
+  // que impide que las dos copias se separen en silencio.
+  const tiendaDeLaPartida: SaveAdapter = partida.fuente === 'nube' ? nube.almacen : almacen;
   const mundo = partida.mundo;
 
   progreso(96, 'Pintando los tiles…');
@@ -873,7 +969,7 @@ async function arrancar(): Promise<void> {
         hardcore: partida.estado.hardcore,
         caido: partida.estado.hardcoreMuerto,
       };
-      await almacen.guardar(partida.id, meta, bytes);
+      await tiendaDeLaPartida.guardar(partida.id, meta, bytes);
       ultimoGuardado = Date.now();
       if (motivo === 'manual') aviso.mostrar(`Guardado · ${Math.round(bytes.length / 1024)} KB`);
     } catch (e) {

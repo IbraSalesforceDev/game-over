@@ -36,8 +36,32 @@ export type Eleccion =
       /** Versión del juego con la que se crea el mundo. */
       version: string;
     }
-  | { tipo: 'cargar'; meta: MetaMundo }
-  | { tipo: 'migrar'; meta: MetaMundo; destino: string };
+  | { tipo: 'cargar'; meta: MetaMundo; fuente: Fuente }
+  | { tipo: 'migrar'; meta: MetaMundo; destino: string; fuente: Fuente };
+
+/**
+ * De dónde sale un mundo.
+ *
+ * Un mundo o es local o es de la nube, **nunca las dos cosas**. Esa es la
+ * decisión que hace que no haya conflictos que resolver en ninguna parte: cada
+ * mundo tiene siempre una sola copia con autoridad. Subir uno es una acción
+ * explícita y de ida.
+ */
+export type Fuente = 'local' | 'nube';
+
+/** Lo que el menú necesita de la nube. Lo enchufa `main.ts`. */
+export interface FuenteNube {
+  almacen: SaveAdapter;
+  /** El correo de quien ha entrado, o null. */
+  quien(): Promise<string | null>;
+  /** Abre el panel de entrada. Devuelve si se ha entrado. */
+  entrar(): Promise<boolean>;
+  salir(): Promise<void>;
+  /** Sube un mundo local a la nube. De ida: allí deja de ser local. */
+  subir(meta: MetaMundo): Promise<void>;
+  /** Canjea un código de invitación. */
+  canjear(codigo: string): Promise<void>;
+}
 
 const ESTILO = `
 #menu {
@@ -139,6 +163,7 @@ export function mostrarMenu(
   contenedor: HTMLElement,
   almacen: SaveAdapter,
   persistente: boolean,
+  nube?: FuenteNube,
 ): Promise<Eleccion> {
   const estilo = document.createElement('style');
   estilo.textContent = ESTILO;
@@ -156,6 +181,216 @@ export function mostrarMenu(
       menu.remove();
       estilo.remove();
       resolver(eleccion);
+    }
+
+    /**
+     * Una fila de mundo, la misma para la lista local y la de la nube.
+     *
+     * `fuente` viaja hasta la elección porque el juego tiene que saber de qué
+     * almacén cargar: son dos sitios distintos y un mundo está en uno o en otro.
+     */
+    function pintarFila(meta: MetaMundo, tienda: SaveAdapter, fuente: Fuente): HTMLElement {
+      const fila = document.createElement('div');
+      fila.className = 'mundo';
+
+        const datos = document.createElement('div');
+        datos.className = 'datos';
+        const nombre = document.createElement('div');
+        nombre.className = 'nombre';
+        nombre.textContent = meta.nombre;
+        if (meta.hardcore) {
+          const sello = document.createElement('span');
+          sello.className = meta.caido ? 'sello caido' : 'sello';
+          sello.textContent = meta.caido ? 'caído' : 'hardcore';
+          nombre.appendChild(sello);
+        }
+        const detalle = document.createElement('div');
+        detalle.className = 'detalle';
+        detalle.textContent =
+          `v${meta.versionJuego ?? '?'} · ${meta.ancho}×${meta.alto} · semilla ${meta.semilla} · ` +
+          `${duracion(meta.jugado)} jugados · ${peso(meta.bytes)} · ${fecha(meta.modificado)}`;
+        datos.append(nombre, detalle);
+
+        const jugar = document.createElement('button');
+        jugar.className = 'principal';
+        // Un hardcore caído se abre para verlo, no para seguir jugándolo.
+        jugar.textContent = meta.caido ? 'Ver' : 'Jugar';
+        jugar.addEventListener('click', () => cerrar({ tipo: 'cargar', meta, fuente }));
+
+        // --- Cambiar de versión ---
+        //
+        // Va en la fila del mundo y no en un menú aparte porque es una acción
+        // sobre ese mundo concreto, como borrarlo. El desplegable lista todas
+        // las versiones menos la suya, hacia delante y hacia atrás.
+        const versionMundo = meta.versionJuego ?? VERSION_ANTES_DE_ELEGIR;
+        const sMigrar = document.createElement('select');
+        sMigrar.className = 'migrar';
+        const vacia = document.createElement('option');
+        vacia.value = '';
+        vacia.textContent = 'Cambiar versión…';
+        sMigrar.appendChild(vacia);
+        for (const v of [...destinosPosibles(versionMundo)].reverse()) {
+          const op = document.createElement('option');
+          op.value = v.id;
+          const flecha = alMenos(v.id, versionMundo) ? '↑' : '↓';
+          op.textContent = `${flecha} ${v.id} · ${v.nombre}`;
+          sMigrar.appendChild(op);
+        }
+        sMigrar.addEventListener('change', () => {
+          const destino = sMigrar.value;
+          sMigrar.value = '';
+          if (destino) cerrar({ tipo: 'migrar', meta, destino, fuente });
+        });
+
+        const borrar = document.createElement('button');
+        borrar.className = 'peligro';
+        borrar.textContent = 'Borrar';
+        borrar.addEventListener('click', async () => {
+          // Confirmación en dos pasos, sin diálogo del navegador: borrar un
+          // mundo de horas por un clic de más no tiene vuelta atrás.
+          if (borrar.dataset.confirmar !== '1') {
+            borrar.dataset.confirmar = '1';
+            borrar.textContent = '¿Seguro?';
+            setTimeout(() => {
+              borrar.dataset.confirmar = '0';
+              borrar.textContent = 'Borrar';
+            }, 3000);
+            return;
+          }
+          await tienda.borrar(meta.id);
+          await pintar();
+        });
+
+      fila.append(datos, sMigrar, jugar, borrar);
+      return fila;
+    }
+
+    /**
+     * «Subir a la nube», con confirmación en dos pasos.
+     *
+     * Es un viaje de ida: el mundo deja de estar en este navegador y pasa a
+     * pedir cuenta. Eso es lo que hace que no haya nunca dos copias con
+     * autoridad, y por eso se pregunta antes, como al borrar.
+     */
+    function botonSubir(meta: MetaMundo): HTMLElement {
+      const b = document.createElement('button');
+      b.textContent = 'Subir';
+      b.title = 'Llevar este mundo a la nube. Deja de estar solo en este navegador.';
+      b.addEventListener('click', async () => {
+        if (b.dataset.confirmar !== '1') {
+          b.dataset.confirmar = '1';
+          b.textContent = '¿Subir?';
+          setTimeout(() => {
+            b.dataset.confirmar = '0';
+            b.textContent = 'Subir';
+          }, 3000);
+          return;
+        }
+        b.disabled = true;
+        b.textContent = 'Subiendo…';
+        try {
+          await nube!.subir(meta);
+          await pintar();
+        } catch (e) {
+          b.disabled = false;
+          b.textContent = 'Subir';
+          decirEnPie(e instanceof Error ? e.message : 'No se ha podido subir', true);
+        }
+      });
+      return b;
+    }
+
+    /** Recado al pie del menú, para lo que no cabe en un botón. */
+    function decirEnPie(texto: string, mal: boolean): void {
+      const pie = caja.querySelector('.pie');
+      if (!pie) return;
+      pie.textContent = texto;
+      (pie as HTMLElement).style.color = mal ? '#e0857a' : '#8fc06a';
+    }
+
+    /** La sección de la nube: entrar, la lista de allí, y canjear invitaciones. */
+    async function pintarNube(correo: string | null): Promise<void> {
+      if (!nube) return;
+
+      const h2 = document.createElement('h2');
+      h2.textContent = 'Mundos en la nube';
+      caja.appendChild(h2);
+
+      if (!correo) {
+        const vacio = document.createElement('div');
+        vacio.className = 'vacio';
+        vacio.textContent =
+          'Entra con tu cuenta para tener las partidas en cualquier sitio y para que te inviten a las de otros.';
+        const b = document.createElement('button');
+        b.className = 'principal';
+        b.textContent = 'Entrar o crear cuenta';
+        b.style.marginTop = '8px';
+        b.addEventListener('click', async () => {
+          if (await nube.entrar()) await pintar();
+        });
+        caja.append(vacio, b);
+        return;
+      }
+
+      const tira = document.createElement('div');
+      tira.className = 'vacio';
+      tira.textContent = `Has entrado como ${correo}. `;
+      const bSalir = document.createElement('button');
+      bSalir.textContent = 'Salir';
+      bSalir.style.marginLeft = '8px';
+      bSalir.addEventListener('click', async () => {
+        await nube.salir();
+        await pintar();
+      });
+      tira.appendChild(bSalir);
+      caja.appendChild(tira);
+
+      let deAlli: MetaMundo[] = [];
+      try {
+        deAlli = await nube.almacen.listar();
+      } catch (e) {
+        console.warn('No se han podido listar los mundos de la nube:', e);
+        const mal = document.createElement('div');
+        mal.className = 'vacio';
+        mal.textContent = 'No se ha podido conectar con la nube.';
+        caja.appendChild(mal);
+        return;
+      }
+
+      if (deAlli.length === 0) {
+        const vacio = document.createElement('div');
+        vacio.className = 'vacio';
+        vacio.textContent = 'Aquí no hay ninguno todavía. Sube uno de arriba con «Subir».';
+        caja.appendChild(vacio);
+      }
+      for (const meta of deAlli) {
+        caja.appendChild(pintarFila(meta, nube.almacen, 'nube'));
+      }
+
+      // --- Invitación ---
+      const inv = document.createElement('div');
+      inv.className = 'mundo';
+      const campo = document.createElement('input');
+      campo.placeholder = 'Código de invitación';
+      campo.maxLength = 8;
+      campo.style.flex = '1';
+      campo.style.textTransform = 'uppercase';
+      const bCanjear = document.createElement('button');
+      bCanjear.textContent = 'Entrar al mundo';
+      bCanjear.addEventListener('click', async () => {
+        const codigo = campo.value.trim();
+        if (!codigo) return;
+        bCanjear.disabled = true;
+        try {
+          await nube.canjear(codigo);
+          await pintar();
+        } catch (e) {
+          bCanjear.disabled = false;
+          decirEnPie(e instanceof Error ? e.message : 'Esa invitación no vale', true);
+        }
+      });
+      inv.append(campo, bCanjear);
+      caja.appendChild(inv);
     }
 
     async function pintar(): Promise<void> {
@@ -336,9 +571,20 @@ export function mostrarMenu(
       );
       caja.appendChild(campos);
 
+      // Se pregunta antes de pintar nada porque la lista local también depende:
+      // el botón de subir solo tiene sentido con la sesión abierta.
+      let correo: string | null = null;
+      if (nube) {
+        try {
+          correo = await nube.quien();
+        } catch (e) {
+          console.warn('No se ha podido comprobar la sesión:', e);
+        }
+      }
+
       // --- Mundos guardados ---
       const h2guardados = document.createElement('h2');
-      h2guardados.textContent = 'Mundos guardados';
+      h2guardados.textContent = nube ? 'Mundos en este navegador' : 'Mundos guardados';
       caja.appendChild(h2guardados);
 
       let mundos: MetaMundo[] = [];
@@ -356,80 +602,12 @@ export function mostrarMenu(
       }
 
       for (const meta of mundos) {
-        const fila = document.createElement('div');
-        fila.className = 'mundo';
-
-        const datos = document.createElement('div');
-        datos.className = 'datos';
-        const nombre = document.createElement('div');
-        nombre.className = 'nombre';
-        nombre.textContent = meta.nombre;
-        if (meta.hardcore) {
-          const sello = document.createElement('span');
-          sello.className = meta.caido ? 'sello caido' : 'sello';
-          sello.textContent = meta.caido ? 'caído' : 'hardcore';
-          nombre.appendChild(sello);
-        }
-        const detalle = document.createElement('div');
-        detalle.className = 'detalle';
-        detalle.textContent =
-          `v${meta.versionJuego ?? '?'} · ${meta.ancho}×${meta.alto} · semilla ${meta.semilla} · ` +
-          `${duracion(meta.jugado)} jugados · ${peso(meta.bytes)} · ${fecha(meta.modificado)}`;
-        datos.append(nombre, detalle);
-
-        const jugar = document.createElement('button');
-        jugar.className = 'principal';
-        // Un hardcore caído se abre para verlo, no para seguir jugándolo.
-        jugar.textContent = meta.caido ? 'Ver' : 'Jugar';
-        jugar.addEventListener('click', () => cerrar({ tipo: 'cargar', meta }));
-
-        // --- Cambiar de versión ---
-        //
-        // Va en la fila del mundo y no en un menú aparte porque es una acción
-        // sobre ese mundo concreto, como borrarlo. El desplegable lista todas
-        // las versiones menos la suya, hacia delante y hacia atrás.
-        const versionMundo = meta.versionJuego ?? VERSION_ANTES_DE_ELEGIR;
-        const sMigrar = document.createElement('select');
-        sMigrar.className = 'migrar';
-        const vacia = document.createElement('option');
-        vacia.value = '';
-        vacia.textContent = 'Cambiar versión…';
-        sMigrar.appendChild(vacia);
-        for (const v of [...destinosPosibles(versionMundo)].reverse()) {
-          const op = document.createElement('option');
-          op.value = v.id;
-          const flecha = alMenos(v.id, versionMundo) ? '↑' : '↓';
-          op.textContent = `${flecha} ${v.id} · ${v.nombre}`;
-          sMigrar.appendChild(op);
-        }
-        sMigrar.addEventListener('change', () => {
-          const destino = sMigrar.value;
-          sMigrar.value = '';
-          if (destino) cerrar({ tipo: 'migrar', meta, destino });
-        });
-
-        const borrar = document.createElement('button');
-        borrar.className = 'peligro';
-        borrar.textContent = 'Borrar';
-        borrar.addEventListener('click', async () => {
-          // Confirmación en dos pasos, sin diálogo del navegador: borrar un
-          // mundo de horas por un clic de más no tiene vuelta atrás.
-          if (borrar.dataset.confirmar !== '1') {
-            borrar.dataset.confirmar = '1';
-            borrar.textContent = '¿Seguro?';
-            setTimeout(() => {
-              borrar.dataset.confirmar = '0';
-              borrar.textContent = 'Borrar';
-            }, 3000);
-            return;
-          }
-          await almacen.borrar(meta.id);
-          await pintar();
-        });
-
-        fila.append(datos, sMigrar, jugar, borrar);
+        const fila = pintarFila(meta, almacen, 'local');
+        if (nube && correo) fila.insertBefore(botonSubir(meta), fila.lastChild);
         caja.appendChild(fila);
       }
+
+      await pintarNube(correo);
 
       const pie = document.createElement('div');
       pie.className = 'pie';
