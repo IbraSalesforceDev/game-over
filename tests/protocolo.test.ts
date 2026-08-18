@@ -82,6 +82,10 @@ describe('instantánea', () => {
     vy: -3.25,
     banderas: 0b101,
     vida: 100,
+    ticksCoyote: 3,
+    ticksBuffer: 0,
+    ticksSalto: 7,
+    yInicioCaida: -250,
     ...extra,
   });
 
@@ -127,6 +131,27 @@ describe('instantánea', () => {
     expect(leida.entidades.map((e) => e.clase)).toEqual([ENT.BICHO, ENT.PROYECTIL]);
   });
 
+  /**
+   * Sin esto, repetir las teclas del cliente arranca en otra fase del salto.
+   * Medido antes de arreglarlo: hasta 96 px de desvío con 200 ms de red.
+   */
+  it('el estado del salto sobrevive al viaje', () => {
+    const inst = {
+      tick: 1,
+      tickConfirmado: 0,
+      entidades: [ent({ ticksCoyote: 5, ticksBuffer: 2, ticksSalto: 11, yInicioCaida: -600 })],
+    };
+    const leida = (
+      leerMensaje(escribirInstantanea(inst)) as { instantanea: typeof inst }
+    ).instantanea;
+    expect(leida.entidades[0]).toMatchObject({
+      ticksCoyote: 5,
+      ticksBuffer: 2,
+      ticksSalto: 11,
+      yInicioCaida: -600,
+    });
+  });
+
   it('una instantánea vacía es válida', () => {
     const inst = { tick: 7, tickConfirmado: 7, entidades: [] as EntidadRed[] };
     const leida = (
@@ -155,7 +180,10 @@ describe('basura por el cable', () => {
       tick: 1,
       tickConfirmado: 0,
       entidades: [
-        { clase: ENT.JUGADOR, id: 1, x: 1, y: 2, vx: 0, vy: 0, banderas: 0, vida: 1 },
+        {
+          clase: ENT.JUGADOR, id: 1, x: 1, y: 2, vx: 0, vy: 0, banderas: 0, vida: 1,
+          ticksCoyote: 0, ticksBuffer: 0, ticksSalto: 0, yInicioCaida: 0,
+        },
       ],
     });
     expect(leerMensaje(entero.slice(0, entero.length - 4))).toBeNull();

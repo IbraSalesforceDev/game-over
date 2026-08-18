@@ -126,6 +126,20 @@ export interface Entrada {
   ratonTy: number;
 }
 
+/**
+ * Los bits de `banderas`.
+ *
+ * No son adorno: sin ellos, repetir las teclas del cliente arranca en una fase
+ * de salto equivocada y el personaje acaba en otro sitio. Medido: hasta 96 px
+ * —seis tiles— de desvío con 200 ms de red. Ver `prediccion.ts`.
+ */
+export const BANDERA = {
+  EN_SUELO: 1 << 0,
+  SALTANDO: 1 << 1,
+  NADABA: 1 << 2,
+  MIRA_DERECHA: 1 << 3,
+} as const;
+
 export interface EntidadRed {
   clase: ClaseEntidad;
   id: number;
@@ -137,6 +151,19 @@ export interface EntidadRed {
   vy: number;
   banderas: number;
   vida: number;
+  /**
+   * El estado del salto.
+   *
+   * Va en la instantánea porque la reconciliación lo necesita para volver a
+   * aplicar las teclas desde el sitio correcto. La posición sola no vale: dos
+   * personajes en el mismo punto, uno subiendo y otro cayendo, se separan al
+   * tick siguiente.
+   */
+  ticksCoyote: number;
+  ticksBuffer: number;
+  ticksSalto: number;
+  /** Desde qué altura se empezó a caer, para el daño por caída. */
+  yInicioCaida: number;
 }
 
 export interface Instantanea {
@@ -231,6 +258,10 @@ export function escribirInstantanea(inst: Instantanea): Uint8Array {
     e.i16(Math.max(-32768, Math.min(32767, Math.round(ent.vy * 256))));
     e.u8(ent.banderas);
     e.u16(Math.max(0, Math.min(65535, Math.round(ent.vida))));
+    e.u8(Math.max(0, Math.min(255, ent.ticksCoyote)));
+    e.u8(Math.max(0, Math.min(255, ent.ticksBuffer)));
+    e.u8(Math.max(0, Math.min(255, ent.ticksSalto)));
+    e.i16(Math.max(-32768, Math.min(32767, Math.round(ent.yInicioCaida))));
   }
   return e.terminar();
 }
@@ -318,6 +349,10 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
             vy: l.i16() / 256,
             banderas: l.u8(),
             vida: l.u16(),
+            ticksCoyote: l.u8(),
+            ticksBuffer: l.u8(),
+            ticksSalto: l.u8(),
+            yInicioCaida: l.i16(),
           });
         }
         return { tipo: MSG.INSTANTANEA, instantanea: { tick, tickConfirmado, entidades } };
