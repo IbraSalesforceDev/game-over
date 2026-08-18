@@ -6,7 +6,11 @@ crafteo. Web, sin backend, desplegado en Vercel.
 
 Se construye por fases, cada una jugable y desplegable por separado.
 
-📋 **[Hoja de ruta por fases → `docs/ROADMAP.md`](docs/ROADMAP.md)**
+🏗️ **[Cómo está montado por dentro → `docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)**
+
+🗂️ **[Versiones → `docs/VERSIONES.md`](docs/VERSIONES.md)**
+
+📋 **[Hoja de ruta por fases (historia) → `docs/ROADMAP.md`](docs/ROADMAP.md)**
 
 ## Estado
 
