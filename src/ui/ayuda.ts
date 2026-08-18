@@ -51,6 +51,7 @@ const GRUPOS: Grupo[] = [
       ['Inscripción', 'El equipo de jefe lleva una · se lee pasando el ratón'],
       ['Reliquia', 'La suelta cualquier hostil · es lo que pide el altar'],
       ['Reliquias de bioma', 'Una por jefe, del arma que suelta · las seis abren el final'],
+      ['Placas', 'El trofeo de un jefe se cuelga en la pared · alumbra un poco'],
       ['Ratón encima', 'Pásalo por una ranura y sale la ficha del objeto'],
       ['1 – 0 · rueda', 'Elegir ranura'],
       ['Tab', 'Cambiar entre bloque y pared'],

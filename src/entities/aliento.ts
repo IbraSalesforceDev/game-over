@@ -69,6 +69,13 @@ export function tickAliento(
   cabezaDentro: boolean,
   enLava: boolean,
   castigo = 1,
+  /**
+   * Lo que multiplica el gasto de aire. Menos de uno es que dura más.
+   *
+   * Va como número y no como "¿lleva agallas puestas?" para que este módulo no
+   * tenga que saber que existen las pociones: recibe un factor y ya.
+   */
+  ritmoAire = 1,
 ): ResultadoAliento {
   let motivo: ResultadoAliento['motivo'] = null;
   let dano = false;
@@ -78,7 +85,7 @@ export function tickAliento(
   // --- Aire ---
   if (cabezaDentro) {
     if (a.aire > 0) {
-      a.aire--;
+      a.aire = Math.max(0, a.aire - ritmoAire);
       a.proximoAhogo = INTERVALO_AHOGO;
     } else if (--a.proximoAhogo <= 0) {
       a.proximoAhogo = INTERVALO_AHOGO;

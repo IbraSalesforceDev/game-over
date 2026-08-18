@@ -12,6 +12,7 @@ import {
   ARENISCA,
   CACTUS,
   CALDERO,
+  PLACAS,
   CRISTAL_VIDA,
   COBRE,
   COFRE,
@@ -308,6 +309,9 @@ export const RELIQUIA_INFIERNO = 261;
 /** Lo que deja el jefe de verdad. */
 export const ESPADA_VERDADERA = 262;
 export const CORONA_ROTA = 263;
+/** 7.3.0: dos pociones más, para los dos ratos del juego que eran esperar. */
+export const POCION_AGALLAS = 264;
+export const POCION_BRIO = 265;
 
 /**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
@@ -866,6 +870,17 @@ const ENTRADAS: [number, DefObjeto][] = [
     },
   ],
   trofeo(CORONA_ROTA, 'corona rota', '#c7a2f5'),
+  pocion(POCION_AGALLAS, 'poción de agallas', '#6fc4e0', {
+    efecto: 'agallas',
+    duracion: DURACION.pocion,
+  }),
+  pocion(POCION_BRIO, 'poción de brío', '#e8b04a', {
+    efecto: 'brio',
+    duracion: DURACION.pocion,
+  }),
+  // Las seis placas de trofeo. Son bloques, así que se cuelgan y se recuperan
+  // como cualquier otro: nadie quiere perder el trofeo por haberlo puesto mal.
+  ...PLACAS.map((p) => deTile(p)),
   // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
   // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
   [
@@ -1499,6 +1514,7 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
       ESPADA_VERDADERA, CORONA_ROTA,
     ],
   ],
+  ['7.3.0', [POCION_AGALLAS, POCION_BRIO, ...PLACAS]],
 ];
 
 /**

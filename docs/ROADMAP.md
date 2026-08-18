@@ -327,6 +327,15 @@ las tres cosas de la sección siguiente, y esas esperan a que se diga.
    los seis jefes se usa el altar de la fortaleza de siempre y sale el jefe
    final, mejor estéticamente y con ataques especiales.
 
+## Después del contenido de prealfa
+
+- **7.2.1** — repaso: seis fallos de la tanda de jefes (el altar no daba
+  ninguna pista sobre las reliquias, el golpe doble ignoraba las pociones, el
+  jefe final soltaba el doble de esencia, la Q se colaba con paneles abiertos).
+- **7.3.0** — placas de trofeo para colgar en la pared, poción de agallas y de
+  brío, y una pantalla de final de verdad cuando cae el guardián verdadero
+  (guardado v16: el mundo recuerda que lo has terminado).
+
 ## Dónde acaba la prealfa
 
 El juego sale de prealfa cuando estén las tres cosas que lo convierten en algo

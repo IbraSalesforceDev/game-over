@@ -161,7 +161,7 @@ describe('migrar entre versiones no rompe nada', () => {
       creado: 0, jugado: 0, material: 0, capaPared: false, minutos: 600,
       inventario: [], equipo: [], cofres: [], vida: 100, vidaMax: 100, hambre: 100,
       dificultad: DIFICULTAD_POR_DEFECTO, hardcore: false, hardcoreMuerto: false,
-      estructuras: [], jefeVencido: false, versionJuego: v, mundoHondo: false,
+      estructuras: [], jefeVencido: false, finalVencido: false, versionJuego: v, mundoHondo: false,
     };
   }
 

@@ -5,6 +5,8 @@ import {
   ALTAR,
   ANTORCHA,
   CALDERO,
+  COLOR_PLACA,
+  PLACAS,
   ARENISCA,
   LADRILLO,
   BARRO,
@@ -722,6 +724,49 @@ function pintarEspeciales(atlas: HTMLCanvasElement): void {
       ctx.fillRect(ox + 4 + ((v * 3) % 7), oy + 6, 2, 1);
     }
   }
+
+  // Las placas de trofeo: marco de madera, fondo oscuro y dentro la forma del
+  // jefe en su color. Se dibujan a mano por lo mismo que el altar y el caldero
+  // —hay que reconocerlas de lejos— y porque una placa con grano de tierra no
+  // parece un cuadro, parece un bloque marrón.
+  PLACAS.forEach((placa, i) => {
+    const color = COLOR_PLACA[i]!;
+    const claro = css(rgb(color, 40));
+    const oscuro = css(rgb(color, -50));
+    ctx.clearRect(0, placa * MASCARAS * TILE, atlas.width, MASCARAS * TILE);
+    for (let m = 0; m < MASCARAS; m++) {
+      const oy = (placa * MASCARAS + m) * TILE;
+      for (let v = 0; v < VARIANTES; v++) {
+        const ox = v * TILE;
+        // Marco.
+        ctx.fillStyle = '#5a4028';
+        ctx.fillRect(ox + 1, oy + 2, 14, 12);
+        ctx.fillStyle = '#7a5a38';
+        ctx.fillRect(ox + 1, oy + 2, 14, 1);
+        ctx.fillStyle = '#3a2818';
+        ctx.fillRect(ox + 1, oy + 13, 14, 1);
+        // Fondo del cuadro.
+        ctx.fillStyle = '#1a1620';
+        ctx.fillRect(ox + 3, oy + 4, 10, 8);
+        // La silueta: un bulto con dos ojos. Es poco, pero a dieciséis píxeles
+        // cualquier cosa más detallada se convierte en papilla, y lo que hace
+        // falta es que se distinga una placa de otra por el color.
+        ctx.fillStyle = color;
+        ctx.fillRect(ox + 5, oy + 7, 6, 4);
+        ctx.fillRect(ox + 6, oy + 5, 4, 2);
+        ctx.fillStyle = claro;
+        ctx.fillRect(ox + 6, oy + 5, 4, 1);
+        ctx.fillStyle = oscuro;
+        ctx.fillRect(ox + 5, oy + 10, 6, 1);
+        ctx.fillStyle = '#12101a';
+        ctx.fillRect(ox + 6, oy + 7, 1, 1);
+        ctx.fillRect(ox + 9, oy + 7, 1, 1);
+        // Y el clavo de arriba, que es lo que dice que está colgada.
+        ctx.fillStyle = '#9aa4ad';
+        ctx.fillRect(ox + 7, oy, 2, 2);
+      }
+    }
+  });
 }
 
 function crearGrietas(): HTMLCanvasElement {

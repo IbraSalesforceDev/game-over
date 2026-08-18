@@ -101,6 +101,42 @@ export const INTERRUPTOR_ENCENDIDO = 66;
 export const CALDERO = 67;
 
 /**
+ * 7.3.0: las placas de trofeo, una por jefe de bioma.
+ *
+ * Son adorno y nada más, y por eso existen: el juego no tenía ni una sola cosa
+ * que sirviera para enseñar lo que has hecho. Un trofeo en el zurrón es un
+ * número; clavado en la pared de tu base es lo único que cuenta la partida sin
+ * abrir ningún menú. Y de paso le da un segundo destino a los trofeos que
+ * sobran de forjar el equipo.
+ */
+export const PLACA_PRADERA = 68;
+export const PLACA_DESIERTO = 69;
+export const PLACA_NIEVE = 70;
+export const PLACA_JUNGLA = 71;
+export const PLACA_CUEVA = 72;
+export const PLACA_INFIERNO = 73;
+
+/** Las seis, en el orden de los jefes. */
+export const PLACAS: readonly number[] = [
+  PLACA_PRADERA,
+  PLACA_DESIERTO,
+  PLACA_NIEVE,
+  PLACA_JUNGLA,
+  PLACA_CUEVA,
+  PLACA_INFIERNO,
+];
+
+/** El color del jefe de cada placa, que es lo único que las distingue. */
+export const COLOR_PLACA: readonly string[] = [
+  '#5ad07a',
+  '#e0b45a',
+  '#dceef8',
+  '#4f9b3a',
+  '#b8b2a0',
+  '#ff7a3a',
+];
+
+/**
  * Las dos parejas apagado/encendido de la instalación.
  *
  * El estado va en el propio identificador del tile y no en una capa nueva, y esa
@@ -570,7 +606,36 @@ export const TILES: readonly DefTile[] = [
     luz: 26,
     nivelPico: 1,
   },
+  // Las seis placas. No frenan el paso —son un cuadro, no un bloque— y alumbran
+  // un poco: una sala de trofeos que hay que iluminar aparte no la monta nadie.
+  ...placas(),
 ];
+
+/**
+ * Las seis placas, generadas de la lista de colores.
+ *
+ * Escritas a mano serían seis bloques calcados con el color cambiado, que es
+ * donde se cuela la errata que nadie ve.
+ */
+function placas(): DefTile[] {
+  const nombres = [
+    'placa de la pradera',
+    'placa del desierto',
+    'placa de la nieve',
+    'placa de la selva',
+    'placa de la caverna',
+    'placa del infierno',
+  ];
+  return nombres.map((nombre, i) => ({
+    nombre,
+    solido: false,
+    plataforma: false,
+    // Blanda: una placa mal colgada no puede costar un minuto de picar.
+    dureza: 14,
+    color: COLOR_PLACA[i]!,
+    luz: 40,
+  }));
+}
 
 /** Tile usado fuera de los límites laterales e inferior del mundo. */
 export const TILE_BORDE = PIEDRA;
@@ -715,6 +780,7 @@ const TILE_DESDE: Readonly<Record<number, string>> = {
   [INTERRUPTOR]: '6.5.0',
   [INTERRUPTOR_ENCENDIDO]: '6.5.0',
   [CALDERO]: '6.9.0',
+  ...Object.fromEntries(PLACAS.map((p) => [p, '7.3.0'])),
 };
 
 /** En qué se convierte cada tile cuando su versión queda por delante. */
@@ -786,6 +852,8 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [INTERRUPTOR_ENCENDIDO]: AIRE,
   // Sin pociones, un caldero es una olla decorativa.
   [CALDERO]: AIRE,
+  // Y una placa de un jefe que aún no existía no es nada de nada.
+  ...Object.fromEntries(PLACAS.map((p) => [p, AIRE])),
 };
 
 /** Versión en la que apareció este tile. */

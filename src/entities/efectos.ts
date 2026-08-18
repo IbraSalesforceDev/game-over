@@ -26,7 +26,9 @@ export type ClaseEfecto =
   | 'regeneracion'
   | 'fuerza'
   | 'pielDePiedra'
-  | 'ligereza';
+  | 'ligereza'
+  | 'agallas'
+  | 'brio';
 
 export interface DefEfecto {
   readonly nombre: string;
@@ -63,6 +65,10 @@ export interface DefEfecto {
   readonly dano: number;
   /** Suma a la defensa, como una pieza de armadura más. */
   readonly defensa: number;
+  /** Multiplica lo deprisa que se gasta el aire bajo el agua. */
+  readonly aire: number;
+  /** Multiplica lo deprisa que se pica. */
+  readonly minado: number;
   readonly desde: string;
 }
 
@@ -85,6 +91,8 @@ function efecto(
     salto: 1,
     dano: 1,
     defensa: 0,
+    aire: 1,
+    minado: 1,
     desde: '6.9.0',
     ...extra,
   };
@@ -119,6 +127,17 @@ export const EFECTOS: Readonly<Record<ClaseEfecto, DefEfecto>> = {
   ligereza: efecto('ligereza', '#a7e8c0', false, 'Corres y saltas más', {
     velocidad: 1.2,
     salto: 1.12,
+  }),
+  // Los dos de 7.3.0. Los dos existen por lo mismo: había dos ratos del juego
+  // en los que lo único que se podía hacer era esperar —bucear y picar un muro
+  // de obsidiana— y no había nada que gastar para acortarlos.
+  agallas: efecto('agallas', '#6fc4e0', false, 'El aire te dura el triple', {
+    aire: 0.33,
+    desde: '7.3.0',
+  }),
+  brio: efecto('brío', '#e8b04a', false, 'Picas la mitad más deprisa', {
+    minado: 1.5,
+    desde: '7.3.0',
   }),
 };
 
@@ -223,6 +242,15 @@ export function multiplicadorVelocidad(ef: Efectos): number {
 
 export function multiplicadorSalto(ef: Efectos): number {
   return producto(ef, (d) => d.salto);
+}
+
+/** Cuánto se multiplica el gasto de aire. Menos de uno es que dura más. */
+export function multiplicadorAire(ef: Efectos): number {
+  return producto(ef, (d) => d.aire);
+}
+
+export function multiplicadorMinado(ef: Efectos): number {
+  return producto(ef, (d) => d.minado);
 }
 
 export function multiplicadorDano(ef: Efectos): number {

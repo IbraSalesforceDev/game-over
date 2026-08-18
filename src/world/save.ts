@@ -69,7 +69,7 @@ export const MAGIA = 0x474f5652; // 'GOVR'
  * empaquetado sube el formato sin tocar el juego, y una tanda de contenido
  * sube el juego sin tocar el formato.
  */
-export const VERSION_FORMATO = 15;
+export const VERSION_FORMATO = 16;
 
 export interface EstadoJugador {
   x: number;
@@ -121,6 +121,8 @@ export interface EstadoPartida {
   estructuras: readonly Estructura[];
   /** Ya se ha vencido al guardián al menos una vez; formato 12. */
   jefeVencido: boolean;
+  /** El guardián verdadero ha caído en este mundo; formato 16. */
+  finalVencido: boolean;
   /**
    * Versión del juego con la que se creó el mundo; formato 13.
    *
@@ -356,6 +358,9 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
   e.texto(estado.versionJuego);
   // Formato 14: si el mundo nació hondo.
   e.u8(estado.mundoHondo ? 1 : 0);
+  // formato 16: el final. Va al final del cuerpo, como todo lo que se añade,
+  // para que un guardado viejo se lea igual sin tocar nada de lo anterior.
+  e.u8(estado.finalVencido ? 1 : 0);
   escribirRle(e, mundo.tileId);
   escribirRle(e, mundo.wallId);
   escribirRle(e, capaLiquido(mundo)); // formato 6
@@ -413,6 +418,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
     // Todo lo anterior al formato 14 es de antes de que existieran los mundos
     // hondos, así que es clásico por definición.
     mundoHondo: false,
+    finalVencido: false,
   };
   /**
    * Traduce un id de objeto guardado a los ids de hoy.
@@ -474,6 +480,7 @@ export function deserializar(datos: Uint8Array, version = VERSION_FORMATO): Part
   }
   if (version >= 13) estado.versionJuego = l.texto();
   if (version >= 14) estado.mundoHondo = l.u8() === 1;
+  if (version >= 16) estado.finalVencido = l.u8() === 1;
   const mundo = new Mundo(ancho, alto);
   leerRle(l, mundo.tileId);
   leerRle(l, mundo.wallId);

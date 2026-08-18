@@ -50,6 +50,7 @@ function estadoDe(version: string, parcial: Partial<EstadoPartida> = {}): Estado
     hardcoreMuerto: false,
     estructuras: [],
     jefeVencido: false,
+    finalVencido: false,
     versionJuego: version,
     mundoHondo: false,
     ...parcial,

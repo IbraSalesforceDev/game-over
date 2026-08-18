@@ -14,7 +14,9 @@ import {
   EFECTOS,
   limpiarDaninos,
   limpiarEfectos,
+  multiplicadorAire,
   multiplicadorDano,
+  multiplicadorMinado,
   multiplicadorSalto,
   multiplicadorVelocidad,
   tickEfectos,
@@ -397,6 +399,7 @@ function partidaNueva(
       hardcoreMuerto: false,
       estructuras: gen.estructuras,
       jefeVencido: false,
+      finalVencido: false,
       versionJuego,
       // La profundidad se fija al crear el mundo y ya no cambia: acompaña al
       // mundo aunque después se migre a otra versión.
@@ -1266,6 +1269,20 @@ async function arrancar(): Promise<void> {
       aviso.mostrar(
         primera ? 'El guardián ha caído. La fortaleza es tuya.' : 'El guardián vuelve a caer.',
       );
+    } else if (especie === JEFE_FINAL) {
+      // El final de verdad. Se marca en la partida y se cuenta con una pantalla
+      // entera: el juego llevaba desde 4.0.0 teniendo un final y despachándolo
+      // con un renglón de aviso que se iba a los tres segundos.
+      const primera = !partida.estado.finalVencido;
+      partida.estado.finalVencido = true;
+      const horas = Math.floor(partida.estado.jugado / 3600000);
+      const minutos = Math.floor((partida.estado.jugado % 3600000) / 60000);
+      panelFinal(
+        primera
+          ? `Has terminado ${partida.nombre} en ${horas} h ${minutos} min. ` +
+              'El mundo sigue ahí: queda todo por construir.'
+          : `${nombre} vuelve a caer.`,
+      );
     } else {
       aviso.mostrar(`Ha caído: ${nombre}`);
     }
@@ -1430,6 +1447,20 @@ async function arrancar(): Promise<void> {
       vida: 60,
       tam: 3,
     });
+  }
+
+  /**
+   * La pantalla de final: para el bucle, la enseña y lo reanuda al cerrarla.
+   *
+   * Parar el juego es lo que la separa de un aviso. Con el mundo corriendo por
+   * detrás, el cartel más grande del juego compite con un esqueleto que viene
+   * por la izquierda, y lo que se lee es el esqueleto.
+   */
+  function panelFinal(texto: string): void {
+    bucle.parar();
+    void guardar('auto');
+    audio.sonar('recoger', 0.4);
+    panelVida.mostrarFinal(texto, () => bucle.arrancar());
   }
 
   /**
@@ -2185,7 +2216,7 @@ async function arrancar(): Promise<void> {
             tam: 2,
           });
         }
-        if (avanzarPicado(mundo, picado, tx, ty, capa, potencia * trucos.velocidadMinado)) {
+        if (avanzarPicado(mundo, picado, tx, ty, capa, potencia * trucos.velocidadMinado * multiplicadorMinado(estados))) {
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
           corrienteSucia = true;
@@ -2350,6 +2381,7 @@ async function arrancar(): Promise<void> {
       s.cabeza && !s.lava,
       s.lava,
       nivelDif.castigo,
+      multiplicadorAire(estados),
     );
     if (s.fraccion > 0 && !s.lava) apagar(aliento);
     // Salir de la lava ya no apaga: se sigue ardiendo unos segundos. Es lo que

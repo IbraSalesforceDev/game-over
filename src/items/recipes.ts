@@ -1,7 +1,7 @@
 import { TILE } from '../core/constants';
 import { alMenos, VERSION_ACTUAL } from '../core/versiones';
 import type { Caja } from '../entities/physics';
-import { ANTORCHA, ARENA, BARRO, BATERIA, CALDERO, HIELO, LIANA, NIEVE, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, BOMBILLA, CABLE, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, INTERRUPTOR, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
+import { ANTORCHA, ARENA, BARRO, BATERIA, CALDERO, HIELO, LIANA, NIEVE, PLACAS, BLOQUE_COBALTO, BLOQUE_COBRE, BLOQUE_HIERRO, BLOQUE_INFERNITA, BLOQUE_ORO, BLOQUE_PLATA, BLOQUE_TITANIO, BOMBILLA, CABLE, CACTUS, CAMA, CANA, CARBON, COBALTO, COBRE, esEstacion, HIERBA, HIERBA_JUNGLA, HIERRO, HOJAS, HOJAS_JUNGLA, HOJAS_PINO, HORNO, INFERNITA, INTERRUPTOR, LADRILLO, LADRILLO_INFERNAL, MADERA, MESA, ORO, PIEDRA, PINCHOS, PLATA, PLATAFORMA, COFRE, ROCA_INFERNAL, TIERRA, TITANIO, TRONCO, TRONCO_ABEDUL, TRONCO_JUNGLA, YUNQUE, ZANAHORIA_3 } from '../world/tiles';
 import type { Mundo } from '../world/world';
 import type { Inventario } from './inventory';
 import {
@@ -129,6 +129,8 @@ import {
   RELIQUIA_JUNGLA,
   RELIQUIA_CUEVA,
   RELIQUIA_INFIERNO,
+  POCION_AGALLAS,
+  POCION_BRIO,
 } from './items';
 
 /**
@@ -1050,8 +1052,33 @@ export const RECETAS: readonly Receta[] = [
   // del juego. El trofeo es lo que impide fabricarlas sin haber peleado, y el
   // metal es lo que impide que matar al primer jefe te dé el mejor equipo del
   // juego: hay que haber picado además.
+  {
+    id: 'pocion-agallas',
+    desde: '7.3.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [CANA, 6],
+      [GEL, 3],
+    ],
+    resultado: POCION_AGALLAS,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
+  {
+    id: 'pocion-brio',
+    desde: '7.3.0',
+    ingredientes: [
+      [FRASCO, 1],
+      [CARBON, 6],
+      [LINGOTE_HIERRO, 2],
+    ],
+    resultado: POCION_BRIO,
+    cantidad: 1,
+    estacion: CALDERO,
+  },
   ...equipoDeJefe(),
   ...reliquiasDeJefe(),
+  ...placasDeJefe(),
   ...forjas(),
   ...armaduras(),
   ...bloquesMetal(),
@@ -1338,6 +1365,37 @@ function reliquiasDeJefe(): Receta[] {
     resultado: reliquia,
     cantidad: 1,
     estacion: YUNQUE,
+  }));
+}
+
+/**
+ * Las seis placas de trofeo.
+ *
+ * Baratas y en la mesa de trabajo, no en el yunque: lo caro ya fue matar al
+ * jefe, y cobrar además un puñado de metal por colgar su cabeza convertiría el
+ * adorno en otra cuenta que hacer. Lo único que piden es el trofeo y madera
+ * para el marco.
+ */
+function placasDeJefe(): Receta[] {
+  const nombres = ['pradera', 'desierto', 'nieve', 'selva', 'caverna', 'infierno'];
+  const trofeos = [
+    TROFEO_PRADERA,
+    TROFEO_DESIERTO,
+    TROFEO_NIEVE,
+    TROFEO_JUNGLA,
+    TROFEO_CUEVA,
+    TROFEO_INFIERNO,
+  ];
+  return PLACAS.map((placa, i) => ({
+    id: `placa-${nombres[i]}`,
+    desde: '7.3.0',
+    ingredientes: [
+      [trofeos[i]!, 1],
+      [MADERA, 10],
+    ] as const,
+    resultado: placa,
+    cantidad: 1,
+    estacion: MESA,
   }));
 }
 

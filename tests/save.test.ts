@@ -50,6 +50,7 @@ function estado(parcial: Partial<EstadoPartida> = {}): EstadoPartida {
       { tipo: CABANA, tx: 214, ty: 96 },
     ],
     jefeVencido: true,
+    finalVencido: false,
     versionJuego: '4.0.0',
     mundoHondo: false,
     ...parcial,
@@ -141,21 +142,24 @@ describe('empaquetado', () => {
   function cuerpoAntiguo(
     m: Mundo,
     e: EstadoPartida,
-    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
+    version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15,
   ): Uint8Array {
     const bytesSemilla = new TextEncoder().encode(e.semilla).length;
     const comun = 4 + 4 + 2 + bytesSemilla + 8 * 6 + 1 + 1;
     const campoMinutos = 2;
     const campoInventario = 2 + 4 * e.inventario.length;
-    // Solo se construyen cuerpos antiguos sin cofres, que es el caso real.
-    const campoCofres = 2;
+    // Los cofres: el contador, y por cada uno dos enteros de posición, su
+    // contador de ranuras y cuatro bytes por ranura. Se calcula de verdad y no
+    // se supone vacío, que es lo que impedía usar esto para los formatos que ya
+    // guardaban cofres.
+    const campoCofres =
+      2 +
+      e.cofres.reduce((total, c) => total + 4 + 4 + 2 + 4 * c.ranuras.length, 0);
     const campoVida = 2;
     const campoHambre = 2;
     const campoDificultad = 1;
     const campoVidaMax = 2;
-    // Solo se construyen cuerpos antiguos con el equipo vacío, que es el caso
-    // real: nadie llevaba armadura antes de que existiera.
-    const campoEquipo = 2;
+    const campoEquipo = 2 + 4 * e.equipo.length;
     const campoHardcore = 1;
     // Cada estructura son un byte de tipo y dos enteros de coordenadas, más el
     // contador de delante; el byte del jefe va detrás de todas.
@@ -164,6 +168,8 @@ describe('empaquetado', () => {
     const campoVersionJuego = 2 + new TextEncoder().encode(e.versionJuego).length;
     // Y un byte para si el mundo nació hondo, del formato 14.
     const campoMundoHondo = 1;
+    // Y otro para si se ha terminado la partida, del 16.
+    const campoFinal = 1;
 
     const actual = serializar(m, e);
     const inicioRle =
@@ -179,7 +185,8 @@ describe('empaquetado', () => {
       campoHardcore +
       campoEstructuras +
       campoVersionJuego +
-      campoMundoHondo;
+      campoMundoHondo +
+      campoFinal;
     const rle = actual.subarray(inicioRle);
 
     let extra = 0;
@@ -194,9 +201,9 @@ describe('empaquetado', () => {
     if (version >= 11) extra += campoHardcore;
     if (version >= 12) extra += campoEstructuras;
     if (version >= 13) extra += campoVersionJuego;
-    // Lo del formato 14 nunca: aquí solo se construyen cuerpos anteriores, y
-    // recortar la cola es justo lo que hace que el lector antiguo encuentre el
-    // RLE donde lo espera.
+    if (version >= 14) extra += campoMundoHondo;
+    // Lo del formato 16 nunca: recortar la cola es justo lo que hace que un
+    // lector antiguo encuentre el RLE donde lo espera.
 
     const salida = new Uint8Array(comun + extra + rle.length);
     salida.set(actual.subarray(0, comun + extra), 0);
@@ -211,9 +218,11 @@ describe('empaquetado', () => {
     // tiene los ids viejos, y sin traducir, el pico de hierro de una partida de
     // antes se convertía en el lingote de cobalto de hoy.
     //
-    // El cuerpo del formato 14 y el del 15 son idénticos byte a byte: lo único
-    // que cambia es qué significa cada número. Así que se serializa con los ids
-    // *viejos* y se lee diciéndole al lector que el cuerpo es del formato 14.
+    // El cuerpo del 14 y el del 15 solo se diferencian en qué significa cada
+    // número, así que se escribe con los ids *viejos* y se lee diciéndole al
+    // lector que el cuerpo es del 14. El cuerpo se arma con `cuerpoAntiguo`
+    // porque desde el formato 16 hay un byte más al final que entonces no
+    // existía, y sin recortarlo el lector antiguo busca el RLE un byte tarde.
     const viejo = (id: number): number => (id >= BASE_NO_TILE ? id - 64 : id);
     const m = new Mundo(4, 4);
     const inventario: [number, number][] = [
@@ -226,7 +235,7 @@ describe('empaquetado', () => {
       equipo: [[viejo(CASCO_ORO), 1]],
       cofres: [{ tx: 1, ty: 1, ranuras: [[viejo(LINGOTE_COBRE), 7]] }],
     });
-    const { estado: leido } = deserializar(serializar(m, e), 14);
+    const { estado: leido } = deserializar(cuerpoAntiguo(m, e, 14), 14);
     expect(leido.inventario).toEqual(inventario);
     expect(leido.equipo).toEqual([[CASCO_ORO, 1]]);
     expect(leido.cofres[0]!.ranuras).toEqual([[LINGOTE_COBRE, 7]]);

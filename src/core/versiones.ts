@@ -615,6 +615,20 @@ export const VERSIONES: readonly Version[] = [
       'El mandoble de la caverna deducía el bioma sesenta veces por segundo',
     ],
   },
+  {
+    id: '7.3.0',
+    etapa: 'prealfa',
+    nombre: 'Trofeos y oficio',
+    resumen: 'Algo que enseñar en la pared y dos pociones para lo que era esperar.',
+    cambios: [
+      'Seis placas de trofeo, una por jefe: se cuelgan, alumbran y se recuperan',
+      'Le dan un segundo destino a los trofeos que sobran de forjar el equipo',
+      'Poción de agallas: el aire bajo el agua dura el triple',
+      'Poción de brío: se pica la mitad más deprisa',
+      'Pantalla de final al matar al guardián verdadero, con el tiempo jugado',
+      'El mundo recuerda que lo has terminado (guardado v16)',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -696,6 +710,8 @@ export const DESDE = {
   jefesDeBioma: '7.0.0',
   equipoDeJefe: '7.1.0',
   jefeFinal: '7.2.0',
+  trofeosDePared: '7.3.0',
+  pocionesDeOficio: '7.3.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

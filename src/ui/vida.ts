@@ -61,6 +61,19 @@ const ESTILO = `
   font-size: clamp(1.8rem, 7vw, 3.2rem); letter-spacing: .18em; text-transform: uppercase;
   color: #ff6b6b; text-shadow: 0 0 24px rgba(255,107,107,.4), 0 3px 0 #000;
 }
+/* El final. Es la misma capa que la muerte —tapa la pantalla y dice una cosa
+   grande— pero en morado y sin prisa: la de morir se va sola a los dos
+   segundos porque uno quiere volver, y esta se queda hasta que la cierras,
+   porque es lo último que pasa en la partida. */
+#muerte.final { background: rgba(24, 12, 40, .78); }
+#muerte.final h2 { color: #d8c0ff; text-shadow: 0 0 30px rgba(200,160,255,.5), 0 3px 0 #000; }
+#muerte .cerrar-final {
+  margin-top: 6px; padding: 8px 22px; cursor: pointer; pointer-events: auto;
+  background: #2a2040; border: 1px solid #4a3a70; border-radius: 7px;
+  color: #e0d0ff; font: 11px ui-monospace, monospace; letter-spacing: .12em;
+  display: none;
+}
+#muerte.final .cerrar-final { display: block; }
 `;
 
 export interface PanelVida {
@@ -70,6 +83,15 @@ export interface PanelVida {
   /** Medidor de aire. Se esconde solo cuando los pulmones están llenos. */
   refrescarAliento(a: Aliento): void;
   mostrarMuerte(visible: boolean, texto?: string): void;
+  /**
+   * La pantalla de final, cuando cae el guardián verdadero.
+   *
+   * Va aquí y no en un panel nuevo porque es exactamente la misma pieza que la
+   * de muerte: una capa que tapa, un titular y una línea. Duplicarla para
+   * cambiarle el color habría sido tener dos sitios donde arreglar el mismo
+   * problema de centrado.
+   */
+  mostrarFinal(texto: string, alCerrar: () => void): void;
 }
 
 /**
@@ -118,7 +140,10 @@ export function crearPanelVida(
   const titulo = document.createElement('h2');
   titulo.textContent = 'Has muerto';
   const detalle = document.createElement('div');
-  muerte.append(titulo, detalle);
+  const cerrarFinal = document.createElement('button');
+  cerrarFinal.className = 'cerrar-final';
+  cerrarFinal.textContent = 'Seguir jugando';
+  muerte.append(titulo, detalle, cerrarFinal);
 
   contenedor.append(panel, hambre, aliento, muerte);
   // Se esconden de una vez y para siempre: ninguno de los tres puede aparecer
@@ -174,8 +199,19 @@ export function crearPanelVida(
       alientoRelleno.style.width = `${Math.round((a.aire / ALIENTO_MAXIMO) * 100)}%`;
     },
     mostrarMuerte(visible, texto = '') {
+      muerte.classList.remove('final');
       muerte.classList.toggle('visible', visible);
+      titulo.textContent = 'Has muerto';
       detalle.textContent = texto;
+    },
+    mostrarFinal(texto, alCerrar) {
+      muerte.classList.add('visible', 'final');
+      titulo.textContent = 'Se acabó';
+      detalle.textContent = texto;
+      cerrarFinal.onclick = () => {
+        muerte.classList.remove('visible', 'final');
+        alCerrar();
+      };
     },
   };
 }
