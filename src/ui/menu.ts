@@ -352,7 +352,11 @@ export function mostrarMenu(
         console.warn('No se han podido listar los mundos de la nube:', e);
         const mal = document.createElement('div');
         mal.className = 'vacio';
-        mal.textContent = 'No se ha podido conectar con la nube.';
+        // El motivo, no un "algo ha fallado". Un mensaje genérico obliga a abrir
+        // la consola del navegador para saber qué pasa, y quien juega no la abre.
+        mal.textContent = `No se ha podido leer la nube: ${
+          e instanceof Error ? e.message : String(e)
+        }`;
         caja.appendChild(mal);
         return;
       }

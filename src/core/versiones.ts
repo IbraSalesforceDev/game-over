@@ -654,6 +654,19 @@ export const VERSIONES: readonly Version[] = [
       'Sin cuenta, todo sigue funcionando igual que siempre y sin descargar nada',
     ],
   },
+  {
+    id: '7.4.1',
+    etapa: 'prealfa',
+    nombre: 'Subir un mundo, ahora de verdad',
+    resumen: 'Subir a la nube fallaba siempre. Dos motivos, los dos del montaje del servidor.',
+    cambios: [
+      'La nube pedía un id con forma de uuid y el juego los genera a su manera',
+      'Y la ficha tiene que existir antes que el mundo, o el permiso no sabe de quién es',
+      'Un id no puede llevar barras: es el nombre de una carpeta',
+      'Si el mundo no llega, se deshace la ficha recién creada',
+      'Cuando algo falla, el menú dice qué ha fallado en vez de "no se ha podido"',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

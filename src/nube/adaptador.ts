@@ -78,11 +78,16 @@ export class AlmacenNube implements SaveAdapter {
   /**
    * Guarda ficha y mundo.
    *
-   * **El blob primero y la ficha después**, y el orden importa: la ficha lleva
-   * `actualizado`, que es con lo que se decide si lo de la nube es más nuevo que
-   * lo del disco. Si se escribiera antes y fallara la subida, la ficha diría que
-   * hay algo más nuevo arriba que en realidad no está, y el jugador acabaría
-   * descartando progreso bueno a cambio de nada.
+   * **La ficha primero y el blob después.** Va al revés de lo que parece
+   * prudente, y la razón es el RLS: la política del bucket averigua de quién es
+   * un fichero mirando la carpeta —que es el id de la partida— y buscando esa
+   * partida en la tabla. Si la ficha no existe todavía, no hay dueño que
+   * comprobar y **la subida se rechaza siempre**. Es imposible subir el blob
+   * antes.
+   *
+   * Lo que protege contra dejar una ficha prometiendo un mundo que no está: si
+   * la partida era nueva y el blob no llega, se borra la ficha recién creada.
+   * Lo que no puede quedar es una partida en la lista que no se pueda abrir.
    */
   async guardar(id: string, meta: MetaMundo, datos: Uint8Array): Promise<void> {
     if (datos.length > TOPE_BYTES) {
@@ -96,13 +101,13 @@ export class AlmacenNube implements SaveAdapter {
     const yo = sesion.session?.user.id;
     if (!yo) throw new Error('Hay que entrar con una cuenta para guardar en la nube');
 
-    const { error: errorBlob } = await sb.storage
-      .from(BUCKET)
-      .upload(rutaMundo(id), new Blob([datos as BlobPart], { type: 'application/octet-stream' }), {
-        upsert: true,
-        contentType: 'application/octet-stream',
-      });
-    if (errorBlob) throw new Error(`No se ha podido subir el mundo: ${errorBlob.message}`);
+    // ¿Existía ya? Decide si un fallo de subida hay que deshacerlo.
+    const { data: previa } = await sb
+      .from('partidas')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+    const eraNueva = !previa;
 
     const fila = {
       id,
@@ -122,6 +127,19 @@ export class AlmacenNube implements SaveAdapter {
     // se encarga de que un `update` sobre la partida de otro no cuele.
     const { error } = await sb.from('partidas').upsert(fila, { onConflict: 'id' });
     if (error) throw new Error(`No se ha podido guardar la partida: ${error.message}`);
+
+    const { error: errorBlob } = await sb.storage
+      .from(BUCKET)
+      .upload(rutaMundo(id), new Blob([datos as BlobPart], { type: 'application/octet-stream' }), {
+        upsert: true,
+        contentType: 'application/octet-stream',
+      });
+    if (errorBlob) {
+      // Una ficha sin mundo es una partida que sale en la lista y no se puede
+      // abrir. Si acabamos de crearla, se deshace.
+      if (eraNueva) await sb.from('partidas').delete().eq('id', id);
+      throw new Error(`No se ha podido subir el mundo: ${errorBlob.message}`);
+    }
   }
 
   /**

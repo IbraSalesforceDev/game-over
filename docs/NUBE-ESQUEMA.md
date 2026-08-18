@@ -72,6 +72,26 @@ juego.canjear(codigo text) returns uuid
 - Canjear dos veces **no gasta dos usos**. Que a alguien se le cierre la pestaña
   y vuelva a pegar el código no debería quemar la invitación.
 
+## Dos cosas que solo se ven probándolo de verdad
+
+**1. Los ids de partida son texto, no uuid.** El juego lleva generándolos desde
+la fase 4 con `nuevoId()` —una `m`, la fecha en base 36 y azar: `mmsux3lc15y1v`—
+y el esquema se diseñó pidiendo uuid sin mirarlo. Se arregló por el lado de la
+nube y no por el del juego a propósito: **el id es lo que ata el mundo del
+navegador con su copia de la nube**, y cambiárselo al subir haría que dejara de
+ser el mismo mundo mudado de sitio.
+
+Lleva `check (id ~ '^[a-z0-9]{6,40}$')`, y eso no es cosmético: **el id es el
+nombre de una carpeta del bucket**, así que sin acotarlo se podrían colar barras
+o puntos y escribir fuera de la carpeta de la partida.
+
+**2. La ficha va antes que el blob.** Parece imprudente y es obligatorio: la
+política del bucket averigua de quién es un fichero mirando su carpeta y buscando
+esa partida en la tabla. **Sin ficha no hay dueño que comprobar y la subida se
+rechaza siempre.** Lo que compensa el riesgo es que, si la partida era nueva y el
+blob no llega, el cliente borra la ficha recién creada: lo que no puede quedar es
+una partida en la lista que no se pueda abrir.
+
 ## Lo que tiene que hacer el cliente, y no se puede olvidar
 
 > **Al borrar una partida hay que borrar antes el blob**, con la API de Storage,

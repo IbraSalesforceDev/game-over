@@ -18,6 +18,8 @@ let haySesion = true;
 let fallaSubida: string | null = null;
 let fallaBorradoBlob: string | null = null;
 let filas: unknown[] = [];
+let yaExistia = false;
+let fallaBorradoFicha = false;
 
 function clienteFalso() {
   return {
@@ -52,7 +54,12 @@ function clienteFalso() {
           pasos.push('leer filas');
           return { data: filas, error: null };
         },
-        eq: () => ({ maybeSingle: async () => ({ data: { propietario: 'yo' }, error: null }) }),
+        eq: () => ({
+          maybeSingle: async () => {
+            pasos.push('mirar si existia');
+            return { data: yaExistia ? { id: 'p1', propietario: 'yo' } : null, error: null };
+          },
+        }),
       }),
       upsert: async () => {
         pasos.push('escribir ficha');
@@ -61,7 +68,7 @@ function clienteFalso() {
       delete: () => ({
         eq: async () => {
           pasos.push('borrar ficha');
-          return { error: null };
+          return { error: fallaBorradoFicha ? { message: 'no se pudo' } : null };
         },
       }),
     }),
@@ -114,6 +121,8 @@ describe('AlmacenNube', () => {
     fallaSubida = null;
     fallaBorradoBlob = null;
     filas = [];
+    yaExistia = false;
+    fallaBorradoFicha = false;
   });
 
   const meta = {
@@ -131,24 +140,40 @@ describe('AlmacenNube', () => {
   };
 
   /**
-   * El orden que evita perder progreso.
+   * El orden que impone el RLS, y que no se puede invertir.
    *
-   * La ficha lleva `actualizado`, que es con lo que se decide si lo de la nube
-   * es más nuevo que lo del disco. Escribirla antes de que el mundo esté arriba
-   * haría que la nube prometiera algo que no tiene, y el jugador acabaría
-   * descartando progreso bueno a cambio de nada.
+   * La política del bucket averigua de quién es un fichero mirando su carpeta
+   * —el id de la partida— y buscando esa partida en la tabla. Sin ficha no hay
+   * dueño que comprobar y la subida se rechaza siempre. Si alguien le da la
+   * vuelta a esto «por prudencia», subir un mundo nuevo deja de funcionar.
    */
-  it('sube el mundo ANTES de escribir la ficha', async () => {
+  it('escribe la ficha ANTES de subir el mundo', async () => {
     await new AlmacenNube().guardar('p1', meta, new Uint8Array([1, 2, 3]));
-    expect(pasos.indexOf('subir blob')).toBeLessThan(pasos.indexOf('escribir ficha'));
+    expect(pasos.indexOf('escribir ficha')).toBeLessThan(pasos.indexOf('subir blob'));
   });
 
-  it('si falla la subida, la ficha no se escribe', async () => {
+  /** Una ficha sin mundo sale en la lista y no se puede abrir. */
+  it('si falla la subida de un mundo nuevo, la ficha se deshace', async () => {
     fallaSubida = 'sin espacio';
     await expect(
       new AlmacenNube().guardar('p1', meta, new Uint8Array([1, 2, 3])),
     ).rejects.toThrow(/no se ha podido subir/i);
-    expect(pasos).not.toContain('escribir ficha');
+    expect(pasos).toContain('escribir ficha');
+    expect(pasos).toContain('borrar ficha');
+  });
+
+  /**
+   * Pero solo si era nueva. Si la partida ya existía con su mundo bueno, un
+   * autoguardado fallido no puede llevarse por delante la ficha de una partida
+   * que se lleva jugando horas.
+   */
+  it('si falla la subida de una partida que ya existía, NO se borra la ficha', async () => {
+    yaExistia = true;
+    fallaSubida = 'se cayó la red';
+    await expect(
+      new AlmacenNube().guardar('p1', meta, new Uint8Array([1, 2, 3])),
+    ).rejects.toThrow(/no se ha podido subir/i);
+    expect(pasos).not.toContain('borrar ficha');
   });
 
   it('sin sesión no se guarda, y se dice por qué', async () => {
@@ -157,6 +182,7 @@ describe('AlmacenNube', () => {
       new AlmacenNube().guardar('p1', meta, new Uint8Array([1, 2, 3])),
     ).rejects.toThrow(/entrar con una cuenta/i);
     expect(pasos).not.toContain('subir blob');
+    expect(pasos).not.toContain('escribir ficha');
   });
 
   it('un blob más grande que el tope se para aquí, no en el servidor', async () => {
