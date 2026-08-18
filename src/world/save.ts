@@ -13,6 +13,7 @@ import type { Estructura, TipoEstructura } from './estructuras';
  */
 export const VERSION_ANTES_DE_ELEGIR = '4.1.0';
 import { Mundo } from './world';
+import { Escritor, Lector } from '../core/bytes';
 
 /**
  * Serialización del mundo.
@@ -172,100 +173,6 @@ export interface Partida {
 }
 
 // --- Escritura y lectura de bytes --------------------------------------------
-
-class Escritor {
-  private buf = new Uint8Array(1 << 16);
-  private vista = new DataView(this.buf.buffer);
-  private pos = 0;
-
-  private asegurar(bytes: number): void {
-    if (this.pos + bytes <= this.buf.length) return;
-    let nuevo = this.buf.length * 2;
-    while (nuevo < this.pos + bytes) nuevo *= 2;
-    const copia = new Uint8Array(nuevo);
-    copia.set(this.buf);
-    this.buf = copia;
-    this.vista = new DataView(this.buf.buffer);
-  }
-
-  u8(v: number): void {
-    this.asegurar(1);
-    this.vista.setUint8(this.pos, v);
-    this.pos += 1;
-  }
-
-  u16(v: number): void {
-    this.asegurar(2);
-    this.vista.setUint16(this.pos, v);
-    this.pos += 2;
-  }
-
-  u32(v: number): void {
-    this.asegurar(4);
-    this.vista.setUint32(this.pos, v);
-    this.pos += 4;
-  }
-
-  f64(v: number): void {
-    this.asegurar(8);
-    this.vista.setFloat64(this.pos, v);
-    this.pos += 8;
-  }
-
-  texto(v: string): void {
-    const bytes = new TextEncoder().encode(v);
-    this.u16(bytes.length);
-    this.asegurar(bytes.length);
-    this.buf.set(bytes, this.pos);
-    this.pos += bytes.length;
-  }
-
-  terminar(): Uint8Array {
-    return this.buf.slice(0, this.pos);
-  }
-}
-
-class Lector {
-  private vista: DataView;
-  private pos = 0;
-
-  constructor(private readonly buf: Uint8Array) {
-    this.vista = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  }
-
-  u8(): number {
-    return this.vista.getUint8(this.pos++);
-  }
-
-  u16(): number {
-    const v = this.vista.getUint16(this.pos);
-    this.pos += 2;
-    return v;
-  }
-
-  u32(): number {
-    const v = this.vista.getUint32(this.pos);
-    this.pos += 4;
-    return v;
-  }
-
-  f64(): number {
-    const v = this.vista.getFloat64(this.pos);
-    this.pos += 8;
-    return v;
-  }
-
-  texto(): string {
-    const n = this.u16();
-    const bytes = this.buf.subarray(this.pos, this.pos + n);
-    this.pos += n;
-    return new TextDecoder().decode(bytes);
-  }
-
-  get agotado(): boolean {
-    return this.pos >= this.buf.length;
-  }
-}
 
 // --- RLE ---------------------------------------------------------------------
 
