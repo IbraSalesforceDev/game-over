@@ -433,7 +433,8 @@ export type EspecieSprite =
   | 'yeti'
   | 'aranaMadre'
   | 'devorador'
-  | 'senorDelFuego';
+  | 'senorDelFuego'
+  | 'guardianVerdadero';
 
 interface Molde {
   ancho: number;
@@ -1573,6 +1574,97 @@ const MOLDES: Record<EspecieSprite, Molde> = {
           );
         }
       }
+    },
+  },
+
+  /**
+   * El guardián verdadero: la máscara del guardián, pero coronada y con las
+   * seis reliquias girando alrededor.
+   *
+   * Se parece al guardián a propósito. Lo que se quiere decir es "esto es lo
+   * que había detrás del otro", y para eso tiene que reconocerse la misma
+   * silueta —el rombo, los cuernos, el ojo— antes de ver que es más grande y
+   * que lleva otras cosas encima. Un jefe final que no se parece a nada de lo
+   * anterior se lee como un bicho más, solo que enorme.
+   *
+   * Las seis piedras que orbitan llevan el color de cada bioma, en el orden en
+   * que se consiguen. No es decoración: es lo único de la pantalla que dice de
+   * dónde ha salido esta pelea.
+   */
+  guardianVerdadero: {
+    ancho: 104,
+    alto: 104,
+    frames: 8,
+    offX: -6,
+    offY: -6,
+    pintar(ctx, ox, oy, f) {
+      const piedra = tono('#d8c0ff', 30, 42);
+      const oscuro = tono('#6a4aa0', 24, 30);
+      const oro = tono('#f0cc66', 30, 44);
+      const cx = ox + 52;
+      const cy = oy + 52;
+      const t = (f / 8) * Math.PI * 2;
+      const flota = Math.round(Math.sin(t) * 4);
+      const by = cy + flota;
+
+      // Tres capas de aura: es el jefe que más ocupa y el que más tiene que
+      // despegar del ladrillo de la sala.
+      ctx.globalAlpha = 0.14;
+      elipse(ctx, cx, by, 50, 50, '#c0a0ff');
+      ctx.globalAlpha = 0.2;
+      elipse(ctx, cx, by, 36, 36, '#d8c0ff');
+      ctx.globalAlpha = 0.26;
+      elipse(ctx, cx, by, 22, 22, '#f2e4ff');
+      ctx.globalAlpha = 1;
+
+      // Las seis reliquias, girando.
+      const colores = ['#7fd15a', '#e0c070', '#cfeaf8', '#6ab84a', '#b8b2a0', '#ff6a28'];
+      for (let i = 0; i < 6; i++) {
+        const a = t + (i / 6) * Math.PI * 2;
+        const rx = cx + Math.cos(a) * 44;
+        const ry = by + Math.sin(a) * 34;
+        elipse(ctx, rx, ry, 6, 6, colores[i]!);
+        px(ctx, rx - 2, ry - 3, 2, 2, '#ffffff');
+      }
+
+      // Hombreras, más grandes que las del guardián y en contrafase.
+      const orbita = Math.round(Math.cos(t) * 5);
+      for (const lado of [-1, 1]) {
+        const px0 = cx + lado * 34 - 6;
+        const py0 = by - 12 + lado * orbita;
+        bloque(ctx, px0, py0, 14, 24, oscuro);
+        px(ctx, px0, py0, 14, 4, oro.base);
+        px(ctx, px0 + (lado < 0 ? 0 : 10), py0 + 4, 4, 20, piedra.claro);
+      }
+
+      // El rombo del cuerpo, la misma forma que el guardián pero mayor.
+      for (let i = -27; i <= 27; i++) {
+        const ancho = 28 - Math.abs(i);
+        if (ancho <= 0) continue;
+        px(ctx, cx - ancho, by + i, ancho * 2, 1, i < 0 ? piedra.claro : piedra.base);
+      }
+      px(ctx, cx - 11, by - 16, 2, 13, oscuro.oscuro);
+      px(ctx, cx + 10, by + 4, 2, 15, oscuro.oscuro);
+      px(ctx, cx - 23, by - 2, 46, 4, oro.base);
+      px(ctx, cx - 23, by - 2, 46, 1, oro.claro);
+
+      // Cuernos, más largos.
+      for (const lado of [-1, 1]) {
+        for (let i = 0; i < 10; i++) {
+          px(ctx, cx + lado * (12 + i), by - 17 - i, 3, 3, oscuro.base);
+        }
+      }
+      // La corona, que es lo que no tenía el otro.
+      px(ctx, cx - 14, by - 34, 28, 5, oro.base);
+      px(ctx, cx - 14, by - 34, 28, 2, oro.claro);
+      for (const dx of [-12, -4, 4, 10]) {
+        px(ctx, cx + dx, by - 41, 4, 7, oro.base);
+        px(ctx, cx + dx, by - 42, 4, 2, '#fff0b0');
+      }
+      // El ojo: lo único que no se mueve.
+      elipse(ctx, cx, by - 4, 9, 7, '#2a1840');
+      elipse(ctx, cx, by - 4, 5, 4, '#ff5a5a');
+      px(ctx, cx - 2, by - 6, 2, 2, '#ffe0e0');
     },
   },
 };

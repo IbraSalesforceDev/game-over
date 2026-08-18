@@ -291,6 +291,25 @@ export const PETO_CAVERNA = 254;
 export const PETO_BRASA = 255;
 
 /**
+ * Las reliquias de bioma y lo que hay detrás (7.2.0).
+ *
+ * Una reliquia no se pica ni la suelta nadie: se forja con el arma de ese
+ * bioma, y por eso tener las seis significa haber estado en los seis sitios y
+ * haber matado a los seis. Es la única cosa del juego que no se puede
+ * conseguir de ninguna otra forma, y ese es exactamente su trabajo: ser la
+ * llave que no se encuentra por casualidad.
+ */
+export const RELIQUIA_PRADERA = 256;
+export const RELIQUIA_DESIERTO = 257;
+export const RELIQUIA_NIEVE = 258;
+export const RELIQUIA_JUNGLA = 259;
+export const RELIQUIA_CUEVA = 260;
+export const RELIQUIA_INFIERNO = 261;
+/** Lo que deja el jefe de verdad. */
+export const ESPADA_VERDADERA = 262;
+export const CORONA_ROTA = 263;
+
+/**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
  *
  * Empieza siendo un pañuelo —lo justo para no perder de vista la casa— y acaba
@@ -477,6 +496,13 @@ function pocion(
   extra: Partial<DefObjeto> = {},
 ): [number, DefObjeto] {
   return [id, { nombre, tipo: 'pocion', color, maxPila: 12, ...extra }];
+}
+
+/**
+ * Una reliquia de bioma: no se apila mucho porque solo hace falta una de cada.
+ */
+function reliquiaBioma(id: number, nombre: string, color: string): [number, DefObjeto] {
+  return [id, { nombre, tipo: 'trofeo', color, maxPila: 8 }];
 }
 
 /**
@@ -817,6 +843,29 @@ const ENTRADAS: [number, DefObjeto][] = [
   petoJefe(PETO_SELVA, 'peto de la selva', '#4f9b3a', 'esporas'),
   petoJefe(PETO_CAVERNA, 'peto de la caverna', '#b8b2a0', 'zancada'),
   petoJefe(PETO_BRASA, 'peto de brasa', '#ff7a3a', 'bolaDeFuego'),
+  // --- Las seis reliquias y el botín del final (7.2.0) ---------------------
+  reliquiaBioma(RELIQUIA_PRADERA, 'reliquia de la pradera', '#7fd15a'),
+  reliquiaBioma(RELIQUIA_DESIERTO, 'reliquia del desierto', '#e0c070'),
+  reliquiaBioma(RELIQUIA_NIEVE, 'reliquia helada', '#cfeaf8'),
+  reliquiaBioma(RELIQUIA_JUNGLA, 'reliquia de la selva', '#6ab84a'),
+  reliquiaBioma(RELIQUIA_CUEVA, 'reliquia de la caverna', '#b8b2a0'),
+  reliquiaBioma(RELIQUIA_INFIERNO, 'reliquia infernal', '#ff6a28'),
+  [
+    // La mejor arma del juego, y la única que no se fabrica: se recoge del
+    // suelo cuando cae lo que hay al final. Un arma que se forja tiene precio;
+    // esta tiene requisito, que es otra cosa.
+    ESPADA_VERDADERA,
+    {
+      nombre: 'espada del guardián verdadero',
+      tipo: 'arma',
+      color: '#f0e6ff',
+      maxPila: 1,
+      dano: 58,
+      cadencia: 20,
+      alcance: 58,
+    },
+  ],
+  trofeo(CORONA_ROTA, 'corona rota', '#c7a2f5'),
   // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
   // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
   [
@@ -1440,6 +1489,14 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
       ESPADA_SELVA, ESPADA_CAVERNA, ESPADA_BRASA,
       PETO_LIMO, PETO_ARENA, PETO_ESCARCHA,
       PETO_SELVA, PETO_CAVERNA, PETO_BRASA,
+    ],
+  ],
+  [
+    '7.2.0',
+    [
+      RELIQUIA_PRADERA, RELIQUIA_DESIERTO, RELIQUIA_NIEVE,
+      RELIQUIA_JUNGLA, RELIQUIA_CUEVA, RELIQUIA_INFIERNO,
+      ESPADA_VERDADERA, CORONA_ROTA,
     ],
   ],
 ];

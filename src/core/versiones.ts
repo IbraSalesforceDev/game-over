@@ -586,6 +586,21 @@ export const VERSIONES: readonly Version[] = [
       'Ni las espadas ni los petos son los que más pegan o defienden: se paga la inscripción',
     ],
   },
+  {
+    id: '7.2.0',
+    etapa: 'prealfa',
+    nombre: 'El guardián verdadero',
+    resumen: 'Lo que había detrás del guardián todo este tiempo.',
+    cambios: [
+      'Seis reliquias, una por bioma, forjadas con el arma de ese jefe',
+      'Con las seis encima, el altar de la fortaleza despierta al de verdad',
+      'Aguanta más del doble que cualquier jefe de bioma y pega más que ninguno',
+      'Va alternando los seis ataques del juego: cada recarga es otra pregunta',
+      'Su sprite es el del guardián, coronado y con las seis reliquias girando',
+      'Suelta la espada del guardián verdadero, la mejor del juego, y su corona',
+      'Sin las seis reliquias el altar sigue despertando al guardián de siempre',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -666,6 +681,7 @@ export const DESDE = {
   elitesPorTodas: '6.10.0',
   jefesDeBioma: '7.0.0',
   equipoDeJefe: '7.1.0',
+  jefeFinal: '7.2.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

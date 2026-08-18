@@ -123,6 +123,12 @@ import {
   PETO_SELVA,
   PETO_CAVERNA,
   PETO_BRASA,
+  RELIQUIA_PRADERA,
+  RELIQUIA_DESIERTO,
+  RELIQUIA_NIEVE,
+  RELIQUIA_JUNGLA,
+  RELIQUIA_CUEVA,
+  RELIQUIA_INFIERNO,
 } from './items';
 
 /**
@@ -1045,6 +1051,7 @@ export const RECETAS: readonly Receta[] = [
   // metal es lo que impide que matar al primer jefe te dé el mejor equipo del
   // juego: hay que haber picado además.
   ...equipoDeJefe(),
+  ...reliquiasDeJefe(),
   ...forjas(),
   ...armaduras(),
   ...bloquesMetal(),
@@ -1298,6 +1305,40 @@ function equipoDeJefe(): Receta[] {
     });
   }
   return salida;
+}
+
+/**
+ * Las seis reliquias.
+ *
+ * Cada una pide el arma de su bioma —que se gasta— más un trofeo suelto de ese
+ * mismo jefe. Dos cosas del mismo sitio, y las dos de pelear: es lo que hace
+ * que juntar las seis signifique haber estado de verdad en los seis biomas.
+ *
+ * Se gasta el arma y no el peto a propósito. El peto es lo que se lleva puesto
+ * y lo que trae el poder de la tecla, y quitárselo a alguien para fabricar una
+ * llave se lee como un castigo; el arma se cambia todo el rato y volver a
+ * forjarla cuesta un trofeo más, no una partida.
+ */
+function reliquiasDeJefe(): Receta[] {
+  const juegos: readonly [string, number, number, number][] = [
+    ['pradera', ESPADA_LIMO, TROFEO_PRADERA, RELIQUIA_PRADERA],
+    ['desierto', ESPADA_ARENA, TROFEO_DESIERTO, RELIQUIA_DESIERTO],
+    ['nieve', ESPADA_ESCARCHA, TROFEO_NIEVE, RELIQUIA_NIEVE],
+    ['jungla', ESPADA_SELVA, TROFEO_JUNGLA, RELIQUIA_JUNGLA],
+    ['cueva', ESPADA_CAVERNA, TROFEO_CUEVA, RELIQUIA_CUEVA],
+    ['infierno', ESPADA_BRASA, TROFEO_INFIERNO, RELIQUIA_INFIERNO],
+  ];
+  return juegos.map(([nombre, espada, trofeo, reliquia]) => ({
+    id: `reliquia-${nombre}`,
+    desde: '7.2.0',
+    ingredientes: [
+      [espada, 1],
+      [trofeo, 1],
+    ] as const,
+    resultado: reliquia,
+    cantidad: 1,
+    estacion: YUNQUE,
+  }));
 }
 
 export function tieneIngredientes(inv: Inventario, receta: Receta): boolean {

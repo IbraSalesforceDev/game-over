@@ -14,7 +14,14 @@ import {
   TROFEO_JUNGLA,
   TROFEO_NIEVE,
   TROFEO_PRADERA,
+  RELIQUIA_CUEVA,
+  RELIQUIA_DESIERTO,
+  RELIQUIA_INFIERNO,
+  RELIQUIA_JUNGLA,
+  RELIQUIA_NIEVE,
+  RELIQUIA_PRADERA,
 } from '../items/items';
+import type { Inventario } from '../items/inventory';
 
 /**
  * Los jefes de bioma y sus rituales.
@@ -61,6 +68,15 @@ export interface DefJefe {
   readonly invocador: number;
   /** Lo que deja al morir. */
   readonly trofeo: number;
+  /**
+   * La reliquia de este bioma, que se forja con su arma.
+   *
+   * No la suelta el jefe: se forja después. La diferencia importa, porque una
+   * reliquia que cayera del jefe convertiría el equipo de bioma en un adorno
+   * opcional, y lo que se quería es que para llegar al final haya que haber
+   * usado de verdad lo que sueltan los seis.
+   */
+  readonly reliquia: number;
   readonly sitio: SitioJefe;
   /** Lo que se lee al despertarlo. */
   readonly aviso: string;
@@ -74,6 +90,7 @@ export const JEFES: Readonly<Record<ClaseJefe, DefJefe>> = {
     especie: 'reyLimo',
     invocador: IDOLO_PRADERA,
     trofeo: TROFEO_PRADERA,
+    reliquia: RELIQUIA_PRADERA,
     sitio: { bioma: 'bosque' },
     aviso: 'El suelo tiembla y algo verde se levanta',
     sitioMal: 'El ídolo de la pradera solo funciona en el bosque',
@@ -83,6 +100,7 @@ export const JEFES: Readonly<Record<ClaseJefe, DefJefe>> = {
     especie: 'reinaEscarabajo',
     invocador: IDOLO_DESIERTO,
     trofeo: TROFEO_DESIERTO,
+    reliquia: RELIQUIA_DESIERTO,
     sitio: { bioma: 'desierto' },
     aviso: 'La arena se abre y sale zumbando',
     sitioMal: 'El ídolo del desierto solo funciona sobre arena',
@@ -92,6 +110,7 @@ export const JEFES: Readonly<Record<ClaseJefe, DefJefe>> = {
     especie: 'yeti',
     invocador: IDOLO_NIEVE,
     trofeo: TROFEO_NIEVE,
+    reliquia: RELIQUIA_NIEVE,
     sitio: { bioma: 'nieve' },
     aviso: 'Algo enorme baja de la ladera',
     sitioMal: 'El ídolo helado solo funciona en la nieve',
@@ -101,6 +120,7 @@ export const JEFES: Readonly<Record<ClaseJefe, DefJefe>> = {
     especie: 'aranaMadre',
     invocador: IDOLO_JUNGLA,
     trofeo: TROFEO_JUNGLA,
+    reliquia: RELIQUIA_JUNGLA,
     sitio: { bioma: 'jungla' },
     aviso: 'Las ramas se mueven todas a la vez',
     sitioMal: 'El ídolo de la selva solo funciona en la jungla',
@@ -110,6 +130,7 @@ export const JEFES: Readonly<Record<ClaseJefe, DefJefe>> = {
     especie: 'devorador',
     invocador: IDOLO_CUEVA,
     trofeo: TROFEO_CUEVA,
+    reliquia: RELIQUIA_CUEVA,
     // La caverna no es un bioma de superficie: lo que la define es la
     // profundidad, y por eso su regla mira hacia abajo y no hacia los lados.
     sitio: { bajoTierra: true },
@@ -121,6 +142,7 @@ export const JEFES: Readonly<Record<ClaseJefe, DefJefe>> = {
     especie: 'senorDelFuego',
     invocador: IDOLO_INFIERNO,
     trofeo: TROFEO_INFIERNO,
+    reliquia: RELIQUIA_INFIERNO,
     sitio: { inframundo: true },
     aviso: 'La lava hierve y se pone de pie',
     sitioMal: 'El ídolo infernal solo arde en el inframundo',
@@ -129,6 +151,51 @@ export const JEFES: Readonly<Record<ClaseJefe, DefJefe>> = {
 };
 
 export const CLASES_JEFE = Object.keys(JEFES) as ClaseJefe[];
+
+/** Las seis reliquias, en el orden de la tabla. */
+export const RELIQUIAS_BIOMA: readonly number[] = CLASES_JEFE.map((c) => JEFES[c].reliquia);
+
+/**
+ * ¿Están las seis en el zurrón?
+ *
+ * Se piden todas y una de cada, no seis en total: si contara el montón, seis
+ * reliquias de la pradera abrirían el final, y entonces el juego sería matar
+ * seis veces al jefe más fácil.
+ */
+export function tieneTodasLasReliquias(inv: Inventario): boolean {
+  return RELIQUIAS_BIOMA.every((r) => inv.contar(r) >= 1);
+}
+
+/** Las que faltan, para poder decirlo en pantalla. */
+export function reliquiasQueFaltan(inv: Inventario): number[] {
+  return RELIQUIAS_BIOMA.filter((r) => inv.contar(r) < 1);
+}
+
+/**
+ * Cobra las seis reliquias. Devuelve false y no toca nada si falta alguna.
+ *
+ * La misma regla que la ofrenda del altar y por el mismo motivo: cobrar a
+ * medias dejaría sin reliquias y sin jefe, que es la peor combinación posible.
+ */
+export function pagarReliquias(inv: Inventario): boolean {
+  if (!tieneTodasLasReliquias(inv)) return false;
+  for (const r of RELIQUIAS_BIOMA) {
+    let restante = 1;
+    for (let i = 0; i < inv.ranuras.length && restante > 0; i++) {
+      if (inv.ranuras[i]!.objeto !== r) continue;
+      restante -= inv.sacarDe(i, restante);
+    }
+  }
+  return true;
+}
+
+/** La especie del jefe de verdad. Vive aquí para no repetir la cadena. */
+export const JEFE_FINAL: Especie = 'guardianVerdadero';
+
+/** ¿Existe el jefe de verdad en un mundo de esta versión? */
+export function hayJefeFinal(versionMundo: string = VERSION_ACTUAL): boolean {
+  return hay('jefeFinal', versionMundo);
+}
 
 /** El jefe al que llama este ídolo, o null si el objeto no llama a nadie. */
 export function jefeDeInvocador(objeto: number): DefJefe | null {

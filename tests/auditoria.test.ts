@@ -28,6 +28,8 @@ import {
   TROFEO_JUNGLA,
   TROFEO_CUEVA,
   TROFEO_INFIERNO,
+  ESPADA_VERDADERA,
+  CORONA_ROTA,
 } from '../src/items/items';
 import {
   craftear,
@@ -117,6 +119,10 @@ const OTRAS_FUENTES = new Set<number>([
   TROFEO_JUNGLA,
   TROFEO_CUEVA,
   TROFEO_INFIERNO,
+  // Y lo que deja el jefe de verdad: no se fabrica ni se pica, y esa es toda
+  // su gracia. Un arma que se forja tiene precio; esta tiene requisito.
+  ESPADA_VERDADERA,
+  CORONA_ROTA,
 ]);
 
 describe('todo objeto se puede conseguir', () => {

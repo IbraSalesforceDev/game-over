@@ -297,10 +297,12 @@ Proyecto estático, igual que los tuyos (framework detectado o `null`):
 4. **Formato de guardado con número de versión desde el día uno** — sin él, cada cambio de fase invalida los mundos guardados.
 5. **Físicas en coordenadas de píxel con floats y paso fijo** — mezclar paso variable después es una reescritura.
 
-## Lo que queda de prealfa (17/8/2026)
+## El contenido de prealfa (17/8/2026) — cerrado
 
-Tres mensajes con el contenido que falta antes de la fase alfa. Van en este
-orden, y cada punto es una versión:
+Tres mensajes con el contenido que faltaba antes de la fase alfa. Los seis
+puntos están hechos, cada uno en su versión. **A partir de aquí no queda
+contenido pendiente de prealfa**: lo único que separa al juego de la alfa son
+las tres cosas de la sección siguiente, y esas esperan a que se diga.
 
 1. **El guardián, más duro** ✅ 6.8.0 · sube vida y daño, y encarece la ofrenda,
    porque el jefe se pensó cuando el mejor peto era de plata.

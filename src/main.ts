@@ -28,7 +28,10 @@ import {
   type Disparo,
 } from './entities/ataques';
 import {
+  JEFE_FINAL,
   jefeDeInvocador,
+  pagarReliquias,
+  tieneTodasLasReliquias,
   sitioCorrecto,
   trofeoDe,
   type DefJefe,
@@ -202,6 +205,8 @@ import {
   esBrujula,
   esSemilla,
   siembraDe,
+  CORONA_ROTA,
+  ESPADA_VERDADERA,
   esComida,
   filoDe,
   esInvocador,
@@ -1222,8 +1227,20 @@ async function arrancar(): Promise<void> {
       // dejan su trofeo. Se distinguen por si tienen trofeo y no por la especie
       // para que añadir un jefe más no obligue a tocar esto.
       const trofeo = trofeoDe(especie);
-      if (trofeo !== null) {
-        soltar(trofeo, 1);
+      if (especie === JEFE_FINAL) {
+        // Lo que hay al final: la mejor arma del juego y su corona. No se
+        // fabrica ninguna de las dos, y ese es el premio: un arma que se forja
+        // tiene precio y esta tiene requisito.
+        soltar(ESPADA_VERDADERA, 1);
+        soltar(CORONA_ROTA, 1);
+        soltar(ESENCIA, 5);
+        soltar(LINGOTE_ORO, 40);
+      } else if (trofeo !== null) {
+        // Dos trofeos por jefe: uno se va en el arma y el otro en la reliquia,
+        // así que una sola pelea por bioma basta para llegar al final. Con uno
+        // solo harían falta doce peleas para seis reliquias, y eso convierte la
+        // preparación en recadería.
+        soltar(trofeo, 2);
       } else {
         soltar(ESPADA_GUARDIAN, 1);
         soltar(ESENCIA, 1);
@@ -1336,6 +1353,14 @@ async function arrancar(): Promise<void> {
       aviso.mostrar('El guardián ya está despierto', true);
       return;
     }
+    // Con las seis reliquias encima, el altar despierta a otra cosa. Se mira
+    // antes que la ofrenda porque quien las lleva ya ha pasado por aquí: pedirle
+    // otra vez cien geles para pelear con el guardián de siempre sería no
+    // enterarse de lo que ha hecho.
+    if (tiene('jefeFinal') && tieneTodasLasReliquias(inventario)) {
+      despertarFinal(tx, ty);
+      return;
+    }
     const falta = faltaParaOfrenda(inventario, versionMundo);
     if (falta.length > 0) {
       aviso.mostrar(`Al altar le falta: ${textoFalta(falta)}`, true);
@@ -1369,6 +1394,42 @@ async function arrancar(): Promise<void> {
       empujeY: -2,
       vida: 60,
       tam: 3,
+    });
+  }
+
+  /**
+   * El de verdad: se cobran las seis reliquias y sale lo que había detrás.
+   *
+   * Nace más arriba que el guardián porque mide noventa y dos píxeles: puesto a
+   * la misma altura, la mitad del cuerpo queda dentro del techo de la sala y la
+   * colisión lo escupe a un lado en el primer tick.
+   */
+  function despertarFinal(tx: number, ty: number): void {
+    if (!pagarReliquias(inventario)) return;
+    barra.refrescar(capa);
+    const def = ENEMIGOS[JEFE_FINAL];
+    const nuevo = crearEnemigo(
+      JEFE_FINAL,
+      tx * TILE + TILE / 2 - def.ancho / 2,
+      (ty - 8) * TILE,
+      nivelDif.fuerza,
+      false,
+      versionMundo,
+    );
+    enemigos.push(nuevo);
+    jefe = nuevo;
+    furiaAnunciada = false;
+
+    aviso.mostrar('Las seis reliquias arden. Algo se levanta debajo.', true);
+    sacudir(14);
+    audio.sonar('rugido', 0.5);
+    particulas.emitir(tx * TILE + 8, ty * TILE + 8, {
+      cantidad: 110,
+      color: '#d8c0ff',
+      dispersion: 5.5,
+      empujeY: -2.4,
+      vida: 80,
+      tam: 4,
     });
   }
 

@@ -62,7 +62,9 @@ export type Especie =
   | 'yeti'
   | 'aranaMadre'
   | 'devorador'
-  | 'senorDelFuego';
+  | 'senorDelFuego'
+  // --- El de verdad (7.2.0) ---
+  | 'guardianVerdadero';
 
 export interface DefEnemigo {
   readonly nombre: string;
@@ -109,6 +111,16 @@ export interface DefEnemigo {
    * lance fuego *es* lo que hace que el desierto se sienta distinto.
    */
   readonly ataque?: ClaseAtaque;
+  /**
+   * Más ataques, que va alternando con el suyo.
+   *
+   * Solo lo usa el jefe de verdad. Un jefe final que repite el mismo proyectil
+   * cien veces es un jefe con más vida, no un jefe distinto; alternando entre
+   * los seis del juego, cada recarga es una pregunta nueva —¿esto se esquiva
+   * subiéndose o apartándose?— y eso es lo que hace que la pelea larga no sea
+   * larga y aburrida.
+   */
+  readonly ataquesExtra?: readonly ClaseAtaque[];
   /** Versión en la que apareció esta especie. */
   readonly desde: string;
 }
@@ -520,6 +532,33 @@ export const ENEMIGOS: Record<Especie, DefEnemigo> = {
     nocturno: false,
     jefe: true,
   },
+  // --- El jefe de verdad (7.2.0) ------------------------------------------
+  //
+  // Lo que había detrás del guardián todo este tiempo. Solo se despierta en el
+  // altar de la fortaleza y solo llevando las seis reliquias, así que es lo
+  // único del juego que exige haber hecho *todo* lo demás.
+  //
+  // Aguanta más del doble que cualquier jefe de bioma y pega la mitad más que
+  // el señor del fuego. Es mucho a propósito: si se pudiera con el equipo con
+  // el que se mata a un jefe de bioma, las seis reliquias habrían sido un
+  // trámite de recadero en vez de una preparación.
+  guardianVerdadero: {
+    desde: '7.2.0',
+    nombre: 'guardián verdadero',
+    vida: 4200,
+    dano: 72,
+    ancho: 92,
+    alto: 92,
+    color: '#d8c0ff',
+    colorOscuro: '#4a3070',
+    vuela: true,
+    botin: ESENCIA,
+    botinMax: 5,
+    ataque: 'bolaDeFuego',
+    ataquesExtra: ['ventisca', 'veneno', 'hueso', 'arena', 'gel'],
+    nocturno: false,
+    jefe: true,
+  },
   lobo: {
     desde: '2.1.0',
     nombre: 'lobo de hielo',
@@ -591,6 +630,8 @@ export interface Enemigo {
   efectos: Efectos;
   /** Ticks hasta que puede volver a usar su ataque especial. */
   recarga: number;
+  /** Cuántas veces ha disparado ya. Decide cuál toca a los que alternan. */
+  salvasHechas: number;
   /**
    * Es una versión de élite: el mismo bicho, mucho más fuerte y con premio.
    *
@@ -772,6 +813,7 @@ export function crearEnemigo(
     // bichos de una sala dispararían a la vez en el mismo tick y lo que se ve
     // no es una emboscada sino una salva.
     recarga: 30 + Math.floor(Math.random() * 120),
+    salvasHechas: 0,
     reloj: Math.floor(Math.random() * 60),
     olvidado: 0,
     vivo: true,
@@ -1026,6 +1068,7 @@ export function pensar(e: Enemigo, objetivo: { x: number; y: number }): void {
     case 'reinaEscarabajo':
     case 'devorador':
     case 'senorDelFuego':
+    case 'guardianVerdadero':
     case 'guardian': {
       // Dos velocidades y una embestida. En reposo flota hacia el jugador
       // despacio, con un bamboleo que impide predecir su altura exacta; cada
@@ -1274,7 +1317,13 @@ function intentarAtaque(
     e.recarga--;
     return [];
   }
-  const def = ATAQUES[clase];
+  // El que tiene más de uno los va alternando. El contador va en la propia
+  // recarga —cuántas veces ha disparado— y no en un campo nuevo: `salvasHechas`
+  // sube en cada disparo y no hace falta nada más.
+  const extra = ENEMIGOS[e.especie].ataquesExtra;
+  const repertorio: readonly ClaseAtaque[] = extra ? [clase, ...extra] : [clase];
+  const elegida = repertorio[e.salvasHechas % repertorio.length]!;
+  const def = ATAQUES[elegida];
   const mio = centro(e.caja);
   const distancia = Math.hypot(objetivo.x - mio.x, objetivo.y - mio.y);
   // Muy pegado tampoco dispara: a bocajarro el proyectil no se puede esquivar,
@@ -1284,7 +1333,8 @@ function intentarAtaque(
   if (!hayVista(mundo, mio.x, mio.y, objetivo.x, objetivo.y)) return [];
 
   e.recarga = Math.round(def.cadencia * (e.elite ? CADENCIA_ELITE : 1));
-  return lanzarAtaque(clase, mio.x, mio.y, objetivo.x, objetivo.y, e.fuerza, e.elite);
+  e.salvasHechas++;
+  return lanzarAtaque(elegida, mio.x, mio.y, objetivo.x, objetivo.y, e.fuerza, e.elite);
 }
 
 /**
@@ -1416,6 +1466,7 @@ const VOCES_ESPECIE: Partial<Record<Especie, VozEnemigo>> = {
   aranaMadre: 'chillido',
   devorador: 'rugido',
   senorDelFuego: 'rugido',
+  guardianVerdadero: 'rugido',
 };
 
 export type VozEnemigo =
