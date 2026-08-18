@@ -573,29 +573,167 @@ del mundo para que alguien se una. Las dos cosas las deja hechas la nube.
 
 ## Lo que hace falta decidir
 
-1. **¿Cómo se entra: Google, o correo y contraseña sin confirmación?** Es lo único
-   que queda con peso. Recomiendo Google + invitado: no gasta correos, no pide
-   dominio y para seis personas es más cómodo.
+1. **¿Proyecto propio, o compartir el que ya hay arreglando antes sus políticas?**
+   Recomiendo proyecto propio, por lo de `auth.users` compartido. Es la única
+   decisión que queda con peso de verdad.
 2. **¿Fase A sin bichos, o multijugador completo de una vez?** Recomiendo la
    fase A.
 
-Ya decidido: **el plan gratis como marco**, un proyecto propio para el juego,
-**latido cada 12 horas** por GitHub Actions, **fase A solo con STUN** con el TURN
-aplazado, y el **modelo de mundo local o de nube pero nunca los dos**, que es lo
-que deja el bloque sin conflictos que resolver.
+Ya decidido: **el plan gratis como marco**, **entrar con Google y sin sesiones
+anónimas**, **latido cada 12 horas** por GitHub Actions, **fase A solo con STUN**
+con el TURN aplazado, el **modelo de mundo local o de nube pero nunca los dos**, y
+un **administrador por tabla y política**, nunca por comprobación en el navegador.
+
+---
+
+# Compartir el proyecto de Supabase que ya existe
+
+Sí se puede, y para seis jugadores es una opción razonable: deja libre el segundo
+proyecto gratis y hay una sola cosa que administrar. Pero **conviene separar bien
+qué se comparte y qué no**, porque no todo es aislable.
+
+## Prefijos no: un esquema propio
+
+Los prefijos en los nombres de tabla (`juego_partidas`, `juego_miembros`)
+funcionan, pero Postgres ya tiene la herramienta buena para esto:
+
+```sql
+create schema juego;
+-- juego.partidas, juego.miembros, juego.admins
+```
+
+Un esquema aparte da separación de verdad —permisos, copias, borrarlo entero de
+una— y no hay forma de confundir una tabla del juego con una del otro proyecto.
+Único detalle práctico: hay que **añadir `juego` a los «Exposed schemas»** en los
+ajustes de la API para que el cliente pueda llegar. Es un interruptor, una vez.
+
+El bucket de Storage no necesita nada: se llama `mundos` y ya está separado por
+definición.
+
+## Lo que sí se comparte, quiera uno o no
+
+| Se comparte | Consecuencia |
+|---|---|
+| **Cuotas** (egress, Storage, mensajes) | Irrelevante: el juego usa ~1,4 % |
+| **Fair Use** | Si el juego se pasara, restringe también el otro proyecto |
+| **`auth.users`** | **Los usuarios son los mismos para los dos proyectos** |
+| **Ajustes de Authentication** | Lo que se active, se activa para los dos |
+
+Las dos últimas filas son las que importan.
+
+### La trampa, y aquí ya no es hipotética
+
+He mirado las políticas que hay hoy en el proyecto existente. Esto es lo que
+tienen las tablas `productos` y `ventas`:
+
+| Tabla | Política | Rol | Condición |
+|---|---|---|---|
+| `productos` | «Lectura admin productos» | `authenticated` | `true` |
+| `productos` | «Admin inserta / actualiza / borra productos» | `authenticated` | `true` |
+| `ventas` | «Admin lee / inserta / borra ventas» | `authenticated` | `true` |
+
+Se llaman «Admin», pero **no comprueban que nadie sea administrador**: conceden a
+*cualquier* usuario autenticado, con la condición literal `true`. O sea, hoy mismo,
+**cualquiera que tenga cuenta en ese proyecto puede leer, modificar y borrar los
+productos y las ventas.**
+
+Eso ya es un fallo de ese proyecto, con juego o sin él, y conviene arreglarlo de
+todas formas. Pero es decisivo aquí por dos motivos:
+
+1. **`auth.users` es común.** En cuanto tus seis jugadores se registren para
+   jugar, los seis pasan a poder borrar los productos y las ventas de la otra
+   aplicación. Sin hacer nada raro: simplemente por tener cuenta.
+2. **Las sesiones anónimas se activan por proyecto.** Un usuario anónimo entra
+   también como `authenticated`, así que activar el «jugar como invitado» le daría
+   ese mismo poder a cualquiera que abra la página. La documentación de Supabase
+   avisa justo de esto: *«revisa tus políticas RLS antes de activar las sesiones
+   anónimas»*.
+
+Menos mal por una cosa: **las cuatro tablas están vacías** (`productos`,
+`cultivos`, `riegos` y `ventas` tienen 0 filas; `games` tiene 3 y está cerrada a
+cal y canto, con RLS y sin ninguna política). Así que hoy no hay nada que perder
+— pero el agujero está abierto.
+
+> ### Recomendación, y cambia respecto a lo que dije antes
+>
+> **Mejor un proyecto propio para el juego.** No por las cuotas, que sobran, sino
+> porque compartir proyecto significa compartir `auth.users`, y las políticas de
+> la otra aplicación hoy convierten a cualquier usuario en administrador. Es el
+> segundo y último proyecto gratis, y es exactamente para lo que sirve.
+>
+> Si aun así prefieres compartir proyecto, es perfectamente viable **con una
+> condición previa**: arreglar esas políticas de `productos` y `ventas` para que
+> comprueben de verdad quién es administrador. Es media hora de SQL en un proyecto
+> con las tablas vacías, y hay que hacerlo antes de que se registre nadie.
+
+### Y en los dos casos: sin sesiones anónimas
+
+Con seis personas invitadas, el «entrar como invitado» aporta poco —para un mundo
+de la nube hace falta cuenta igualmente— y es el mayor vector de abuso del plan
+gratis. Se queda para los mundos **locales**, donde no hay cuenta de por medio y
+no hay nada que activar.
+
+Eso cierra la decisión del login: **entrar con Google, y sin sesiones anónimas.**
+
+---
+
+# El administrador
+
+La idea es buena y resuelve un caso real: que a alguien se le pierda la
+invitación, o que haya que arreglar un mundo sin ir al panel de Supabase.
+
+## Cómo se hace bien
+
+Lo importante: **no puede ser una comprobación en el navegador.** Un
+`if (usuario.id === ADMIN)` en el cliente no protege nada, porque quien manda es
+el RLS del servidor. La forma correcta son tres piezas pequeñas:
+
+```sql
+-- 1. Quién es admin. Sin políticas de escritura: solo se toca desde el panel.
+create table juego.admins (usuario_id uuid primary key references auth.users);
+
+-- 2. Una función que lo pregunte, con permisos elevados.
+create function juego.es_admin() returns boolean
+  language sql security definer stable as $$
+    select exists (select 1 from juego.admins where usuario_id = auth.uid())
+  $$;
+
+-- 3. Y cada política lo tiene en cuenta.
+create policy "ver partidas" on juego.partidas for select to authenticated
+  using (dueño = auth.uid() or juego.es_admin()
+         or exists (select 1 from juego.miembros m
+                    where m.partida = id and m.usuario = auth.uid()));
+```
+
+El detalle que evita el fallo tonto: **la tabla `admins` no lleva ninguna política
+de `insert` ni de `update`**. Sin política, nadie puede escribir en ella desde la
+aplicación — ni siquiera un admin. Se añaden desde el editor SQL del panel. Así no
+existe la forma de que alguien se auto-nombre administrador.
+
+## Qué puede hacer, y una raya que conviene dibujar
+
+Vale la pena separar dos poderes que suenan al mismo:
+
+- **Administrar** — ver todos los mundos, añadir y quitar miembros, arreglar
+  invitaciones. Es lo que resuelve el problema real y no molesta a nadie.
+- **Entrar a jugar** en el mundo de otro. Eso ya no es administrar: es aparecer
+  en la partida de alguien pudiendo tocar sus cofres.
+
+Entre seis amigos y siendo tú el admin, las dos juntas dan igual. Pero salen
+gratis separadas —son dos políticas en vez de una— y así «entrar» sigue siendo
+una invitación aceptada, no un privilegio. Lo dejo apuntado como opción, no como
+recomendación.
+
+---
 
 ## Estado de la cuenta
 
-Comprobado al escribir esto: la conexión de Supabase que tengo aquí ve **una
-organización** (`Nordack's Org`) con **un proyecto**
-(`IbraSalesforceDev's Project`). El proyecto **`GameOver` todavía no aparece**,
-que puede ser que siga aprovisionándose o que esté en una organización nueva a la
-que esta conexión no llega. Antes de empezar a trabajar contra él habrá que
-comprobarlo — si está en otra organización, hay que reconectar la integración
-para que la vea.
+Comprobado: hay **una organización** (`Nordack's Org`) con **un proyecto**
+(`IbraSalesforceDev's Project`, `eu-central-1`). El `GameOver` que se creó es un
+repositorio de GitHub, no un proyecto de Supabase — de ahí que no apareciera.
 
-Con dos proyectos activos se agota el cupo del plan gratis: **no habría un tercero
-sin pausar alguno**.
+Si se comparte el proyecto que ya existe, se sigue en **1 de 2 proyectos gratis**
+y queda uno de reserva.
 
 Lo que **ya no** hace falta decidir, porque el plan gratis lo decide solo:
 el transporte es WebRTC con Cloudflare para STUN/TURN, y Supabase Realtime se
