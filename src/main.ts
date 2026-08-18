@@ -23,6 +23,7 @@ import { crearPanelEstados } from './ui/estados';
 import {
   ATAQUES,
   avanzarDisparos,
+  lanzarAtaque,
   limpiarDisparos,
   type Disparo,
 } from './entities/ataques';
@@ -33,6 +34,15 @@ import {
   type DefJefe,
   type DondeEstoy,
 } from './world/jefes';
+import {
+  crearEstadoPoder,
+  FILOS,
+  gastarPoder,
+  PODERES,
+  poderListo,
+  tickPoder,
+  type ClaseFilo,
+} from './items/inscripciones';
 import { crearAjustes, type Graficos } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
 import { crearMapa } from './ui/mapa';
@@ -87,6 +97,7 @@ import {
   crearEquipo,
   danoTrasArmadura,
   defensaTotal,
+  poderPuesto,
 } from './items/equipado';
 import {
   defObjeto,
@@ -111,6 +122,7 @@ import {
   TIERRA,
   TIERRA_LABRADA,
   danoEnCaja,
+  esSolido,
 } from './world/tiles';
 import { Particulas } from './render/particles';
 import {
@@ -125,6 +137,7 @@ import {
   botinDe,
   botinRaroDe,
   botiquinDe,
+  danarEnemigo,
   nombreDe,
   crearEnemigo,
   ENEMIGOS,
@@ -190,6 +203,7 @@ import {
   esSemilla,
   siembraDe,
   esComida,
+  filoDe,
   esInvocador,
   esPocion,
   esCristal,
@@ -579,6 +593,14 @@ async function arrancar(): Promise<void> {
    * bebida convertiría cerrar y abrir en una forma de conservarla eternamente.
    */
   const estados = crearEfectos();
+  /**
+   * La recarga del poder del peto.
+   *
+   * Una sola, y no una por poder: solo se puede llevar un peto puesto, así que
+   * una recarga por clase serviría para cambiarse de peto y disparar dos
+   * poderes seguidos, que es justo lo que la recarga existe para impedir.
+   */
+  const recargaPoder = crearEstadoPoder();
   const hambre = crearHambre(
     partida.estado.hambre > 0 ? partida.estado.hambre : HAMBRE_MAXIMA,
   );
@@ -593,6 +615,8 @@ async function arrancar(): Promise<void> {
    * juntarlas obligaría a preguntar de quién es cada una en cada comprobación.
    */
   const tiros: Disparo[] = [];
+  /** Y los que lanza el jugador con el poder de su peto. */
+  const tirosMios: Disparo[] = [];
   /**
    * Los sucesos del mundo.
    *
@@ -952,6 +976,13 @@ async function arrancar(): Promise<void> {
     pausa.abrir();
   });
   entrada.alPulsar('KeyH', () => ayuda.alternar());
+  // La Q: el poder del peto. Va aquí y no en la cadena del ratón porque no
+  // apunta a nada del mundo —el poder pasa donde estás— y porque tenerla en el
+  // teclado es lo que permite usarla sin dejar de pegar.
+  entrada.alPulsar('KeyQ', () => {
+    if (pausa.abierto || barra.inventarioAbierto || mapa.abierto) return;
+    usarPoder();
+  });
   for (let i = 0; i < 10; i++) {
     entrada.alPulsar(`Digit${(i + 1) % 10}`, () => barra.seleccionar(i));
   }
@@ -1460,12 +1491,19 @@ async function arrancar(): Promise<void> {
     }
 
     // El golpe activo alcanza a quien toque, una vez por mandoble.
+    // El filo del arma entra en dos sitios: aquí, si multiplica el daño, y en
+    // cada bicho tocado, si le pega un efecto o cura al que golpea.
+    const filo = tiene('equipoDeJefe') ? filoDe(barra.objetoActivo()) : null;
+    const hondo = filo !== null && FILOS[filo].bonusHondo !== 1 && dondeEstoy().bajoTierra;
     const r = resolverGolpe(
       golpe,
       jugador.caja,
       enemigos,
-      trucos.danoMultiplicador * multiplicadorDano(estados),
+      trucos.danoMultiplicador *
+        multiplicadorDano(estados) *
+        (hondo ? FILOS[filo!].bonusHondo : 1),
     );
+    if (filo !== null && r.tocados.length > 0) aplicarFilo(filo, r.tocados);
     for (const tocado of r.tocados) {
       // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
       // de que el mandoble ha entrado, que hasta ahora solo decía la barra de
@@ -1547,6 +1585,7 @@ async function arrancar(): Promise<void> {
       audio.sonar('golpe', 1.5);
     }
     actualizarTiros();
+    actualizarTirosDelJugador();
     if (res.danoAlJugador > 0) {
       // El empujón sale del enemigo más cercano, para que aparte en la
       // dirección correcta.
@@ -2512,6 +2551,149 @@ async function arrancar(): Promise<void> {
   }
 
   /**
+   * Lo que hace el filo del arma en los bichos que acaba de tocar.
+   *
+   * El golpe doble se resuelve aquí y no dentro de `resolverGolpe` porque es
+   * una segunda entrada del mismo mandoble, no un mandoble más: si fuera dentro
+   * habría que contarlo también en la lista de tocados y la perforación de las
+   * flechas empezaría a comportarse raro.
+   */
+  function aplicarFilo(clase: ClaseFilo, tocados: readonly Enemigo[]): void {
+    const def = FILOS[clase];
+    for (const e of tocados) {
+      if (def.efecto !== undefined) aplicarEfecto(e.efectos, def.efecto, def.duracionEfecto);
+      if (def.probDoble > 0 && Math.random() < def.probDoble) {
+        if (danarEnemigo(e, defObjeto(barra.objetoActivo()).dano ?? 0, jugador.caja.x)) morir(e);
+        particulas.emitir(e.caja.x + e.caja.ancho / 2, e.caja.y + 6, {
+          cantidad: 6,
+          color: '#ffe9a8',
+          forma: 'chispa',
+          dispersion: 2,
+          vida: 12,
+          tam: 2,
+        });
+      }
+    }
+    if (def.curacion > 0 && salud.vida < salud.vidaMax) {
+      curar(salud, def.curacion * tocados.length);
+      panelVida.refrescar(salud);
+    }
+  }
+
+  /**
+   * El poder del peto, con la Q.
+   *
+   * Las tres comprobaciones —que haya peto con poder, que exista en esta
+   * versión y que esté cargado— dicen cada una lo suyo en pantalla en vez de no
+   * hacer nada: una tecla que a veces funciona y a veces no, sin decir por qué,
+   * se lee como que el juego se ha colgado.
+   */
+  function usarPoder(): void {
+    if (!tiene('equipoDeJefe')) return;
+    const clase = poderPuesto(equipo);
+    if (clase === null) {
+      aviso.mostrar('No llevas nada que hacer con la Q');
+      return;
+    }
+    const def = PODERES[clase];
+    if (!poderListo(recargaPoder)) {
+      aviso.mostrar(`${def.nombre}: aún se está cargando`);
+      return;
+    }
+    gastarPoder(recargaPoder, clase);
+    const c = jugador.caja;
+    const cx = c.x + c.ancho / 2;
+    const cy = c.y + c.alto / 2;
+
+    if (def.efectoPropio !== undefined) {
+      aplicarEfecto(estados, def.efectoPropio, def.duracion);
+      panelEstados.refrescar(estados);
+    }
+    if (def.efectoCercano !== undefined) {
+      let alcanzados = 0;
+      for (const e of enemigos) {
+        if (!e.vivo) continue;
+        const d = Math.hypot(e.caja.x + e.caja.ancho / 2 - cx, e.caja.y + e.caja.alto / 2 - cy);
+        if (d > def.radio * TILE) continue;
+        aplicarEfecto(e.efectos, def.efectoCercano, def.duracion);
+        alcanzados++;
+      }
+      if (alcanzados === 0) aviso.mostrar(`${def.nombre}: no había nada cerca`);
+    }
+    if (def.danoProyectil > 0) {
+      // Sale del jugador hacia donde apunta el ratón, y va en la misma lista
+      // que lo que lanzan los bichos... pero hacia el otro lado, así que se
+      // maneja aparte: estos los mueve `actualizarTirosDelJugador`.
+      const haciaX = renderer.camara.aMundoX(puntero.sx);
+      const haciaY = renderer.camara.aMundoY(puntero.sy);
+      // La fuerza se pasa como fracción del daño base del ataque, para que el
+      // proyectil del poder pegue lo que dice su tabla y no lo que pegaría una
+      // bola de fuego de una momia.
+      const fuerza = def.danoProyectil / ATAQUES.bolaDeFuego.dano;
+      tirosMios.push(...lanzarAtaque('bolaDeFuego', cx, cy, haciaX, haciaY, fuerza));
+    }
+    particulas.emitir(cx, cy, {
+      cantidad: 26,
+      color: def.color,
+      dispersion: 3.2,
+      empujeY: -1,
+      vida: 34,
+      tam: 3,
+    });
+    audio.sonar('rugido', 1.6);
+    sacudir(3);
+  }
+
+  /**
+   * Los proyectiles que lanza el jugador con su poder.
+   *
+   * Van en su propia lista, aparte de los de los bichos, por lo de siempre:
+   * buscan cosas distintas. Reutilizan el mismo módulo de ataques porque volar
+   * y chocar contra la roca se hace igual en los dos sentidos.
+   */
+  function actualizarTirosDelJugador(): void {
+    if (tirosMios.length === 0) return;
+    for (const d of tirosMios) {
+      if (!d.vivo) continue;
+      const def = ATAQUES[d.clase];
+      d.x += d.vx;
+      d.y += d.vy;
+      d.angulo = Math.atan2(d.vy, d.vx);
+      if (++d.edad > 60 * 4) d.vivo = false;
+      const tx = Math.floor(d.x / TILE);
+      const ty = Math.floor(d.y / TILE);
+      if (!mundo.dentro(tx, ty) || esSolido(mundo.getTile(tx, ty))) {
+        d.vivo = false;
+        particulas.emitir(d.x, d.y, {
+          cantidad: 8,
+          color: def.color,
+          dispersion: 2,
+          vida: 20,
+          tam: 2,
+        });
+        continue;
+      }
+      for (const e of enemigos) {
+        if (!e.vivo) continue;
+        const c = e.caja;
+        if (d.x < c.x || d.x > c.x + c.ancho || d.y < c.y || d.y > c.y + c.alto) continue;
+        if (danarEnemigo(e, d.dano, d.x)) morir(e);
+        if (def.efecto !== undefined) aplicarEfecto(e.efectos, def.efecto, def.duracionEfecto);
+        d.vivo = false;
+        particulas.emitir(d.x, d.y, {
+          cantidad: 16,
+          color: def.color,
+          dispersion: 2.8,
+          vida: 26,
+          tam: 2,
+        });
+        break;
+      }
+    }
+    limpiarDisparos(tirosMios);
+  }
+
+  /**
    * Los ajustes de física, con lo que le hayan hecho los efectos.
    *
    * Se devuelve el objeto de siempre cuando no hay nada puesto, que es casi
@@ -2693,6 +2875,7 @@ async function arrancar(): Promise<void> {
       if (tiene('cultivos')) actualizarCultivos();
       actualizarCombate();
       if (tiene('efectos')) actualizarEstados();
+      tickPoder(recargaPoder);
       if (tiene('sucesos')) actualizarSucesos();
       if (tiene('electricidad')) actualizarCorriente();
       particulas.actualizar(mundo);
@@ -2723,7 +2906,7 @@ async function arrancar(): Promise<void> {
         golpe,
       flechas,
         explosivos: bombas,
-        disparos: tiros,
+        disparos: [...tiros, ...tirosMios],
         particulas,
         sumergido: sumergidoAhora,
         enMano: barra.objetoActivo(),

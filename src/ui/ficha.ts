@@ -1,4 +1,4 @@
-import { defObjeto, descripcionDe, NADA, resumenDe } from '../items/items';
+import { defObjeto, descripcionDe, inscripcionDe, NADA, resumenDe } from '../items/items';
 import { defTile } from '../world/tiles';
 import type { Iconos } from '../render/iconos';
 
@@ -30,6 +30,13 @@ const ESTILO = `
 #ficha .titulo { color: #e8d9b0; font-size: 12px; }
 #ficha .numeros { color: #8fb6d6; margin-bottom: 5px; }
 #ficha .que { color: #93a0ae; line-height: 1.45; }
+/* La inscripción va aparte y en dorado, con su filete: es lo que distingue una
+   espada de jefe de una espada, y tiene que saltar a la vista antes que la
+   descripción, que en el fondo dice lo mismo que todas. */
+#ficha .inscripcion {
+  color: #e8b64c; line-height: 1.45; margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid #2b3440; font-style: italic;
+}
 `;
 
 export interface Ficha {
@@ -57,7 +64,9 @@ export function crearFicha(contenedor: HTMLElement, iconos: Iconos): Ficha {
   numeros.className = 'numeros';
   const que = document.createElement('div');
   que.className = 'que';
-  capa.append(cabecera, numeros, que);
+  const inscripcion = document.createElement('div');
+  inscripcion.className = 'inscripcion';
+  capa.append(cabecera, numeros, que, inscripcion);
   contenedor.appendChild(capa);
 
   let ultimo = NADA;
@@ -82,6 +91,9 @@ export function crearFicha(contenedor: HTMLElement, iconos: Iconos): Ficha {
           def.tile !== undefined
             ? `${descripcionDe(objeto)} Dureza ${defTile(def.tile).dureza}.`
             : descripcionDe(objeto);
+        const grabado = inscripcionDe(objeto);
+        inscripcion.textContent = grabado;
+        inscripcion.style.display = grabado ? 'block' : 'none';
       }
       capa.classList.add('visible');
 

@@ -105,6 +105,24 @@ import {
   IDOLO_CUEVA,
   IDOLO_INFIERNO,
   RELIQUIA,
+  TROFEO_PRADERA,
+  TROFEO_DESIERTO,
+  TROFEO_NIEVE,
+  TROFEO_JUNGLA,
+  TROFEO_CUEVA,
+  TROFEO_INFIERNO,
+  ESPADA_LIMO,
+  ESPADA_ARENA,
+  ESPADA_ESCARCHA,
+  ESPADA_SELVA,
+  ESPADA_CAVERNA,
+  ESPADA_BRASA,
+  PETO_LIMO,
+  PETO_ARENA,
+  PETO_ESCARCHA,
+  PETO_SELVA,
+  PETO_CAVERNA,
+  PETO_BRASA,
 } from './items';
 
 /**
@@ -1020,6 +1038,13 @@ export const RECETAS: readonly Receta[] = [
     cantidad: 1,
     estacion: CALDERO,
   },
+  // --- El equipo de bioma (7.1.0) -------------------------------------------
+  //
+  // Cada pieza pide el trofeo de su jefe y el metal que se lleva por ese tramo
+  // del juego. El trofeo es lo que impide fabricarlas sin haber peleado, y el
+  // metal es lo que impide que matar al primer jefe te dé el mejor equipo del
+  // juego: hay que haber picado además.
+  ...equipoDeJefe(),
   ...forjas(),
   ...armaduras(),
   ...bloquesMetal(),
@@ -1228,6 +1253,51 @@ export function estacionesCerca(mundo: Mundo, caja: Caja): Set<number> {
     }
   }
   return cerca;
+}
+
+/**
+ * Las doce recetas del equipo de bioma, generadas de una tabla.
+ *
+ * Escritas a mano serían doce bloques calcados con dos números cambiados, que
+ * es exactamente la clase de sitio donde se cuela una errata que nadie ve.
+ */
+function equipoDeJefe(): Receta[] {
+  const juegos: readonly [string, number, number, number, number][] = [
+    ['limo', TROFEO_PRADERA, ESPADA_LIMO, PETO_LIMO, LINGOTE_ORO],
+    ['arena', TROFEO_DESIERTO, ESPADA_ARENA, PETO_ARENA, LINGOTE_ORO],
+    ['escarcha', TROFEO_NIEVE, ESPADA_ESCARCHA, PETO_ESCARCHA, LINGOTE_COBALTO],
+    ['selva', TROFEO_JUNGLA, ESPADA_SELVA, PETO_SELVA, LINGOTE_COBALTO],
+    ['caverna', TROFEO_CUEVA, ESPADA_CAVERNA, PETO_CAVERNA, LINGOTE_TITANIO],
+    ['brasa', TROFEO_INFIERNO, ESPADA_BRASA, PETO_BRASA, LINGOTE_INFERNITA],
+  ];
+  const salida: Receta[] = [];
+  for (const [nombre, trofeo, espada, peto, metal] of juegos) {
+    salida.push({
+      id: `espada-${nombre}`,
+      desde: '7.1.0',
+      ingredientes: [
+        [trofeo, 1],
+        [metal, 12],
+      ],
+      resultado: espada,
+      cantidad: 1,
+      estacion: YUNQUE,
+    });
+    salida.push({
+      // El peto cuesta más metal que el arma: es la pieza que se lleva puesta
+      // toda la partida y la que trae el poder de la tecla.
+      id: `peto-${nombre}`,
+      desde: '7.1.0',
+      ingredientes: [
+        [trofeo, 1],
+        [metal, 20],
+      ],
+      resultado: peto,
+      cantidad: 1,
+      estacion: YUNQUE,
+    });
+  }
+  return salida;
 }
 
 export function tieneIngredientes(inv: Inventario, receta: Receta): boolean {

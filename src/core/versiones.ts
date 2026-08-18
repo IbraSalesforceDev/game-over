@@ -570,6 +570,22 @@ export const VERSIONES: readonly Version[] = [
       'La barra de arriba ya dice qué jefe es, y no siempre "el guardián"',
     ],
   },
+  {
+    id: '7.1.0',
+    etapa: 'prealfa',
+    nombre: 'Botín de jefe',
+    resumen: 'Cada jefe deja un arma y un peto con una inscripción que hace algo.',
+    cambios: [
+      'Seis espadas y seis petos, uno de cada jefe, con el trofeo de por medio',
+      'Cada arma lleva un filo que actúa solo: prende, envenena, hiela, cura...',
+      'El mandoble de la caverna pega la mitad más estando bajo tierra',
+      'Cada peto lleva un poder atado a la Q, con su recarga',
+      'El peto de brasa lanza una bola de fuego hacia el ratón',
+      'El de escarcha congela lo que tengas cerca y el de la selva lo envenena',
+      'La inscripción se lee pasando el ratón por encima, antes de conseguirla',
+      'Ni las espadas ni los petos son los que más pegan o defienden: se paga la inscripción',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -649,6 +665,7 @@ export const DESDE = {
   ataquesEspeciales: '6.10.0',
   elitesPorTodas: '6.10.0',
   jefesDeBioma: '7.0.0',
+  equipoDeJefe: '7.1.0',
   enemigosProfundos: '5.3.0',
   elitesNocturnos: '5.3.0',
   mineralesProfundos: '5.0.0',

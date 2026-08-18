@@ -316,10 +316,11 @@ orden, y cada punto es una versión:
    se prepara en el caldero con material de su bioma y solo funciona allí (el
    infernal pide 200 rocas del infierno, infernita y dos reliquias). Cada uno
    deja su trofeo.
-5. **Botín por bioma** · cada jefe suelta armas y armadura suyas: variantes de
-   las que ya hay, mejores estéticamente y con una **inscripción** que se lee
-   pasando el ratón por encima y da un poder atado a una tecla (la armadura de
-   fuego del jefe del infierno lanza una bola de fuego).
+5. **Botín por bioma** ✅ 7.1.0 · seis espadas y seis petos, cada uno del
+   trofeo de su jefe más metal. El arma lleva un **filo** que actúa solo en cada
+   golpe —prende, envenena, hiela, cura, pega doble o suma bajo tierra— y el
+   peto lleva un **poder** atado a la Q, con su recarga. La inscripción se lee
+   pasando el ratón por encima. El peto de brasa lanza una bola de fuego.
 6. **Reliquias y el jefe de verdad** · esas piezas dan reliquias; juntando la de
    los seis jefes se usa el altar de la fortaleza de siempre y sale el jefe
    final, mejor estéticamente y con ataques especiales.

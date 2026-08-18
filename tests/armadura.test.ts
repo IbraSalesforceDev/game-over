@@ -62,10 +62,10 @@ describe('las piezas', () => {
     }
   });
 
-  it('las treinta y cinco piezas se forjan en el yunque', () => {
-    // Cinco huecos por siete metales: los cuatro de siempre más el cobalto, el
-    // titanio y la infernita, que llegaron en 6.4.0.
-    const PIEZAS = 5 * 7;
+  it('las cuarenta y una piezas se forjan en el yunque', () => {
+    // Cinco huecos por siete metales —los cuatro de siempre más el cobalto, el
+    // titanio y la infernita de 6.4.0— y los seis petos de jefe de 7.1.0.
+    const PIEZAS = 5 * 7 + 6;
     const recetas = RECETAS.filter((r) => esArmadura(r.resultado));
     expect(recetas).toHaveLength(PIEZAS);
     for (const r of recetas) expect(r.estacion).toBe(YUNQUE);

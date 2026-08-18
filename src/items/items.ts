@@ -1,5 +1,11 @@
 import { DURACION, EFECTOS, type ClaseEfecto } from '../entities/efectos';
 import {
+  textoFilo,
+  textoPoder,
+  type ClaseFilo,
+  type ClasePoder,
+} from './inscripciones';
+import {
   ALTAR,
   ANTORCHA,
   ARENA,
@@ -264,6 +270,27 @@ export const TROFEO_CUEVA = 242;
 export const TROFEO_INFIERNO = 243;
 
 /**
+ * El equipo de bioma (7.1.0).
+ *
+ * Seis espadas y seis petos, uno de cada jefe. No son "lo mismo con más
+ * números": cada uno lleva una inscripción, y la inscripción es lo que hace que
+ * elegir equipo sea una decisión de bioma. El arma lleva un filo, que actúa
+ * solo en cada golpe; el peto lleva un poder, que se dispara con la Q.
+ */
+export const ESPADA_LIMO = 244;
+export const ESPADA_ARENA = 245;
+export const ESPADA_ESCARCHA = 246;
+export const ESPADA_SELVA = 247;
+export const ESPADA_CAVERNA = 248;
+export const ESPADA_BRASA = 249;
+export const PETO_LIMO = 250;
+export const PETO_ARENA = 251;
+export const PETO_ESCARCHA = 252;
+export const PETO_SELVA = 253;
+export const PETO_CAVERNA = 254;
+export const PETO_BRASA = 255;
+
+/**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
  *
  * Empieza siendo un pañuelo —lo justo para no perder de vista la casa— y acaba
@@ -374,6 +401,10 @@ export interface DefObjeto {
   readonly duracion?: number;
   /** Quita todo lo malo al beberla. Es lo que hace el remedio. */
   readonly limpia?: boolean;
+  /** Inscripción del arma: lo que hace sola en cada golpe. */
+  readonly filo?: ClaseFilo;
+  /** Inscripción de la armadura: lo que hace al pulsar la tecla. */
+  readonly poder?: ClasePoder;
 }
 
 const PILA = 999;
@@ -460,6 +491,48 @@ function idolo(id: number, nombre: string, color: string): [number, DefObjeto] {
 /** Un trofeo de jefe. Uno por jefe y no se apila con nada. */
 function trofeo(id: number, nombre: string, color: string): [number, DefObjeto] {
   return [id, { nombre, tipo: 'trofeo', color, maxPila: 20 }];
+}
+
+/**
+ * Una espada de jefe.
+ *
+ * Los seis números son idénticos y lo único que cambia es el filo. Iguales a
+ * propósito: si una pegara más que otra, cinco de los seis jefes sobrarían y el
+ * juego volvería a tener un orden obligatorio.
+ *
+ * Y pegan **menos** que la de infernita y menos que la del guardián. Lo que se
+ * paga por ellas no es el número sino la inscripción, y si además fueran las
+ * que más pegan, la escalera de metales entera —que cuesta bajar al inframundo
+ * y fundir— se quedaría sin sentido de golpe. Lo que ganan es alcance: son las
+ * que llegan más lejos del juego, y eso sí se nota al cogerlas.
+ */
+function espadaJefe(
+  id: number,
+  nombre: string,
+  color: string,
+  filo: ClaseFilo,
+): [number, DefObjeto] {
+  return [
+    id,
+    { nombre, tipo: 'arma', color, maxPila: 1, dano: 36, cadencia: 22, alcance: 54, filo },
+  ];
+}
+
+/**
+ * Un peto de jefe: defiende entre el de titanio y el de infernita, y trae un
+ * poder atado a la tecla. Lo que se paga es el poder; si además fuera el que
+ * más defiende, la armadura de infernita no serviría para nada.
+ */
+function petoJefe(
+  id: number,
+  nombre: string,
+  color: string,
+  poder: ClasePoder,
+): [number, DefObjeto] {
+  return [
+    id,
+    { nombre, tipo: 'armadura', color, maxPila: 1, hueco: 'torso', defensa: 12, poder },
+  ];
 }
 
 /**
@@ -720,6 +793,30 @@ const ENTRADAS: [number, DefObjeto][] = [
   trofeo(TROFEO_JUNGLA, 'ojo de la madre', '#6ab84a'),
   trofeo(TROFEO_CUEVA, 'mandíbula del devorador', '#b8b2a0'),
   trofeo(TROFEO_INFIERNO, 'corazón de brasa', '#ff6a28'),
+  // --- Las seis espadas de bioma -------------------------------------------
+  //
+  // Pegan todas parecido, y por encima de la del guardián pero por debajo de la
+  // de infernita: lo que las separa no es el daño sino el filo, y si además
+  // fueran las que más pegan, la escalera de metales de 5.0.0 dejaría de tener
+  // sentido de golpe.
+  espadaJefe(ESPADA_LIMO, 'espada de limo', '#5ad07a', 'savia'),
+  espadaJefe(ESPADA_ARENA, 'alfanje de arena', '#e0b45a', 'doble'),
+  espadaJefe(ESPADA_ESCARCHA, 'espada de escarcha', '#a8e0f5', 'escarcha'),
+  espadaJefe(ESPADA_SELVA, 'guadaña de la selva', '#4f9b3a', 'ponzona'),
+  espadaJefe(ESPADA_CAVERNA, 'mandoble de la caverna', '#b8b2a0', 'veta'),
+  espadaJefe(ESPADA_BRASA, 'espada de brasa', '#ff7a3a', 'brasa'),
+  // --- Y los seis petos -----------------------------------------------------
+  //
+  // Defienden como el de titanio, ni más ni menos: lo que se paga por ellos es
+  // el poder, no la defensa. Un peto de jefe que además fuera el que más
+  // defiende haría que la armadura de infernita —que cuesta bajar al inframundo
+  // y fundir quince lingotes— no sirviera para nada.
+  petoJefe(PETO_LIMO, 'peto de limo', '#5ad07a', 'brote'),
+  petoJefe(PETO_ARENA, 'peto de arena', '#e0b45a', 'muroDeArena'),
+  petoJefe(PETO_ESCARCHA, 'peto de escarcha', '#a8e0f5', 'ondaGelida'),
+  petoJefe(PETO_SELVA, 'peto de la selva', '#4f9b3a', 'esporas'),
+  petoJefe(PETO_CAVERNA, 'peto de la caverna', '#b8b2a0', 'zancada'),
+  petoJefe(PETO_BRASA, 'peto de brasa', '#ff7a3a', 'bolaDeFuego'),
   // La pala cava tierra, arena y nieve al triple que el pico de hierro, y con
   // la piedra apenas puede: es una herramienta de mover terreno, no de minar.
   [
@@ -999,6 +1096,30 @@ export function esInvocador(id: number): boolean {
 /** ¿Es un trofeo de jefe? */
 export function esTrofeo(id: number): boolean {
   return defObjeto(id).tipo === 'trofeo';
+}
+
+/** El filo grabado en este objeto, o null si no lleva ninguno. */
+export function filoDe(id: number): ClaseFilo | null {
+  return defObjeto(id).filo ?? null;
+}
+
+/** El poder grabado en este objeto, o null. */
+export function poderDe(id: number): ClasePoder | null {
+  return defObjeto(id).poder ?? null;
+}
+
+/**
+ * La inscripción de un objeto en una línea, o cadena vacía si no lleva.
+ *
+ * Es lo que se lee pasando el ratón por encima, y existe para que se pueda
+ * saber qué hace una espada de jefe *antes* de matar al jefe: quien ve la
+ * inscripción de la espada de brasa en la lista de recetas ya sabe a qué va.
+ */
+export function inscripcionDe(id: number): string {
+  const d = defObjeto(id);
+  if (d.filo !== undefined) return textoFilo(d.filo);
+  if (d.poder !== undefined) return textoPoder(d.poder);
+  return '';
 }
 
 export function esArmadura(id: number): boolean {
@@ -1310,6 +1431,15 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
       IDOLO_JUNGLA, IDOLO_CUEVA, IDOLO_INFIERNO,
       TROFEO_PRADERA, TROFEO_DESIERTO, TROFEO_NIEVE,
       TROFEO_JUNGLA, TROFEO_CUEVA, TROFEO_INFIERNO,
+    ],
+  ],
+  [
+    '7.1.0',
+    [
+      ESPADA_LIMO, ESPADA_ARENA, ESPADA_ESCARCHA,
+      ESPADA_SELVA, ESPADA_CAVERNA, ESPADA_BRASA,
+      PETO_LIMO, PETO_ARENA, PETO_ESCARCHA,
+      PETO_SELVA, PETO_CAVERNA, PETO_BRASA,
     ],
   ],
 ];

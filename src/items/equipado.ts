@@ -1,5 +1,15 @@
 import { Inventario } from './inventory';
-import { defensaDe, defObjeto, esArmadura, huecoDe, HUECOS, NADA, type Hueco } from './items';
+import {
+  defensaDe,
+  defObjeto,
+  esArmadura,
+  huecoDe,
+  HUECOS,
+  NADA,
+  poderDe,
+  type Hueco,
+} from './items';
+import type { ClasePoder } from './inscripciones';
 
 /**
  * Armadura puesta.
@@ -30,6 +40,23 @@ export function cabeEnEquipo(objeto: number, indice: number): boolean {
   if (!esArmadura(objeto)) return false;
   const h = huecoDe(objeto);
   return h !== null && indiceDeHueco(h) === indice;
+}
+
+/**
+ * El poder que trae la armadura puesta, o null si ninguna pieza trae ninguno.
+ *
+ * Se recorre el equipo entero y no solo el torso: hoy los poderes vienen en los
+ * petos, pero atar la búsqueda a una ranura concreta sería escribir esa
+ * casualidad en el código y tener que buscarla el día que un casco traiga uno.
+ * Gana la primera pieza que lo tenga, en el orden de las ranuras.
+ */
+export function poderPuesto(equipo: Inventario): ClasePoder | null {
+  for (const r of equipo.ranuras) {
+    if (r.cantidad <= 0) continue;
+    const p = poderDe(r.objeto);
+    if (p !== null) return p;
+  }
+  return null;
 }
 
 /**
