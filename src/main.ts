@@ -31,6 +31,8 @@ import {
   JEFE_FINAL,
   jefeDeInvocador,
   pagarReliquias,
+  RELIQUIAS_BIOMA,
+  reliquiasQueFaltan,
   tieneTodasLasReliquias,
   sitioCorrecto,
   trofeoDe,
@@ -985,7 +987,8 @@ async function arrancar(): Promise<void> {
   // apunta a nada del mundo —el poder pasa donde estás— y porque tenerla en el
   // teclado es lo que permite usarla sin dejar de pegar.
   entrada.alPulsar('KeyQ', () => {
-    if (pausa.abierto || barra.inventarioAbierto || mapa.abierto) return;
+    if (pausa.abierto || mapa.abierto || ayuda.abierto || opciones.abierto) return;
+    if (barra.inventarioAbierto || depuracion.abierto) return;
     usarPoder();
   });
   for (let i = 0; i < 10; i++) {
@@ -1231,9 +1234,10 @@ async function arrancar(): Promise<void> {
         // Lo que hay al final: la mejor arma del juego y su corona. No se
         // fabrica ninguna de las dos, y ese es el premio: un arma que se forja
         // tiene precio y esta tiene requisito.
+        // La esencia ya la ha soltado su botín normal, unas líneas más arriba:
+        // repetirla aquí daba diez en vez de cinco.
         soltar(ESPADA_VERDADERA, 1);
         soltar(CORONA_ROTA, 1);
-        soltar(ESENCIA, 5);
         soltar(LINGOTE_ORO, 40);
       } else if (trofeo !== null) {
         // Dos trofeos por jefe: uno se va en el arma y el otro en la reliquia,
@@ -1282,15 +1286,33 @@ async function arrancar(): Promise<void> {
     const c = jugador.caja;
     const tx = Math.floor((c.x + c.ancho / 2) / TILE);
     const ty = Math.floor((c.y + c.alto) / TILE);
-    const superficie = motorLuz.alturaCielo[tx] ?? 0;
-    const techoInfra = tiene('inframundo')
-      ? techoInframundo(mundo.alto, tiene('mundoHondo'))
-      : mundo.alto;
     return {
       bioma: biomaEn(mundo, tx, ty),
-      bajoTierra: ty > superficie + PROFUNDIDAD_PELIGRO,
-      inframundo: ty >= techoInfra,
+      bajoTierra: estoyBajoTierra(),
+      inframundo: ty >= techoDelInframundo(),
     };
+  }
+
+  /** La fila donde empieza el inframundo, o el fondo si en esta versión no hay. */
+  function techoDelInframundo(): number {
+    return tiene('inframundo')
+      ? techoInframundo(mundo.alto, tiene('mundoHondo'))
+      : mundo.alto;
+  }
+
+  /**
+   * ¿Está el jugador bajo tierra?
+   *
+   * Es la mitad de `dondeEstoy` que se pregunta a menudo —una vez por tick con
+   * el mandoble de la caverna en la mano— y por eso va aparte: solo mira dos
+   * números y no deduce el bioma recorriendo tiles.
+   */
+  function estoyBajoTierra(): boolean {
+    const c = jugador.caja;
+    const tx = Math.floor((c.x + c.ancho / 2) / TILE);
+    const ty = Math.floor((c.y + c.alto) / TILE);
+    const superficie = motorLuz.alturaCielo[tx] ?? 0;
+    return ty > superficie + PROFUNDIDAD_PELIGRO;
   }
 
   /**
@@ -1360,6 +1382,19 @@ async function arrancar(): Promise<void> {
     if (tiene('jefeFinal') && tieneTodasLasReliquias(inventario)) {
       despertarFinal(tx, ty);
       return;
+    }
+    // Con alguna reliquia pero no todas, el altar lo dice. Sin esto, quien
+    // lleva cinco encima usaba el altar, salía el guardián de siempre y no
+    // había forma de enterarse de que faltaba una: la única pista del juego
+    // sobre el final estaba en no dar ninguna.
+    if (tiene('jefeFinal')) {
+      const faltanReliquias = reliquiasQueFaltan(inventario);
+      if (faltanReliquias.length < RELIQUIAS_BIOMA.length) {
+        aviso.mostrar(
+          `Al altar le faltan ${faltanReliquias.length} reliquias para lo otro`,
+          true,
+        );
+      }
     }
     const falta = faltaParaOfrenda(inventario, versionMundo);
     if (falta.length > 0) {
@@ -1555,16 +1590,17 @@ async function arrancar(): Promise<void> {
     // El filo del arma entra en dos sitios: aquí, si multiplica el daño, y en
     // cada bicho tocado, si le pega un efecto o cura al que golpea.
     const filo = tiene('equipoDeJefe') ? filoDe(barra.objetoActivo()) : null;
-    const hondo = filo !== null && FILOS[filo].bonusHondo !== 1 && dondeEstoy().bajoTierra;
-    const r = resolverGolpe(
-      golpe,
-      jugador.caja,
-      enemigos,
+    // Solo el filo de la caverna mira la profundidad, y se pregunta con la
+    // cuenta barata —una resta contra la altura del cielo— y no con
+    // `dondeEstoy`, que además deduce el bioma recorriendo tiles: eso corría
+    // sesenta veces por segundo por llevar una espada en la mano.
+    const hondo = filo !== null && FILOS[filo].bonusHondo !== 1 && estoyBajoTierra();
+    const multiplicador =
       trucos.danoMultiplicador *
-        multiplicadorDano(estados) *
-        (hondo ? FILOS[filo!].bonusHondo : 1),
-    );
-    if (filo !== null && r.tocados.length > 0) aplicarFilo(filo, r.tocados);
+      multiplicadorDano(estados) *
+      (hondo ? FILOS[filo!].bonusHondo : 1);
+    const r = resolverGolpe(golpe, jugador.caja, enemigos, multiplicador);
+    if (filo !== null && r.tocados.length > 0) aplicarFilo(filo, r.tocados, multiplicador);
     for (const tocado of r.tocados) {
       // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
       // de que el mandoble ha entrado, que hasta ahora solo decía la barra de
@@ -1717,6 +1753,11 @@ async function arrancar(): Promise<void> {
       reaparecer(jugador);
       revivir(salud);
       limpiarEfectos(estados);
+      // Lo que estuviera volando se apaga. Un proyectil vivo al otro lado del
+      // mundo no llega a hacer daño, pero sí sigue costando ticks y sale
+      // dibujado si la cámara pasa por ahí.
+      tiros.length = 0;
+      tirosMios.length = 0;
       reiniciarAliento(aliento);
       reiniciarHambre(hambre);
       panelVida.refrescarHambre(hambre);
@@ -2619,12 +2660,21 @@ async function arrancar(): Promise<void> {
    * habría que contarlo también en la lista de tocados y la perforación de las
    * flechas empezaría a comportarse raro.
    */
-  function aplicarFilo(clase: ClaseFilo, tocados: readonly Enemigo[]): void {
+  function aplicarFilo(
+    clase: ClaseFilo,
+    tocados: readonly Enemigo[],
+    multiplicador: number,
+  ): void {
     const def = FILOS[clase];
     for (const e of tocados) {
       if (def.efecto !== undefined) aplicarEfecto(e.efectos, def.efecto, def.duracionEfecto);
       if (def.probDoble > 0 && Math.random() < def.probDoble) {
-        if (danarEnemigo(e, defObjeto(barra.objetoActivo()).dano ?? 0, jugador.caja.x)) morir(e);
+        // El mismo multiplicador que el golpe del que sale. Sin esto, beber
+        // fuerza no servía de nada en el segundo impacto y el arma del
+        // desierto era la única del juego a la que no le afectaban las
+        // pociones, que es la clase de rareza que nadie llega a explicarse.
+        const dano = (defObjeto(barra.objetoActivo()).dano ?? 0) * multiplicador;
+        if (danarEnemigo(e, dano, jugador.caja.x)) morir(e);
         particulas.emitir(e.caja.x + e.caja.ancho / 2, e.caja.y + 6, {
           cantidad: 6,
           color: '#ffe9a8',

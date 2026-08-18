@@ -12,13 +12,14 @@ import {
   type EstadoPartida,
 } from '../src/world/save';
 import { DIFICULTAD_POR_DEFECTO } from '../src/core/dificultad';
-import { HIERBA, MADERA, PIEDRA, TIERRA } from '../src/world/tiles';
+import { CALDERO, HIERBA, MADERA, PIEDRA, TIERRA } from '../src/world/tiles';
 import {
   BASE_NO_TILE,
   CASCO_ORO,
   ESPADA_INFERNITA,
   LINGOTE_COBRE,
   PICO_HIERRO,
+  IDS_OBJETO,
 } from '../src/items/items';
 import { CABANA, FORTALEZA } from '../src/world/estructuras';
 import { Mundo } from '../src/world/world';
@@ -489,5 +490,32 @@ describe('partida completa', () => {
     expect(recuperado.mundo.getTile(150, 60)).toBe(0);
     expect(recuperado.mundo.getPared(150, 60)).toBe(PIEDRA);
     expect(recuperado.estado.jugador.x).toBe(spawnTx * 16);
+  });
+});
+
+describe('el catálogo entero cabe en el formato', () => {
+  it('todo objeto que existe sobrevive a guardar y volver a abrir', () => {
+    // Los identificadores se escriben como enteros de dos bytes. El día que
+    // alguno pasara de 65535 —o que alguien lo escribiera con uno solo— las
+    // mochilas se llenarían de basura al abrir la partida, y no se notaría
+    // hasta que el catálogo creciera lo bastante. Esto lo vigila solo.
+    const mundo = new Mundo(40, 40);
+    const ids = [...IDS_OBJETO];
+    const partida = deserializar(
+      serializar(mundo, estado({ inventario: ids.map((id) => [id, 1] as const) })),
+      VERSION_FORMATO,
+    );
+    expect(partida.estado.inventario.map(([o]) => o)).toEqual(ids);
+  });
+
+  it('y ninguno se pasa de lo que cabe en dos bytes', () => {
+    expect(Math.max(...IDS_OBJETO)).toBeLessThanOrEqual(65535);
+  });
+
+  it('los tiles nuevos también van y vuelven', () => {
+    const mundo = new Mundo(40, 40);
+    mundo.setTile(5, 9, CALDERO);
+    const partida = deserializar(serializar(mundo, estado()), VERSION_FORMATO);
+    expect(partida.mundo.getTile(5, 9)).toBe(CALDERO);
   });
 });

@@ -1,4 +1,3 @@
-import { hay, VERSION_ACTUAL } from '../core/versiones';
 import type { Especie } from '../entities/enemies';
 import type { BiomaLocal } from '../entities/spawner';
 import {
@@ -192,11 +191,6 @@ export function pagarReliquias(inv: Inventario): boolean {
 /** La especie del jefe de verdad. Vive aquí para no repetir la cadena. */
 export const JEFE_FINAL: Especie = 'guardianVerdadero';
 
-/** ¿Existe el jefe de verdad en un mundo de esta versión? */
-export function hayJefeFinal(versionMundo: string = VERSION_ACTUAL): boolean {
-  return hay('jefeFinal', versionMundo);
-}
-
 /** El jefe al que llama este ídolo, o null si el objeto no llama a nadie. */
 export function jefeDeInvocador(objeto: number): DefJefe | null {
   for (const clase of CLASES_JEFE) {
@@ -248,9 +242,4 @@ export function sitioCorrecto(def: DefJefe, donde: DondeEstoy): boolean {
     if (donde.bioma !== sitio.bioma) return false;
   }
   return true;
-}
-
-/** ¿Existen los jefes de bioma en un mundo de esta versión? */
-export function hayJefesDeBioma(versionMundo: string = VERSION_ACTUAL): boolean {
-  return hay('jefesDeBioma', versionMundo);
 }

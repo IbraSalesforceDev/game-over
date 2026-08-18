@@ -601,6 +601,20 @@ export const VERSIONES: readonly Version[] = [
       'Sin las seis reliquias el altar sigue despertando al guardián de siempre',
     ],
   },
+  {
+    id: '7.2.1',
+    etapa: 'prealfa',
+    nombre: 'Repaso',
+    resumen: 'Seis cosas que estaban mal de la tanda de jefes.',
+    cambios: [
+      'El altar dice cuántas reliquias faltan; antes no daba ninguna pista',
+      'El golpe doble del alfanje de arena ya cuenta la poción de fuerza',
+      'El jefe de verdad soltaba diez esencias en vez de cinco',
+      'La Q ya no se dispara con el inventario o el panel de servicio abiertos',
+      'Los proyectiles en vuelo se apagan al morir, en vez de seguir volando',
+      'El mandoble de la caverna deducía el bioma sesenta veces por segundo',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
