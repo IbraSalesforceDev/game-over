@@ -249,11 +249,11 @@ import { crearPanelVida } from './ui/vida';
 import { esArma } from './items/items';
 import {
   desempaquetar,
-  empaquetar,
   HORA_POR_DEFECTO,
   VERSION_FORMATO,
   type EstadoPartida,
 } from './world/save';
+import { empaquetarFuera } from './world/empaquetador';
 import type { NombreTamano } from './world/gen/worldgen';
 import type { Zona } from './world/testLevel';
 import type { Mundo } from './world/world';
@@ -857,7 +857,7 @@ async function arrancar(): Promise<void> {
       partida.estado.capaPared = capa === 'pared';
       partida.estado.minutos = reloj.minutos;
 
-      const bytes = await empaquetar(mundo, partida.estado);
+      const bytes = await empaquetarFuera(mundo, partida.estado);
       const meta: MetaMundo = {
         id: partida.id,
         nombre: partida.nombre,

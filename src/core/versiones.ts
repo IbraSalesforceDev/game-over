@@ -629,6 +629,18 @@ export const VERSIONES: readonly Version[] = [
       'El mundo recuerda que lo has terminado (guardado v16)',
     ],
   },
+  {
+    id: '7.3.1',
+    etapa: 'prealfa',
+    nombre: 'Guardar sin tirones',
+    resumen: 'El guardado deja de congelar el juego cada treinta segundos.',
+    cambios: [
+      'El RLE y el deflate se hacen en un worker, fuera del hilo del juego',
+      'Eran de 36 ms en un mundo pequeño a 259 ms en uno titánico, medidos',
+      'Sin worker se empaqueta como siempre: el resultado es el mismo byte a byte',
+      'Se le manda una copia de las capas, nunca las del mundo que se está jugando',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

@@ -27,6 +27,25 @@ import { Mundo } from './world';
  * deflate posterior remata el trabajo.
  */
 
+/**
+ * Lo único que la serialización necesita de un mundo: sus cuatro capas y su
+ * tamaño.
+ *
+ * No pide un `Mundo` a propósito. Un `Mundo` es una clase con métodos, y las
+ * clases no cruzan la frontera de un worker: `postMessage` clona los datos y
+ * deja los métodos por el camino. Pidiendo solo esto, la misma función sirve
+ * para el hilo principal y para el worker que empaqueta de fondo, y `Mundo`
+ * encaja sin convertir nada porque tiene estos cuatro campos públicos.
+ */
+export interface CapasMundo {
+  readonly ancho: number;
+  readonly alto: number;
+  readonly tileId: Uint16Array;
+  readonly wallId: Uint16Array;
+  readonly flags: Uint8Array;
+  readonly liquido: Uint8Array;
+}
+
 export const MAGIA = 0x474f5652; // 'GOVR'
 /**
  * Historial del formato:
@@ -298,7 +317,7 @@ function leerRle(l: Lector, capa: Uint16Array): void {
 // --- Cuerpo ------------------------------------------------------------------
 
 /** Serializa mundo y estado sin comprimir. */
-export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
+export function serializar(mundo: CapasMundo, estado: EstadoPartida): Uint8Array {
   const e = new Escritor();
   e.u32(mundo.ancho);
   e.u32(mundo.alto);
@@ -373,7 +392,7 @@ export function serializar(mundo: Mundo, estado: EstadoPartida): Uint8Array {
  * de RLE —y un mundo seco entero se guarda en una— en vez de en dos capas que
  * habría que mantener sincronizadas al leer.
  */
-function capaLiquido(mundo: Mundo): Uint16Array {
+function capaLiquido(mundo: CapasMundo): Uint16Array {
   const capa = new Uint16Array(mundo.liquido.length);
   for (let i = 0; i < capa.length; i++) {
     const nivel = mundo.liquido[i]!;
@@ -523,7 +542,7 @@ async function descomprimir(datos: Uint8Array): Promise<Uint8Array> {
  * comprobar la magia y la versión sin descomprimir nada.
  */
 export async function empaquetar(
-  mundo: Mundo,
+  mundo: CapasMundo,
   estado: EstadoPartida,
 ): Promise<Uint8Array> {
   const cuerpo = serializar(mundo, estado);
