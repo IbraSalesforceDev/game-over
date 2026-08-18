@@ -74,8 +74,11 @@ Cuando tengas cuenta creada en el juego, en **SQL Editor**:
 
 ```sql
 insert into juego.admins (usuario)
-select id from auth.users where email = 'ibrahim.alvarez.bar@gmail.com';
+select id from auth.users where email = 'PON-AQUI-TU-CORREO';
 ```
+
+(Pon tu correo al ejecutarlo, pero no lo dejes escrito aquí: este repositorio es
+público.)
 
 Esa tabla no se puede tocar desde la aplicación a propósito — es lo que impide
 que nadie se auto-nombre administrador. Por eso este paso es a mano y solo se

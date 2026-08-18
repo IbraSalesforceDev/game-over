@@ -125,8 +125,9 @@ export function pedirEntrada(
 
   const nota = document.createElement('div');
   nota.className = 'nota';
-  nota.textContent =
-    'Si olvidas la contraseña, pídele a quien administra el juego que te la cambie.';
+  // Sin nombres ni correos: quién administra puede cambiar, y una dirección
+  // escrita en una pantalla pública es una dirección que acaba en listas de spam.
+  nota.textContent = 'Si olvidas la contraseña, el administrador puede cambiártela.';
 
   caja.append(lCorreo, iCorreo, lClave, iClave, botones, recado, cerrar, nota);
   contenedor.appendChild(capa);
