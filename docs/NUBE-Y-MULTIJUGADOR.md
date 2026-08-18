@@ -196,20 +196,107 @@ dispositivo— eso son **cero bytes de egress**, y solo se paga al cambiar de
 aparato. Y esa comparación hace falta igualmente para resolver conflictos, así
 que no es trabajo extra: es el mismo trabajo bien colocado.
 
+## El modelo: cada mundo es de un sitio, nunca de los dos
+
+Esta es **la decisión de diseño que más trabajo ahorra de todo el documento**, y
+sustituye a lo que había aquí antes (una sincronización bidireccional con
+resolución de conflictos).
+
+> **Un mundo o es local o es de la nube. Nunca las dos cosas a la vez.**
+>
+> - **Mundo local** — como hoy: IndexedDB, sin cuenta, sin conexión, tuyo y ya.
+> - **Mundo en la nube** — vive en el servidor, pide login, y el anfitrión decide
+>   quién entra.
+> - **Subir un mundo local a la nube es una acción explícita y de ida.** A partir
+>   de ese momento, ese mundo es de la nube.
+
+Lo que esto elimina: **no hay conflictos que resolver, nunca.** Cada mundo tiene
+en todo momento **una sola copia con autoridad**. Se acabó el «¿cuál es más
+nueva?», el mezclar, y la cola de sincronización. Era la parte que estaba marcada
+como «más trabajo que todo lo demás junto», y con este modelo desaparece entera.
+
+### Un matiz: «solo en la nube» no debe significar «sin copia en disco»
+
+Con una salvedad importante, y es por seguridad, no por sincronizar:
+
+**Mientras juegas un mundo de la nube, se sigue escribiendo en IndexedDB cada 30
+segundos**, igual que hoy, y a la nube se sube cada pocos minutos y al salir. La
+copia local no es una copia rival: es un **buffer de escritura**. Sin ella, una
+desconexión a media partida se lleva por delante la sesión entera.
+
+Y esa misma copia es, gratis, la puerta de salida si algún día se quiere volver
+al guardado local.
+
+Eso deja **un único caso raro**, y se resuelve con una pregunta, no con un
+algoritmo: si el juego se cierra mal después de guardar en local pero antes de
+subir, al abrir se detecta que hay progreso sin subir. Un diálogo:
+
+> *«Tienes progreso de esta partida sin subir. ¿Lo subes o lo descartas?»*
+
+Nada de mezclar. Una pregunta, dos botones.
+
+### Con 5–6 jugadores, el egress deja de ser un tema
+
+Antes proponía una caché por fecha para no descargar el mundo cada vez. Con estos
+números ya no hace falta ni para eso:
+
+```
+6 usuarios × 3 sesiones al día × 129 KB ≈ 2,3 MB/día ≈ 70 MB al mes
+                                          contra 5 GB = 1,4 % de la cuota
+```
+
+Así que **se descarga el mundo al abrirlo y punto**. La copia local se queda solo
+como red de seguridad, que es más fácil de explicar y de escribir.
+
+## Invitaciones: dos tablas y ya
+
+Para 5–6 personas invitadas, lo más simple que funciona:
+
+| Tabla | Qué guarda |
+|---|---|
+| `partidas` | id, dueño, nombre, metadatos, `actualizado` |
+| `miembros` | partida, usuario, rol |
+
+El anfitrión genera un **código de invitación** y el invitado lo pega. Nada de
+mandar correos para esto, que es un problema menos.
+
+Y el RLS sale redondo porque encaja con el multijugador: **los miembros pueden
+leer el blob, solo el dueño puede escribirlo.** Como en la partida solo el
+anfitrión tiene autoridad, la escritura ya era de uno solo por naturaleza. Un
+único escritor por mundo, impuesto por la base de datos.
+
 ## Lo que sí cuesta trabajo
 
-No es el adaptador. Es esto:
+- **Login.** Pantalla, validación, sesión, y el estado «sin conexión» en la
+  interfaz. Ver más abajo, porque el «correo y contraseña» tiene una letra
+  pequeña que cambia la decisión.
+- **La subida a la nube**, con su barra de progreso y su «esto es de ida».
+- **Los códigos de invitación** y la pantalla de miembros.
 
-- **Login.** Correo y contraseña más invitado con sesión anónima, enlazable
-  después sin perder partidas (ya estaba decidido). Pantalla, validación,
-  recuperar contraseña y el estado «sin conexión» en toda la interfaz.
-- **Conflictos.** El mismo mundo abierto en el móvil y en el portátil. Hace falta
-  un `actualizado` por partida y un diálogo honesto: «la copia de la nube es más
-  nueva, ¿cuál te quedas?». Perder una partida por resolver esto a la ligera es
-  el peor fallo posible del bloque.
-- **Offline de verdad.** Cola de subidas pendientes, reintentos, y qué pasa si te
-  quedas sin red a media partida. **Bien hecha, es más trabajo que todo lo demás
-  junto.**
+Ya **no** cuesta: conflictos, mezclas ni cola de sincronización.
+
+## Letra pequeña del login: el correo cuesta un dominio
+
+Ya estaba decidido «correo y contraseña + invitado», pero con gente de verdad
+entrando aparece esto:
+
+**El SMTP que Supabase trae solo entrega a las direcciones del equipo de tu
+organización.** Para tus cinco o seis invitados, cualquier correo de confirmación
+o de recuperar contraseña **no llega**. Y montar SMTP propio (Resend tiene plan
+gratis de 3 000 al mes y 100 al día, de sobra) exige **un dominio verificado**,
+que en un `*.vercel.app` no se puede hacer: habría que comprar un dominio, unos
+10 € al año. Es poco dinero, pero rompe el «todo gratis».
+
+Tres salidas, todas gratis:
+
+| Opción | Qué implica |
+|---|---|
+| **Entrar con Google** (recomendada) | **Cero correos, cero SMTP, cero dominio.** Y para el usuario es un botón en vez de inventarse otra contraseña. Encaja perfecto con un grupo cerrado de seis |
+| Correo y contraseña **sin confirmación** | Funciona y no manda ningún correo. A cambio, recuperar la contraseña lo tienes que hacer tú a mano desde el panel. Con seis personas conocidas, asumible |
+| Comprar un dominio + Resend | Lo «correcto» del todo, ~10 €/año. Deja de ser gratis |
+
+**Recomiendo Google + invitado**, y dejar el correo y contraseña para más
+adelante si alguna vez entra gente de fuera del grupo.
 
 ## Reparto
 
@@ -217,8 +304,8 @@ No es el adaptador. Es esto:
 |---|---|
 | **Versión A** | Empaquetar en worker. Independiente de la nube; arregla un tirón de hoy |
 | **Versión B** | Login: correo/contraseña + invitado |
-| **Versión C** | `SupabaseSaveAdapter`, tabla + bucket, RLS por usuario, selector local/nube, y el latido de GitHub Actions |
-| **Versión D** | Conflictos, caché por fecha y cola offline |
+| **Versión C** | `SupabaseSaveAdapter`, tablas + bucket, RLS, subir un mundo a la nube, y el latido de GitHub Actions |
+| **Versión D** | Códigos de invitación y miembros |
 
 ---
 
@@ -486,19 +573,29 @@ del mundo para que alguien se una. Las dos cosas las deja hechas la nube.
 
 ## Lo que hace falta decidir
 
-1. **¿Organización Free nueva, o segundo proyecto en la que ya tienes?** Se puede
-   tener otra organización, pero la crearías tú desde el panel. Es un seguro
-   contra la Fair Use, no una necesidad: si prefieres no complicarte, el segundo
-   proyecto en la organización de siempre vale, y se puede mover luego.
-2. **¿Hasta dónde llega el offline?** Desde «sin red no hay nube» hasta una cola
-   de sincronización completa. Es lo que más cambia el tamaño de la parte 1.
-3. **¿SMTP propio para el login por correo?** Hace falta si va a entrar alguien
-   más que tú. Es gratis, pero es trabajo extra en esa versión.
-4. **¿Fase A sin bichos, o multijugador completo de una vez?** Recomiendo la
+1. **¿Cómo se entra: Google, o correo y contraseña sin confirmación?** Es lo único
+   que queda con peso. Recomiendo Google + invitado: no gasta correos, no pide
+   dominio y para seis personas es más cómodo.
+2. **¿Fase A sin bichos, o multijugador completo de una vez?** Recomiendo la
    fase A.
 
-Ya decidido en esta ronda: **latido cada 12 horas** por GitHub Actions, **fase A
-solo con STUN** y el TURN aplazado a cuando se demuestre que hace falta.
+Ya decidido: **el plan gratis como marco**, un proyecto propio para el juego,
+**latido cada 12 horas** por GitHub Actions, **fase A solo con STUN** con el TURN
+aplazado, y el **modelo de mundo local o de nube pero nunca los dos**, que es lo
+que deja el bloque sin conflictos que resolver.
+
+## Estado de la cuenta
+
+Comprobado al escribir esto: la conexión de Supabase que tengo aquí ve **una
+organización** (`Nordack's Org`) con **un proyecto**
+(`IbraSalesforceDev's Project`). El proyecto **`GameOver` todavía no aparece**,
+que puede ser que siga aprovisionándose o que esté en una organización nueva a la
+que esta conexión no llega. Antes de empezar a trabajar contra él habrá que
+comprobarlo — si está en otra organización, hay que reconectar la integración
+para que la vea.
+
+Con dos proyectos activos se agota el cupo del plan gratis: **no habría un tercero
+sin pausar alguno**.
 
 Lo que **ya no** hace falta decidir, porque el plan gratis lo decide solo:
 el transporte es WebRTC con Cloudflare para STUN/TURN, y Supabase Realtime se
