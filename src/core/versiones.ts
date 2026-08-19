@@ -804,6 +804,19 @@ export const VERSIONES: readonly Version[] = [
       'En un mundo de la nube guarda solo el anfitrión: antes se pisaban',
     ],
   },
+  {
+    id: '7.11.2',
+    etapa: 'prealfa',
+    nombre: 'Un solo mundo para los dos',
+    resumen: 'Se acabaron el jugador duplicado, las dos horas y los bichos tuertos.',
+    cambios: [
+      'El invitado ya no entra dos veces ni se ve un fantasma de sí mismo',
+      'La hora del mundo la lleva el anfitrión: los dos ven el mismo cielo',
+      'Los bichos persiguen al que tengan más cerca, hospede o no',
+      'Y le hacen daño al invitado, con su armadura y su invulnerabilidad',
+      'Al invitado ya le entra hambre, se le pasa la invulnerabilidad y puede morirse',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

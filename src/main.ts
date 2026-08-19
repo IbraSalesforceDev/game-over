@@ -783,6 +783,7 @@ async function arrancar(): Promise<void> {
           // vieja y quien entre vería un mundo que ya no existe.
           bytesDelMundo: () => empaquetarFuera(mundo, partida.estado),
           bichos: () => enemigos,
+          minutos: () => reloj.minutos,
         });
         // La sala está abierta: a partir de aquí lo que falta es que entre
         // alguien, y eso ya no es un problema de conexión.
@@ -792,6 +793,8 @@ async function arrancar(): Promise<void> {
           ...comun,
           versionMundo,
           alLlegarMundo: (bytes) => void adoptarMundoDelAnfitrion(bytes),
+          alDarLaHora: ponerEnHora,
+          alRecibirGolpe: recibirGolpeDeRed,
         });
       }
     } catch (e) {
@@ -799,6 +802,49 @@ async function arrancar(): Promise<void> {
       aviso.mostrar('No se ha podido conectar con los demás', true);
       acompanados.estado('fallo');
     }
+  }
+
+  /**
+   * Un golpe que dice el anfitrión que te han dado.
+   *
+   * Pasa por el mismo sitio que el daño de un bicho local —armadura, empujón,
+   * partículas, sacudida— para que se sienta igual. Lo único que viene de fuera
+   * es que ha ocurrido y cuánto pegaba lo que te ha tocado.
+   */
+  function recibirGolpeDeRed(dano: number, desdeX: number): void {
+    const encaja = danoTrasArmadura(dano, defensaTotal(equipo) + defensaExtra(estados));
+    if (!golpear(salud, jugador.caja, encaja, desdeX)) return;
+    panelVida.refrescar(salud);
+    particulas.emitir(
+      jugador.caja.x + jugador.caja.ancho / 2,
+      jugador.caja.y + jugador.caja.alto / 2,
+      { cantidad: 12, color: '#d94f4f', dispersion: 2.2, empujeY: -1, vida: 30, tam: 2 },
+    );
+    sacudir(3.4);
+    audio.sonar('dano');
+  }
+
+  /**
+   * Poner el reloj en la hora del anfitrión.
+   *
+   * De un salto solo cuando la diferencia es grande —al entrar, o tras una
+   * desconexión—; si no, se acerca poco a poco. Un salto de dos minutos veinte
+   * veces por segundo haría parpadear la luz del mundo entero, porque cambiar
+   * la hora obliga a rehacer la iluminación.
+   */
+  function ponerEnHora(minutos: number): void {
+    // Por el camino corto: 1439 y 0 son la misma medianoche, y sin esto ir de
+    // una a otra daría la vuelta al día entero hacia atrás.
+    let delta = minutos - reloj.minutos;
+    if (delta > 720) delta -= 1440;
+    if (delta < -720) delta += 1440;
+    if (Math.abs(delta) < 0.05) return;
+    if (Math.abs(delta) > 20) {
+      reloj.ir(minutos);
+      motorLuz.marcarSucio();
+      return;
+    }
+    reloj.ir(reloj.minutos + delta * 0.1);
   }
 
   /**
@@ -1967,7 +2013,16 @@ async function arrancar(): Promise<void> {
   }
 
   /** Enemigos, golpes y vida: todo lo que puede matar o morir en un tick. */
-  function actualizarCombate(): void {
+  /**
+   * Lo mío: la vida, el golpe y el hambre.
+   *
+   * Separado del resto de `actualizarCombate` porque **esto lo corre también el
+   * invitado**, y el resto no. El invitado no simula bichos —los suyos son
+   * copias de las que le manda el anfitrión— pero su salud sí es suya: sin este
+   * tick, la invulnerabilidad no se le agotaba nunca y después del primer golpe
+   * se volvía inmortal sin que nadie lo hubiera decidido.
+   */
+  function actualizarLoMio(): void {
     // La invulnerabilidad de depuración se renueva cada tick: así ninguna
     // fuente de daño —golpe, caída, lava, hambre— la puede saltar.
     if (trucos.invulnerable) salud.invulnerable = 60;
@@ -1992,6 +2047,58 @@ async function arrancar(): Promise<void> {
       if (rh.danado) aviso.mostrar('Tienes hambre', true);
       panelVida.refrescarHambre(hambre);
     }
+  }
+
+  /**
+   * La muerte, si toca.
+   *
+   * Fuera de `actualizarCombate` porque **el invitado también se muere**, y esa
+   * parte no la corría. Un invitado sin esto se quedaba tumbado a cero de vida
+   * para siempre: ni reaparecía, ni salía el cartel, ni se le pasaba nada.
+   */
+  function morirseSiToca(): void {
+    if (!salud.muerto) return;
+    particulas.emitir(
+      jugador.caja.x + jugador.caja.ancho / 2,
+      jugador.caja.y + jugador.caja.alto / 2,
+      { cantidad: 40, color: '#d94f4f', dispersion: 3.4, vida: 55, tam: 3 },
+    );
+    sacudir(8);
+    audio.sonar('muerte');
+    // El motivo se lee antes de revivir: `revivir` lo borra, y si se leyera
+    // después la pantalla de muerte diría siempre lo mismo.
+    const motivo = TEXTO_MOTIVO[salud.motivo];
+
+    // En hardcore no se reaparece: se acaba. El mundo no se borra —tirar
+    // horas de construcción por un despiste sería otra cosa— pero queda
+    // cerrado, y lo que se guarda es el momento de la muerte.
+    if (partida.estado.hardcore) {
+      partida.estado.hardcoreMuerto = true;
+      bucle.parar();
+      particulas.limpiar();
+      panelVida.mostrarMuerte(true, `${motivo} Fin de la partida.`);
+      void guardar('manual');
+      return;
+    }
+
+    reaparecer(jugador);
+    revivir(salud);
+    limpiarEfectos(estados);
+    // Lo que estuviera volando se apaga. Un proyectil vivo al otro lado del
+    // mundo no llega a hacer daño, pero sí sigue costando ticks y sale
+    // dibujado si la cámara pasa por ahí.
+    tiros.length = 0;
+    tirosMios.length = 0;
+    reiniciarAliento(aliento);
+    reiniciarHambre(hambre);
+    panelVida.refrescarHambre(hambre);
+    particulas.limpiar();
+    panelVida.mostrarMuerte(true, motivo);
+    window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
+  }
+
+  function actualizarCombate(): void {
+    actualizarLoMio();
 
     // El golpe activo alcanza a quien toque, una vez por mandoble.
     // El filo del arma entra en dos sitios: aquí, si multiplica el daño, y en
@@ -2089,7 +2196,18 @@ async function arrancar(): Promise<void> {
       if (relojAparicion % 30 === 0) limpiarExplosivos(bombas);
     }
 
-    const res = actualizarEnemigos(mundo, enemigos, jugador.caja, salud);
+    // Los bichos ven a todos los que hay en el mundo, no solo a quien hospeda.
+    const res = actualizarEnemigos(
+      mundo,
+      enemigos,
+      jugador.caja,
+      salud,
+      undefined,
+      sesionRed?.acompanantes() ?? [],
+    );
+    // Y lo que le hayan hecho a un invitado, se le cuenta: el golpe lo decide
+    // aquí quien simula los bichos, y la armadura la aplica cada uno en su casa.
+    for (const g of res.danoAAcompanantes) sesionRed?.cobrar(g.id, g.dano, g.desdeX);
     if (res.disparos.length > 0) {
       tiros.push(...res.disparos);
       audio.sonar('golpe', 1.5);
@@ -2146,45 +2264,7 @@ async function arrancar(): Promise<void> {
       if (esJefe(m.especie)) caerJefe(m.especie);
     }
 
-    if (salud.muerto) {
-      particulas.emitir(
-        jugador.caja.x + jugador.caja.ancho / 2,
-        jugador.caja.y + jugador.caja.alto / 2,
-        { cantidad: 40, color: '#d94f4f', dispersion: 3.4, vida: 55, tam: 3 },
-      );
-      sacudir(8);
-      audio.sonar('muerte');
-      // El motivo se lee antes de revivir: `revivir` lo borra, y si se leyera
-      // después la pantalla de muerte diría siempre lo mismo.
-      const motivo = TEXTO_MOTIVO[salud.motivo];
-
-      // En hardcore no se reaparece: se acaba. El mundo no se borra —tirar
-      // horas de construcción por un despiste sería otra cosa— pero queda
-      // cerrado, y lo que se guarda es el momento de la muerte.
-      if (partida.estado.hardcore) {
-        partida.estado.hardcoreMuerto = true;
-        bucle.parar();
-        particulas.limpiar();
-        panelVida.mostrarMuerte(true, `${motivo} Fin de la partida.`);
-        void guardar('manual');
-        return;
-      }
-
-      reaparecer(jugador);
-      revivir(salud);
-      limpiarEfectos(estados);
-      // Lo que estuviera volando se apaga. Un proyectil vivo al otro lado del
-      // mundo no llega a hacer daño, pero sí sigue costando ticks y sale
-      // dibujado si la cámara pasa por ahí.
-      tiros.length = 0;
-      tirosMios.length = 0;
-      reiniciarAliento(aliento);
-      reiniciarHambre(hambre);
-      panelVida.refrescarHambre(hambre);
-      particulas.limpiar();
-      panelVida.mostrarMuerte(true, motivo);
-      window.setTimeout(() => panelVida.mostrarMuerte(false), 2200);
-    }
+    morirseSiToca();
 
     vocesDeLosBichos();
 
@@ -3469,7 +3549,12 @@ async function arrancar(): Promise<void> {
   const bucle = crearBucle(
     () => {
       // Antes de 1.5.0 no había ciclo: el sol no se movía de mediodía.
-      if (tiene('diaNoche') && !trucos.congelarReloj) reloj.avanzar(TICK);
+      // El reloj lo corre quien manda. El invitado no lo avanza: se lo dice el
+      // anfitrión en cada instantánea, y avanzarlo además le haría ir por
+      // delante y volver atrás veinte veces por segundo.
+      if (tiene('diaNoche') && !trucos.congelarReloj && sesionRed?.papel !== 'invitado') {
+        reloj.avanzar(TICK);
+      }
       if (esperaAvisoPico > 0) esperaAvisoPico--;
       if (esperaAvisoVersion > 0) esperaAvisoVersion--;
       if (esperaAvisoFlechas > 0) esperaAvisoFlechas--;
@@ -3493,7 +3578,18 @@ async function arrancar(): Promise<void> {
       // El invitado no simula bichos: los suyos son los que le manda el
       // anfitrión. Si los generara también, habría dos poblaciones distintas en
       // el mismo mundo y solo una de las dos podría hacerte daño.
-      if (sesionRed?.papel !== 'invitado') actualizarCombate();
+      // El invitado no simula bichos, pero su salud, su hambre y su golpe son
+      // suyos: sin esto, ni se le pasaba la invulnerabilidad ni le entraba
+      // hambre. Lo que no corre es la parte que decide el mundo.
+      if (sesionRed?.papel === 'invitado') {
+        actualizarLoMio();
+        // En el anfitrión esto va al final de `actualizarCombate`, después de
+        // repartir el daño del tick. Aquí no hay tal reparto, así que va detrás
+        // de lo suyo y en el mismo sitio del tick.
+        morirseSiToca();
+      } else {
+        actualizarCombate();
+      }
       if (tiene('efectos')) actualizarEstados();
       tickPoder(recargaPoder);
       if (tiene('sucesos')) actualizarSucesos();

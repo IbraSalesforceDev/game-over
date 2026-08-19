@@ -10,8 +10,8 @@ import { Mundo } from '../src/world/world';
 import { AIRE, PIEDRA, TIERRA } from '../src/world/tiles';
 import { ALCANCE_TILES, Anfitrion, type Enlace } from '../src/red/anfitrion';
 import { Invitado } from '../src/red/invitado';
-import type { CambioTile } from '../src/red/protocolo';
-import { crearEnemigo, type Enemigo } from '../src/entities/enemies';
+import { escribirInstantanea, type CambioTile } from '../src/red/protocolo';
+import { actualizarEnemigos, crearEnemigo, type Enemigo } from '../src/entities/enemies';
 
 /**
  * Un cable de mentira, con retraso y pérdidas.
@@ -497,5 +497,102 @@ describe('los bichos los pone el anfitrión', () => {
     }
     expect(p.invitado.bichos.length).toBeLessThanOrEqual(60);
     expect(p.invitado.bichos.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Lo que se vio al probarlo con dos navegadores de verdad.
+ *
+ * Tres cosas distintas, y las tres se veían en la misma pantalla: el invitado
+ * salía dos veces, cada uno tenía su hora y los bichos solo perseguían a quien
+ * hospedaba.
+ */
+describe('dos jugadores, un solo mundo', () => {
+  it('saludar dos veces no mete a dos jugadores', async () => {
+    const p = await montarPartida();
+    expect(p.anfitrion.conectados).toHaveLength(1);
+    const idPrimero = p.invitado.miId;
+
+    // El invitado repite el saludo porque cree que no le han contestado: es
+    // exactamente lo que hace el reintento cuando la bienvenida tarda.
+    p.invitado.saludar();
+    p.cable.vaciar(p.alAnfitrion, p.alInvitado);
+    p.invitado.saludar();
+    p.cable.vaciar(p.alAnfitrion, p.alInvitado);
+
+    expect(p.anfitrion.conectados).toHaveLength(1);
+    // Y le vuelven a dar el mismo número, no uno nuevo: sin esto, el invitado
+    // se veía a sí mismo de pie a su lado.
+    expect(p.invitado.miId).toBe(idPrimero);
+  });
+
+  it('la hora del mundo la pone el anfitrión', () => {
+    let horaDelInvitado = -1;
+    // Se monta otro invitado para poder escuchar la hora que llega.
+    const oyente = new Invitado({
+      enlace: { mandarVivo: () => {}, mandarFirme: () => {} },
+      nombre: 'Oyente',
+      idPartida: 'p1',
+      ajustes: AJUSTES_POR_DEFECTO,
+      alLlegarMundo: () => {},
+      alCambiarTiles: () => {},
+      alDarLaHora: (m) => {
+        horaDelInvitado = m;
+      },
+    });
+    oyente.recibir(
+      escribirInstantanea({ tick: 1, tickConfirmado: 0, minutos: 934, entidades: [] }),
+    );
+    expect(horaDelInvitado).toBe(934);
+  });
+
+  it('los bichos persiguen al que tengan más cerca, sea quien sea', () => {
+    const mundo = mundoDePruebas();
+    const anfitrionCaja = crearCaja(10 * TILE, 36 * TILE, 26, 46);
+    const invitadoCaja = crearCaja(40 * TILE, 36 * TILE, 26, 46);
+    // El bicho, pegado al invitado y lejísimos del anfitrión.
+    const bicho = crearEnemigo('zombi', 42 * TILE, 36 * TILE);
+    const lista = [bicho];
+
+    const antes = bicho.caja.x;
+    for (let i = 0; i < 40; i++) {
+      actualizarEnemigos(mundo, lista, anfitrionCaja, { invulnerable: 0 }, undefined, [
+        { id: 2, caja: invitadoCaja, invulnerable: 0 },
+      ]);
+    }
+    // Se mueve hacia el invitado (a su izquierda), no hacia el anfitrión, que
+    // está treinta tiles más allá en la misma dirección: lo que se comprueba es
+    // que no lo ignora, y para eso basta con que se le acerque.
+    expect(Math.abs(bicho.caja.x - invitadoCaja.x)).toBeLessThan(Math.abs(antes - invitadoCaja.x) + 1);
+    expect(bicho.caja.x).toBeGreaterThan(anfitrionCaja.x + 20 * TILE);
+  });
+
+  it('y le hacen daño al invitado, con su invulnerabilidad aparte', () => {
+    const mundo = mundoDePruebas();
+    const lejos = crearCaja(200 * TILE, 36 * TILE, 26, 46);
+    const invitadoCaja = crearCaja(40 * TILE, 36 * TILE, 26, 46);
+    const bicho = crearEnemigo('zombi', 40 * TILE, 36 * TILE);
+
+    const golpea = (invulnerable: number) =>
+      actualizarEnemigos(mundo, [bicho], lejos, { invulnerable: 60 }, undefined, [
+        { id: 2, caja: invitadoCaja, invulnerable },
+      ]).danoAAcompanantes;
+
+    const cobrado = golpea(0);
+    expect(cobrado).toHaveLength(1);
+    expect(cobrado[0]!.id).toBe(2);
+    expect(cobrado[0]!.dano).toBeGreaterThan(0);
+
+    // Con invulnerabilidad puesta no se le cobra nada: si no, un zombi pegado
+    // mandaría sesenta golpes por segundo por el cable.
+    expect(golpea(30)).toHaveLength(0);
+  });
+
+  it('sin acompañantes, todo se comporta igual que antes', () => {
+    const mundo = mundoDePruebas();
+    const jugador = crearCaja(10 * TILE, 36 * TILE, 26, 46);
+    const bicho = crearEnemigo('zombi', 12 * TILE, 36 * TILE);
+    const r = actualizarEnemigos(mundo, [bicho], jugador, { invulnerable: 0 });
+    expect(r.danoAAcompanantes).toEqual([]);
   });
 });

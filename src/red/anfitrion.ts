@@ -18,12 +18,14 @@ import { TILE } from '../core/constants';
 import { actualizarFisica, crearCaja, type Ajustes, type Caja, type Entrada } from '../entities/physics';
 import { JUGADOR_ALTO, JUGADOR_ANCHO } from '../core/constants';
 import type { Mundo } from '../world/world';
-import { indiceDeEspecie, type Enemigo } from '../entities/enemies';
+import { indiceDeEspecie, type Acompanante, type Enemigo } from '../entities/enemies';
+import { TICKS_INVULNERABLE } from '../entities/salud';
 import { autoridadDeCaja } from './prediccion';
 import {
   BOTON,
   ENT,
   MSG,
+  escribirDano,
   RECHAZO,
   VERSION_PROTOCOLO,
   escribirBienvenido,
@@ -82,6 +84,15 @@ export interface JugadorConectado {
   ultimoTick: number;
   /** Ya se le ha mandado el mundo. */
   listo: boolean;
+  /**
+   * Ticks que le quedan de invulnerabilidad, contados aquí.
+   *
+   * Los lleva el anfitrión porque es quien decide que le han dado: sin esta
+   * cuenta, un slime pegado a alguien le mandaría un golpe cada tick, sesenta
+   * por segundo. Es la misma regla que en local, aplicada en el sitio en el que
+   * se toma la decisión.
+   */
+  invulnerable: number;
 }
 
 export interface OpcionesAnfitrion {
@@ -106,6 +117,13 @@ export interface OpcionesAnfitrion {
    * sola —nacen, mueren, se olvidan— y una copia se quedaría vieja al momento.
    */
   bichos?: () => readonly Enemigo[];
+  /**
+   * La hora del mundo ahora mismo, en minutos del día.
+   *
+   * Se pide en cada instantánea, como los bichos: el reloj corre solo y una
+   * copia se quedaría vieja al momento.
+   */
+  minutos?: () => number;
 }
 
 function entradaDeBotones(botones: number, antes: Entrada): Entrada {
@@ -164,6 +182,16 @@ export class Anfitrion {
         enlace.mandarFirme(escribirRechazo(RECHAZO.OTRA_PARTIDA));
         return null;
       }
+      // Un segundo saludo por el mismo canal no es otro jugador: es el mismo
+      // repitiendo porque no le ha llegado la bienvenida. Sin esta línea, cada
+      // repetición entraba como alguien nuevo, y el invitado acababa viendo un
+      // fantasma de sí mismo mientras el anfitrión contaba dos personas con el
+      // mismo nombre. Se le vuelve a dar la bienvenida y ya está: el mundo no se
+      // manda otra vez, que ese ya iba de camino por el canal fiable.
+      if (quien !== null && this.jugadores.has(quien)) {
+        enlace.mandarFirme(escribirBienvenido(quien, this.tickActual));
+        return quien;
+      }
       if (this.jugadores.size + 1 >= (this.op.maxJugadores ?? 3)) {
         enlace.mandarFirme(escribirRechazo(RECHAZO.LLENO));
         return null;
@@ -209,11 +237,37 @@ export class Anfitrion {
       entrada: { ...ENTRADA_QUIETA },
       ultimoTick: -1,
       listo: false,
+      invulnerable: 0,
     };
     this.jugadores.set(id, j);
     enlace.mandarFirme(escribirBienvenido(id, this.tickActual));
     this.op.alEntrar?.(j);
     return id;
+  }
+
+  /**
+   * Los invitados, como los ven los bichos.
+   *
+   * Se da tal cual a `actualizarEnemigos` para que persigan a todo el mundo y
+   * no solo a quien hospeda.
+   */
+  get acompanantes(): Acompanante[] {
+    return [...this.jugadores.values()]
+      .filter((j) => j.listo)
+      .map((j) => ({ id: j.id, caja: j.caja, invulnerable: j.invulnerable }));
+  }
+
+  /**
+   * Cobrarle a un invitado un golpe que ha decidido el anfitrión.
+   *
+   * Se le manda por el canal fiable: un «te han dado» perdido es vida que nadie
+   * pierde, y eso se nota mucho más que un tirón.
+   */
+  cobrar(id: number, dano: number, desdeX: number): void {
+    const j = this.jugadores.get(id);
+    if (!j || !j.listo || j.invulnerable > 0) return;
+    j.invulnerable = TICKS_INVULNERABLE;
+    j.enlace.mandarFirme(escribirDano(dano, desdeX));
   }
 
   /** Manda el mundo al que acaba de entrar. Va por el canal fiable y troceado. */
@@ -302,6 +356,7 @@ export class Anfitrion {
       // El flanco de salto dura un tick: si no se apaga, se salta sin parar
       // mientras no llegue una entrada nueva.
       j.entrada = { ...j.entrada, saltoPulsado: false };
+      if (j.invulnerable > 0) j.invulnerable--;
     }
 
     if (this.pendientes.length > 0) {
@@ -335,6 +390,7 @@ export class Anfitrion {
         escribirInstantanea({
           tick: this.tickActual,
           tickConfirmado: j.ultimoTick,
+          minutos: this.op.minutos?.() ?? 0,
           entidades: todos,
         }),
       );

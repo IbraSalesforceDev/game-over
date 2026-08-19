@@ -58,6 +58,10 @@ export interface OpcionesInvitado {
   versionMundo?: string;
   /** No se ha podido entrar, y este es el motivo ya legible. */
   alRechazar?: (motivo: string) => void;
+  /** La hora del anfitrión, en minutos del día. Llega con cada instantánea. */
+  alDarLaHora?: (minutos: number) => void;
+  /** Un bicho del anfitrión te ha tocado: aplícatelo con tu armadura. */
+  alRecibirGolpe?: (dano: number, desdeX: number) => void;
 }
 
 export function botonesDeEntrada(e: Entrada): number {
@@ -136,9 +140,15 @@ export class Invitado {
         this.op.alCambiarTiles(m.cambios);
         break;
 
+      case MSG.DANO:
+        this.op.alRecibirGolpe?.(m.dano, m.desdeX);
+        break;
+
       case MSG.INSTANTANEA:
         this.guardarInstantanea(m.instantanea.entidades);
         this.ultimaInstantanea = m.instantanea;
+        // La hora es del mundo, y del mundo manda el anfitrión.
+        this.op.alDarLaHora?.(m.instantanea.minutos);
         break;
     }
   }

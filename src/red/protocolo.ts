@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 2;
+export const VERSION_PROTOCOLO = 3;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -58,6 +58,18 @@ export const MSG = {
   TILES: 8,
   /** Los dos: me voy. */
   ADIOS: 9,
+  /**
+   * Anfitrión → cliente: te acaban de dar.
+   *
+   * El anfitrión decide **que** te han dado y **cuánto** pega lo que te ha
+   * dado; la armadura, la invulnerabilidad y la muerte las aplica cada uno en
+   * su casa. Es un reparto a medias y conviene decir por qué: llevar la vida de
+   * todos en el anfitrión pedía mandar también armadura, efectos y pociones de
+   * cada uno, y esto es un juego para tres amigos, no un servidor público. Lo
+   * que sí decide el anfitrión es lo único que no se puede falsear sin que se
+   * note: dónde está cada bicho y a quién ha tocado.
+   */
+  DANO: 10,
 } as const;
 
 export type TipoMensaje = (typeof MSG)[keyof typeof MSG];
@@ -180,6 +192,16 @@ export interface Instantanea {
   /** Tick del anfitrión. */
   tick: number;
   /**
+   * La hora del mundo, en minutos del día (0-1439).
+   *
+   * Viaja en cada instantánea porque el reloj es del mundo y el mundo lo lleva
+   * el anfitrión. Antes cada uno corría el suyo: se empezaba a la misma hora
+   * —la del fichero— y a los pocos minutos uno estaba a mediodía y el otro de
+   * noche, en el mismo sitio. Dos bytes veinte veces por segundo es un precio
+   * ridículo por que los dos vean el mismo cielo.
+   */
+  minutos: number;
+  /**
    * El último tick que el anfitrión ha procesado de este cliente.
    *
    * Es la pieza que hace posible la reconciliación: el cliente sabe hasta dónde
@@ -255,6 +277,7 @@ export function escribirInstantanea(inst: Instantanea): Uint8Array {
   e.u8(MSG.INSTANTANEA);
   e.u32(inst.tick);
   e.u32(inst.tickConfirmado);
+  e.u16(Math.max(0, Math.min(1439, Math.round(inst.minutos))));
   e.u16(inst.entidades.length);
   for (const ent of inst.entidades) {
     e.u8(ent.clase);
@@ -275,6 +298,15 @@ export function escribirInstantanea(inst: Instantanea): Uint8Array {
     e.i16(Math.max(-32768, Math.min(32767, Math.round(ent.yInicioCaida))));
     e.u16(Math.max(0, Math.min(65535, Math.round(ent.vidaMax))));
   }
+  return e.terminar();
+}
+
+/** Un golpe que hay que cobrarse en el otro lado. */
+export function escribirDano(dano: number, desdeX: number): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.DANO);
+  e.u16(Math.max(0, Math.min(65535, Math.round(dano))));
+  e.i16(Math.max(-32768, Math.min(32767, Math.round(desdeX))));
   return e.terminar();
 }
 
@@ -318,7 +350,8 @@ export type Mensaje =
   | { tipo: typeof MSG.INSTANTANEA; instantanea: Instantanea }
   | { tipo: typeof MSG.PIDO_TILE; cambio: CambioTile }
   | { tipo: typeof MSG.TILES; cambios: CambioTile[] }
-  | { tipo: typeof MSG.ADIOS };
+  | { tipo: typeof MSG.ADIOS }
+  | { tipo: typeof MSG.DANO; dano: number; desdeX: number };
 
 /**
  * Lee un mensaje. Devuelve null si no se entiende.
@@ -349,6 +382,7 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
       case MSG.INSTANTANEA: {
         const tick = l.u32();
         const tickConfirmado = l.u32();
+        const minutos = l.u16();
         const n = l.u16();
         const entidades: EntidadRed[] = [];
         for (let i = 0; i < n; i++) {
@@ -369,8 +403,13 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
             vidaMax: l.u16(),
           });
         }
-        return { tipo: MSG.INSTANTANEA, instantanea: { tick, tickConfirmado, entidades } };
+        return {
+          tipo: MSG.INSTANTANEA,
+          instantanea: { tick, tickConfirmado, minutos, entidades },
+        };
       }
+      case MSG.DANO:
+        return { tipo: MSG.DANO, dano: l.u16(), desdeX: l.i16() };
       case MSG.PIDO_TILE:
         return {
           tipo: MSG.PIDO_TILE,

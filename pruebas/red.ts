@@ -106,6 +106,10 @@ async function main(): Promise<void> {
   const cajaB = crearCaja(genB.spawnTx * TILE, genB.spawnTy * TILE, 26, 46);
 
   let mundoLlegado = 0;
+  /** La hora que el anfitrión dice tener, y la que le llega al invitado. */
+  let horaDelAnfitrion = 615;
+  let horaEnElInvitado = -1;
+  let golpesRecibidos = 0;
   const tilesEnB: { tx: number; ty: number; id: number }[] = [];
   const tilesEnA: { tx: number; ty: number; id: number }[] = [];
 
@@ -119,6 +123,7 @@ async function main(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bytesDelMundo: () => empaquetar(genA.mundo, estado as any),
     bichos: () => [],
+    minutos: () => horaDelAnfitrion,
     entrarEnSala: sala('anfitrion'),
     alCambiarTiles: (cs) => tilesEnA.push(...cs),
   });
@@ -134,6 +139,12 @@ async function main(): Promise<void> {
       mundoLlegado = bytes.length;
     },
     alCambiarTiles: (cs) => tilesEnB.push(...cs),
+    alDarLaHora: (m) => {
+      horaEnElInvitado = m;
+    },
+    alRecibirGolpe: () => {
+      golpesRecibidos++;
+    },
   });
 
   // El bucle del juego: los dos avanzan a 60 Hz, como en la partida de verdad.
@@ -154,6 +165,29 @@ async function main(): Promise<void> {
   comprobar(
     'el anfitrión ve al invitado por su nombre',
     anfitrion.otros()[0]?.nombre === 'Invitado',
+  );
+
+  // Y solo uno: repetir el saludo no puede meter a dos.
+  comprobar('el invitado entra una sola vez, no dos', anfitrion.otros().length === 1);
+
+  // El reloj del mundo es del anfitrión.
+  comprobar(
+    'la hora del anfitrión llega al invitado',
+    await esperarA(() => horaEnElInvitado === horaDelAnfitrion, 5000),
+  );
+  horaDelAnfitrion = 1200;
+  comprobar(
+    'y le sigue cuando cambia',
+    await esperarA(() => horaEnElInvitado === 1200, 5000),
+  );
+
+  // Y el anfitrión puede cobrarle un golpe.
+  const quien = anfitrion.acompanantes()[0]?.id ?? 0;
+  comprobar('el anfitrión ve al invitado como blanco de los bichos', quien > 0);
+  anfitrion.cobrar(quien, 12, 100);
+  comprobar(
+    'un golpe de un bicho le llega al invitado',
+    await esperarA(() => golpesRecibidos > 0, 5000),
   );
 
   // Un bloque puesto por el anfitrión tiene que aparecer en el invitado.

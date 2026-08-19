@@ -1305,6 +1305,24 @@ export function solapan(a: Caja, b: Caja): boolean {
 export const DANO_LAVA_ENEMIGO = 14;
 export const INTERVALO_LAVA_ENEMIGO = 22;
 
+/**
+ * Otro jugador al que los bichos también tienen que ver.
+ *
+ * Existe porque hasta 7.11.2 los bichos perseguían solo al jugador de esta
+ * máquina: en una partida acompañada, el invitado podía cruzar una cueva entera
+ * entre zombis sin que ninguno se girara. Los bichos los simula el anfitrión, y
+ * el anfitrión solo se conocía a sí mismo.
+ *
+ * La invulnerabilidad viaja aquí porque el anfitrión la lleva por cada
+ * invitado: sin ella, un slime pegado a alguien mandaría un golpe por tick.
+ */
+export interface Acompanante {
+  /** Su número de red. */
+  id: number;
+  caja: Caja;
+  invulnerable: number;
+}
+
 export interface ResultadoEnemigos {
   /** Daño que han hecho al jugador este tick. */
   danoAlJugador: number;
@@ -1326,6 +1344,33 @@ export interface ResultadoEnemigos {
   disparos: Disparo[];
   /** Enemigos que han muerto, con su posición, para soltar el botín. */
   muertos: { especie: Especie; tx: number; ty: number; elite: boolean }[];
+  /**
+   * Lo que han cobrado los acompañantes, para que el anfitrión se lo cuente.
+   *
+   * Va aparte del daño al jugador de casa porque son dos caminos distintos:
+   * este hay que mandarlo por el cable y el otro se aplica aquí mismo.
+   */
+  danoAAcompanantes: { id: number; dano: number; desdeX: number }[];
+}
+
+/** El centro más cercano a un punto, entre todos los jugadores que hay. */
+function objetivoMasCercano(
+  desde: { x: number; y: number },
+  jugador: Caja,
+  acompanantes: readonly Acompanante[],
+): { x: number; y: number } {
+  let mejor = centro(jugador);
+  if (acompanantes.length === 0) return mejor;
+  let corta = Math.hypot(mejor.x - desde.x, mejor.y - desde.y);
+  for (const a of acompanantes) {
+    const c = centro(a.caja);
+    const d = Math.hypot(c.x - desde.x, c.y - desde.y);
+    if (d < corta) {
+      corta = d;
+      mejor = c;
+    }
+  }
+  return mejor;
 }
 
 /**
@@ -1338,13 +1383,14 @@ export function actualizarEnemigos(
   jugador: Caja,
   saludJugador: { invulnerable: number },
   distanciaOlvido = 90 * TILE,
+  acompanantes: readonly Acompanante[] = [],
 ): ResultadoEnemigos {
-  const objetivo = centro(jugador);
   const salida: ResultadoEnemigos = {
     danoAlJugador: 0,
     agresores: [],
     disparos: [],
     muertos: [],
+    danoAAcompanantes: [],
   };
 
   for (const e of enemigos) {
@@ -1352,6 +1398,10 @@ export function actualizarEnemigos(
     tickSalud(e.salud);
 
     const mio = centro(e.caja);
+    // Cada bicho va a por el que tenga más cerca, y se decide en cada tick: si
+    // se quedara con el primero al que vio, dos jugadores podrían turnarse
+    // delante de sus narices sin que cambiara de opinión.
+    const objetivo = objetivoMasCercano(mio, jugador, acompanantes);
     const lejos = Math.hypot(objetivo.x - mio.x, objetivo.y - mio.y) > distanciaOlvido;
     e.olvidado = lejos ? e.olvidado + 1 : 0;
     // Un enemigo al que nadie ve durante diez segundos desaparece: si no, el
@@ -1394,6 +1444,18 @@ export function actualizarEnemigos(
     if (!def.pasivo && solapan(e.caja, jugador) && saludJugador.invulnerable <= 0) {
       salida.danoAlJugador = Math.max(salida.danoAlJugador, danoDe(e));
       salida.agresores.push(e);
+    }
+    // Y a los demás. Se mira a todos y no solo a su objetivo: un zombi que va a
+    // por uno y le pasa por encima al otro le hace daño igual.
+    if (!def.pasivo) {
+      for (const a of acompanantes) {
+        if (a.invulnerable > 0 || !solapan(e.caja, a.caja)) continue;
+        salida.danoAAcompanantes.push({
+          id: a.id,
+          dano: danoDe(e),
+          desdeX: e.caja.x + e.caja.ancho / 2,
+        });
+      }
     }
 
     if (e.salud.muerto) {

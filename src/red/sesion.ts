@@ -21,7 +21,7 @@
 
 import type { Ajustes, Caja, Entrada } from '../entities/physics';
 import type { Mundo } from '../world/world';
-import type { Enemigo } from '../entities/enemies';
+import type { Acompanante, Enemigo } from '../entities/enemies';
 import { Anfitrion, type Enlace, type JugadorConectado } from './anfitrion';
 import { ConexionAnfitrion, ConexionInvitado, type EstadoConexion } from './conexion';
 import { Invitado, type OtroJugador } from './invitado';
@@ -39,6 +39,21 @@ export interface AvisosSesion {
   alAvanzarMundo?: (progreso: number) => void;
   /** Tiles que hay que aplicar al mundo de aquí. */
   alCambiarTiles?: (cambios: readonly CambioTile[]) => void;
+  /**
+   * Solo en el invitado: te han dado, y esto es lo que pega.
+   *
+   * La armadura y la muerte las aplica el juego de aquí: el anfitrión decide
+   * que te han tocado, no cuánta vida te queda.
+   */
+  alRecibirGolpe?: (dano: number, desdeX: number) => void;
+  /**
+   * Solo en el invitado: la hora que dice el anfitrión.
+   *
+   * El reloj del mundo lo lleva quien lo hospeda. Con cada uno corriendo el
+   * suyo, dos jugadores en el mismo sitio veían uno el mediodía y el otro la
+   * noche.
+   */
+  alDarLaHora?: (minutos: number) => void;
 }
 
 export interface OpcionesSesion extends AvisosSesion {
@@ -52,6 +67,8 @@ export interface OpcionesSesion extends AvisosSesion {
   bytesDelMundo?: () => Promise<Uint8Array>;
   /** Solo el anfitrión: los bichos que simula, para mandarlos. */
   bichos?: () => readonly Enemigo[];
+  /** Solo el anfitrión: la hora del mundo, que es suya. */
+  minutos?: () => number;
   /** Con qué versión nació el mundo, para recrear bien los bichos que llegan. */
   versionMundo?: string;
   /**
@@ -89,6 +106,14 @@ export interface SesionRed {
   /** Cuánto hay que desplazar el dibujo del propio jugador, para no dar tirones. */
   desvio(): { x: number; y: number };
   /**
+   * Los demás jugadores, como los tienen que ver los bichos.
+   *
+   * Solo el anfitrión devuelve algo: es el único que simula bichos.
+   */
+  acompanantes(): readonly Acompanante[];
+  /** Cobrarle un golpe a un invitado. En el invitado no hace nada. */
+  cobrar(id: number, dano: number, desdeX: number): void;
+  /**
    * Los bichos que hay que dibujar.
    *
    * En el anfitrión, null: los suyos ya los tiene el juego y no hace falta
@@ -109,6 +134,7 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     spawnTy: op.spawnTy ?? 0,
     bytesDelMundo: op.bytesDelMundo ?? (async () => new Uint8Array(0)),
     bichos: op.bichos,
+    minutos: op.minutos,
     alEntrar: (j) => {
       nombres.set(j.id, j.nombre);
       op.alContar?.(`${j.nombre} ha entrado`);
@@ -208,6 +234,12 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
       // El anfitrión es la verdad: nunca se corrige a sí mismo.
       return { x: 0, y: 0 };
     },
+    acompanantes() {
+      return anfitrion.acompanantes;
+    },
+    cobrar(id, dano, desdeX) {
+      anfitrion.cobrar(id, dano, desdeX);
+    },
     bichos() {
       return null; // los suyos ya los tiene el juego
     },
@@ -294,6 +326,8 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     alAvanzarMundo: (p) => op.alAvanzarMundo?.(p),
     alCambiarTiles: (cs) => op.alCambiarTiles?.(cs),
     versionMundo: op.versionMundo,
+    alDarLaHora: (minutos) => op.alDarLaHora?.(minutos),
+    alRecibirGolpe: (dano, desdeX) => op.alRecibirGolpe?.(dano, desdeX),
     alRechazar: (motivo) => {
       parar();
       op.alCambiarEstado?.('fallo', motivo);
@@ -359,6 +393,12 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     },
     desvio() {
       return { x: invitado.prediccion.desvioX, y: invitado.prediccion.desvioY };
+    },
+    acompanantes() {
+      return []; // el invitado no simula bichos: no tiene a quién enseñárselos
+    },
+    cobrar() {
+      /* de repartir golpes se encarga el anfitrión */
     },
     bichos() {
       return invitado.bichos;
