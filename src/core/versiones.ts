@@ -715,6 +715,18 @@ export const VERSIONES: readonly Version[] = [
       'Desplegar la lista no pierde lo que tuvieras elegido',
     ],
   },
+  {
+    id: '7.6.2',
+    etapa: 'prealfa',
+    nombre: 'El teclado, de dos amos',
+    resumen: 'Escribir en un campo ya no pisa los atajos, y el mapa se abre desde el panel.',
+    cambios: [
+      'Escribir en cualquier campo ya no mueve al jugador ni dispara atajos',
+      'Y al revés: un campo deja de tragarse teclas que no son suyas',
+      'Arreglado el mapa del panel de depuración, que no se abría tras escribir coordenadas',
+      'El panel de depuración trae botón para ver el mapa sin tocar el teclado',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

@@ -938,6 +938,47 @@ async function arrancar(): Promise<void> {
    */
   let jefe: Enemigo | null = null;
   const trucos = crearTrucos();
+  /**
+   * Abre o cierra el mapa.
+   *
+   * Enseña lo que abarque el mejor mapa que se lleve encima; sin ninguno, solo
+   * lo dice. El truco de depuración lo salta y enseña el mundo entero, que es
+   * justo lo que hace falta para comprobar la generación sin caminar medio
+   * mundo.
+   *
+   * Lo llaman la M y el botón del panel de depuración. Es una función y no dos
+   * líneas dentro del atajo porque el truco del mapa completo se enciende en un
+   * panel que se maneja con el ratón, y desde allí no había forma de abrirlo.
+   */
+  function abrirMapa(): void {
+    if (barra.inventarioAbierto || pausa.abierto) return;
+    let mejor = 0;
+    for (const r of inventario.ranuras) {
+      if (r.cantidad > 0) mejor = Math.max(mejor, alcanceDeMapa(r.objeto));
+    }
+    const completo = trucos.mapaCompleto;
+    if (!tiene('mapas') && !completo) {
+      aviso.mostrar(`Los mapas no existen en la versión ${versionMundo}`);
+      return;
+    }
+    if (mejor <= 0 && !completo) {
+      aviso.mostrar('No llevas ningún mapa');
+      return;
+    }
+    const alcance = completo ? Infinity : mejor;
+    mapa.alternar(
+      mundo,
+      Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),
+      Math.floor((jugador.caja.y + jugador.caja.alto / 2) / TILE),
+      alcance,
+      Number.isFinite(alcance) ? `${alcance} tiles alrededor` : 'el mundo entero',
+      // Las estructuras solo se marcan llevando brújula. Un mapa que las
+      // enseñara siempre convertiría la brújula en un adorno, y un mapa que no
+      // las enseñara nunca obligaría a buscar la fortaleza mirando una aguja
+      // de veinte píxeles durante media hora.
+      llevaBrujula() || trucos.mapaCompleto ? partida.estado.estructuras : [],
+    );
+  }
   const depuracion = crearDebugMenu(capaUI, {
     trucos,
     version: versionMundo,
@@ -976,6 +1017,7 @@ async function arrancar(): Promise<void> {
       motorLuz.marcarSucio();
     },
     volverAlSpawn: () => reaparecer(jugador),
+    abrirMapa,
     sucesos: () =>
       (Object.keys(SUCESOS) as ClaseSuceso[]).map((c) => ({
         clave: c,
@@ -1150,43 +1192,7 @@ async function arrancar(): Promise<void> {
     debug.nivel = debug.nivel === 'coordenadas' ? 'nada' : 'coordenadas';
     debug.activo = debug.nivel !== 'nada';
   });
-  /**
-   * El mapa, con la M.
-   *
-   * Enseña lo que abarque el mejor mapa que se lleve encima; sin ninguno, solo
-   * lo dice. El truco de depuración lo salta y enseña el mundo entero, que es
-   * justo lo que hace falta para comprobar la generación sin caminar medio
-   * mundo.
-   */
-  entrada.alPulsar('KeyM', () => {
-    if (barra.inventarioAbierto || pausa.abierto) return;
-    let mejor = 0;
-    for (const r of inventario.ranuras) {
-      if (r.cantidad > 0) mejor = Math.max(mejor, alcanceDeMapa(r.objeto));
-    }
-    const completo = trucos.mapaCompleto;
-    if (!tiene('mapas') && !completo) {
-      aviso.mostrar(`Los mapas no existen en la versión ${versionMundo}`);
-      return;
-    }
-    if (mejor <= 0 && !completo) {
-      aviso.mostrar('No llevas ningún mapa');
-      return;
-    }
-    const alcance = completo ? Infinity : mejor;
-    mapa.alternar(
-      mundo,
-      Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE),
-      Math.floor((jugador.caja.y + jugador.caja.alto / 2) / TILE),
-      alcance,
-      Number.isFinite(alcance) ? `${alcance} tiles alrededor` : 'el mundo entero',
-      // Las estructuras solo se marcan llevando brújula. Un mapa que las
-      // enseñara siempre convertiría la brújula en un adorno, y un mapa que no
-      // las enseñara nunca obligaría a buscar la fortaleza mirando una aguja
-      // de veinte píxeles durante media hora.
-      llevaBrujula() || trucos.mapaCompleto ? partida.estado.estructuras : [],
-    );
-  });
+  entrada.alPulsar('KeyM', abrirMapa);
   entrada.alPulsar('F6', () => {
     debug.nivel = debug.nivel === 'completo' ? 'nada' : 'completo';
     debug.activo = debug.nivel !== 'nada';

@@ -91,8 +91,6 @@ export function crearTuner(contenedor: HTMLElement, ajustes: Ajustes): Tuner {
       ajustes[campo.clave] = n;
       valor.textContent = String(n);
     });
-    // El panel no debe robarle las teclas al juego.
-    slider.addEventListener('keydown', (e) => e.stopPropagation());
 
     label.append(fila, slider);
     panel.appendChild(label);

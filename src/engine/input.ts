@@ -27,6 +27,32 @@ interface Acciones {
   salto: boolean;
 }
 
+/**
+ * ¿La tecla va a un campo en el que se está escribiendo?
+ *
+ * El juego se maneja con letras y los paneles tienen campos: el mismo teclado
+ * sirve para andar y para escribir «madera» en el buscador. Sin esta regla, esa
+ * palabra abre el mapa, cambia de capa y echa a andar al jugador.
+ *
+ * La regla vive aquí, en la capa que traduce las teclas, y no en cada campo. Los
+ * campos que había —los dos buscadores y los cuatro números del panel de
+ * depuración— se tapaban los oídos uno a uno con `stopPropagation`, y eso tenía
+ * dos fallos: cualquier campo nuevo nacía roto hasta que alguien se acordara de
+ * repetirlo, y el que sí lo hacía se tragaba **todas** las teclas, también las
+ * que no escriben nada. Escribir dos coordenadas en «Ir ahí» dejaba el foco en
+ * el campo, y a partir de ahí la M ya no abría el mapa: ni escribía ni servía.
+ */
+export function escribiendo(destino: EventTarget | null): boolean {
+  const el = destino as HTMLElement | null;
+  if (!el || typeof el.tagName !== 'string') return false;
+  return (
+    el.tagName === 'INPUT' ||
+    el.tagName === 'TEXTAREA' ||
+    el.tagName === 'SELECT' ||
+    el.isContentEditable === true
+  );
+}
+
 export interface GestorEntrada {
   /** Estado para el tick actual. */
   estado(): Entrada;
@@ -63,6 +89,7 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
   };
 
   function onDown(e: KeyboardEvent): void {
+    if (escribiendo(e.target)) return;
     pulsadas.add(e.code);
     alt = e.altKey;
     const atajo = atajos.get(e.code);
@@ -79,12 +106,19 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
     mantenido[accion] = true;
   }
 
+  /**
+   * Soltar una tecla se atiende siempre, se esté escribiendo o no.
+   *
+   * Si se filtrara igual que al pulsar, correr hacia la derecha y hacer clic en
+   * un campo dejaría al jugador corriendo para siempre: la D se pulsó con el
+   * foco fuera y se soltó con el foco dentro, y ese soltar no llegaría nunca.
+   */
   function onUp(e: KeyboardEvent): void {
     pulsadas.delete(e.code);
     alt = e.altKey;
     const accion = MAPA[e.code];
     if (!accion) return;
-    e.preventDefault();
+    if (!escribiendo(e.target)) e.preventDefault();
     mantenido[accion] = false;
   }
 

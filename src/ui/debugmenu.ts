@@ -99,6 +99,8 @@ export interface OpcionesDebugMenu {
   estructuras(): readonly { nombre: string; tx: number; ty: number }[];
   viajarA(tx: number, ty: number): void;
   volverAlSpawn(): void;
+  /** Abre el mapa, lo mismo que la M. */
+  abrirMapa(): void;
   /**
    * Los sucesos que se pueden lanzar a mano, y cuál está en marcha.
    *
@@ -489,6 +491,9 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
         <label>Mapa del mundo</label>
         <span class="interruptor" id="dbg-mapa">no</span>
       </div>
+      <div class="fila">
+        <button id="dbg-ver-mapa" style="flex:1">Ver el mapa (M)</button>
+      </div>
     </div>
 
     <div class="pie">P + F3 para abrir y cerrar. No aparece en los controles.</div>
@@ -659,8 +664,6 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   // --- Objetos -------------------------------------------------------------
   selObjeto.addEventListener('change', pintarIcono);
   buscar.addEventListener('input', refrescarCatalogos);
-  buscar.addEventListener('keydown', (e) => e.stopPropagation());
-  buscar.addEventListener('keyup', (e) => e.stopPropagation());
   const dar = (n: number): void => {
     const id = Number(selObjeto.value);
     if (Number.isFinite(id) && id > 0) op.darObjeto(id, n);
@@ -686,6 +689,9 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
   interruptor('dbg-invuln', () => op.trucos.invulnerable, (v) => (op.trucos.invulnerable = v));
   interruptor('dbg-sinhambre', () => op.trucos.sinHambre, (v) => (op.trucos.sinHambre = v));
   interruptor('dbg-mapa', () => op.trucos.mapaCompleto, (v) => (op.trucos.mapaCompleto = v));
+  // El interruptor solo enciende una capacidad; abrirlo era cosa de una tecla
+  // que nadie ve desde aquí. Con el botón, el truco se usa donde se activa.
+  $('dbg-ver-mapa').addEventListener('click', () => op.abrirMapa());
   dano.addEventListener('input', () => {
     op.trucos.danoMultiplicador = Number(dano.value);
     danoVal.textContent = `×${dano.value}`;
@@ -705,8 +711,6 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
 
   // --- Bichos --------------------------------------------------------------
   buscarBicho.addEventListener('input', refrescarCatalogos);
-  buscarBicho.addEventListener('keydown', (e) => e.stopPropagation());
-  buscarBicho.addEventListener('keyup', (e) => e.stopPropagation());
   interruptor('dbg-elite', () => elite, (v) => (elite = v));
   interruptor(
     'dbg-sinaparicion',
@@ -759,11 +763,6 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
     nota('');
     op.viajarA(tx, ty);
   });
-  for (const id of ['dbg-tx', 'dbg-ty', 'dbg-cantidad', 'dbg-vidamax']) {
-    const el = $(id);
-    el.addEventListener('keydown', (e) => e.stopPropagation());
-    el.addEventListener('keyup', (e) => e.stopPropagation());
-  }
 
   /** Los números que cambian solos: cuántos bichos hay y qué hora es. */
   function refrescarMarcadores(): void {
@@ -819,13 +818,9 @@ export function crearDebugMenu(contenedor: HTMLElement, op: OpcionesDebugMenu): 
 
   puerta.querySelector('#dbg-entrar')!.addEventListener('click', probar);
   clave.addEventListener('keydown', (e) => {
-    // El campo se traga las teclas: escribiendo la contraseña no se debe andar
-    // ni saltar por el mundo de detrás.
-    e.stopPropagation();
     if (e.key === 'Enter') probar();
     if (e.key === 'Escape') cerrarTodo();
   });
-  clave.addEventListener('keyup', (e) => e.stopPropagation());
   clave.addEventListener('input', () => clave.classList.remove('mal'));
 
   return {
