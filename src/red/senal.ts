@@ -24,7 +24,9 @@ import { nube } from '../nube/cliente';
 
 /** Lo que se manda por la sala. Nada de esto es partida: es presentarse. */
 export type Recado =
-  | { que: 'oferta'; de: string; sdp: string }
+  /** Un invitado avisa de que está en la sala. El anfitrión le ofrece. */
+  | { que: 'aqui-estoy'; de: string; nombre: string }
+  | { que: 'oferta'; de: string; para: string; sdp: string }
   | { que: 'respuesta'; de: string; para: string; sdp: string }
   | { que: 'ice'; de: string; para: string; candidata: string }
   | { que: 'adios'; de: string };

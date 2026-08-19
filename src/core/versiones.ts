@@ -667,6 +667,19 @@ export const VERSIONES: readonly Version[] = [
       'Cuando algo falla, el menú dice qué ha fallado en vez de "no se ha podido"',
     ],
   },
+  {
+    id: '7.5.0',
+    etapa: 'prealfa',
+    nombre: 'Acompañado',
+    resumen: 'En un mundo de la nube ya no estás solo: quien entre aparece contigo.',
+    cambios: [
+      'Los mundos de la nube se juegan entre varios, sin botón de empezar nada',
+      'Se ve a los demás moverse, con su nombre encima',
+      'Lo que uno pica o coloca le sale al otro',
+      'Tu personaje responde al instante aunque el mundo lo lleve el anfitrión',
+      'Todavía sin bichos: eso es lo siguiente',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

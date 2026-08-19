@@ -1,4 +1,4 @@
-import { TILE } from '../core/constants';
+import { JUGADOR_ALTO, JUGADOR_ANCHO, TILE } from '../core/constants';
 import { css, type Reloj } from '../engine/time';
 import type { Jugador } from '../entities/player';
 import { LUZ_MINIMA, type MotorLuz } from '../world/lighting';
@@ -23,6 +23,7 @@ import {
   crearSprites,
   JUGADOR_OFF_X,
   JUGADOR_OFF_Y,
+  ARMADURA_DESNUDA,
   type ClaveArmadura,
   type Pose,
   type Sprites,
@@ -110,6 +111,20 @@ export interface Escena {
    * Cero para los horizontes; el techo del inframundo cuando se está debajo.
    */
   baseFondoY?: number;
+  /**
+   * Los otros jugadores, si se está jugando acompañado.
+   *
+   * Vienen ya colocados donde toca pintarlos: de ellos no tenemos las teclas,
+   * así que la posición sale de interpolar entre instantáneas y no de simular.
+   */
+  companeros?: readonly { id: number; nombre: string; x: number; y: number; mirando: 1 | -1 }[];
+  /**
+   * Cuánto se desplaza el dibujo del propio jugador, jugando acompañado.
+   *
+   * La física ya está corregida; esto solo retrasa lo que ve el ojo unos frames
+   * para que la corrección no se vea como un tirón. Ver `red/prediccion.ts`.
+   */
+  desvioJugador?: { x: number; y: number };
 }
 
 export class Renderer {
@@ -462,6 +477,51 @@ export class Renderer {
     return { pose, frame: Math.floor(this.animAvance) };
   }
 
+  /**
+   * Otro jugador, con su nombre encima.
+   *
+   * Se pinta antes que el propio para que, si dos se solapan, el tuyo quede
+   * delante: perderse a uno mismo detrás de otro es de lo que más molesta.
+   */
+  private companero(
+    c: { nombre: string; x: number; y: number; mirando: 1 | -1 },
+    ox: number,
+    oy: number,
+    epoca: EpocaVisual,
+  ): void {
+    const { ctx, camara } = this;
+    const u = camara.zoom;
+    const px = ox + Math.round((c.x + JUGADOR_OFF_X) * u);
+    const py = oy + Math.round((c.y + JUGADOR_OFF_Y) * u);
+
+    if (epoca.sprites) {
+      this.sprites.jugador(ctx, 'quieto', 0, c.mirando, px, py, u, ARMADURA_DESNUDA);
+    } else {
+      this.caja(
+        ox + Math.round(c.x * u),
+        oy + Math.round(c.y * u),
+        Math.round(JUGADOR_ANCHO * u),
+        Math.round(JUGADOR_ALTO * u),
+        '#8fc06a',
+        '#5d8a44',
+        c.mirando,
+      );
+    }
+
+    // El nombre, para saber quién es quién. Pequeño y sin caja: estorba menos
+    // que un bocadillo y se lee igual.
+    ctx.save();
+    ctx.font = `${Math.max(8, Math.round(5 * u))}px ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0,0,0,.65)';
+    const nx = ox + Math.round((c.x + JUGADOR_ANCHO / 2) * u);
+    const ny = oy + Math.round((c.y - 5) * u);
+    ctx.fillText(c.nombre, nx + 1, ny + 1);
+    ctx.fillStyle = '#d8cfc0';
+    ctx.fillText(c.nombre, nx, ny);
+    ctx.restore();
+  }
+
   private jugador(
     j: Jugador,
     alpha: number,
@@ -471,12 +531,13 @@ export class Renderer {
     enMano: number,
     armadura: ClaveArmadura,
     epoca: EpocaVisual,
+    desvio?: { x: number; y: number },
   ): void {
     const { ctx, camara } = this;
     // Interpolación entre el tick anterior y el actual: el movimiento se ve
     // fluido aunque la simulación vaya a 60 fijos.
-    const wx = j.xPrev + (j.caja.x - j.xPrev) * alpha;
-    const wy = j.yPrev + (j.caja.y - j.yPrev) * alpha;
+    const wx = j.xPrev + (j.caja.x - j.xPrev) * alpha + (desvio?.x ?? 0);
+    const wy = j.yPrev + (j.caja.y - j.yPrev) * alpha + (desvio?.y ?? 0);
     const u = camara.zoom;
     const { pose, frame } = this.animarJugador(j, sumergido, performance.now());
 
@@ -984,7 +1045,18 @@ export class Renderer {
       const c = e.jugador.caja;
       this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy);
     }
-    this.jugador(e.jugador, e.alpha, ox, oy, e.sumergido, e.enMano, e.armadura, e.epoca);
+    for (const c of e.companeros ?? []) this.companero(c, ox, oy, e.epoca);
+    this.jugador(
+      e.jugador,
+      e.alpha,
+      ox,
+      oy,
+      e.sumergido,
+      e.enMano,
+      e.armadura,
+      e.epoca,
+      e.desvioJugador,
+    );
     this.golpe(e.golpe, e.jugador, ox, oy);
     // Las partículas van delante de los cuerpos pero detrás del agua: los
     // cascotes que caen a un lago tienen que verse a través de él.

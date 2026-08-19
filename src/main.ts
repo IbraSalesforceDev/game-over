@@ -254,6 +254,8 @@ import {
   type EstadoPartida,
 } from './world/save';
 import { empaquetarFuera } from './world/empaquetador';
+import type { SesionRed } from './red/sesion';
+import type { CambioTile } from './red/protocolo';
 import type { NombreTamano } from './world/gen/worldgen';
 import type { Zona } from './world/testLevel';
 import type { Mundo } from './world/world';
@@ -613,6 +615,131 @@ async function arrancar(): Promise<void> {
   // Un mundo de la nube se guarda en la nube y uno local en el navegador. Es lo
   // que impide que las dos copias se separen en silencio.
   const tiendaDeLaPartida: SaveAdapter = partida.fuente === 'nube' ? nube.almacen : almacen;
+
+  /**
+   * La partida acompañada, si la hay.
+   *
+   * Solo existe en los mundos de la nube: son los que tienen dueño y lista de
+   * invitados, así que son los únicos donde tiene sentido que aparezca alguien.
+   */
+  let sesionRed: SesionRed | null = null;
+
+  /**
+   * Un bloque que cambia y tiene que enterarse el otro lado.
+   *
+   * En el anfitrión el mundo ya está tocado y esto solo lo difunde. En el
+   * invitado el mundo también está tocado —se pinta al instante, que esperar a
+   * picar se siente fatal— y esto lo pide; si el anfitrión dice que no, su
+   * difusión lo devuelve a su sitio.
+   */
+  function avisarTile(tx: number, ty: number, id: number, pared = false): void {
+    sesionRed?.tile({ tx, ty, id, pared });
+  }
+
+  /** Aplica aquí un cambio que ha decidido el otro lado. */
+  function aplicarTilesDeRed(cambios: readonly CambioTile[]): void {
+    for (const c of cambios) {
+      if (!mundo.dentro(c.tx, c.ty)) continue;
+      if (c.pared) mundo.setPared(c.tx, c.ty, c.id);
+      else mundo.setTile(c.tx, c.ty, c.id);
+      renderer.cache.invalidar(c.tx, c.ty);
+      motorLuz.invalidar(c.tx);
+      liquidos.activar(c.tx, c.ty);
+      corrienteSucia = true;
+    }
+  }
+
+  /**
+   * Entrar en la partida de la nube con quien esté.
+   *
+   * No hay un botón de «empezar multijugador» porque no hace falta: **un mundo
+   * de la nube ya es de un grupo**, con su dueño y su lista de invitados. Quien
+   * lo abre entra donde los demás; el dueño hospeda y el resto se une.
+   *
+   * Si algo falla —sin red, el anfitrión no está— se dice y se sigue jugando
+   * solo. Quedarse sin partida por no poder conectar sería el peor cambio
+   * posible respecto a como estaba antes.
+   */
+  async function conectarConLosDemas(): Promise<void> {
+    if (partida.fuente !== 'nube') return;
+    try {
+      const [{ hospedar, unirse }, { AlmacenNube }, sesion] = await Promise.all([
+        import('./red/sesion'),
+        import('./nube/adaptador'),
+        import('./nube/sesion'),
+      ]);
+      const cuenta = await sesion.quienSoy();
+      if (!cuenta) return;
+      const nombre = cuenta.correo.split('@')[0] ?? 'Jugador';
+      const soyAnfitrion = await new AlmacenNube().soyElAnfitrion(partida.id);
+
+      const comun = {
+        idPartida: partida.id,
+        nombre,
+        // Los ajustes se fijan al conectar. En la fase A no hay combate, así
+        // que las pociones que cambian la velocidad todavía no se sincronizan:
+        // está anotado como lo primero de la fase B.
+        ajustes: ajustesAhora(),
+        mundo,
+        alContar: (texto: string) => aviso.mostrar(texto),
+        alCambiarTiles: aplicarTilesDeRed,
+        alCambiarEstado: (estado: string, motivo?: string) => {
+          if (estado === 'conectado') aviso.mostrar('Conectado');
+          else if (estado === 'fallo') aviso.mostrar(motivo ?? 'No hay conexión', true);
+        },
+      };
+
+      if (soyAnfitrion) {
+        sesionRed = await hospedar({
+          ...comun,
+          spawnTx: Math.round(jugador.spawnX / TILE),
+          spawnTy: Math.round(jugador.spawnY / TILE),
+          // El mundo que se manda es el de ahora mismo, no el último guardado:
+          // si el anfitrión lleva media hora jugando, la copia del disco está
+          // vieja y quien entre vería un mundo que ya no existe.
+          bytesDelMundo: () => empaquetarFuera(mundo, partida.estado),
+        });
+      } else {
+        sesionRed = await unirse({
+          ...comun,
+          alLlegarMundo: (bytes) => void adoptarMundoDelAnfitrion(bytes),
+        });
+      }
+    } catch (e) {
+      console.warn('No se ha podido entrar en la partida acompañada:', e);
+      aviso.mostrar('No se ha podido conectar con los demás', true);
+    }
+  }
+
+  /**
+   * Cambiar el mundo por el que manda el anfitrión.
+   *
+   * Se copian las capas dentro del mundo que ya hay en vez de sustituir el
+   * objeto: media docena de sistemas —la luz, la caché de chunks, los
+   * líquidos— guardan una referencia a él, y cambiársela debajo los dejaría
+   * apuntando a un mundo que ya no se dibuja.
+   */
+  async function adoptarMundoDelAnfitrion(bytes: Uint8Array): Promise<void> {
+    try {
+      const { mundo: suyo } = await desempaquetar(bytes);
+      if (suyo.ancho !== mundo.ancho || suyo.alto !== mundo.alto) {
+        aviso.mostrar('El anfitrión tiene otro mundo distinto', true);
+        return;
+      }
+      mundo.tileId.set(suyo.tileId);
+      mundo.wallId.set(suyo.wallId);
+      mundo.flags.set(suyo.flags);
+      mundo.liquido.set(suyo.liquido);
+      renderer.cache.invalidarTodo();
+      // La luz no tiene un "todo": se recalcula la altura del cielo columna a
+      // columna, que es lo único que guarda por adelantado.
+      for (let tx = 0; tx < mundo.ancho; tx++) motorLuz.invalidar(tx);
+      corrienteSucia = true;
+      aviso.mostrar('Mundo sincronizado con el anfitrión');
+    } catch (e) {
+      console.warn('No se ha podido leer el mundo del anfitrión:', e);
+    }
+  }
   const mundo = partida.mundo;
 
   progreso(96, 'Pintando los tiles…');
@@ -1991,6 +2118,7 @@ async function arrancar(): Promise<void> {
         return;
       }
       mundo.setTile(tx, ty, siembraDe(enMano));
+      avisarTile(tx, ty, siembraDe(enMano));
       renderer.cache.invalidar(tx, ty);
       inventario.sacarDe(barra.seleccion, 1);
       barra.refrescar(capa);
@@ -2012,6 +2140,7 @@ async function arrancar(): Promise<void> {
       derAnterior = puntero.der;
       if (!usar || !labrable) return;
       mundo.setTile(tx, ty, TIERRA_LABRADA);
+      avisarTile(tx, ty, TIERRA_LABRADA);
       renderer.cache.invalidar(tx, ty);
       audio.sonar('picar', 0.7);
       particulas.emitir(tx * TILE + 8, ty * TILE + 4, {
@@ -2313,6 +2442,9 @@ async function arrancar(): Promise<void> {
           });
         }
         if (avanzarPicado(mundo, picado, tx, ty, capa, potencia * trucos.velocidadMinado * multiplicadorMinado(estados))) {
+          // Ya está roto: se avisa al otro lado antes que nada, para que el
+          // hueco aparezca allí lo antes posible.
+          avisarTile(tx, ty, AIRE, capa !== 'bloque');
           renderer.cache.invalidar(tx, ty);
           motorLuz.invalidar(tx);
           corrienteSucia = true;
@@ -2424,6 +2556,7 @@ async function arrancar(): Promise<void> {
       if (inventario.sacarDe(barra.seleccion, 1) > 0) {
         if (capa === 'bloque') mundo.setTile(tx, ty, tileEnMano);
         else mundo.setPared(tx, ty, tileEnMano);
+        avisarTile(tx, ty, tileEnMano, capa !== 'bloque');
         renderer.cache.invalidar(tx, ty);
         motorLuz.invalidar(tx);
         corrienteSucia = true;
@@ -2680,6 +2813,7 @@ async function arrancar(): Promise<void> {
       // sería duplicar material a base de sincronizar mechas.
       if (mundo.getTile(tx, ty) !== tile) continue;
       mundo.setTile(tx, ty, AIRE);
+      avisarTile(tx, ty, AIRE);
       renderer.cache.invalidar(tx, ty);
       motorLuz.invalidar(tx);
       liquidos.activar(tx, ty);
@@ -2725,6 +2859,7 @@ async function arrancar(): Promise<void> {
         if (!mundo.dentro(x, y) || mundo.getTile(x, y) === AIRE) continue;
         const soltado = dropDeTile(mundo.getTile(x, y));
         mundo.setTile(x, y, AIRE);
+        avisarTile(x, y, AIRE);
         renderer.cache.invalidar(x, y);
         motorLuz.invalidar(x);
         liquidos.activar(x, y);
@@ -3109,6 +3244,9 @@ async function arrancar(): Promise<void> {
       if (trucos.volar) volarUnTick(entrada.estado());
       else actualizarJugador(mundo, jugador, entrada.estado(), ajustesAhora(), sumergido);
       efectosDelJugador(enSueloAntes, sumergido);
+      // La red va justo detrás de mover al jugador: el invitado manda lo que ha
+      // pulsado y cuadra su posición con la que diga el anfitrión.
+      sesionRed?.avanzar(jugador.caja, entrada.estado(), sumergido);
       sumergidoAhora = sumergido;
       actualizarDrops();
       if (tiene('cultivos')) actualizarCultivos();
@@ -3134,6 +3272,8 @@ async function arrancar(): Promise<void> {
       renderer.dibujar({
         mundo,
         jugador,
+        companeros: sesionRed?.otros(),
+        desvioJugador: sesionRed?.desvio(),
         alpha,
         zonas: partida.zonas,
         picado,
@@ -3198,6 +3338,14 @@ async function arrancar(): Promise<void> {
     bucle.arrancar();
   }
   setTimeout(ocultarCargador, 250);
+
+  // Lo último y sin esperarla: conectar tarda y no puede retrasar el primer
+  // frame. Si sale, aparecen los demás; si no, se juega solo y se dice.
+  void conectarConLosDemas();
+
+  // Al cerrar la pestaña se avisa a los demás, que si no se quedan viendo un
+  // muñeco quieto hasta que caduque la conexión.
+  window.addEventListener('pagehide', () => void sesionRed?.cerrar());
 }
 
 arrancar().catch(mostrarError);
