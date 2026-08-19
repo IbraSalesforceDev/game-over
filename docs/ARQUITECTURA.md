@@ -221,7 +221,7 @@ su bioma **y** no estar bajo tierra, `cueva` acepta subsuelo o inframundo, e
 
 ```bash
 npm run build      # tsc --noEmit + vite build
-npx vitest run     # 868 tests
+npx vitest run     # 1017 tests
 ```
 
 Para probar en el navegador de verdad, Playwright con el Chromium ya instalado:
@@ -238,6 +238,30 @@ Tres cosas que cuestan una tarde si no se saben:
   `mouse.up`): un `click` normal va más rápido que el detector de flanco.
 - Los tabs del menú de depuración se pulsan por índice
   (`#depuracion .pestanas button`), porque la ficha del objeto tapa el texto.
+
+### La partida acompañada, sin dos cuentas ni nube
+
+`pruebas/red.html` monta un anfitrión y un invitado **en la misma página**, con
+dos `RTCPeerConnection` de verdad y una sala de mentira en memoria:
+
+```bash
+npm run dev
+node pruebas/correr.mjs     # sale 0 si todo bien
+```
+
+Existe porque el fallo de 7.11.1 no lo podía ver ningún test: los de
+`partida-en-red` prueban el anfitrión y el invitado contra un `Enlace` de
+mentira, y el fallo estaba en el pegamento de en medio —en **cuándo** se puede
+empezar a mandar por un canal de WebRTC—. Un enlace de mentira siempre está
+abierto; uno de verdad, no.
+
+La costura es `OpcionesSesion.entrarEnSala`: una función que devuelve la sala.
+Por defecto la de Supabase; el banco pasa la suya. No entra en el juego
+publicado, porque `vite build` solo empaqueta `index.html`.
+
+Lo único que ese banco **no** prueba es Supabase Realtime, que es lo que hace
+falta para que los dos navegadores se encuentren. Para eso sí hacen falta dos
+cuentas y conexión.
 
 ### Menú de depuración
 

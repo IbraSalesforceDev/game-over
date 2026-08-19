@@ -215,6 +215,20 @@ en todo momento **una sola copia con autoridad**. Se acabó el «¿cuál es más
 nueva?», el mezclar, y la cola de sincronización. Era la parte que estaba marcada
 como «más trabajo que todo lo demás junto», y con este modelo desaparece entera.
 
+### El corolario que faltaba: guarda el anfitrión, y solo él (7.11.1)
+
+«Una sola copia con autoridad» no basta si los dos escriben en ella. Hasta
+7.11.1, anfitrión e invitado autoguardaban los dos el mismo fichero cada minuto,
+y el último en hacerlo dejaba dentro **su** mochila, **sus** cofres y **su**
+vida. Los bloques sí iban sincronizados, así que el mundo salía bien; lo que se
+pisaba era el estado del otro, y no se notaba hasta la siguiente vez que se abría
+la partida.
+
+Ahora, en un mundo de la nube, guarda solo quien lo hospeda. El invitado juega y
+no escribe. Y mientras no se sepa quién es quién —sin red, sin sesión— **no
+guarda nadie**: equivocarse en esa pregunta no estropea tu partida, estropea la
+de otro.
+
 ### Un matiz: «solo en la nube» no debe significar «sin copia en disco»
 
 Con una salvedad importante, y es por seguridad, no por sincronizar:

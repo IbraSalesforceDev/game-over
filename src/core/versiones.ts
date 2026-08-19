@@ -791,6 +791,19 @@ export const VERSIONES: readonly Version[] = [
       'El ídolo sigue funcionando por su cuenta en cualquier parte del bioma',
     ],
   },
+  {
+    id: '7.11.1',
+    etapa: 'prealfa',
+    nombre: 'El saludo que no llegaba',
+    resumen: 'Arreglada la partida acompañada: el invitado entraba y no le veía nadie.',
+    cambios: [
+      'El invitado saluda cuando el canal está abierto de verdad, no antes',
+      'Y repite el saludo hasta que le contestan: perderlo costaba la partida entera',
+      'También repite el «aquí estoy», por si el anfitrión entra más tarde',
+      'Nuevo cartel en la esquina: de qué lado estás y quién está contigo',
+      'En un mundo de la nube guarda solo el anfitrión: antes se pisaban',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

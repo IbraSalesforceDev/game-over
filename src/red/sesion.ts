@@ -54,7 +54,29 @@ export interface OpcionesSesion extends AvisosSesion {
   bichos?: () => readonly Enemigo[];
   /** Con qué versión nació el mundo, para recrear bien los bichos que llegan. */
   versionMundo?: string;
+  /**
+   * Cómo se entra en la sala. Por defecto, la de Supabase.
+   *
+   * Se puede sustituir, y no es un adorno: con la de verdad esto solo se puede
+   * probar con dos cuentas, dos navegadores y conexión a la nube, que es justo
+   * el tipo de prueba que no se hace nunca. Con una sala de mentira, el apretón
+   * de manos entero —oferta, respuesta, candidatas, saludo y mundo— se ejecuta
+   * de verdad, con WebRTC de verdad, en `pruebas/red.html`.
+   *
+   * Es una función y no una sala ya hecha porque la sala necesita saber a quién
+   * avisar: quien entra le entrega su oyente al hacerlo.
+   */
+  entrarEnSala?: (idPartida: string, alRecado: (r: Recado) => void) => Promise<Sala>;
 }
+
+/**
+ * Cada cuánto se repite lo que aún no ha tenido respuesta, y cuántas veces.
+ *
+ * Las dos cosas que se repiten se perdían por lo mismo: se mandaban una sola vez
+ * y en un momento en el que el otro lado podía no estar escuchando todavía.
+ */
+export const REINTENTO_MS = 1000;
+export const REINTENTOS_MAXIMOS = 30;
 
 export interface SesionRed {
   readonly papel: Papel;
@@ -106,7 +128,17 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
   const alRecado = (r: Recado): void => {
     void (async () => {
       if (r.que === 'aqui-estoy') {
-        if (conexiones.has(r.de)) return; // ya le estamos atendiendo
+        const previa = conexiones.get(r.de);
+        if (previa) {
+          // El invitado repite el «aquí estoy» hasta que le contestan. Si ya le
+          // estamos atendiendo no se hace nada; pero si aquella conexión murió
+          // —se cayó la red, la pestaña estuvo dormida— hay que rehacerla, que
+          // si no queda apuntado para siempre y no vuelve a entrar nunca.
+          if (previa.con.estado !== 'fallo' && previa.con.estado !== 'cerrado') return;
+          if (previa.quien !== null) anfitrion.quitar(previa.quien);
+          previa.con.cerrar();
+          conexiones.delete(r.de);
+        }
         const entrada: { con: ConexionAnfitrion; quien: number | null } = {
           con: null as unknown as ConexionAnfitrion,
           quien: null,
@@ -152,7 +184,7 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     })();
   };
 
-  sala = await entrarEnSala(op.idPartida, alRecado);
+  sala = await (op.entrarEnSala ?? entrarEnSala)(op.idPartida, alRecado);
 
   return {
     papel: 'anfitrion',
@@ -194,6 +226,34 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
 export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
   let sala: Sala;
   let anfitrionEnSala: string | null = null;
+  /** Los relojes de los reintentos, para poder pararlos al cerrar. */
+  const relojes: ReturnType<typeof setInterval>[] = [];
+
+  const parar = (): void => {
+    for (const r of relojes) clearInterval(r);
+    relojes.length = 0;
+  };
+
+  /**
+   * Repite algo hasta que deje de hacer falta, o hasta cansarse.
+   *
+   * Se llama una vez enseguida y luego cada segundo. Lo de «una vez enseguida»
+   * importa: el caso normal es que funcione a la primera y no llegue a haber
+   * ningún reintento.
+   */
+  const insistir = (yaEsta: () => boolean, hacer: () => void): void => {
+    if (yaEsta()) return;
+    hacer();
+    let veces = 0;
+    const reloj = setInterval(() => {
+      if (yaEsta() || ++veces >= REINTENTOS_MAXIMOS) {
+        clearInterval(reloj);
+        return;
+      }
+      hacer();
+    }, REINTENTO_MS);
+    relojes.push(reloj);
+  };
 
   const con = new ConexionInvitado({
     alLlegar: (datos) => invitado.recibir(datos),
@@ -202,6 +262,23 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
       if (anfitrionEnSala) {
         void sala.mandar({ que: 'ice', de: sala.yo, para: anfitrionEnSala, candidata });
       }
+    },
+    /**
+     * El saludo va aquí, y solo aquí.
+     *
+     * Antes salía al recibir la oferta y otra vez al ponerse la conexión en
+     * «conectado», y las dos veces podía caer en saco roto: en la primera el
+     * canal ni existía —lo crea el anfitrión y llega por `ondatachannel`— y en
+     * la segunda podía estar todavía abriéndose. `mandar` no avisa cuando no
+     * puede mandar: se calla. El resultado era un invitado dentro del mundo,
+     * con su copia bajada de la nube, al que el anfitrión no había visto nunca:
+     * ni jugadores, ni bloques, ni bichos.
+     *
+     * Y se repite hasta que conteste. Un HOLA es un byte; perderlo cuesta la
+     * partida entera.
+     */
+    alAbrirseFirme: () => {
+      insistir(() => invitado.miId !== 0, () => invitado.saludar());
     },
   });
 
@@ -217,40 +294,45 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     alAvanzarMundo: (p) => op.alAvanzarMundo?.(p),
     alCambiarTiles: (cs) => op.alCambiarTiles?.(cs),
     versionMundo: op.versionMundo,
-    alRechazar: (motivo) => op.alCambiarEstado?.('fallo', motivo),
+    alRechazar: (motivo) => {
+      parar();
+      op.alCambiarEstado?.('fallo', motivo);
+    },
   });
 
   const alRecado = (r: Recado): void => {
     void (async () => {
       if (r.que === 'oferta' && r.para === sala.yo) {
+        // Una segunda oferta del mismo anfitrión sería un apretón de manos a
+        // medio hacer pisando al que ya está en marcha.
+        if (anfitrionEnSala !== null) return;
         anfitrionEnSala = r.de;
         const sdp = await con.responder(r.sdp);
         await sala.mandar({ que: 'respuesta', de: sala.yo, para: r.de, sdp });
-        // Se saluda en cuanto hay canal; si aún no está abierto, el saludo se
-        // pierde y se reintenta al conectar.
-        invitado.saludar();
       } else if (r.que === 'ice' && r.para === sala.yo) {
         await con.añadirCandidata(r.candidata);
       } else if (r.que === 'adios' && r.de === anfitrionEnSala) {
+        parar();
         op.alContar?.('El anfitrión ha cerrado la partida');
         op.alCambiarEstado?.('cerrado');
       }
     })();
   };
 
-  sala = await entrarEnSala(op.idPartida, alRecado);
-  // El canal tarda en abrirse: cuando lo hace, se vuelve a saludar por si el
-  // primer intento salió antes de tiempo.
-  const saludoAlConectar = (estado: EstadoConexion): void => {
-    if (estado === 'conectado' && !invitado.dentro) invitado.saludar();
-  };
-  const avisoOriginal = op.alCambiarEstado;
-  op.alCambiarEstado = (estado, motivo) => {
-    saludoAlConectar(estado);
-    avisoOriginal?.(estado, motivo);
-  };
+  sala = await (op.entrarEnSala ?? entrarEnSala)(op.idPartida, alRecado);
 
-  await sala.mandar({ que: 'aqui-estoy', de: sala.yo, nombre: op.nombre });
+  /**
+   * «Aquí estoy», hasta que alguien ofrezca.
+   *
+   * También se decía una sola vez, y eso daba por hecho que el anfitrión ya
+   * estaba en la sala. Si abre el mundo un minuto más tarde —que es lo normal
+   * cuando se queda con alguien— aquel único aviso se perdió y el invitado se
+   * quedaba esperando una oferta que nadie iba a mandar.
+   */
+  insistir(
+    () => anfitrionEnSala !== null,
+    () => void sala.mandar({ que: 'aqui-estoy', de: sala.yo, nombre: op.nombre }),
+  );
 
   return {
     papel: 'invitado',
@@ -282,6 +364,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
       return invitado.bichos;
     },
     async cerrar() {
+      parar();
       con.mandarFirme(escribirAdios());
       con.cerrar();
       invitado.olvidar();

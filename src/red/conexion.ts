@@ -49,6 +49,16 @@ export interface OyentesConexion {
   alCambiarEstado(estado: EstadoConexion, motivo?: string): void;
   /** Una candidata que hay que hacer llegar al otro por la sala. */
   alTenerCandidata(candidata: string): void;
+  /**
+   * El canal fiable ya está abierto.
+   *
+   * Hace falta porque «conectado» no significa «se puede mandar». `connectionState`
+   * se pone en `connected` cuando terminan ICE y DTLS, y el canal de datos abre
+   * después, cuando acaba de negociarse SCTP. Entre las dos cosas hay unos
+   * milisegundos en los que `mandar` no manda nada —se va por el desagüe sin
+   * decir ni pío— y ahí es donde se perdía el saludo del invitado.
+   */
+  alAbrirseFirme?(): void;
 }
 
 /**
@@ -108,8 +118,21 @@ class ConexionBase implements Conexion {
     canal.onmessage = (e) => {
       if (e.data instanceof ArrayBuffer) this.oyentes.alLlegar(new Uint8Array(e.data), firme);
     };
-    if (firme) this.firme = canal;
-    else this.vivo = canal;
+    if (firme) {
+      this.firme = canal;
+      // Puede llegar ya abierto —`ondatachannel` a veces se dispara con el canal
+      // hecho—, y entonces `onopen` no vuelve a saltar nunca. Se mira el estado
+      // además de escuchar el evento.
+      canal.onopen = () => this.oyentes.alAbrirseFirme?.();
+      if (canal.readyState === 'open') this.oyentes.alAbrirseFirme?.();
+    } else {
+      this.vivo = canal;
+    }
+  }
+
+  /** ¿Se puede mandar ya por el canal fiable? */
+  get firmeAbierto(): boolean {
+    return this.firme?.readyState === 'open';
   }
 
   /**

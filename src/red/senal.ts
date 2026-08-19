@@ -63,6 +63,19 @@ export async function entrarEnSala(
   // dos ventanas abiertas y son dos participantes distintos.
   const yo = `${sesion.session.user.id.slice(0, 8)}-${Math.random().toString(36).slice(2, 8)}`;
 
+  /**
+   * El token, puesto a mano antes de suscribirse.
+   *
+   * En un canal privado, quien decide si puedes entrar es el RLS de
+   * `realtime.messages`, y para evaluarlo el servidor necesita saber quién eres.
+   * El cliente lo hace solo cuando cambia la sesión, pero aquí la sesión puede
+   * llevar rato abierta —se restaura de `localStorage` al cargar la página— y
+   * entonces no ha cambiado nada desde que se creó el socket. Ponerlo a mano
+   * cuesta una línea y quita de en medio una carrera que, cuando se pierde, se
+   * ve como «el multijugador no va» y no como «no me han dejado entrar».
+   */
+  await sb.realtime.setAuth(sesion.session.access_token);
+
   const canal = sb.channel(nombreDeSala(idPartida), {
     config: { private: true, broadcast: { self: false } },
   });

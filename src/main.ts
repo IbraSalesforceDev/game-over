@@ -54,6 +54,7 @@ import {
 } from './items/inscripciones';
 import { crearAjustes, type Graficos } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
+import { crearAcompanados } from './ui/acompanados';
 import { crearMapa } from './ui/mapa';
 import { crearBrujula } from './ui/brujula';
 import { crearPanelJefe } from './ui/jefe';
@@ -639,6 +640,19 @@ async function arrancar(): Promise<void> {
   let sesionRed: SesionRed | null = null;
 
   /**
+   * Si me toca a mí guardar este mundo.
+   *
+   * En un mundo de la nube guarda **solo el anfitrión**, y hasta saber quién
+   * soy no guarda nadie. El estado de la partida —inventario, cofres, vida, la
+   * hora— es de quien juega, pero el fichero es uno solo y compartido: con los
+   * dos guardando, el último en hacerlo le metía al otro su mochila y sus
+   * cofres en el mundo. Y no se notaba hasta la siguiente vez que se abría.
+   *
+   * `null` mientras no se sabe. Un mundo local no tiene esta duda.
+   */
+  let mandoYo: boolean | null = partida.fuente === 'nube' ? null : true;
+
+  /**
    * Un bloque que cambia y tiene que enterarse el otro lado.
    *
    * En el anfitrión el mundo ya está tocado y esto solo lo difunde. En el
@@ -674,12 +688,44 @@ async function arrancar(): Promise<void> {
    * solo. Quedarse sin partida por no poder conectar sería el peor cambio
    * posible respecto a como estaba antes.
    */
+  /**
+   * Quién manda en este mundo, preguntado aparte de conectar.
+   *
+   * Va por su cuenta porque de esto depende guardar, y guardar no puede
+   * quedarse colgando de que la partida acompañada haya podido montarse. Si no
+   * se consigue saber —sin red, sin sesión— no se guarda, y esa es la respuesta
+   * prudente: equivocarse aquí no estropea tu partida, estropea la de otro.
+   */
+  /** La pregunta, una sola vez, la haga quien la haga. */
+  let preguntaDeMando: Promise<void> | null = null;
+
+  function averiguarSiMando(): Promise<void> {
+    preguntaDeMando ??= (async () => {
+      if (partida.fuente !== 'nube') return;
+      const forzado = new URLSearchParams(window.location.search).get('red');
+      if (forzado === 'invitado' || forzado === 'anfitrion') {
+        mandoYo = forzado === 'anfitrion';
+        return;
+      }
+      const { AlmacenNube } = await import('./nube/adaptador');
+      for (let intento = 0; intento < 4; intento++) {
+        try {
+          mandoYo = await new AlmacenNube().soyElAnfitrion(partida.id);
+          return;
+        } catch {
+          // Un tropiezo de red no puede decidir que este mundo es de otro.
+          await new Promise((sigue) => window.setTimeout(sigue, 3000));
+        }
+      }
+    })();
+    return preguntaDeMando;
+  }
+
   async function conectarConLosDemas(): Promise<void> {
     if (partida.fuente !== 'nube') return;
     try {
-      const [{ hospedar, unirse }, { AlmacenNube }, sesion] = await Promise.all([
+      const [{ hospedar, unirse }, sesion] = await Promise.all([
         import('./red/sesion'),
-        import('./nube/adaptador'),
         import('./nube/sesion'),
       ]);
       const cuenta = await sesion.quienSoy();
@@ -693,11 +739,16 @@ async function arrancar(): Promise<void> {
        * no se puede probar en dos pestañas de la misma cuenta**, porque las dos
        * verían que son el dueño, las dos hospedarían y ninguna se uniría.
        */
-      const forzado = new URLSearchParams(window.location.search).get('red');
-      const soyAnfitrion =
-        forzado === 'invitado'
-          ? false
-          : forzado === 'anfitrion' || (await new AlmacenNube().soyElAnfitrion(partida.id));
+      await averiguarSiMando();
+      // Quien manda es quien hospeda: es la misma pregunta, y hacerla dos veces
+      // sería poder contestarla de dos formas. Si no se ha podido averiguar, se
+      // entra como invitado, que es lo que no puede romper nada de nadie.
+      const soyAnfitrion = mandoYo === true;
+
+      // El panel aparece antes de conectar, no después. Ver «conectando…» es la
+      // diferencia entre esperar y pensar que está roto.
+      acompanados.empezar(soyAnfitrion ? 'anfitrion' : 'invitado');
+      acompanados.estado('conectando');
 
       const comun = {
         idPartida: partida.id,
@@ -710,8 +761,15 @@ async function arrancar(): Promise<void> {
         alContar: (texto: string) => aviso.mostrar(texto),
         alCambiarTiles: aplicarTilesDeRed,
         alCambiarEstado: (estado: string, motivo?: string) => {
-          if (estado === 'conectado') aviso.mostrar('Conectado');
-          else if (estado === 'fallo') aviso.mostrar(motivo ?? 'No hay conexión', true);
+          if (estado === 'conectado') {
+            aviso.mostrar('Conectado');
+            acompanados.estado('conectado');
+          } else if (estado === 'fallo') {
+            aviso.mostrar(motivo ?? 'No hay conexión', true);
+            acompanados.estado('fallo');
+          } else if (estado === 'cerrado') {
+            acompanados.estado('solo');
+          }
         },
       };
 
@@ -726,6 +784,9 @@ async function arrancar(): Promise<void> {
           bytesDelMundo: () => empaquetarFuera(mundo, partida.estado),
           bichos: () => enemigos,
         });
+        // La sala está abierta: a partir de aquí lo que falta es que entre
+        // alguien, y eso ya no es un problema de conexión.
+        acompanados.estado('solo');
       } else {
         sesionRed = await unirse({
           ...comun,
@@ -736,6 +797,7 @@ async function arrancar(): Promise<void> {
     } catch (e) {
       console.warn('No se ha podido entrar en la partida acompañada:', e);
       aviso.mostrar('No se ha podido conectar con los demás', true);
+      acompanados.estado('fallo');
     }
   }
 
@@ -934,6 +996,7 @@ async function arrancar(): Promise<void> {
   // quien eligió jugar a ×2 vería la primera partida a otro zoom cada vez.
   renderer.aplicarGraficos(graficosDeLaVersion(opciones.graficos));
   const ayuda = crearAyuda(capaUI);
+  const acompanados = crearAcompanados(capaUI);
   const mapa = crearMapa(capaUI);
   const brujula = crearBrujula(capaUI);
   const panelJefe = crearPanelJefe(capaUI);
@@ -1130,6 +1193,18 @@ async function arrancar(): Promise<void> {
 
   async function guardar(motivo: 'auto' | 'manual'): Promise<void> {
     if (!partida.guardable || guardando) return;
+    if (mandoYo !== true) {
+      // Callado si es el autoguardado: repetirlo cada minuto sería un aviso
+      // recordándote que no eres el dueño de la casa.
+      if (motivo === 'manual') {
+        aviso.mostrar(
+          mandoYo === null
+            ? 'Todavía no se sabe quién guarda esta partida'
+            : 'De guardar se encarga el anfitrión',
+        );
+      }
+      return;
+    }
     guardando = true;
     try {
       partida.estado.jugador = {
@@ -3408,6 +3483,10 @@ async function arrancar(): Promise<void> {
       // La red va justo detrás de mover al jugador: el invitado manda lo que ha
       // pulsado y cuadra su posición con la que diga el anfitrión.
       sesionRed?.avanzar(jugador.caja, entrada.estado(), sumergido);
+      // El panel de la esquina, al día. No repinta si no ha cambiado nada, así
+      // que preguntarlo cada tick sale gratis y evita tener que avisarlo desde
+      // los cinco sitios en los que alguien entra o se va.
+      if (sesionRed) acompanados.compania(sesionRed.otros().map((o) => o.nombre));
       sumergidoAhora = sumergido;
       actualizarDrops();
       if (tiene('cultivos')) actualizarCultivos();
@@ -3507,6 +3586,9 @@ async function arrancar(): Promise<void> {
 
   // Lo último y sin esperarla: conectar tarda y no puede retrasar el primer
   // frame. Si sale, aparecen los demás; si no, se juega solo y se dice.
+  // Quién guarda se pregunta siempre, conecte o no la partida acompañada: un
+  // mundo de la nube abierto a solas también hay que poder guardarlo.
+  void averiguarSiMando();
   void conectarConLosDemas();
 
   // Al cerrar la pestaña se avisa a los demás, que si no se quedan viendo un
