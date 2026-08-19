@@ -671,7 +671,19 @@ async function arrancar(): Promise<void> {
       const cuenta = await sesion.quienSoy();
       if (!cuenta) return;
       const nombre = cuenta.correo.split('@')[0] ?? 'Jugador';
-      const soyAnfitrion = await new AlmacenNube().soyElAnfitrion(partida.id);
+      /**
+       * Quién hospeda.
+       *
+       * Normalmente el dueño del mundo. Pero con `?red=invitado` se fuerza a
+       * entrar como invitado, y eso no es un truco de laboratorio: **sin ello
+       * no se puede probar en dos pestañas de la misma cuenta**, porque las dos
+       * verían que son el dueño, las dos hospedarían y ninguna se uniría.
+       */
+      const forzado = new URLSearchParams(window.location.search).get('red');
+      const soyAnfitrion =
+        forzado === 'invitado'
+          ? false
+          : forzado === 'anfitrion' || (await new AlmacenNube().soyElAnfitrion(partida.id));
 
       const comun = {
         idPartida: partida.id,

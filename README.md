@@ -59,6 +59,7 @@ suaves. Un ciclo completo de día y noche dura 12 minutos reales.
 | `?hora=22` o `?hora=5:40` | Empieza el mundo a esa hora (útil para ver la noche sin esperar) |
 | `?dif=0` … `?dif=9` | Dificultad del mundo, de pacífico a «tú lo has querido» |
 | `?columna=700` | Aparece en esa columna en vez de en el centro (para ir directo a un lago o a un bioma) |
+| `?red=invitado` · `anfitrion` | Fuerza el papel en una partida de la nube. Es lo que permite probar en dos pestañas de la misma cuenta: sin él, las dos se creerían el anfitrión |
 
 El laboratorio sigue ahí a propósito: es donde se afinan las constantes de
 movimiento con `F4`, y es más rápido comprobar una regla de la física en un

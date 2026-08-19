@@ -112,6 +112,25 @@ secreto de Actions se cambia en un sitio si algún día rota.)
 
 ---
 
+## 5. Probar el multijugador
+
+Con una sola cuenta, en dos pestañas del mismo navegador:
+
+1. Abre tu mundo de la nube normal → esa pestaña **hospeda**.
+2. Abre el mismo mundo con **`?red=invitado`** al final de la URL → esa
+   pestaña **se une**.
+
+Hace falta ese parámetro porque las dos pestañas verían que eres el dueño y las
+dos intentarían hospedar.
+
+Con otra persona no hace falta nada de eso: le pasas un **código de invitación**
+desde la ficha del mundo, lo canjea, abre el mundo y ya está.
+
+Lo que tendrías que ver: el otro personaje moviéndose con su nombre encima, y
+los bloques que pica uno apareciendo en la pantalla del otro.
+
+---
+
 ## Resumen
 
 | Paso | Estado |
@@ -120,3 +139,4 @@ secreto de Actions se cambia en un sitio si algún día rota.)
 | 2. Añadirte a `admins` | ✅ hecho |
 | 3. Secretos de GitHub Actions | ⬜ **lo único que queda**, 2 minutos |
 | 4. Cloudflare / dominio | más adelante, o nunca |
+| 5. Probar el multijugador | cuando te apetezca; no bloquea nada |
