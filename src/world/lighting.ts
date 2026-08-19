@@ -246,8 +246,15 @@ export class MotorLuz {
     const { mundo } = this;
 
     // Sol: si desde aquí se ve el cielo, manda el sol y no hace falta más.
+    //
+    // `luzSolar` ya viene en la escala 0-255, la misma que devuelve esto y la
+    // misma que usa `calcular`. Aquí se multiplicaba además por 255, y con eso
+    // la superficie devolvía 65025 de día y 13260 de noche: cualquier umbral
+    // razonable quedaba por debajo, así que **nunca aparecía nada hostil al aire
+    // libre**. Bajo tierra no se notaba, porque ahí no se ve el cielo y el valor
+    // salía del recorrido de antorchas, que sí estaba en su escala.
     if (tx >= 0 && tx < mundo.ancho && ty < (this.alturaCielo[tx] ?? 0)) {
-      mejor = Math.round(255 * luzSolar);
+      mejor = Math.round(luzSolar);
       if (mejor >= 255) return mejor;
     }
 

@@ -228,6 +228,9 @@ import {
 import {
   biomaEn,
   PROFUNDIDAD_PELIGRO,
+  apuntarMuerte,
+  avanzarPresion,
+  crearPresion,
   intentarAparicion,
   INTERVALO_INTENTO,
   RITMO_ESTRUCTURA,
@@ -1413,6 +1416,11 @@ async function arrancar(): Promise<void> {
   }
   /** Ticks hasta el próximo intento de aparición de enemigos. */
   let relojAparicion = 0;
+  /**
+   * Lo que la zona lleva acumulado: desde cuándo no muere nadie y cuánto lleva
+   * el jugador sin moverse de aquí. Es lo que decide si toca soltar algo.
+   */
+  const presion = crearPresion();
   /** Ticks hasta la próxima tanda de esbirros del guardián. */
   let relojEsbirros = 0;
   /** El rugido de la segunda fase ya ha sonado en esta pelea. */
@@ -1425,6 +1433,10 @@ async function arrancar(): Promise<void> {
    * duplicar esto era duplicar el botín el día que cambiara la tabla.
    */
   function morir(e: Enemigo): void {
+    // Matar frena la aparición un rato: el hueco que deja no se rellena al
+    // instante. Se apunta aquí porque este es el único camino a la muerte de un
+    // bicho, venga del mandoble, de una flecha o de la lava.
+    apuntarMuerte(presion, ritmoDeApariciones(sucesos));
     const { especie, caja } = e;
     const tx = Math.floor((caja.x + caja.ancho / 2) / TILE);
     const ty = Math.floor((caja.y + caja.alto / 2) / TILE);
@@ -2059,9 +2071,15 @@ async function arrancar(): Promise<void> {
 
     limpiarEnemigos(enemigos);
 
+    const txAhora = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
+    const tyAhora = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
+    // La presión corre todos los ticks, se intente aparecer o no: mide tiempo,
+    // no intentos.
+    avanzarPresion(presion, txAhora, tyAhora);
+
     if (--relojAparicion <= 0 && !trucos.sinApariciones) {
-      const txJugador = Math.floor((jugador.caja.x + jugador.caja.ancho / 2) / TILE);
-      const tyJugador = Math.floor((jugador.caja.y + jugador.caja.alto) / TILE);
+      const txJugador = txAhora;
+      const tyJugador = tyAhora;
       // Dentro de una estructura sale el doble de deprisa. Fuera no se nota
       // nada: la lista de estructuras de un mundo son un par de docenas de
       // puntos y esto se pregunta una vez cada cuarenta ticks.
@@ -2086,6 +2104,7 @@ async function arrancar(): Promise<void> {
         estructura: dentro,
         ritmoSuceso: ritmoDeApariciones(sucesos),
         ritmoElite: ritmoDeElites(sucesos),
+        presion: tiene('aparicionPorZona') ? presion : undefined,
       });
       // Un élite se anuncia. Aparece fuera de pantalla como todo lo demás, y
       // enterarse de que ese zombi pegaba dos veces y media cuando ya te ha

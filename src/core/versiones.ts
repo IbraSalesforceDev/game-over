@@ -739,6 +739,19 @@ export const VERSIONES: readonly Version[] = [
       'Los mundos anteriores a esta versión se siguen jugando con sus reglas',
     ],
   },
+  {
+    id: '7.8.0',
+    etapa: 'prealfa',
+    nombre: 'Los bichos, a su ritmo',
+    resumen: 'Matar ya sirve de algo y quedarse en un sitio deja de ser seguro.',
+    cambios: [
+      'Al morir un bicho no aparece otro al instante para ocupar su sitio',
+      'Cuantos más haya sueltos, más se tarda en soltar el siguiente: es un goteo',
+      'Quedarse en la misma zona sube poco a poco cuántos caben, hasta el triple',
+      'Alejarse reinicia la cuenta: la zona nueva empieza tranquila',
+      'Arreglado: al aire libre no aparecía nunca nada hostil, ni de noche',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -857,6 +870,9 @@ export const DESDE = {
   // se sigue jugando con las de 3.0.0.
   caidaAmortiguada: '7.7.0',
   golpeConVista: '7.7.0',
+  // Los bichos dejan de rellenar el hueco del que acaba de morir, y quedarse en
+  // un sitio deja de tener techo.
+  aparicionPorZona: '7.8.0',
   nivelesHerramienta: '3.0.0',
   dificultad: '3.0.0',
   armadura: '3.0.0',

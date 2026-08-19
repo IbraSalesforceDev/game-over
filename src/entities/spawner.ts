@@ -50,6 +50,7 @@ const DISTANCIA_MAX = 38;
 export const TOPE_ENEMIGOS = 7;
 /** Ticks entre intentos de aparición. */
 export const INTERVALO_INTENTO = 40;
+
 /** Profundidad, en tiles bajo la superficie, a partir de la cual siempre hay peligro. */
 export const PROFUNDIDAD_PELIGRO = 28;
 
@@ -72,6 +73,85 @@ export const UMBRAL_LUZ_HOSTIL = 90;
  * la mitad larga de sus fuerzas.
  */
 export const FUERZA_DIURNA = 0.6;
+
+/**
+ * Lo que el sitio lleva acumulado.
+ *
+ * Antes de esto la aparición miraba una sola cosa —cuántos hay vivos— y con esa
+ * regla salían dos comportamientos que nadie quería. El primero, el relleno:
+ * matabas un zombi, el aforo bajaba y medio segundo después había otro zombi
+ * ocupando su sitio, con lo que limpiar una zona era imposible por definición.
+ * El segundo, el techo: quedarte en un claro daba tres o cuatro bichos y a
+ * partir de ahí el mundo se quedaba quieto hasta que mataras a uno.
+ *
+ * Con esto la aparición mira además el tiempo. Matar **frena** la aparición un
+ * rato en vez de dispararla, y quedarse en el mismo sitio la **sube** poco a
+ * poco: el claro tranquilo del principio, si te quedas tres minutos, acaba
+ * siendo un sitio en el que no se puede estar.
+ */
+export interface Presion {
+  /** Ticks que faltan para poder volver a soltar algo. */
+  espera: number;
+  /** Ticks que el jugador lleva rondando la misma zona. */
+  quieto: number;
+  /** Centro de la zona, en tiles. Alejarse de aquí la reinicia. */
+  tx: number;
+  ty: number;
+}
+
+/** Ticks sin que aparezca nada después de una muerte. */
+export const VETO_MUERTE = 150;
+/** Espera mínima tras soltar un bicho, y lo que suma cada uno que ya esté vivo. */
+export const ESPERA_TRAS_APARECER = 60;
+export const ESPERA_POR_VIVO = 24;
+/** Más lejos que esto, en tiles, ya es otra zona y la cuenta vuelve a cero. */
+export const RADIO_ZONA = 26;
+/** Ticks rondando el mismo sitio que hacen falta para que quepa un bicho más. */
+export const TICKS_POR_REFUERZO = 900;
+/** Cuántas veces el aforo normal se puede llegar a juntar quedándose quieto. */
+export const TOPE_ZONA = 3;
+
+export function crearPresion(): Presion {
+  return { espera: 0, quieto: 0, tx: 0, ty: 0 };
+}
+
+/**
+ * Un tick de la presión. Se llama siempre, haya intento de aparición o no.
+ *
+ * La zona se mide por distancia y no por chunks: lo que cuenta es cuánto lleva
+ * el jugador donde está, y un chunk se cruza andando en cuatro segundos.
+ */
+export function avanzarPresion(p: Presion, tx: number, ty: number): void {
+  if (p.espera > 0) p.espera--;
+  if (Math.abs(tx - p.tx) > RADIO_ZONA || Math.abs(ty - p.ty) > RADIO_ZONA) {
+    p.tx = tx;
+    p.ty = ty;
+    p.quieto = 0;
+    return;
+  }
+  p.quieto++;
+}
+
+/**
+ * Se ha muerto uno: nada nuevo durante un rato.
+ *
+ * Es la regla que hace que matar sirva de algo. Sin ella el hueco se rellena
+ * antes de que al jugador le dé tiempo a recoger lo que ha soltado.
+ *
+ * El `ritmo` es el del suceso que haya en marcha. Una luna de sangre que se
+ * parase dos segundos y medio cada vez que cae un zombi no sería una luna de
+ * sangre, sería una noche con pausas.
+ */
+export function apuntarMuerte(p: Presion, ritmo = 1): void {
+  const veto = Math.round(VETO_MUERTE / Math.max(ritmo, 0.25));
+  if (p.espera < veto) p.espera = veto;
+}
+
+/** El aforo de la zona: el de siempre más lo que haya acumulado quedarse. */
+export function aforoDeZona(base: number, p: Presion): number {
+  const refuerzos = Math.floor(p.quieto / TICKS_POR_REFUERZO);
+  return Math.min(base * TOPE_ZONA, base + refuerzos);
+}
 
 export type BiomaLocal = 'bosque' | 'desierto' | 'nieve' | 'jungla';
 
@@ -114,6 +194,14 @@ export interface ContextoAparicion {
    */
   ritmoSuceso?: number;
   ritmoElite?: number;
+  /**
+   * Lo que el sitio lleva acumulado, si el mundo juega con esa regla.
+   *
+   * Sin ella se comporta como antes de 7.8.0: aforo fijo y hueco que se rellena
+   * en cuanto queda libre. Los mundos viejos se juegan con las reglas que
+   * tenían.
+   */
+  presion?: Presion;
 }
 
 /**
@@ -315,7 +403,7 @@ export function intentarAparicion(
   // El aforo sube con la dificultad, pero nunca baja de uno mientras haya algo
   // que pueda salir: los animales tienen que caber aunque el mundo sea pacífico.
   const dentro = ctx.estructura != null;
-  const tope = Math.max(
+  const base = Math.max(
     1,
     Math.round(
       TOPE_ENEMIGOS *
@@ -324,6 +412,11 @@ export function intentarAparicion(
         (ctx.ritmoSuceso ?? 1),
     ),
   );
+  const p = ctx.presion;
+  // El veto se mira antes que el aforo: acaba de morir uno y el hueco no se
+  // rellena, aunque sobre sitio de sobra.
+  if (p && p.espera > 0) return null;
+  const tope = p ? aforoDeZona(base, p) : base;
   if (vivos >= tope) return null;
 
   const txJugador = Math.floor((jugador.x + jugador.ancho / 2) / TILE);
@@ -369,6 +462,13 @@ export function intentarAparicion(
     ctx.version ?? VERSION_ACTUAL,
   );
   enemigos.push(e);
+  // Y a esperar. Cuantos más haya ya sueltos, más se tarda en soltar el
+  // siguiente: es lo que convierte la aparición en un goteo en vez de en una
+  // tanda que llena el aforo y se calla.
+  if (p) {
+    const ritmo = Math.max(ctx.ritmoSuceso ?? 1, 0.25);
+    p.espera = Math.round((ESPERA_TRAS_APARECER + vivos * ESPERA_POR_VIVO) / ritmo);
+  }
   return e;
 }
 

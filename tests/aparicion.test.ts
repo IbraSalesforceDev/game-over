@@ -14,15 +14,26 @@ import {
 } from '../src/entities/enemies';
 import { DIFICULTADES } from '../src/core/dificultad';
 import {
+  aforoDeZona,
+  apuntarMuerte,
+  avanzarPresion,
+  crearPresion,
   esElite,
   esHostil,
   especiesPosibles,
+  ESPERA_POR_VIVO,
+  ESPERA_TRAS_APARECER,
   FUERZA_DIURNA,
   intentarAparicion,
+  RADIO_ZONA,
+  TICKS_POR_REFUERZO,
+  TOPE_ZONA,
   UMBRAL_LUZ_HOSTIL,
+  VETO_MUERTE,
   type ContextoAparicion,
 } from '../src/entities/spawner';
 import { MotorLuz } from '../src/world/lighting';
+import { LUZ_DIA, LUZ_NOCHE } from '../src/engine/time';
 import { ANTORCHA, PIEDRA, TIERRA } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
@@ -167,14 +178,54 @@ describe('luz estimada fuera de la ventana visible', () => {
   it('a pleno sol un sitio a cielo abierto está iluminado', () => {
     const m = mundoLlano();
     const luz = new MotorLuz(m);
-    expect(luz.luzEstimada(100, SUELO - 2, 1)).toBeGreaterThan(UMBRAL_LUZ_HOSTIL);
+    expect(luz.luzEstimada(100, SUELO - 2, LUZ_DIA)).toBeGreaterThan(UMBRAL_LUZ_HOSTIL);
     expect(luz.luzEstimada(100, SUELO - 2, 0)).toBeLessThan(UMBRAL_LUZ_HOSTIL);
   });
 
   it('bajo tierra no llega el sol ni a mediodía', () => {
     const m = mundoLlano();
     const luz = new MotorLuz(m);
-    expect(luz.luzEstimada(100, SUELO + 30, 1)).toBeLessThan(UMBRAL_LUZ_HOSTIL);
+    expect(luz.luzEstimada(100, SUELO + 30, LUZ_DIA)).toBeLessThan(UMBRAL_LUZ_HOSTIL);
+  });
+
+  /**
+   * El fallo que tenía escondido el juego entero de noche.
+   *
+   * `luzSolar` va de 0 a 255 y `luzEstimada` devolvía `255 * luzSolar`, o sea
+   * 65025 a mediodía y 13260 de noche. Como el umbral son 90, la comprobación de
+   * luz rechazaba **todo** lo hostil que quisiera salir a cielo abierto: la
+   * superficie no tenía zombis a ninguna hora, y solo aparecían conejos y
+   * gallinas, que no miran la luz. Bajo tierra no se notaba porque allí no se ve
+   * el cielo y el valor salía del recorrido de antorchas.
+   *
+   * Estos tests pasaban porque estaban escritos con la misma suposición: se
+   * llamaba con un 1 para decir "mediodía". Por eso este comprueba las dos
+   * escalas a la vez, contra las constantes de verdad del reloj.
+   */
+  it('la luz del sol y la luz estimada usan la misma escala', () => {
+    const m = mundoLlano();
+    const luz = new MotorLuz(m);
+    const aCieloAbierto = SUELO - 2;
+    expect(luz.luzEstimada(100, aCieloAbierto, LUZ_DIA)).toBe(LUZ_DIA);
+    expect(luz.luzEstimada(100, aCieloAbierto, LUZ_NOCHE)).toBe(LUZ_NOCHE);
+    // Y lo que importa: de noche, al aire libre, sí puede salir algo hostil.
+    expect(luz.luzEstimada(100, aCieloAbierto, LUZ_NOCHE)).toBeLessThan(UMBRAL_LUZ_HOSTIL);
+  });
+
+  /** La prueba de fuego: de noche, en campo abierto, salen zombis. */
+  it('de noche aparece algo hostil en la superficie', () => {
+    const m = mundoLlano();
+    const luz = new MotorLuz(m);
+    const ctx = contexto({
+      esNoche: true,
+      luzEn: (tx, ty) => luz.luzEstimada(tx, ty, LUZ_NOCHE),
+    });
+    let hostiles = 0;
+    for (let i = 0; i < 200; i++) {
+      const e = aparecerAlgo(m, ctx, 20);
+      if (e && esHostil(e.especie)) hostiles++;
+    }
+    expect(hostiles).toBeGreaterThan(0);
   });
 });
 
@@ -411,5 +462,152 @@ describe('cómo se llama cada bicho', () => {
     // lo que ve el jugador, no. Es justo el par que se olvida.
     expect(ENEMIGOS.golem.nombre).toBe('gólem de arenisca');
     expect(ENEMIGOS.arana.nombre).toBe('araña de la selva');
+  });
+});
+
+/**
+ * El ritmo al que se llena una zona.
+ *
+ * Las dos quejas que arregla esta parte son la misma de fondo: la aparición solo
+ * miraba cuántos había vivos. Matar bajaba la cuenta y el hueco se rellenaba en
+ * el acto, y quedarse en un sitio topaba en cuatro bichos y ahí se quedaba el
+ * mundo.
+ */
+describe('la presión de la zona', () => {
+  /** Cuántos bichos aparecen en `ticks`, jugando de verdad al reloj. */
+  function simular(ticks: number, matar: (e: Enemigo) => boolean = () => false) {
+    const m = mundoLlano();
+    const j = jugador();
+    const p = crearPresion();
+    const lista: Enemigo[] = [];
+    const ctx = contexto({ presion: p });
+    let salidos = 0;
+    let muertos = 0;
+    const tx = Math.floor(j.x / TILE);
+    const ty = Math.floor(j.y / TILE);
+    for (let t = 0; t < ticks; t++) {
+      avanzarPresion(p, tx, ty);
+      // El juego lo intenta cada 40 ticks; la presión decide si toca.
+      if (t % 40 === 0) {
+        const e = intentarAparicion(m, lista, j, ctx);
+        if (e) salidos++;
+      }
+      for (const e of lista) {
+        if (e.vivo && matar(e)) {
+          e.vivo = false;
+          muertos++;
+          apuntarMuerte(p);
+        }
+      }
+    }
+    return { salidos, muertos, vivos: lista.filter((e) => e.vivo).length, p };
+  }
+
+  it('matar frena la aparición en vez de dispararla', () => {
+    const p = crearPresion();
+    apuntarMuerte(p);
+    expect(p.espera).toBe(VETO_MUERTE);
+
+    const m = mundoLlano();
+    const lista: Enemigo[] = [];
+    // Con el veto puesto no sale nada, por mucho que se intente y por vacía que
+    // esté la zona.
+    for (let i = 0; i < 50; i++) {
+      expect(intentarAparicion(m, lista, jugador(), contexto({ presion: p }))).toBeNull();
+    }
+    expect(lista).toHaveLength(0);
+  });
+
+  it('el veto se acaba solo', () => {
+    const p = crearPresion();
+    apuntarMuerte(p);
+    for (let t = 0; t < VETO_MUERTE; t++) avanzarPresion(p, 0, 0);
+    expect(p.espera).toBe(0);
+  });
+
+  it('una luna de sangre no se para en seco cada vez que cae un zombi', () => {
+    const normal = crearPresion();
+    const luna = crearPresion();
+    apuntarMuerte(normal, 1);
+    apuntarMuerte(luna, 2);
+    expect(luna.espera).toBeLessThan(normal.espera);
+  });
+
+  /** El goteo: cada bicho que ya anda suelto retrasa al siguiente. */
+  it('cuantos más hay, más se tarda en soltar el siguiente', () => {
+    const m = mundoLlano();
+    const p = crearPresion();
+    const lista: Enemigo[] = [];
+    const ctx = contexto({ presion: p });
+    const j = jugador();
+
+    /** Insiste hasta que salga uno: un intento suelto puede no encontrar sitio. */
+    const soltarUno = (): void => {
+      for (let i = 0; i < 400; i++) {
+        p.espera = 0;
+        if (intentarAparicion(m, lista, j, ctx)) return;
+      }
+      throw new Error('no ha salido ninguno');
+    };
+
+    soltarUno();
+    const esperaCon1 = p.espera;
+    expect(esperaCon1).toBe(ESPERA_TRAS_APARECER);
+
+    soltarUno();
+    expect(p.espera).toBe(ESPERA_TRAS_APARECER + ESPERA_POR_VIVO);
+    expect(p.espera).toBeGreaterThan(esperaCon1);
+  });
+
+  it('quedarse en el sitio sube el aforo, hasta un tope', () => {
+    const p = crearPresion();
+    expect(aforoDeZona(7, p)).toBe(7);
+    p.quieto = TICKS_POR_REFUERZO;
+    expect(aforoDeZona(7, p)).toBe(8);
+    p.quieto = TICKS_POR_REFUERZO * 4;
+    expect(aforoDeZona(7, p)).toBe(11);
+    p.quieto = TICKS_POR_REFUERZO * 1000;
+    expect(aforoDeZona(7, p)).toBe(7 * TOPE_ZONA);
+  });
+
+  it('irse a otra zona reinicia la cuenta', () => {
+    const p = crearPresion();
+    for (let t = 0; t < 500; t++) avanzarPresion(p, 100, 50);
+    expect(p.quieto).toBeGreaterThan(400);
+    avanzarPresion(p, 100 + RADIO_ZONA + 1, 50);
+    expect(p.quieto).toBe(0);
+    // Y volver a moverse dentro de la misma zona no la reinicia.
+    for (let t = 0; t < 10; t++) avanzarPresion(p, 100 + RADIO_ZONA + 1 + t, 50);
+    expect(p.quieto).toBe(10);
+  });
+
+  /**
+   * Lo que el jugador nota: quedarse tres minutos en el mismo claro acaba
+   * juntando más bichos de los que cabían al llegar.
+   */
+  it('quedarse mucho junta más bichos que quedarse poco', () => {
+    const corto = simular(60 * 40).vivos;
+    const largo = simular(60 * 60 * 5).vivos;
+    expect(largo).toBeGreaterThan(corto);
+  });
+
+  /** Y matando sin parar la zona no se llena: es lo contrario del relleno. */
+  it('matando todo lo que sale, la zona se queda vacía', () => {
+    const r = simular(60 * 60 * 2, () => true);
+    expect(r.muertos).toBeGreaterThan(0);
+    expect(r.vivos).toBe(0);
+  });
+
+  it('sin presión, el mundo viejo se comporta como antes', () => {
+    const m = mundoLlano();
+    const lista: Enemigo[] = [];
+    const j = jugador();
+    // Sin `presion` no hay veto que valga: sale uno detrás de otro hasta el
+    // aforo, que es exactamente lo que hacían las versiones anteriores.
+    let salidos = 0;
+    for (let i = 0; i < 40; i++) {
+      if (intentarAparicion(m, lista, j, contexto())) salidos++;
+    }
+    expect(salidos).toBeGreaterThan(1);
   });
 });
