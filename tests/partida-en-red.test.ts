@@ -551,7 +551,7 @@ describe('dos jugadores, un solo mundo', () => {
       },
     });
     oyente.recibir(
-      escribirInstantanea({ tick: 1, tickConfirmado: 0, minutos: 934, entidades: [] }),
+      escribirInstantanea({ tick: 1, tickConfirmado: 0, minutos: 934, suceso: 0, entidades: [] }),
     );
     expect(horaDelInvitado).toBe(934);
   });
@@ -710,6 +710,7 @@ describe('el invitado pelea', () => {
         tick: 1,
         tickConfirmado: 0,
         minutos: 0,
+        suceso: 0,
         entidades: [
           {
             clase: ENT.OBJETO,
@@ -737,7 +738,7 @@ describe('el invitado pelea', () => {
 
     // Y lo que deja de venir es que alguien lo ha cogido.
     invitado.recibir(
-      escribirInstantanea({ tick: 2, tickConfirmado: 0, minutos: 0, entidades: [] }),
+      escribirInstantanea({ tick: 2, tickConfirmado: 0, minutos: 0, suceso: 0, entidades: [] }),
     );
     expect(invitado.objetos).toHaveLength(0);
 
@@ -758,6 +759,7 @@ describe('el invitado pelea', () => {
         tick: 1,
         tickConfirmado: 0,
         minutos: 0,
+        suceso: 0,
         entidades: [
           {
             clase: ENT.OBJETO, id: 1, x: 0, y: 0, vx: 0, vy: 0, banderas: 0,

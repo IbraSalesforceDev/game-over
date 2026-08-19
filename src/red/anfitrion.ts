@@ -177,6 +177,8 @@ export interface OpcionesAnfitrion {
    * copia se quedaría vieja al momento.
    */
   minutos?: () => number;
+  /** El suceso en marcha, en un número. También es del mundo. */
+  suceso?: () => number;
   /** Los objetos que hay por el suelo ahora mismo, para mandarlos. */
   objetos?: () => readonly Drop[];
   /** Las celdas de líquido que han cambiado, hasta un tope. */
@@ -604,6 +606,7 @@ export class Anfitrion {
           tick: this.tickActual,
           tickConfirmado: j.ultimoTick,
           minutos: this.op.minutos?.() ?? 0,
+          suceso: this.op.suceso?.() ?? 0,
           entidades: todos,
         }),
       );

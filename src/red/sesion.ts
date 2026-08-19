@@ -65,6 +65,8 @@ export interface AvisosSesion {
    * noche.
    */
   alDarLaHora?: (minutos: number) => void;
+  /** Solo en el invitado: qué suceso hay en marcha, según el anfitrión. */
+  alDecirElSuceso?: (numero: number) => void;
 }
 
 export interface OpcionesSesion extends AvisosSesion {
@@ -80,6 +82,8 @@ export interface OpcionesSesion extends AvisosSesion {
   bichos?: () => readonly Enemigo[];
   /** Solo el anfitrión: la hora del mundo, que es suya. */
   minutos?: () => number;
+  /** Solo el anfitrión: el suceso en marcha, que también lo es. */
+  suceso?: () => number;
   /** Solo el anfitrión: los objetos del suelo, para mandarlos. */
   objetos?: () => readonly Drop[];
   /** Solo el anfitrión: las celdas de agua que han cambiado. */
@@ -193,6 +197,7 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     bytesDelMundo: op.bytesDelMundo ?? (async () => new Uint8Array(0)),
     bichos: op.bichos,
     minutos: op.minutos,
+    suceso: op.suceso,
     objetos: op.objetos,
     liquidosCambiados: op.liquidosCambiados,
     alGolpear: op.alGolpear,
@@ -416,6 +421,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     alCambiarTiles: (cs) => op.alCambiarTiles?.(cs),
     versionMundo: op.versionMundo,
     alDarLaHora: (minutos) => op.alDarLaHora?.(minutos),
+    alDecirElSuceso: (n) => op.alDecirElSuceso?.(n),
     alRecibirGolpe: (dano, desdeX) => op.alRecibirGolpe?.(dano, desdeX),
     alRecogerObjeto: (objeto, cantidad) => op.alRecogerObjeto?.(objeto, cantidad),
     alCambiarLiquidos: (cs) => op.alCambiarLiquidos?.(cs),

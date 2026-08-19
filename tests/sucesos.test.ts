@@ -5,10 +5,13 @@ import {
   DESCANSO,
   forzarSuceso,
   INTERVALO_SORTEO,
+  numeroDeSuceso,
+  ORDEN_SUCESOS,
   PROBABILIDAD,
   ritmoDeApariciones,
   ritmoDeElites,
   SUCESOS,
+  sucesoDeNumero,
   tickSucesos,
   type ClaseSuceso,
   type ContextoSuceso,
@@ -349,5 +352,39 @@ describe('los meteoritos', () => {
     for (const id of [OBSIDIANA, COBALTO, TITANIO]) {
       expect(alMenos(SUCESOS.lluviaEstrellas.desde, versionTile(id)), String(id)).toBe(true);
     }
+  });
+});
+
+/**
+ * El suceso, en un número.
+ *
+ * Hace falta para mandarlo por la red en un byte, y la tabla está escrita a
+ * mano por lo mismo que la de las especies: el orden de las claves de un objeto
+ * es estable en la práctica, pero de esto depende que el invitado no confunda
+ * una luna de sangre con un enjambre.
+ */
+describe('el suceso en un número, para el cable', () => {
+  it('están los tres y ninguno es cero', () => {
+    expect(ORDEN_SUCESOS).toHaveLength(Object.keys(SUCESOS).length);
+    for (const c of ORDEN_SUCESOS) expect(numeroDeSuceso(c)).toBeGreaterThan(0);
+  });
+
+  it('ida y vuelta, incluido «no hay ninguno»', () => {
+    expect(numeroDeSuceso(null)).toBe(0);
+    expect(sucesoDeNumero(0)).toBeNull();
+    for (const c of ORDEN_SUCESOS) {
+      expect(sucesoDeNumero(numeroDeSuceso(c))).toBe(c);
+    }
+  });
+
+  /** Llega de otro navegador: un número que no conocemos no inventa nada. */
+  it('un número que no es de ninguno no da un suceso', () => {
+    expect(sucesoDeNumero(99)).toBeNull();
+    expect(sucesoDeNumero(-1)).toBeNull();
+  });
+
+  it('la tabla nombra sucesos que existen de verdad', () => {
+    for (const c of ORDEN_SUCESOS) expect(SUCESOS[c]).toBeDefined();
+    expect(new Set(ORDEN_SUCESOS).size).toBe(ORDEN_SUCESOS.length);
   });
 });

@@ -252,9 +252,12 @@ import {
   cortarSuceso,
   crearSucesos,
   forzarSuceso,
+  INTERVALO_SORTEO,
+  numeroDeSuceso,
   ritmoDeApariciones,
   ritmoDeElites,
   SUCESOS,
+  sucesoDeNumero,
   tickSucesos,
   type ClaseSuceso,
 } from './world/sucesos';
@@ -806,6 +809,7 @@ async function arrancar(): Promise<void> {
           bytesDelMundo: () => empaquetarFuera(mundo, partida.estado),
           bichos: () => enemigos,
           minutos: () => reloj.minutos,
+          suceso: () => numeroDeSuceso(sucesos.activo),
           objetos: () => drops,
           liquidosCambiados: (tope) => liquidos.tomarSucias(tope),
           alGolpear: (_quien, g, caja) => resolverMandoble(g, caja, g.arma, false),
@@ -832,6 +836,7 @@ async function arrancar(): Promise<void> {
           versionMundo,
           alLlegarMundo: (bytes) => void adoptarMundoDelAnfitrion(bytes),
           alDarLaHora: ponerEnHora,
+          alDecirElSuceso: seguirElSuceso,
           alRecibirGolpe: recibirGolpeDeRed,
           alCambiarLiquidos: aplicarLiquidosDeRed,
           alSaberDelCofre: aplicarCofreDeRed,
@@ -944,6 +949,33 @@ async function arrancar(): Promise<void> {
     );
     sacudir(3.4);
     audio.sonar('dano');
+  }
+
+  /**
+   * Seguir el suceso que diga el anfitrión.
+   *
+   * Solo se toca cuando cambia: la instantánea lo repite veinte veces por
+   * segundo y volver a fijar el cartel en cada una lo dejaría parpadeando.
+   */
+  function seguirElSuceso(numero: number): void {
+    const cual = sucesoDeNumero(numero);
+    if (cual === sucesos.activo) return;
+    if (sucesos.activo) aviso.mostrar(SUCESOS[sucesos.activo].despedida);
+    sucesos.activo = cual;
+    // El resto del estado es del sorteo, y el sorteo no es de aquí: se deja en
+    // reposo para que nada de esta máquina intente continuar por su cuenta.
+    sucesos.restante = 0;
+    sucesos.espera = INTERVALO_SORTEO;
+    if (!cual) {
+      aviso.fijar(null);
+      return;
+    }
+    const def = SUCESOS[cual];
+    aviso.mostrar(def.aviso, true);
+    aviso.fijar(def.nombre, def.color);
+    audio.sonar('golpe', 0.35);
+    sacudir(3);
+    relojMeteorito = 0;
   }
 
   /**
@@ -3812,7 +3844,10 @@ async function arrancar(): Promise<void> {
       }
       if (tiene('efectos')) actualizarEstados();
       tickPoder(recargaPoder);
-      if (tiene('sucesos')) actualizarSucesos();
+      // Los sucesos son del mundo, como la hora: los sortea el anfitrión. Con
+      // cada uno sorteando el suyo, a uno le caía una luna de sangre y al otro
+      // no, en el mismo sitio y a la misma hora.
+      if (tiene('sucesos') && sesionRed?.papel !== 'invitado') actualizarSucesos();
       if (tiene('electricidad')) actualizarCorriente();
       particulas.actualizar(mundo);
       if (opciones.sacudidaActiva) renderer.camara.tickSacudida();

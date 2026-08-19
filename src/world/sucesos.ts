@@ -96,6 +96,32 @@ const CLASES = Object.keys(SUCESOS) as ClaseSuceso[];
  * que una partida no se acabe sin ver ninguno, y lo bastante de tarde en tarde
  * como para que salte el aviso y a uno se le encoja algo.
  */
+/**
+ * Los tres, en un orden fijo, para poder mandarlos por la red en un byte.
+ *
+ * Escrito a mano y no sacado de `Object.keys`: el orden de las claves de un
+ * objeto es estable en la práctica, pero de esto depende que el invitado no
+ * confunda una luna de sangre con un enjambre, y eso merece una lista que se
+ * vea. Lo nuevo se añade **al final**.
+ */
+export const ORDEN_SUCESOS: readonly ClaseSuceso[] = [
+  'lunaDeSangre',
+  'lluviaEstrellas',
+  'enjambre',
+];
+
+/** El suceso en un número (0 = ninguno) y la vuelta. */
+export function numeroDeSuceso(clase: ClaseSuceso | null): number {
+  if (clase === null) return 0;
+  const i = ORDEN_SUCESOS.indexOf(clase);
+  return i < 0 ? 0 : i + 1;
+}
+
+/** Devuelve null si el número no es de ninguno: llega de fuera y no se fía. */
+export function sucesoDeNumero(n: number): ClaseSuceso | null {
+  return ORDEN_SUCESOS[n - 1] ?? null;
+}
+
 export const INTERVALO_SORTEO = 60 * 60 * 4;
 export const PROBABILIDAD = 0.2;
 

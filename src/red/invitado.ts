@@ -68,6 +68,8 @@ export interface OpcionesInvitado {
   alRechazar?: (motivo: string) => void;
   /** La hora del anfitrión, en minutos del día. Llega con cada instantánea. */
   alDarLaHora?: (minutos: number) => void;
+  /** El suceso que hay en marcha, en un número. 0 es que no hay ninguno. */
+  alDecirElSuceso?: (numero: number) => void;
   /** Un bicho del anfitrión te ha tocado: aplícatelo con tu armadura. */
   alRecibirGolpe?: (dano: number, desdeX: number) => void;
   /** El anfitrión te da lo que habías pedido del suelo. */
@@ -181,8 +183,9 @@ export class Invitado {
       case MSG.INSTANTANEA:
         this.guardarInstantanea(m.instantanea.entidades);
         this.ultimaInstantanea = m.instantanea;
-        // La hora es del mundo, y del mundo manda el anfitrión.
+        // La hora y el suceso son del mundo, y del mundo manda el anfitrión.
         this.op.alDarLaHora?.(m.instantanea.minutos);
+        this.op.alDecirElSuceso?.(m.instantanea.suceso);
         break;
     }
   }

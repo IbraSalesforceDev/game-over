@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 6;
+export const VERSION_PROTOCOLO = 7;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -263,6 +263,14 @@ export interface Instantanea {
    */
   minutos: number;
   /**
+   * El suceso en marcha, en un número (0 = ninguno).
+   *
+   * Viaja con la hora y por lo mismo: es del mundo, no de quien mira. Cada uno
+   * sorteando el suyo daba partidas en las que a uno le caía una luna de sangre
+   * y al otro no, en el mismo sitio y a la misma hora.
+   */
+  suceso: number;
+  /**
    * El último tick que el anfitrión ha procesado de este cliente.
    *
    * Es la pieza que hace posible la reconciliación: el cliente sabe hasta dónde
@@ -339,6 +347,7 @@ export function escribirInstantanea(inst: Instantanea): Uint8Array {
   e.u32(inst.tick);
   e.u32(inst.tickConfirmado);
   e.u16(Math.max(0, Math.min(1439, Math.round(inst.minutos))));
+  e.u8(Math.max(0, Math.min(255, inst.suceso)));
   e.u16(inst.entidades.length);
   for (const ent of inst.entidades) {
     e.u8(ent.clase);
@@ -573,6 +582,7 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
         const tick = l.u32();
         const tickConfirmado = l.u32();
         const minutos = l.u16();
+        const suceso = l.u8();
         const n = l.u16();
         const entidades: EntidadRed[] = [];
         for (let i = 0; i < n; i++) {
@@ -595,7 +605,7 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
         }
         return {
           tipo: MSG.INSTANTANEA,
-          instantanea: { tick, tickConfirmado, minutos, entidades },
+          instantanea: { tick, tickConfirmado, minutos, suceso, entidades },
         };
       }
       case MSG.DANO:

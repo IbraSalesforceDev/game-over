@@ -31,6 +31,7 @@ import { CUBO_AGUA } from '../src/items/items';
 import { Contenedores } from '../src/world/contenedores';
 import { tocar } from '../src/items/inventory';
 import type { EstadoCofre } from '../src/red/protocolo';
+import { numeroDeSuceso, sucesoDeNumero } from '../src/world/sucesos';
 
 const lista = document.getElementById('resultados')!;
 const fallos: string[] = [];
@@ -117,6 +118,8 @@ async function main(): Promise<void> {
   /** La hora que el anfitrión dice tener, y la que le llega al invitado. */
   let horaDelAnfitrion = 615;
   let horaEnElInvitado = -1;
+  let sucesoDelAnfitrion = 0;
+  let sucesoEnElInvitado = -1;
   let golpesRecibidos = 0;
   /** Lo que el anfitrión resuelve de los mandobles del invitado. */
   /** Un apunte por tick barrido; los que empiezan un mandoble van marcados. */
@@ -144,6 +147,7 @@ async function main(): Promise<void> {
     bytesDelMundo: () => empaquetar(genA.mundo, estado as any),
     bichos: () => [],
     minutos: () => horaDelAnfitrion,
+    suceso: () => sucesoDelAnfitrion,
     objetos: () => suelo,
     liquidosCambiados: (tope) => agua.tomarSucias(tope),
     alUsarCubo: (_objeto, tx, ty) => agua.verter(tx, ty, 255),
@@ -183,6 +187,9 @@ async function main(): Promise<void> {
     alCambiarTiles: (cs) => tilesEnB.push(...cs),
     alDarLaHora: (m) => {
       horaEnElInvitado = m;
+    },
+    alDecirElSuceso: (n) => {
+      sucesoEnElInvitado = n;
     },
     alRecibirGolpe: () => {
       golpesRecibidos++;
@@ -309,6 +316,26 @@ async function main(): Promise<void> {
   comprobar(
     'pero uno tirado a sesenta tiles no moja nada',
     genA.mundo.getLiquido(lejos, tyCubo) === 0,
+  );
+
+  // Los sucesos también son del mundo: los sortea el anfitrión.
+  comprobar(
+    'sin suceso, el invitado tampoco tiene ninguno',
+    await esperarA(() => sucesoEnElInvitado === 0, 5000),
+  );
+  sucesoDelAnfitrion = numeroDeSuceso('lunaDeSangre');
+  comprobar(
+    'una luna de sangre del anfitrión le llega al invitado',
+    await esperarA(() => sucesoEnElInvitado === numeroDeSuceso('lunaDeSangre'), 5000),
+  );
+  comprobar(
+    'y el número que llega es el de la luna, no otro',
+    sucesoDeNumero(sucesoEnElInvitado) === 'lunaDeSangre',
+  );
+  sucesoDelAnfitrion = 0;
+  comprobar(
+    'y cuando termina, termina en los dos',
+    await esperarA(() => sucesoEnElInvitado === 0, 5000),
   );
 
   // Los cofres: lo que hay dentro lo dice el anfitrión, siempre.

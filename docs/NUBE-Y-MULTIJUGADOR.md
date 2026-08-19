@@ -215,6 +215,28 @@ en todo momento **una sola copia con autoridad**. Se acabó el «¿cuál es más
 nueva?», el mezclar, y la cola de sincronización. Era la parte que estaba marcada
 como «más trabajo que todo lo demás junto», y con este modelo desaparece entera.
 
+### Qué decide el anfitrión, a día de hoy (7.12.3)
+
+La regla, dicha entera: **todo lo que es del mundo lo decide quien lo hospeda.**
+Lo que es de cada jugador —su inventario, su vida, su armadura, sus pociones—
+sigue siendo suyo.
+
+Del mundo, y por tanto del anfitrión: los bloques, el agua, el reloj, los
+sucesos, los bichos y a quién persiguen, los objetos del suelo y lo que hay
+dentro de cada cofre. El invitado los recibe hechos y los pide cuando quiere
+cambiarlos.
+
+De cada uno: la mochila, la vida, la armadura y los efectos. Es un reparto a
+medias y conviene decir por qué no está en el anfitrión también: llevar la vida
+de todos allí pedía mandar armadura, efectos y pociones de cada uno en cada
+tick, y esto es un juego para tres amigos, no un servidor público. Lo que sí
+decide el anfitrión es lo único que no se puede falsear sin que se note: dónde
+está cada cosa del mundo y quién ha llegado antes.
+
+Lo que queda de esa decisión, anotado para no perderlo: las pociones de un
+invitado no multiplican su daño —el anfitrión no las conoce— y el filo de savia
+no le cura, porque curaría a quien resuelve el golpe y no a quien lo da.
+
 ### El corolario que faltaba: guarda el anfitrión, y solo él (7.11.1)
 
 «Una sola copia con autoridad» no basta si los dos escriben en ella. Hasta

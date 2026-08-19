@@ -854,6 +854,18 @@ export const VERSIONES: readonly Version[] = [
       'Y si el anfitrión toca un cofre que otro tiene abierto, el otro lo ve',
     ],
   },
+  {
+    id: '7.12.3',
+    etapa: 'prealfa',
+    nombre: 'La misma noche para todos',
+    resumen: 'La luna de sangre la sortea el anfitrión: o le cae a los dos, o a ninguno.',
+    cambios: [
+      'Los sucesos son del mundo y los sortea quien lo hospeda',
+      'El invitado los sigue: mismo cartel, mismo aviso y mismo final',
+      'Antes cada uno tenía los suyos: a uno le caía una luna de sangre y al otro no',
+      'Con esto, todo lo que decide el mundo lo decide un solo sitio',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

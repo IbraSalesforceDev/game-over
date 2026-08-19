@@ -167,6 +167,7 @@ describe('instantánea', () => {
       tick: 500,
       tickConfirmado: 497,
       minutos: 615,
+      suceso: 0,
       entidades: [ent(), ent({ id: 2, x: -80 })],
     };
     const m = leerMensaje(escribirInstantanea(inst));
@@ -182,7 +183,13 @@ describe('instantánea', () => {
    * tirones.
    */
   it('conserva los decimales de la velocidad', () => {
-    const inst = { tick: 1, tickConfirmado: 0, minutos: 0, entidades: [ent({ vx: 2.5, vy: -0.125 })] };
+    const inst = {
+      tick: 1,
+      tickConfirmado: 0,
+      minutos: 0,
+      suceso: 0,
+      entidades: [ent({ vx: 2.5, vy: -0.125 })],
+    };
     const leida = (
       leerMensaje(escribirInstantanea(inst)) as { instantanea: typeof inst }
     ).instantanea;
@@ -202,6 +209,7 @@ describe('instantánea', () => {
       tick: 1,
       tickConfirmado: 0,
       minutos: 0,
+      suceso: 0,
       entidades: [ent({ clase: ENT.BICHO, id: 40 }), ent({ clase: ENT.PROYECTIL, id: 41 })],
     };
     const leida = (
@@ -219,6 +227,7 @@ describe('instantánea', () => {
       tick: 1,
       tickConfirmado: 0,
       minutos: 0,
+      suceso: 0,
       entidades: [ent({ ticksCoyote: 5, ticksBuffer: 2, ticksSalto: 11, yInicioCaida: -600 })],
     };
     const leida = (
@@ -243,6 +252,7 @@ describe('instantánea', () => {
       tick: 1,
       tickConfirmado: 0,
       minutos: 0,
+      suceso: 0,
       entidades: [
         ent({ clase: ENT.BICHO, id: 30, sub: 4, vida: 50, vidaMax: 80 }),
         ent({ clase: ENT.BICHO, id: 31, sub: 17 }),
@@ -256,7 +266,13 @@ describe('instantánea', () => {
   });
 
   it('una instantánea vacía es válida', () => {
-    const inst = { tick: 7, tickConfirmado: 7, minutos: 1439, entidades: [] as EntidadRed[] };
+    const inst = {
+      tick: 7,
+      tickConfirmado: 7,
+      minutos: 1439,
+      suceso: 0,
+      entidades: [] as EntidadRed[],
+    };
     const leida = (
       leerMensaje(escribirInstantanea(inst)) as { instantanea: typeof inst }
     ).instantanea;
@@ -283,6 +299,7 @@ describe('basura por el cable', () => {
       tick: 1,
       tickConfirmado: 0,
       minutos: 0,
+      suceso: 0,
       entidades: [
         {
           clase: ENT.JUGADOR, id: 1, x: 1, y: 2, vx: 0, vy: 0, banderas: 0, vida: 1,
@@ -295,7 +312,7 @@ describe('basura por el cable', () => {
 
   it('una instantánea que promete más entidades de las que trae se ignora', () => {
     // Dice 999 entidades y no trae ninguna.
-    const malo = new Uint8Array([MSG.INSTANTANEA, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 3, 231]);
+    const malo = new Uint8Array([MSG.INSTANTANEA, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 231]);
     expect(leerMensaje(malo)).toBeNull();
   });
 
