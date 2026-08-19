@@ -691,6 +691,18 @@ export const VERSIONES: readonly Version[] = [
       'El botón solo sale en los mundos tuyos, que son los que puedes compartir',
     ],
   },
+  {
+    id: '7.6.0',
+    etapa: 'prealfa',
+    nombre: 'Los bichos, en los dos lados',
+    resumen: 'Quien entra a tu mundo ve los mismos bichos que tú, donde tú los ves.',
+    cambios: [
+      'Los bichos del anfitrión aparecen también en la pantalla del invitado',
+      'Con su especie, su vida y su barra: no son manchas, son los mismos',
+      'Cuando uno muere, desaparece en los dos sitios',
+      'Todavía no hacen daño al invitado ni él puede pegarles: eso es lo siguiente',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

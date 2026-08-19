@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 1;
+export const VERSION_PROTOCOLO = 2;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -152,6 +152,14 @@ export interface EntidadRed {
   banderas: number;
   vida: number;
   /**
+   * Qué es exactamente, dentro de su clase.
+   *
+   * Para un `BICHO` es su especie; para un `JUGADOR` no significa nada. Este
+   * byte es lo que hace que la instantánea no tenga que saber qué transporta:
+   * añadir bichos no le cambió ni un campo, solo le dio un uso a este.
+   */
+  sub: number;
+  /**
    * El estado del salto.
    *
    * Va en la instantánea porque la reconciliación lo necesita para volver a
@@ -164,6 +172,8 @@ export interface EntidadRed {
   ticksSalto: number;
   /** Desde qué altura se empezó a caer, para el daño por caída. */
   yInicioCaida: number;
+  /** Tope de vida. Sin esto no se puede pintar la barra de un bicho. */
+  vidaMax: number;
 }
 
 export interface Instantanea {
@@ -258,10 +268,12 @@ export function escribirInstantanea(inst: Instantanea): Uint8Array {
     e.i16(Math.max(-32768, Math.min(32767, Math.round(ent.vy * 256))));
     e.u8(ent.banderas);
     e.u16(Math.max(0, Math.min(65535, Math.round(ent.vida))));
+    e.u8(Math.max(0, Math.min(255, ent.sub)));
     e.u8(Math.max(0, Math.min(255, ent.ticksCoyote)));
     e.u8(Math.max(0, Math.min(255, ent.ticksBuffer)));
     e.u8(Math.max(0, Math.min(255, ent.ticksSalto)));
     e.i16(Math.max(-32768, Math.min(32767, Math.round(ent.yInicioCaida))));
+    e.u16(Math.max(0, Math.min(65535, Math.round(ent.vidaMax))));
   }
   return e.terminar();
 }
@@ -349,10 +361,12 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
             vy: l.i16() / 256,
             banderas: l.u8(),
             vida: l.u16(),
+            sub: l.u8(),
             ticksCoyote: l.u8(),
             ticksBuffer: l.u8(),
             ticksSalto: l.u8(),
             yInicioCaida: l.i16(),
+            vidaMax: l.u16(),
           });
         }
         return { tipo: MSG.INSTANTANEA, instantanea: { tick, tickConfirmado, entidades } };

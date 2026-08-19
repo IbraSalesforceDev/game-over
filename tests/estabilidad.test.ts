@@ -165,6 +165,16 @@ describe('migrar entre versiones no rompe nada', () => {
     };
   }
 
+  /**
+   * Tiempo largo a propósito.
+   *
+   * Este test migra un mundo entero por cada versión que existe, así que crece
+   * cada vez que se añade una. Con el límite de cinco segundos por defecto
+   * empezó a fallar de forma intermitente —solo con la suite entera, nunca
+   * suelto—, que es la peor manera de fallar: parece un fallo del código y es
+   * el reloj. Se le da margen para que siga valiendo dentro de cincuenta
+   * versiones más.
+   */
   it('subir y bajar desde y hasta la actual no rompe nada', () => {
     const fallos: string[] = [];
     // Solo los saltos que el juego llega a ofrecer: si `destinosPosibles` deja
@@ -202,7 +212,7 @@ describe('migrar entre versiones no rompe nada', () => {
       }
     }
     expect(fallos).toEqual([]);
-  });
+  }, 30000);
 
   it('guardar y abrir un mundo de verdad lo devuelve igual', () => {
     const gen = generarMundo({ ancho: 400, alto: 300, semilla: 'SAVE' });

@@ -82,10 +82,12 @@ describe('instantánea', () => {
     vy: -3.25,
     banderas: 0b101,
     vida: 100,
+    sub: 0,
     ticksCoyote: 3,
     ticksBuffer: 0,
     ticksSalto: 7,
     yInicioCaida: -250,
+    vidaMax: 100,
     ...extra,
   });
 
@@ -152,6 +154,28 @@ describe('instantánea', () => {
     });
   });
 
+  /**
+   * El byte que hace genérica la instantánea.
+   *
+   * Añadir bichos no le cambió ni un campo al transporte: solo le dio uso a
+   * este. Si algún día un jefe necesita algo más, va por aquí también.
+   */
+  it('el subtipo viaja y distingue especies', () => {
+    const inst = {
+      tick: 1,
+      tickConfirmado: 0,
+      entidades: [
+        ent({ clase: ENT.BICHO, id: 30, sub: 4, vida: 50, vidaMax: 80 }),
+        ent({ clase: ENT.BICHO, id: 31, sub: 17 }),
+      ],
+    };
+    const leida = (
+      leerMensaje(escribirInstantanea(inst)) as { instantanea: typeof inst }
+    ).instantanea;
+    expect(leida.entidades.map((e) => e.sub)).toEqual([4, 17]);
+    expect(leida.entidades[0]).toMatchObject({ vida: 50, vidaMax: 80 });
+  });
+
   it('una instantánea vacía es válida', () => {
     const inst = { tick: 7, tickConfirmado: 7, entidades: [] as EntidadRed[] };
     const leida = (
@@ -182,7 +206,7 @@ describe('basura por el cable', () => {
       entidades: [
         {
           clase: ENT.JUGADOR, id: 1, x: 1, y: 2, vx: 0, vy: 0, banderas: 0, vida: 1,
-          ticksCoyote: 0, ticksBuffer: 0, ticksSalto: 0, yInicioCaida: 0,
+          sub: 0, ticksCoyote: 0, ticksBuffer: 0, ticksSalto: 0, yInicioCaida: 0, vidaMax: 1,
         },
       ],
     });

@@ -125,6 +125,14 @@ export interface Escena {
    * para que la corrección no se vea como un tirón. Ver `red/prediccion.ts`.
    */
   desvioJugador?: { x: number; y: number };
+  /**
+   * Los bichos del anfitrión, cuando se juega de invitado.
+   *
+   * Vienen ya como `Enemigo`, así que se dibujan con el mismo código que los
+   * propios: una segunda ruta de dibujo se quedaría atrás en cuanto alguien
+   * tocara los sprites.
+   */
+  enemigosRed?: readonly Enemigo[];
 }
 
 export class Renderer {
@@ -1040,7 +1048,7 @@ export class Renderer {
     this.flechas(e.flechas, ox, oy);
     if (e.disparos) this.disparos(e.disparos, ox, oy);
     if (e.explosivos) this.explosivos(e.explosivos, ox, oy);
-    this.enemigos(e.enemigos, ox, oy, e.epoca);
+    this.enemigos(e.enemigosRed ?? e.enemigos, ox, oy, e.epoca);
     if (e.jugador.caja.enSuelo && e.epoca.sombras) {
       const c = e.jugador.caja;
       this.sombra(c.x, c.y + c.alto, c.ancho, ox, oy);

@@ -62,7 +62,7 @@ export interface Autoridad {
 }
 
 /** De una caja del juego a lo que viaja por el cable. */
-export function autoridadDeCaja(caja: Caja): Omit<EntidadRed, 'clase' | 'id' | 'vida'> {
+export function autoridadDeCaja(caja: Caja): Omit<EntidadRed, 'clase' | 'id' | 'vida' | 'sub' | 'vidaMax'> {
   return {
     x: caja.x,
     y: caja.y,

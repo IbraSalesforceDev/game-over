@@ -715,10 +715,12 @@ async function arrancar(): Promise<void> {
           // si el anfitrión lleva media hora jugando, la copia del disco está
           // vieja y quien entre vería un mundo que ya no existe.
           bytesDelMundo: () => empaquetarFuera(mundo, partida.estado),
+          bichos: () => enemigos,
         });
       } else {
         sesionRed = await unirse({
           ...comun,
+          versionMundo,
           alLlegarMundo: (bytes) => void adoptarMundoDelAnfitrion(bytes),
         });
       }
@@ -3267,7 +3269,10 @@ async function arrancar(): Promise<void> {
       sumergidoAhora = sumergido;
       actualizarDrops();
       if (tiene('cultivos')) actualizarCultivos();
-      actualizarCombate();
+      // El invitado no simula bichos: los suyos son los que le manda el
+      // anfitrión. Si los generara también, habría dos poblaciones distintas en
+      // el mismo mundo y solo una de las dos podría hacerte daño.
+      if (sesionRed?.papel !== 'invitado') actualizarCombate();
       if (tiene('efectos')) actualizarEstados();
       tickPoder(recargaPoder);
       if (tiene('sucesos')) actualizarSucesos();
@@ -3290,6 +3295,8 @@ async function arrancar(): Promise<void> {
         mundo,
         jugador,
         companeros: sesionRed?.otros(),
+        // En el anfitrión devuelve null y se usan los suyos de siempre.
+        enemigosRed: sesionRed?.bichos() ?? undefined,
         desvioJugador: sesionRed?.desvio(),
         alpha,
         zonas: partida.zonas,

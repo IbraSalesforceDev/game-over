@@ -11,6 +11,7 @@ import { AIRE, PIEDRA, TIERRA } from '../src/world/tiles';
 import { ALCANCE_TILES, Anfitrion, type Enlace } from '../src/red/anfitrion';
 import { Invitado } from '../src/red/invitado';
 import type { CambioTile } from '../src/red/protocolo';
+import { crearEnemigo, type Enemigo } from '../src/entities/enemies';
 
 /**
  * Un cable de mentira, con retraso y pérdidas.
@@ -99,6 +100,7 @@ async function montarPartida(retraso = 6, perdida = 0) {
   const tilesEnElInvitado: CambioTile[] = [];
   let bytesPedidos = 0;
 
+  const bichosDelAnfitrion: Enemigo[] = [];
   const anfitrion = new Anfitrion({
     mundo: mundoAnf,
     ajustes: AJUSTES_POR_DEFECTO,
@@ -109,6 +111,7 @@ async function montarPartida(retraso = 6, perdida = 0) {
       bytesPedidos++;
       return new Uint8Array(40 * 1024).fill(7);
     },
+    bichos: () => bichosDelAnfitrion,
   });
 
   let mundoRecibido: Uint8Array | null = null;
@@ -149,6 +152,7 @@ async function montarPartida(retraso = 6, perdida = 0) {
     alAnfitrion,
     alInvitado,
     tilesEnElInvitado,
+    bichosDelAnfitrion,
     get mundoRecibido() {
       return mundoRecibido;
     },
@@ -414,5 +418,84 @@ describe('irse', () => {
     p.invitado.olvidar();
     expect(p.invitado.demas).toHaveLength(0);
     expect(p.invitado.dentro).toBe(false);
+  });
+});
+
+
+describe('los bichos los pone el anfitrión', () => {
+  /** El invitado no simula ninguno: los suyos son los que le llegan. */
+  it('un bicho del anfitrión aparece en el invitado, con su especie y su vida', async () => {
+    const p = await montarPartida(4);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    p.bichosDelAnfitrion.push(crearEnemigo('zombi', 20 * TILE, 38 * TILE));
+    p.bichosDelAnfitrion.push(crearEnemigo('murcielago', 25 * TILE, 30 * TILE));
+
+    for (let t = 0; t < 30; t++) {
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+
+    const vistos = p.invitado.bichos;
+    expect(vistos).toHaveLength(2);
+    expect(vistos.map((b) => b.especie).sort()).toEqual(['murcielago', 'zombi']);
+    const zombi = vistos.find((b) => b.especie === 'zombi')!;
+    expect(zombi.caja.x).toBeCloseTo(20 * TILE, 0);
+    expect(zombi.salud.vidaMax).toBeGreaterThan(0);
+    expect(zombi.vivo).toBe(true);
+  });
+
+  /**
+   * Ausentarse es la forma de decir «ya no está».
+   *
+   * Sin esto haría falta un mensaje de «este ha muerto», y una instantánea
+   * perdida dejaría un cadáver de pie para siempre.
+   */
+  it('un bicho que muere desaparece del invitado', async () => {
+    const p = await montarPartida(2);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const bicho = crearEnemigo('zombi', 20 * TILE, 38 * TILE);
+    p.bichosDelAnfitrion.push(bicho);
+
+    for (let t = 0; t < 20; t++) {
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+    expect(p.invitado.bichos).toHaveLength(1);
+
+    bicho.vivo = false;
+    for (let t = 0; t < 20; t++) {
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+    expect(p.invitado.bichos).toHaveLength(0);
+  });
+
+  it('el bicho se mueve al otro lado, no se queda clavado', async () => {
+    const p = await montarPartida(2);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    const bicho = crearEnemigo('zombi', 20 * TILE, 38 * TILE);
+    p.bichosDelAnfitrion.push(bicho);
+
+    for (let t = 0; t < 60; t++) {
+      bicho.caja.x += 1.5;
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+    expect(p.invitado.bichos[0]!.caja.x).toBeGreaterThan(20 * TILE + 40);
+  });
+
+  /** Una luna de sangre no puede llenar el canal de golpe. */
+  it('hay un tope de bichos por instantánea', async () => {
+    const p = await montarPartida(2);
+    const miCaja = crearCaja(10 * TILE, 38 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO);
+    for (let i = 0; i < 200; i++) {
+      p.bichosDelAnfitrion.push(crearEnemigo('zombi', (20 + i) * TILE, 38 * TILE));
+    }
+    for (let t = 0; t < 20; t++) {
+      p.anfitrion.avanzar(miCaja);
+      p.cable.avanzar(p.alAnfitrion, p.alInvitado);
+    }
+    expect(p.invitado.bichos.length).toBeLessThanOrEqual(60);
+    expect(p.invitado.bichos.length).toBeGreaterThan(0);
   });
 });

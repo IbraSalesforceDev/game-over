@@ -18,6 +18,7 @@ import { TILE } from '../core/constants';
 import { actualizarFisica, crearCaja, type Ajustes, type Caja, type Entrada } from '../entities/physics';
 import { JUGADOR_ALTO, JUGADOR_ANCHO } from '../core/constants';
 import type { Mundo } from '../world/world';
+import { indiceDeEspecie, type Enemigo } from '../entities/enemies';
 import { autoridadDeCaja } from './prediccion';
 import {
   BOTON,
@@ -52,6 +53,23 @@ export const TICKS_POR_INSTANTANEA = 3;
  */
 export const ALCANCE_TILES = 8;
 
+/**
+ * Desde dónde empiezan los identificadores de bicho.
+ *
+ * Los jugadores van del 1 en adelante y son pocos; los bichos empiezan bien
+ * arriba para que un número no pueda significar las dos cosas.
+ */
+export const BASE_ID_BICHO = 1000;
+
+/**
+ * Cuántos bichos caben en una instantánea.
+ *
+ * Cada uno son 20 bytes y esto va 20 veces por segundo. Con el tope en 60 son
+ * 24 KB/s, que sigue siendo poco; sin tope, una luna de sangre con doscientos
+ * bichos llenaría el canal de golpe.
+ */
+export const TOPE_BICHOS = 60;
+
 export interface JugadorConectado {
   /** Número corto, el que viaja en las instantáneas. */
   id: number;
@@ -81,6 +99,13 @@ export interface OpcionesAnfitrion {
   alSalir?: (id: number) => void;
   /** Un tile ha cambiado por petición de alguien: el juego tiene que enterarse. */
   alCambiarTile?: (c: CambioTile) => void;
+  /**
+   * Los bichos que hay ahora mismo.
+   *
+   * Se pide en cada instantánea en vez de guardarse: la lista del juego cambia
+   * sola —nacen, mueren, se olvidan— y una copia se quedaría vieja al momento.
+   */
+  bichos?: () => readonly Enemigo[];
 }
 
 function entradaDeBotones(botones: number, antes: Entrada): Entrada {
@@ -235,6 +260,35 @@ export class Anfitrion {
   }
 
   /**
+   * Los bichos vivos, listos para el cable.
+   *
+   * Los muertos no se mandan: dejar de aparecer en la instantánea es
+   * exactamente lo que el otro lado entiende como «ya no está», y así no hace
+   * falta un mensaje aparte para decirlo.
+   *
+   * El identificador sale de la posición en la lista, sumándole un número alto
+   * para no chocar con los de los jugadores. Es estable mientras el bicho siga
+   * en la lista, que es lo único que necesita la interpolación.
+   */
+  private bichosDeLaInstantanea(): EntidadRed[] {
+    const lista = this.op.bichos?.() ?? [];
+    const salida: EntidadRed[] = [];
+    for (let i = 0; i < lista.length && salida.length < TOPE_BICHOS; i++) {
+      const b = lista[i]!;
+      if (!b.vivo) continue;
+      salida.push({
+        clase: ENT.BICHO,
+        id: BASE_ID_BICHO + i,
+        sub: indiceDeEspecie(b.especie),
+        vida: b.salud.vida,
+        vidaMax: b.salud.vidaMax,
+        ...autoridadDeCaja(b.caja),
+      });
+    }
+    return salida;
+  }
+
+  /**
    * Un tick de mundo. Lo llama el juego, después de mover a su propio jugador.
    *
    * `miCaja` es la del anfitrión, que entra en las instantáneas como uno más:
@@ -261,13 +315,16 @@ export class Anfitrion {
     if (this.tickActual % TICKS_POR_INSTANTANEA !== 0) return;
 
     const todos: EntidadRed[] = [
-      { clase: ENT.JUGADOR, id: 1, vida: miVida, ...autoridadDeCaja(miCaja) },
+      { clase: ENT.JUGADOR, id: 1, sub: 0, vida: miVida, vidaMax: 0, ...autoridadDeCaja(miCaja) },
       ...[...this.jugadores.values()].map((j) => ({
         clase: ENT.JUGADOR,
         id: j.id,
+        sub: 0,
         vida: 0,
+        vidaMax: 0,
         ...autoridadDeCaja(j.caja),
       })),
+      ...this.bichosDeLaInstantanea(),
     ];
 
     // Una instantánea por jugador y no una para todos: `tickConfirmado` es

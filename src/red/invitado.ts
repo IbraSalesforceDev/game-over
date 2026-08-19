@@ -16,6 +16,8 @@
  * poder probarlo entero sin navegador.
  */
 
+import { crearEnemigo, especieDeIndice, type Enemigo } from '../entities/enemies';
+import { BANDERA } from './protocolo';
 import type { Ajustes, Caja, Entrada } from '../entities/physics';
 import type { Mundo } from '../world/world';
 import { Interpolador, Prediccion, autoridadDeEntidad } from './prediccion';
@@ -52,6 +54,8 @@ export interface OpcionesInvitado {
   alAvanzarMundo?: (progreso: number) => void;
   /** El anfitrión confirma cambios de tiles. */
   alCambiarTiles: (cambios: readonly CambioTile[]) => void;
+  /** Con qué versión se creó el mundo, para que los bichos salgan como toca. */
+  versionMundo?: string;
   /** No se ha podido entrar, y este es el motivo ya legible. */
   alRechazar?: (motivo: string) => void;
 }
@@ -68,6 +72,15 @@ export function botonesDeEntrada(e: Entrada): number {
 export class Invitado {
   readonly prediccion = new Prediccion();
   private otros = new Map<number, OtroJugador>();
+  /**
+   * Los bichos que dice el anfitrión.
+   *
+   * Se guardan como `Enemigo` de verdad, no como una estructura aparte, y no es
+   * por comodidad: así el renderer los dibuja **con el mismo código** que los
+   * del anfitrión, sin una segunda ruta que se quedaría atrás en cuanto alguien
+   * tocara los sprites.
+   */
+  private bichosRemotos = new Map<number, Enemigo>();
   private junta = new JuntaMundo();
   private tickPropio = 0;
   private _miId = 0;
@@ -84,6 +97,11 @@ export class Invitado {
   /** Los demás, para pintarlos. El anfitrión es el id 1. */
   get demas(): readonly OtroJugador[] {
     return [...this.otros.values()];
+  }
+
+  /** Los bichos, tal cual los espera el renderer. */
+  get bichos(): readonly Enemigo[] {
+    return [...this.bichosRemotos.values()];
   }
 
   /** Se saluda al conectar. Hasta que no conteste, no hay partida. */
@@ -129,6 +147,7 @@ export class Invitado {
   private ultimaInstantanea: { tickConfirmado: number; entidades: EntidadRed[] } | null = null;
 
   private guardarInstantanea(entidades: readonly EntidadRed[]): void {
+    this.guardarBichos(entidades);
     const vistos = new Set<number>();
     for (const e of entidades) {
       if (e.clase !== ENT.JUGADOR || e.id === this._miId) continue;
@@ -185,6 +204,47 @@ export class Invitado {
     for (const o of this.otros.values()) o.interpolador.avanzar();
   }
 
+  /**
+   * Coloca los bichos que dice el anfitrión.
+   *
+   * Los que dejan de aparecer se quitan: no hace falta un mensaje de «este ha
+   * muerto» porque ausentarse ya lo dice, y así una instantánea perdida no deja
+   * un cadáver de pie para siempre.
+   */
+  private guardarBichos(entidades: readonly EntidadRed[]): void {
+    const vistos = new Set<number>();
+    for (const e of entidades) {
+      if (e.clase !== ENT.BICHO) continue;
+      const especie = especieDeIndice(e.sub);
+      // Una especie que aquí no existe: el otro tiene otra versión del juego.
+      // Se ignora ese bicho en vez de inventarse uno.
+      if (!especie) continue;
+      vistos.add(e.id);
+
+      let b = this.bichosRemotos.get(e.id);
+      if (!b || b.especie !== especie) {
+        b = crearEnemigo(especie, e.x, e.y, 1, false, this.op.versionMundo);
+        this.bichosRemotos.set(e.id, b);
+      }
+      b.caja.x = e.x;
+      b.caja.y = e.y;
+      b.caja.vx = e.vx;
+      b.caja.vy = e.vy;
+      b.caja.enSuelo = (e.banderas & BANDERA.EN_SUELO) !== 0;
+      b.caja.mirando = (e.banderas & BANDERA.MIRA_DERECHA) !== 0 ? 1 : -1;
+      b.salud.vida = e.vida;
+      if (e.vidaMax > 0) b.salud.vidaMax = e.vidaMax;
+      // El reloj de animación corre aquí: si viniera del anfitrión, entre
+      // instantánea e instantánea el bicho se quedaría congelado.
+      b.animReloj++;
+      if (b.salud.desdeGolpe < 60) b.salud.desdeGolpe++;
+      b.vivo = true;
+    }
+    for (const id of [...this.bichosRemotos.keys()]) {
+      if (!vistos.has(id)) this.bichosRemotos.delete(id);
+    }
+  }
+
   /** Pide picar o poner. Se pinta ya; si el anfitrión dice que no, se deshace. */
   pedirTile(c: CambioTile): void {
     this.op.enlace.mandarFirme(escribirPidoTile(c));
@@ -194,6 +254,7 @@ export class Invitado {
   olvidar(): void {
     this.prediccion.olvidar();
     this.otros.clear();
+    this.bichosRemotos.clear();
     this.ultimaInstantanea = null;
     this._dentro = false;
   }

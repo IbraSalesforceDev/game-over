@@ -125,6 +125,51 @@ export interface DefEnemigo {
   readonly desde: string;
 }
 
+/**
+ * Las especies en orden, para que quepan en un byte por el cable.
+ *
+ * Es un array posicional, con la misma regla que `TILES`: **el índice viaja por
+ * la red, así que solo se puede añadir por el final**. Meter una especie en
+ * medio le cambiaría el número a todas las de después, y dos jugadores con
+ * versiones distintas verían cosas distintas — un zombi donde el otro ve un
+ * yeti. Hay un test que comprueba que están todas y sin repetir.
+ */
+export const ORDEN_ESPECIES = [
+  'slime',
+  'zombi',
+  'murcielago',
+  'escarabajo',
+  'lobo',
+  'conejo',
+  'jabali',
+  'esqueleto',
+  'serpiente',
+  'momia',
+  'gallina',
+  'golem',
+  'espectro',
+  'arana',
+  'diablillo',
+  'guardian',
+  'reyLimo',
+  'reinaEscarabajo',
+  'yeti',
+  'aranaMadre',
+  'devorador',
+  'senorDelFuego',
+  'guardianVerdadero',
+] as const;
+
+export function indiceDeEspecie(e: Especie): number {
+  const i = (ORDEN_ESPECIES as readonly string[]).indexOf(e);
+  return i < 0 ? 0 : i;
+}
+
+/** Devuelve null si el índice no existe: llega de la red y no se fía. */
+export function especieDeIndice(i: number): Especie | null {
+  return (ORDEN_ESPECIES[i] as Especie | undefined) ?? null;
+}
+
 export const ENEMIGOS: Record<Especie, DefEnemigo> = {
   slime: {
     desde: '2.0.0',

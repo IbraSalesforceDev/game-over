@@ -21,6 +21,7 @@
 
 import type { Ajustes, Caja, Entrada } from '../entities/physics';
 import type { Mundo } from '../world/world';
+import type { Enemigo } from '../entities/enemies';
 import { Anfitrion, type Enlace, type JugadorConectado } from './anfitrion';
 import { ConexionAnfitrion, ConexionInvitado, type EstadoConexion } from './conexion';
 import { Invitado, type OtroJugador } from './invitado';
@@ -49,6 +50,10 @@ export interface OpcionesSesion extends AvisosSesion {
   spawnTx?: number;
   spawnTy?: number;
   bytesDelMundo?: () => Promise<Uint8Array>;
+  /** Solo el anfitrión: los bichos que simula, para mandarlos. */
+  bichos?: () => readonly Enemigo[];
+  /** Con qué versión nació el mundo, para recrear bien los bichos que llegan. */
+  versionMundo?: string;
 }
 
 export interface SesionRed {
@@ -61,6 +66,13 @@ export interface SesionRed {
   tile(c: CambioTile): void;
   /** Cuánto hay que desplazar el dibujo del propio jugador, para no dar tirones. */
   desvio(): { x: number; y: number };
+  /**
+   * Los bichos que hay que dibujar.
+   *
+   * En el anfitrión, null: los suyos ya los tiene el juego y no hace falta
+   * copiarlos. En el invitado, los que manda el anfitrión.
+   */
+  bichos(): readonly Enemigo[] | null;
   cerrar(): Promise<void>;
 }
 
@@ -74,6 +86,7 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     spawnTx: op.spawnTx ?? 0,
     spawnTy: op.spawnTy ?? 0,
     bytesDelMundo: op.bytesDelMundo ?? (async () => new Uint8Array(0)),
+    bichos: op.bichos,
     alEntrar: (j) => {
       nombres.set(j.id, j.nombre);
       op.alContar?.(`${j.nombre} ha entrado`);
@@ -163,6 +176,9 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
       // El anfitrión es la verdad: nunca se corrige a sí mismo.
       return { x: 0, y: 0 };
     },
+    bichos() {
+      return null; // los suyos ya los tiene el juego
+    },
     async cerrar() {
       for (const { con } of conexiones.values()) {
         con.mandarFirme(escribirAdios());
@@ -200,6 +216,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     alLlegarMundo: (bytes) => op.alLlegarMundo?.(bytes),
     alAvanzarMundo: (p) => op.alAvanzarMundo?.(p),
     alCambiarTiles: (cs) => op.alCambiarTiles?.(cs),
+    versionMundo: op.versionMundo,
     alRechazar: (motivo) => op.alCambiarEstado?.('fallo', motivo),
   });
 
@@ -260,6 +277,9 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     },
     desvio() {
       return { x: invitado.prediccion.desvioX, y: invitado.prediccion.desvioY };
+    },
+    bichos() {
+      return invitado.bichos;
     },
     async cerrar() {
       con.mandarFirme(escribirAdios());
