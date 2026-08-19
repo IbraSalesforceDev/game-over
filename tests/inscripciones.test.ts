@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { VERSIONES } from '../src/core/versiones';
+import { VERSION_ACTUAL, VERSIONES } from '../src/core/versiones';
 import { EFECTOS } from '../src/entities/efectos';
+import { guantesDeElite, GUANTES_DE_ELITE } from '../src/entities/enemies';
 import {
   crearEquipo,
   indiceDeHueco,
@@ -34,6 +35,8 @@ import {
   filoDe,
   inscripcionDe,
   objetoExisteEn,
+  GUANTES_BRASA,
+  GUANTES_PONZONA,
   PETO_ARENA,
   PETO_BRASA,
   PETO_CAVERNA,
@@ -313,5 +316,83 @@ describe('represalias', () => {
     for (const clase of CLASES_REPRESALIA) {
       expect(textoRepresalia(clase)).toContain(REPRESALIAS[clase].nombre);
     }
+  });
+});
+
+/**
+ * Lo que deja una élite.
+ *
+ * Hasta 7.10.0 una élite dejaba el doble de gel y una poción: más de lo mismo,
+ * que no se recuerda. Los guantes son lo que hacía ella, y por eso la tabla se
+ * comprueba entera: que cada especie deje algo que exista y que lo que deje
+ * tenga que ver con lo que hace.
+ */
+describe('los guantes de élite', () => {
+  it('cada especie de la tabla deja unos guantes de verdad', () => {
+    for (const [especie, id] of Object.entries(GUANTES_DE_ELITE)) {
+      expect(defObjeto(id), especie).toBeDefined();
+      expect(defObjeto(id).represalia, especie).toBeDefined();
+      expect(defObjeto(id).hueco, especie).toBe('manos');
+    }
+  });
+
+  it('están las seis represalias repartidas, sin dejarse ninguna', () => {
+    const puestas = new Set(
+      Object.values(GUANTES_DE_ELITE).map((id) => defObjeto(id).represalia),
+    );
+    expect(puestas.size).toBe(CLASES_REPRESALIA.length);
+  });
+
+  /** La araña envenena, así que deja ponzoña. Es toda la regla de la tabla. */
+  it('lo que dejan tiene que ver con lo que hacen', () => {
+    const rep = (especie: keyof typeof GUANTES_DE_ELITE): string =>
+      defObjeto(GUANTES_DE_ELITE[especie]!).represalia!;
+    expect(rep('arana')).toBe('ponzona');
+    expect(rep('diablillo')).toBe('brasa');
+    expect(rep('espectro')).toBe('escarcha');
+    expect(rep('esqueleto')).toBe('pinchos');
+  });
+
+  it('solo los sueltan las élites, y no siempre', () => {
+    const siempre = () => 0;
+    const nunca = () => 0.99;
+    expect(guantesDeElite('arana', false, VERSION_ACTUAL, siempre)).toBeNull();
+    expect(guantesDeElite('arana', true, VERSION_ACTUAL, siempre)).toBe(GUANTES_PONZONA);
+    expect(guantesDeElite('arana', true, VERSION_ACTUAL, nunca)).toBeNull();
+  });
+
+  it('una especie sin guantes no suelta ninguno, por élite que sea', () => {
+    expect(guantesDeElite('conejo', true, VERSION_ACTUAL, () => 0)).toBeNull();
+  });
+
+  it('en un mundo anterior a 7.10.0 no existen', () => {
+    expect(guantesDeElite('arana', true, '7.9.0', () => 0)).toBeNull();
+    expect(objetoExisteEn(GUANTES_PONZONA, '7.9.0')).toBe(false);
+    expect(objetoExisteEn(GUANTES_PONZONA, '7.10.0')).toBe(true);
+  });
+
+  /**
+   * Defienden poco a propósito: lo que se lleva puesto es la inscripción, no la
+   * plancha. Si además fueran los mejores guantes, la escalera de metales se
+   * saltaría entera.
+   */
+  it('defienden menos que unos guantes de metal', () => {
+    for (const id of Object.values(GUANTES_DE_ELITE)) {
+      expect(defObjeto(id).defensa ?? 0, defObjeto(id).nombre).toBeLessThan(5);
+    }
+  });
+
+  it('con guantes y peto se llevan dos represalias a la vez', () => {
+    const eq = crearEquipo();
+    eq.ponerEn(indiceDeHueco('torso'), PETO_SELVA, 1);
+    eq.ponerEn(indiceDeHueco('manos'), GUANTES_BRASA, 1);
+    expect(represaliasPuestas(eq).sort()).toEqual(['brasa', 'ponzona']);
+  });
+
+  it('dos piezas con la misma no la cuentan dos veces', () => {
+    const eq = crearEquipo();
+    eq.ponerEn(indiceDeHueco('torso'), PETO_SELVA, 1);
+    eq.ponerEn(indiceDeHueco('manos'), GUANTES_PONZONA, 1);
+    expect(represaliasPuestas(eq)).toEqual(['ponzona']);
   });
 });

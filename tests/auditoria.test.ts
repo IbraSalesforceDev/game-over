@@ -44,7 +44,7 @@ import { Inventario } from '../src/items/inventory';
 import { Mundo } from '../src/world/world';
 import { crearCaja } from '../src/entities/physics';
 import { TILE } from '../src/core/constants';
-import { ENEMIGOS } from '../src/entities/enemies';
+import { BOTIQUIN_ELITE, ENEMIGOS, GUANTES_DE_ELITE } from '../src/entities/enemies';
 import {
   AIRE,
   ALTAR,
@@ -146,6 +146,12 @@ describe('todo objeto se puede conseguir', () => {
       porBicho.add(e.botin);
       if (e.botinRaro !== undefined) porBicho.add(e.botinRaro);
     }
+    // Los guantes no están en la tabla de botines porque no los suelta una
+    // especie sino una élite, que es otra cosa: el mismo zombi suelta gel
+    // siempre y esquirlas solo si venía con aura.
+    for (const id of Object.values(GUANTES_DE_ELITE)) porBicho.add(id);
+    // Y el botiquín, que tampoco: es de la élite, no de la especie.
+    for (const id of BOTIQUIN_ELITE) porBicho.add(id);
 
     const huerfanos = IDS_OBJETO.filter(
       (id) =>

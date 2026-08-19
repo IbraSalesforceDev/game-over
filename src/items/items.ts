@@ -316,6 +316,29 @@ export const POCION_AGALLAS = 264;
 export const POCION_BRIO = 265;
 
 /**
+ * Los seis guantes de élite (7.10.0).
+ *
+ * Cada élite deja los suyos, y lo que llevan grabado es lo que hacía esa élite:
+ * la araña deja ponzoña, el diablillo deja brasa, el esqueleto deja esquirlas.
+ * Es la respuesta a "una élite tiene que dejar algo que sea suyo": hasta ahora
+ * dejaba el doble de gel, que es más de lo mismo y no se recuerda.
+ *
+ * Van todos en las manos, y ese es el precio: solo se puede llevar una
+ * represalia de élite a la vez, así que elegir cuál es una decisión y no una
+ * colección. Con el peto de un jefe puesto se pueden llevar dos, una de cada
+ * sitio, y ahí está la gracia de combinarlos.
+ *
+ * Defienden muy poco a propósito. Si además fueran los mejores guantes del
+ * juego, la escalera de metales se saltaría entera de un salto.
+ */
+export const GUANTES_PONZONA = 266;
+export const GUANTES_ESCARCHA = 267;
+export const GUANTES_BRASA = 268;
+export const GUANTES_ESQUIRLA = 269;
+export const GUANTES_SAVIA = 270;
+export const GUANTES_COSTRA = 271;
+
+/**
  * Los mapas por nivel y hasta dónde ve cada uno, en tiles alrededor.
  *
  * Empieza siendo un pañuelo —lo justo para no perder de vista la casa— y acaba
@@ -576,6 +599,27 @@ function petoJefe(
       poder,
       represalia,
     },
+  ];
+}
+
+/**
+ * Unos guantes de élite: defensa simbólica y una represalia grabada.
+ *
+ * No traen poder de tecla. El poder es la firma del peto de un jefe, que cuesta
+ * matarlo y forjarlo; lo de una élite es lo que hacía ella, y eso pasa solo.
+ * Tampoco traen filo: los filos son de las seis espadas de jefe, y repartirlos
+ * entre lo que suelta cualquier élite de la noche dejaría a esas seis espadas
+ * sin ninguna razón para existir.
+ */
+function guanteElite(
+  id: number,
+  nombre: string,
+  color: string,
+  represalia: ClaseRepresalia,
+): [number, DefObjeto] {
+  return [
+    id,
+    { nombre, tipo: 'armadura', color, maxPila: 1, hueco: 'manos', defensa: 2, represalia },
   ];
 }
 
@@ -862,6 +906,13 @@ const ENTRADAS: [number, DefObjeto][] = [
   petoJefe(PETO_CAVERNA, 'peto de la caverna', '#b8b2a0', 'zancada', 'pinchos'),
   petoJefe(PETO_BRASA, 'peto de brasa', '#ff7a3a', 'bolaDeFuego', 'brasa'),
   // --- Las seis reliquias y el botín del final (7.2.0) ---------------------
+  // --- Los seis guantes de élite (7.10.0) ---------------------------------
+  guanteElite(GUANTES_PONZONA, 'guantes de ponzoña', '#7fc24a', 'ponzona'),
+  guanteElite(GUANTES_ESCARCHA, 'guantes de escarcha', '#b8e6f8', 'escarcha'),
+  guanteElite(GUANTES_BRASA, 'guantes de brasa', '#ff8a3a', 'brasa'),
+  guanteElite(GUANTES_ESQUIRLA, 'guantes de esquirlas', '#d8d2c4', 'pinchos'),
+  guanteElite(GUANTES_SAVIA, 'guantes de savia', '#6ad08a', 'savia'),
+  guanteElite(GUANTES_COSTRA, 'guantes de costra', '#c8a870', 'costra'),
   reliquiaBioma(RELIQUIA_PRADERA, 'reliquia de la pradera', '#7fd15a'),
   reliquiaBioma(RELIQUIA_DESIERTO, 'reliquia del desierto', '#e0c070'),
   reliquiaBioma(RELIQUIA_NIEVE, 'reliquia helada', '#cfeaf8'),
@@ -1539,6 +1590,17 @@ const OBJETOS_POR_VERSION: readonly (readonly [string, readonly number[]])[] = [
     ],
   ],
   ['7.3.0', [POCION_AGALLAS, POCION_BRIO, ...PLACAS]],
+  [
+    '7.10.0',
+    [
+      GUANTES_PONZONA,
+      GUANTES_ESCARCHA,
+      GUANTES_BRASA,
+      GUANTES_ESQUIRLA,
+      GUANTES_SAVIA,
+      GUANTES_COSTRA,
+    ],
+  ],
 ];
 
 /**

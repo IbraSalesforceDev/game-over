@@ -765,6 +765,19 @@ export const VERSIONES: readonly Version[] = [
       'La ficha del peto enseña las dos cosas: la tecla y lo que contesta solo',
     ],
   },
+  {
+    id: '7.10.0',
+    etapa: 'prealfa',
+    nombre: 'Lo que deja una élite',
+    resumen: 'Cada élite suelta unos guantes con lo que ella hacía.',
+    cambios: [
+      'Seis guantes nuevos, uno por represalia, que solo sueltan las élites',
+      'La araña y la serpiente dejan ponzoña; el diablillo, brasa; el esqueleto, esquirlas',
+      'El espectro y el lobo dejan escarcha; el limo y el murciélago, savia; el gólem, costra',
+      'Caen una de cada cuatro élites, y se llevan en las manos: solo cabe una',
+      'Con el peto de un jefe puesto se pueden llevar dos represalias a la vez',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -888,6 +901,8 @@ export const DESDE = {
   aparicionPorZona: '7.8.0',
   // La armadura de jefe contesta sola al que te pega.
   represalia: '7.9.0',
+  // Y cada élite deja unos guantes con lo que ella hacía.
+  guantesDeElite: '7.10.0',
   nivelesHerramienta: '3.0.0',
   dificultad: '3.0.0',
   armadura: '3.0.0',

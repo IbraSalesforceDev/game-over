@@ -5,6 +5,12 @@ import {
   CRISTAL,
   ESENCIA,
   FRASCO,
+  GUANTES_BRASA,
+  GUANTES_COSTRA,
+  GUANTES_ESCARCHA,
+  GUANTES_ESQUIRLA,
+  GUANTES_PONZONA,
+  GUANTES_SAVIA,
   GEL,
   HUESO,
   LINGOTE_COBALTO,
@@ -750,6 +756,57 @@ export const BOTIQUIN_ELITE: readonly number[] = [
   FRASCO,
   POLVORA,
 ];
+
+/**
+ * Los guantes que deja cada élite.
+ *
+ * La regla es que lo que dejan sea lo que hacían. La araña envenena, así que
+ * deja ponzoña; el diablillo quema, así que deja brasa; el esqueleto se rompe en
+ * astillas, así que deja esquirlas. Un jugador que mate una élite y lea lo que
+ * ha caído no tiene que consultar nada para entender por qué es eso.
+ *
+ * Varias especies comparten guante y no pasa nada: la serpiente y la araña
+ * envenenan las dos, y hacerles un guante a cada una sería tener dos objetos
+ * idénticos con distinto nombre. Los animales no salen aquí porque no hay
+ * élites de conejo.
+ */
+export const GUANTES_DE_ELITE: Partial<Record<Especie, number>> = {
+  arana: GUANTES_PONZONA,
+  serpiente: GUANTES_PONZONA,
+  espectro: GUANTES_ESCARCHA,
+  lobo: GUANTES_ESCARCHA,
+  diablillo: GUANTES_BRASA,
+  esqueleto: GUANTES_ESQUIRLA,
+  zombi: GUANTES_ESQUIRLA,
+  slime: GUANTES_SAVIA,
+  murcielago: GUANTES_SAVIA,
+  golem: GUANTES_COSTRA,
+  momia: GUANTES_COSTRA,
+  escarabajo: GUANTES_COSTRA,
+};
+
+/**
+ * Cada cuántas élites caen sus guantes.
+ *
+ * Una de cada cuatro. Que cayeran siempre convertiría la primera élite de la
+ * partida en el final de esa búsqueda; que cayeran una de cada veinte haría que
+ * nadie llegara a ver los seis. Con una de cada cuatro se junta la colección
+ * jugando, sin ir a por ella.
+ */
+export const PROBABILIDAD_GUANTES = 0.25;
+
+/** Los guantes que deja esta élite, o null si esta vez no caen. */
+export function guantesDeElite(
+  especie: Especie,
+  elite: boolean,
+  versionMundo: string = VERSION_ACTUAL,
+  rng: () => number = Math.random,
+): number | null {
+  if (!elite || !hay('guantesDeElite', versionMundo)) return null;
+  const id = GUANTES_DE_ELITE[especie];
+  if (id === undefined) return null;
+  return rng() < PROBABILIDAD_GUANTES ? id : null;
+}
 
 /**
  * El extra de una élite, o null si esta vez no cae.

@@ -146,6 +146,7 @@ import {
   botinDe,
   botinRaroDe,
   botiquinDe,
+  guantesDeElite,
   danarEnemigo,
   nombreDe,
   crearEnemigo,
@@ -1487,6 +1488,9 @@ async function arrancar(): Promise<void> {
     // ha costado matarla. Sin esto, pelear con una era gasto puro.
     const botiquin = botiquinDe(elite, versionMundo, Math.random);
     if (botiquin !== null) soltar(botiquin, 1);
+    // Y lo suyo: los guantes con lo que hacía esa élite. Una de cada cuatro.
+    const guantes = guantesDeElite(especie, elite, versionMundo, Math.random);
+    if (guantes !== null) soltar(guantes, 1);
     if (sueltaReliquia(especie)) soltar(OBJETO_RELIQUIA, 1);
     // El guardián no suelta reliquia pero sí lo suyo: la espada, la esencia y
     // el oro del que estaba hecho.
