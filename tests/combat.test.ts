@@ -24,9 +24,12 @@ import {
 } from '../src/entities/enemies';
 import { crearCaja, type Caja } from '../src/entities/physics';
 import {
+  AGUA_AMORTIGUA,
+  CAIDA_SEGURA,
   corazones,
   crearSalud,
   curar,
+  danoDeCaida,
   golpear,
   revivir,
   tickSalud,
@@ -40,7 +43,7 @@ import {
   TOPE_ENEMIGOS,
 } from '../src/entities/spawner';
 import { defObjeto, ESPADA_HIERRO, ESPADA_MADERA, GEL, HUESO } from '../src/items/items';
-import { ARENA, NIEVE, PIEDRA } from '../src/world/tiles';
+import { AIRE, ARENA, NIEVE, PIEDRA } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
 const SUELO = 20;
@@ -292,6 +295,52 @@ describe('golpe cuerpo a cuerpo', () => {
     expect(detras.salud.vida).toBe(detras.salud.vidaMax);
   });
 
+  /**
+   * Con dos tiles de alcance, un arma llegaba al otro lado de una pared de un
+   * bloque: bastaba con pegarse al muro para limpiar la cueva de al lado sin
+   * asomarse. El mundo se pasa solo desde 7.7.0, y sin él el golpe es el de
+   * siempre: los mundos viejos conservan sus reglas.
+   */
+  it('no se pega a través de un bloque', () => {
+    const preparar = () => {
+      const m = mundoPlano();
+      const j = jugadorEn(10);
+      // Un bloque justo delante, a la altura del pecho, y el bicho detrás.
+      const txPared = Math.floor((j.x + j.ancho + 2) / TILE);
+      m.setTile(txPared, Math.floor((j.y + j.alto / 2) / TILE), PIEDRA);
+      const e = crearEnemigo('slime', (txPared + 1) * TILE, j.y);
+      const g = crearGolpe();
+      lanzarGolpe(g, ESPADA_HIERRO, 1);
+      return { m, j, e, g };
+    };
+
+    const conPared = preparar();
+    expect(resolverGolpe(conPared.g, conPared.j, [conPared.e], 1, conPared.m).alcanzados).toBe(0);
+
+    // Sin el bloque, el mismo golpe al mismo sitio sí entra: lo que falla no es
+    // que el bicho quede lejos.
+    const libre = preparar();
+    libre.m.setTile(
+      Math.floor((libre.j.x + libre.j.ancho + 2) / TILE),
+      Math.floor((libre.j.y + libre.j.alto / 2) / TILE),
+      AIRE,
+    );
+    expect(resolverGolpe(libre.g, libre.j, [libre.e], 1, libre.m).alcanzados).toBe(1);
+
+    // Y sin mundo —un mundo anterior a 7.7.0— la pared no cuenta.
+    const viejo = preparar();
+    expect(resolverGolpe(viejo.g, viejo.j, [viejo.e]).alcanzados).toBe(1);
+  });
+
+  it('pegado al bicho, sin nada en medio, el golpe entra igual', () => {
+    const m = mundoPlano();
+    const j = jugadorEn(10);
+    const e = crearEnemigo('slime', j.x + j.ancho + 2, j.y);
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1);
+    expect(resolverGolpe(g, j, [e], 1, m).alcanzados).toBe(1);
+  });
+
   it('un mismo mandoble no pega dos veces al mismo enemigo', () => {
     const g = crearGolpe();
     const j = jugadorEn(10);
@@ -478,5 +527,43 @@ describe('apuntar el mandoble con el ratón', () => {
     const g = crearGolpe();
     lanzarGolpe(g, ESPADA_MADERA, 1);
     expect(g.sentido).toBe('lado');
+  });
+});
+
+/**
+ * El agua bajo el precipicio.
+ *
+ * Amortigua, no salva: la caída sigue siendo lo que enseña a medir los saltos
+ * largos, y un lago que quitara todo el daño convertiría cualquier pozo en una
+ * bajada gratis.
+ */
+describe('el agua amortigua la caída', () => {
+  const ALTA = CAIDA_SEGURA + 10;
+
+  it('los primeros tiles siguen saliendo gratis, con agua y sin ella', () => {
+    expect(danoDeCaida(CAIDA_SEGURA)).toBe(0);
+    expect(danoDeCaida(CAIDA_SEGURA, 1)).toBe(0);
+  });
+
+  it('sin agua, el daño es el de siempre', () => {
+    expect(danoDeCaida(ALTA, 0)).toBe(danoDeCaida(ALTA));
+  });
+
+  it('con el cuerpo entero dentro, la mitad', () => {
+    expect(danoDeCaida(ALTA, 1)).toBe(Math.round(danoDeCaida(ALTA) * (1 - AGUA_AMORTIGUA)));
+  });
+
+  it('un charco amortigua menos que un pozo', () => {
+    const charco = danoDeCaida(ALTA, 0.2);
+    const pozo = danoDeCaida(ALTA, 0.9);
+    expect(charco).toBeGreaterThan(pozo);
+    expect(charco).toBeLessThan(danoDeCaida(ALTA));
+  });
+
+  it('nunca salva del todo', () => {
+    expect(danoDeCaida(ALTA, 1)).toBeGreaterThan(0);
+    // Ni con un número absurdo: la fracción se recorta a 1.
+    expect(danoDeCaida(ALTA, 99)).toBe(danoDeCaida(ALTA, 1));
+    expect(danoDeCaida(ALTA, -5)).toBe(danoDeCaida(ALTA));
   });
 });

@@ -727,6 +727,18 @@ export const VERSIONES: readonly Version[] = [
       'El panel de depuración trae botón para ver el mapa sin tocar el teclado',
     ],
   },
+  {
+    id: '7.7.0',
+    etapa: 'prealfa',
+    nombre: 'Ni a través de la roca ni contra el agua',
+    resumen: 'El arma ya no cruza paredes y caer al agua duele la mitad.',
+    cambios: [
+      'El golpe cuerpo a cuerpo necesita ver al bicho: no se pega a través de un bloque',
+      'Caer al agua amortigua hasta la mitad del daño, según lo hondo que sea',
+      'La lava no amortigua nada',
+      'Los mundos anteriores a esta versión se siguen jugando con sus reglas',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -840,6 +852,11 @@ export const DESDE = {
   barraAliento: '2.1.0',
   hambre: '2.3.0',
   danoCaida: '2.3.1',
+  // Caer al agua duele la mitad, y el arma ya no atraviesa la roca. Las dos
+  // cambian una regla que ya existía, así que llevan fecha: un mundo de 3.0.0
+  // se sigue jugando con las de 3.0.0.
+  caidaAmortiguada: '7.7.0',
+  golpeConVista: '7.7.0',
   nivelesHerramienta: '3.0.0',
   dificultad: '3.0.0',
   armadura: '3.0.0',

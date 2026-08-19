@@ -1,6 +1,8 @@
 import { defObjeto } from '../items/items';
 import { danarEnemigo, solapan, type Enemigo } from './enemies';
+import { hayVista } from './ataques';
 import type { Caja } from './physics';
+import type { Mundo } from '../world/world';
 
 /**
  * Golpe cuerpo a cuerpo.
@@ -154,14 +156,35 @@ export interface ResultadoGolpe {
 }
 
 /**
+ * Dónde se tocan dos cajas: el centro de lo que se solapa.
+ *
+ * Es el punto al que hay que llegar para que el golpe cuente, y por eso es el
+ * que se mira para saber si hay pared por medio. Mirar el centro del bicho
+ * sería mirar más lejos de lo que llega el arma.
+ */
+function puntoDeContacto(a: Caja, b: Caja): { x: number; y: number } {
+  const x0 = Math.max(a.x, b.x);
+  const x1 = Math.min(a.x + a.ancho, b.x + b.ancho);
+  const y0 = Math.max(a.y, b.y);
+  const y1 = Math.min(a.y + a.alto, b.y + b.alto);
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+}
+
+/**
  * Aplica el golpe activo a los enemigos que toque. Se llama cada tick mientras
  * dura la animación; la lista de tocados evita repetir.
+ *
+ * Con `mundo` puesto, el golpe además tiene que llegar: un arma con dos tiles de
+ * alcance cruzaba una pared de un bloque y mataba desde el otro lado sin
+ * asomarse, que era la forma barata de limpiar una cueva. Va como parámetro y no
+ * como regla fija porque los mundos viejos se juegan con las reglas que tenían.
  */
 export function resolverGolpe(
   g: Golpe,
   jugador: Caja,
   enemigos: readonly Enemigo[],
   multiplicador = 1,
+  mundo: Mundo | null = null,
 ): ResultadoGolpe {
   const salida: ResultadoGolpe = { alcanzados: 0, tocados: [], muertos: [] };
   const caja = cajaGolpe(g, jugador);
@@ -172,9 +195,14 @@ export function resolverGolpe(
   if (dano <= 0) return salida;
 
   const desdeX = jugador.x + jugador.ancho / 2;
+  const desdeY = jugador.y + jugador.alto / 2;
   for (const e of enemigos) {
     if (!e.vivo || g.tocados.has(e)) continue;
     if (!solapan(caja, e.caja)) continue;
+    if (mundo) {
+      const p = puntoDeContacto(caja, e.caja);
+      if (!hayVista(mundo, desdeX, desdeY, p.x, p.y)) continue;
+    }
     g.tocados.add(e);
     salida.alcanzados++;
     salida.tocados.push(e);

@@ -1878,7 +1878,13 @@ async function arrancar(): Promise<void> {
       trucos.danoMultiplicador *
       multiplicadorDano(estados) *
       (hondo ? FILOS[filo!].bonusHondo : 1);
-    const r = resolverGolpe(golpe, jugador.caja, enemigos, multiplicador);
+    const r = resolverGolpe(
+      golpe,
+      jugador.caja,
+      enemigos,
+      multiplicador,
+      tiene('golpeConVista') ? mundo : null,
+    );
     if (filo !== null && r.tocados.length > 0) aplicarFilo(filo, r.tocados, multiplicador);
     for (const tocado of r.tocados) {
       // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
@@ -2595,6 +2601,14 @@ async function arrancar(): Promise<void> {
   }
 
   /**
+   * Si el líquido de este tick era lava.
+   *
+   * Solo lo usa el daño de caída: el agua amortigua y la lava no, y la fracción
+   * sumergida por sí sola no distingue una de otra.
+   */
+  let enLava = false;
+
+  /**
    * Líquidos: un paso de simulación y sus consecuencias sobre el jugador.
    *
    * Devuelve cuánto está sumergido, que es lo que la física necesita para saber
@@ -2603,7 +2617,10 @@ async function arrancar(): Promise<void> {
    * sería pagar por nada.
    */
   function actualizarLiquidos(): number {
-    if (!tiene('liquidos')) return 0;
+    if (!tiene('liquidos')) {
+      enLava = false;
+      return 0;
+    }
     const antes = liquidos.pendientes;
     liquidos.paso();
     // Una colada apagada deja obsidiana: hay que repintar el chunk y rehacer la
@@ -2626,6 +2643,7 @@ async function arrancar(): Promise<void> {
       audio.sonar('quemar', 0.7);
     }
     const s = sumersion(mundo, jugador.caja, TILE);
+    enLava = s.lava;
     if (s.lava || (antes > 0 && hayLavaCerca())) motorLuz.marcarSucio();
 
     const r = tickAliento(
@@ -2713,7 +2731,9 @@ async function arrancar(): Promise<void> {
     // Daño de caída. Va con el aterrizaje porque es el mismo suceso: el polvo
     // y el golpe salen de la misma altura.
     if (!enSueloAntes && c.enSuelo && tiene('danoCaida')) {
-      const dano = Math.round(danoDeCaida(c.ultimaCaida) * nivelDif.castigo);
+      // El agua frena el golpe; la lava, que también es líquido, no frena nada.
+      const colchon = tiene('caidaAmortiguada') && !enLava ? sumergido : 0;
+      const dano = Math.round(danoDeCaida(c.ultimaCaida, colchon) * nivelDif.castigo);
       if (dano > 0 && golpear(salud, c, dano, c.x + c.ancho / 2, 30, false, 'caida')) {
         panelVida.refrescar(salud);
         aviso.mostrar('¡Golpe al caer!', true);

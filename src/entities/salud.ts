@@ -152,9 +152,25 @@ export function revivir(s: Salud): void {
 export const CAIDA_SEGURA = 9;
 export const DANO_POR_TILE = 7;
 
-export function danoDeCaida(tiles: number): number {
+/**
+ * Cuánto quita el agua del golpe, con el cuerpo entero dentro.
+ *
+ * La mitad y no todo. Que el agua salvara del todo convertiría cualquier lago
+ * en una red bajo el precipicio y quitaría de un plumazo lo único que enseña a
+ * medir un salto largo; que no hiciera nada deja al jugador delante de un pozo
+ * lleno de agua sin ninguna razón para preferirlo al de al lado. La mitad
+ * premia buscar el agua sin regalar la caída.
+ */
+export const AGUA_AMORTIGUA = 0.5;
+
+/**
+ * `agua` es la fracción del cuerpo que está dentro, de 0 a 1: un charco que
+ * moja los pies amortigua poco y un pozo hondo amortigua lo que puede.
+ */
+export function danoDeCaida(tiles: number, agua = 0): number {
   if (tiles <= CAIDA_SEGURA) return 0;
-  return Math.round((tiles - CAIDA_SEGURA) * DANO_POR_TILE);
+  const amortiguado = Math.max(0, Math.min(1, agua)) * AGUA_AMORTIGUA;
+  return Math.round((tiles - CAIDA_SEGURA) * DANO_POR_TILE * (1 - amortiguado));
 }
 
 /** Corazones enteros y la fracción del último, para pintarlos. */
