@@ -7,9 +7,10 @@ import {
   HUECOS,
   NADA,
   poderDe,
+  represaliaDe,
   type Hueco,
 } from './items';
-import type { ClasePoder } from './inscripciones';
+import type { ClasePoder, ClaseRepresalia } from './inscripciones';
 
 /**
  * Armadura puesta.
@@ -57,6 +58,24 @@ export function poderPuesto(equipo: Inventario): ClasePoder | null {
     if (p !== null) return p;
   }
   return null;
+}
+
+/**
+ * Todas las represalias del equipo puesto, sin repetir.
+ *
+ * Aquí sí se juntan todas, al revés que el poder. El poder es una tecla y solo
+ * puede haber una; las represalias contestan solas, así que dos piezas que
+ * contesten cada una a lo suyo no se estorban. Sin repetir, para que llevar dos
+ * piezas con la misma inscripción no envenene dos veces.
+ */
+export function represaliasPuestas(equipo: Inventario): ClaseRepresalia[] {
+  const vistas: ClaseRepresalia[] = [];
+  for (const r of equipo.ranuras) {
+    if (r.cantidad <= 0) continue;
+    const c = represaliaDe(r.objeto);
+    if (c !== null && !vistas.includes(c)) vistas.push(c);
+  }
+  return vistas;
 }
 
 /**

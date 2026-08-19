@@ -752,6 +752,19 @@ export const VERSIONES: readonly Version[] = [
       'Arreglado: al aire libre no aparecía nunca nada hostil, ni de noche',
     ],
   },
+  {
+    id: '7.9.0',
+    etapa: 'prealfa',
+    nombre: 'La armadura contesta',
+    resumen: 'Los petos de jefe castigan solos a quien te pega.',
+    cambios: [
+      'Nueva inscripción de armadura: la represalia, que salta sola al recibir un golpe',
+      'El peto de la selva envenena a quien te muerde; el de escarcha lo congela',
+      'El de brasa prende, el de la caverna devuelve parte del golpe',
+      'El de limo te devuelve vida y el de arena te endurece un rato',
+      'La ficha del peto enseña las dos cosas: la tecla y lo que contesta solo',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -873,6 +886,8 @@ export const DESDE = {
   // Los bichos dejan de rellenar el hueco del que acaba de morir, y quedarse en
   // un sitio deja de tener techo.
   aparicionPorZona: '7.8.0',
+  // La armadura de jefe contesta sola al que te pega.
+  represalia: '7.9.0',
   nivelesHerramienta: '3.0.0',
   dificultad: '3.0.0',
   armadura: '3.0.0',

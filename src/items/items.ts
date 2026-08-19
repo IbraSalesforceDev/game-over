@@ -2,8 +2,10 @@ import { DURACION, EFECTOS, type ClaseEfecto } from '../entities/efectos';
 import {
   textoFilo,
   textoPoder,
+  textoRepresalia,
   type ClaseFilo,
   type ClasePoder,
+  type ClaseRepresalia,
 } from './inscripciones';
 import {
   ALTAR,
@@ -428,6 +430,8 @@ export interface DefObjeto {
   readonly filo?: ClaseFilo;
   /** Inscripción de la armadura: lo que hace al pulsar la tecla. */
   readonly poder?: ClasePoder;
+  /** Inscripción de la armadura: lo que contesta sola cuando te pegan. */
+  readonly represalia?: ClaseRepresalia;
 }
 
 const PILA = 999;
@@ -558,10 +562,20 @@ function petoJefe(
   nombre: string,
   color: string,
   poder: ClasePoder,
+  represalia: ClaseRepresalia,
 ): [number, DefObjeto] {
   return [
     id,
-    { nombre, tipo: 'armadura', color, maxPila: 1, hueco: 'torso', defensa: 12, poder },
+    {
+      nombre,
+      tipo: 'armadura',
+      color,
+      maxPila: 1,
+      hueco: 'torso',
+      defensa: 12,
+      poder,
+      represalia,
+    },
   ];
 }
 
@@ -841,12 +855,12 @@ const ENTRADAS: [number, DefObjeto][] = [
   // el poder, no la defensa. Un peto de jefe que además fuera el que más
   // defiende haría que la armadura de infernita —que cuesta bajar al inframundo
   // y fundir quince lingotes— no sirviera para nada.
-  petoJefe(PETO_LIMO, 'peto de limo', '#5ad07a', 'brote'),
-  petoJefe(PETO_ARENA, 'peto de arena', '#e0b45a', 'muroDeArena'),
-  petoJefe(PETO_ESCARCHA, 'peto de escarcha', '#a8e0f5', 'ondaGelida'),
-  petoJefe(PETO_SELVA, 'peto de la selva', '#4f9b3a', 'esporas'),
-  petoJefe(PETO_CAVERNA, 'peto de la caverna', '#b8b2a0', 'zancada'),
-  petoJefe(PETO_BRASA, 'peto de brasa', '#ff7a3a', 'bolaDeFuego'),
+  petoJefe(PETO_LIMO, 'peto de limo', '#5ad07a', 'brote', 'savia'),
+  petoJefe(PETO_ARENA, 'peto de arena', '#e0b45a', 'muroDeArena', 'costra'),
+  petoJefe(PETO_ESCARCHA, 'peto de escarcha', '#a8e0f5', 'ondaGelida', 'escarcha'),
+  petoJefe(PETO_SELVA, 'peto de la selva', '#4f9b3a', 'esporas', 'ponzona'),
+  petoJefe(PETO_CAVERNA, 'peto de la caverna', '#b8b2a0', 'zancada', 'pinchos'),
+  petoJefe(PETO_BRASA, 'peto de brasa', '#ff7a3a', 'bolaDeFuego', 'brasa'),
   // --- Las seis reliquias y el botín del final (7.2.0) ---------------------
   reliquiaBioma(RELIQUIA_PRADERA, 'reliquia de la pradera', '#7fd15a'),
   reliquiaBioma(RELIQUIA_DESIERTO, 'reliquia del desierto', '#e0c070'),
@@ -1172,6 +1186,11 @@ export function poderDe(id: number): ClasePoder | null {
   return defObjeto(id).poder ?? null;
 }
 
+/** La represalia grabada en este objeto, o null. */
+export function represaliaDe(id: number): ClaseRepresalia | null {
+  return defObjeto(id).represalia ?? null;
+}
+
 /**
  * La inscripción de un objeto en una línea, o cadena vacía si no lleva.
  *
@@ -1182,8 +1201,13 @@ export function poderDe(id: number): ClasePoder | null {
 export function inscripcionDe(id: number): string {
   const d = defObjeto(id);
   if (d.filo !== undefined) return textoFilo(d.filo);
-  if (d.poder !== undefined) return textoPoder(d.poder);
-  return '';
+  // Un peto de jefe lleva las dos: la tecla y lo que contesta solo. Se leen
+  // seguidas y no se elige una, porque saber solo la mitad de lo que hace una
+  // pieza es justo lo que esta línea existe para evitar.
+  const renglones: string[] = [];
+  if (d.poder !== undefined) renglones.push(textoPoder(d.poder));
+  if (d.represalia !== undefined) renglones.push(textoRepresalia(d.represalia));
+  return renglones.join(' ');
 }
 
 export function esArmadura(id: number): boolean {

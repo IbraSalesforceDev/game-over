@@ -14,6 +14,9 @@ import { DURACION, type ClaseEfecto } from '../entities/efectos';
  *    hace que elegir espada sea una decisión de bioma y no de número.
  *  - El **poder** va en el peto y se dispara con una tecla. Es activo, tiene
  *    recarga y hay que decidir cuándo gastarlo.
+ *  - La **represalia** va en la armadura y contesta sola cuando te pegan. No se
+ *    pulsa ni se apunta: es lo que el bicho del que salió la pieza te dejó como
+ *    herencia, y por eso el peto de la araña madre envenena a quien te muerde.
  *
  * Poner el activo en la armadura y no en el arma es deliberado: el arma se
  * cambia todo el rato según lo que se esté matando, y un poder que aparece y
@@ -154,7 +157,75 @@ export const PODERES: Readonly<Record<ClasePoder, DefPoder>> = {
   }),
 };
 
+// --- Represalias: lo que hace la armadura cuando te pegan -------------------
+
+/**
+ * Las seis respuestas.
+ *
+ * Ninguna es grande, y eso es a propósito: una represalia que matara convertiría
+ * la mejor táctica del juego en dejarse pegar. Lo que hacen es que el bicho que
+ * se te echa encima pague por hacerlo, y que llevar el peto de un jefe se note
+ * sin tener que pulsar nada.
+ *
+ * Van en la armadura y no en el arma porque no dependen de lo que lleves en la
+ * mano: te pegan igual picando, nadando o de espaldas.
+ */
+export type ClaseRepresalia =
+  | 'ponzona'
+  | 'escarcha'
+  | 'brasa'
+  | 'pinchos'
+  | 'savia'
+  | 'costra';
+
+export interface DefRepresalia {
+  readonly nombre: string;
+  readonly texto: string;
+  /** Efecto que le pega al que te ha tocado. */
+  readonly efecto?: ClaseEfecto;
+  /** Efecto que te pones tú al recibir el golpe. */
+  readonly efectoPropio?: ClaseEfecto;
+  readonly duracion: number;
+  /** Daño directo al que te toca. */
+  readonly dano: number;
+  /** Vida que te devuelve el golpe recibido. */
+  readonly curacion: number;
+}
+
+function represalia(
+  nombre: string,
+  texto: string,
+  extra: Partial<DefRepresalia> = {},
+): DefRepresalia {
+  return { nombre, texto, duracion: DURACION.ataque, dano: 0, curacion: 0, ...extra };
+}
+
+export const REPRESALIAS: Readonly<Record<ClaseRepresalia, DefRepresalia>> = {
+  // La que pidió el personaje con estas palabras: el peto de la araña madre,
+  // cuando te atacan, envenena al que te atacó.
+  ponzona: represalia('Ponzoña', 'Envenena a quien te golpea.', { efecto: 'veneno' }),
+  escarcha: represalia('Escarcha', 'Congela a quien te golpea.', {
+    efecto: 'congelado',
+    duracion: 60 * 3,
+  }),
+  brasa: represalia('Brasa', 'Prende a quien te golpea.', { efecto: 'ardiendo' }),
+  pinchos: represalia('Pinchos', 'Le devuelve parte del golpe a quien te toca.', {
+    dano: 12,
+  }),
+  savia: represalia('Savia', 'Cada golpe que recibes te devuelve algo de vida.', {
+    curacion: 4,
+  }),
+  // La única que no toca al bicho: te endurece un momento justo cuando ya te han
+  // dado. Es la que sirve contra lo que pega desde lejos, que no se puede
+  // castigar por contacto.
+  costra: represalia('Costra', 'Al recibir un golpe te vuelves de piedra un rato.', {
+    efectoPropio: 'pielDePiedra',
+    duracion: 60 * 6,
+  }),
+};
+
 export const CLASES_FILO = Object.keys(FILOS) as ClaseFilo[];
+export const CLASES_REPRESALIA = Object.keys(REPRESALIAS) as ClaseRepresalia[];
 export const CLASES_PODER = Object.keys(PODERES) as ClasePoder[];
 
 /** El renglón que se lee en la ficha, ya con el nombre de la inscripción. */
@@ -164,6 +235,10 @@ export function textoFilo(clase: ClaseFilo): string {
 
 export function textoPoder(clase: ClasePoder): string {
   return `«${PODERES[clase].nombre}» ${PODERES[clase].texto}`;
+}
+
+export function textoRepresalia(clase: ClaseRepresalia): string {
+  return `«${REPRESALIAS[clase].nombre}» ${REPRESALIAS[clase].texto}`;
 }
 
 /** Estado de la recarga del poder que se lleve puesto. */

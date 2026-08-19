@@ -1252,6 +1252,14 @@ export interface ResultadoEnemigos {
   /** Daño que han hecho al jugador este tick. */
   danoAlJugador: number;
   /**
+   * Los que le han puesto la mano encima en este tick.
+   *
+   * Hace falta para la represalia: hay que saber a quién contestar, y con un
+   * solo número no se puede. Van los que tocan, no el que más pega: si tres se
+   * te echan encima, la ponzoña es para los tres.
+   */
+  agresores: Enemigo[];
+  /**
    * Proyectiles que han lanzado en este tick.
    *
    * Se devuelven en vez de guardarse en una lista propia del módulo porque
@@ -1275,7 +1283,12 @@ export function actualizarEnemigos(
   distanciaOlvido = 90 * TILE,
 ): ResultadoEnemigos {
   const objetivo = centro(jugador);
-  const salida: ResultadoEnemigos = { danoAlJugador: 0, disparos: [], muertos: [] };
+  const salida: ResultadoEnemigos = {
+    danoAlJugador: 0,
+    agresores: [],
+    disparos: [],
+    muertos: [],
+  };
 
   for (const e of enemigos) {
     if (!e.vivo) continue;
@@ -1323,6 +1336,7 @@ export function actualizarEnemigos(
     const def = ENEMIGOS[e.especie];
     if (!def.pasivo && solapan(e.caja, jugador) && saludJugador.invulnerable <= 0) {
       salida.danoAlJugador = Math.max(salida.danoAlJugador, danoDe(e));
+      salida.agresores.push(e);
     }
 
     if (e.salud.muerto) {

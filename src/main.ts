@@ -47,6 +47,7 @@ import {
   gastarPoder,
   PODERES,
   poderListo,
+  REPRESALIAS,
   tickPoder,
   type ClaseFilo,
 } from './items/inscripciones';
@@ -105,6 +106,7 @@ import {
   danoTrasArmadura,
   defensaTotal,
   poderPuesto,
+  represaliasPuestas,
 } from './items/equipado';
 import {
   defObjeto,
@@ -2016,9 +2018,16 @@ async function arrancar(): Promise<void> {
         );
         sacudir(3.4);
         audio.sonar('dano');
+        // Y la armadura contesta. Va dentro del golpe que ha entrado de verdad
+        // y no en cada tick de contacto: si no, un zombi pegado envenenaría
+        // sesenta veces por segundo.
+        if (tiene('represalia')) responderAlGolpe(res.agresores);
       }
     }
     for (const m of res.muertos) {
+      // Los bichos que se mueren solos —lava, veneno, el suelo— también cuentan
+      // para el veto: la zona no se rellena por haberse muerto uno de calor.
+      apuntarMuerte(presion, ritmoDeApariciones(sucesos));
       repartirBotin(m.especie, m.tx, m.ty, m.elite);
       if (esJefe(m.especie)) caerJefe(m.especie);
     }
@@ -2977,6 +2986,47 @@ async function arrancar(): Promise<void> {
       });
     }
     limpiarDisparos(tiros);
+  }
+
+  /**
+   * La armadura contesta al que te ha tocado.
+   *
+   * Es el equivalente pasivo del filo, pero al revés: el filo sale del arma
+   * cuando pegas tú y esto sale de la armadura cuando pegan a ti. Se aplican
+   * todas las que se lleven puestas, porque cada pieza contesta lo suyo y dos
+   * piezas distintas no se estorban.
+   */
+  function responderAlGolpe(agresores: readonly Enemigo[]): void {
+    const clases = represaliasPuestas(equipo);
+    if (clases.length === 0) return;
+    for (const clase of clases) {
+      const def = REPRESALIAS[clase];
+      if (def.efectoPropio !== undefined && tiene('efectos')) {
+        aplicarEfecto(estados, def.efectoPropio, def.duracion);
+      }
+      if (def.curacion > 0) {
+        curar(salud, def.curacion);
+        panelVida.refrescar(salud);
+      }
+      for (const e of agresores) {
+        if (!e.vivo) continue;
+        if (def.efecto !== undefined && tiene('efectos')) {
+          aplicarEfecto(e.efectos, def.efecto, def.duracion);
+        }
+        if (def.dano > 0) {
+          const desde = jugador.caja.x + jugador.caja.ancho / 2;
+          if (danarEnemigo(e, def.dano, desde)) morir(e);
+        }
+        particulas.emitir(e.caja.x + e.caja.ancho / 2, e.caja.y + e.caja.alto / 2, {
+          cantidad: 6,
+          color: def.efecto !== undefined ? EFECTOS[def.efecto].color : '#e8b64c',
+          forma: 'chispa',
+          dispersion: 1.8,
+          vida: 16,
+          tam: 2,
+        });
+      }
+    }
   }
 
   /**

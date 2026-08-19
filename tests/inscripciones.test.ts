@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { VERSIONES } from '../src/core/versiones';
 import { EFECTOS } from '../src/entities/efectos';
-import { crearEquipo, indiceDeHueco, poderPuesto } from '../src/items/equipado';
+import {
+  crearEquipo,
+  indiceDeHueco,
+  poderPuesto,
+  represaliasPuestas,
+} from '../src/items/equipado';
 import {
   CLASES_FILO,
   CLASES_PODER,
+  CLASES_REPRESALIA,
+  REPRESALIAS,
+  textoRepresalia,
   crearEstadoPoder,
   FILOS,
   gastarPoder,
@@ -26,10 +34,14 @@ import {
   filoDe,
   inscripcionDe,
   objetoExisteEn,
+  PETO_ARENA,
   PETO_BRASA,
+  PETO_CAVERNA,
+  PETO_ESCARCHA,
   PETO_INFERNITA,
   PETO_LIMO,
   PETO_ORO,
+  PETO_SELVA,
   poderDe,
   defensaDe,
 } from '../src/items/items';
@@ -45,7 +57,7 @@ const ESPADAS = [
   ESPADA_CAVERNA,
   ESPADA_BRASA,
 ] as const;
-const PETOS = [PETO_LIMO, 251, 252, 253, 254, PETO_BRASA] as const;
+const PETOS = [PETO_LIMO, PETO_ARENA, PETO_ESCARCHA, PETO_SELVA, PETO_CAVERNA, PETO_BRASA] as const;
 
 describe('las inscripciones', () => {
   it('hay seis filos y seis poderes, uno por jefe', () => {
@@ -226,5 +238,80 @@ describe('el equipo de bioma', () => {
   it('las versiones que declaran existen', () => {
     const conocidas = new Set(VERSIONES.map((v) => v.id));
     expect(conocidas.has('7.1.0')).toBe(true);
+  });
+});
+
+/**
+ * La armadura que contesta.
+ *
+ * El filo sale del arma cuando pegas tú; la represalia sale de la armadura
+ * cuando te pegan a ti. Son la misma idea vista desde los dos lados, y por eso
+ * la tabla se comprueba igual: que ninguna esté vacía y que ninguna mate.
+ */
+describe('represalias', () => {
+  it('las seis hacen algo, y ninguna hace nada de más', () => {
+    for (const clase of CLASES_REPRESALIA) {
+      const def = REPRESALIAS[clase];
+      const hace =
+        def.efecto !== undefined ||
+        def.efectoPropio !== undefined ||
+        def.dano > 0 ||
+        def.curacion > 0;
+      expect(hace, clase).toBe(true);
+      expect(def.nombre.length, clase).toBeGreaterThan(0);
+      expect(def.texto.length, clase).toBeGreaterThan(0);
+      // Los efectos que reparte tienen que existir de verdad.
+      if (def.efecto) expect(EFECTOS[def.efecto], clase).toBeDefined();
+      if (def.efectoPropio) expect(EFECTOS[def.efectoPropio], clase).toBeDefined();
+    }
+  });
+
+  /**
+   * Si la represalia matara, la mejor táctica del juego sería dejarse pegar. El
+   * tope es holgado: lo que se vigila es el orden de magnitud, no el número.
+   */
+  it('ninguna pega tan fuerte como para matar sola', () => {
+    for (const clase of CLASES_REPRESALIA) {
+      expect(REPRESALIAS[clase].dano, clase).toBeLessThan(20);
+    }
+  });
+
+  it('los seis petos de jefe traen la suya, y no se repite ninguna', () => {
+    const petos = [PETO_LIMO, PETO_ARENA, PETO_ESCARCHA, PETO_SELVA, PETO_CAVERNA, PETO_BRASA];
+    const vistas = petos.map((id) => defObjeto(id).represalia);
+    for (const [i, r] of vistas.entries()) expect(r, String(petos[i])).toBeDefined();
+    expect(new Set(vistas).size).toBe(petos.length);
+  });
+
+  /** Lo que pidió el personaje, tal cual: el peto de la araña madre envenena. */
+  it('el peto de la selva envenena a quien te ataca', () => {
+    const clase = defObjeto(PETO_SELVA).represalia!;
+    expect(REPRESALIAS[clase].efecto).toBe('veneno');
+  });
+
+  it('una armadura corriente no contesta nada', () => {
+    expect(defObjeto(PETO_ORO).represalia).toBeUndefined();
+  });
+
+  it('se encuentra la del equipo puesto, sin repetir', () => {
+    const eq = crearEquipo();
+    expect(represaliasPuestas(eq)).toEqual([]);
+    eq.ponerEn(indiceDeHueco('torso'), PETO_ORO, 1);
+    expect(represaliasPuestas(eq)).toEqual([]);
+    eq.vaciar();
+    eq.ponerEn(indiceDeHueco('torso'), PETO_SELVA, 1);
+    expect(represaliasPuestas(eq)).toEqual(['ponzona']);
+  });
+
+  it('la ficha del peto de jefe cuenta las dos cosas', () => {
+    const texto = inscripcionDe(PETO_SELVA);
+    expect(texto).toContain(PODERES[defObjeto(PETO_SELVA).poder!].nombre);
+    expect(texto).toContain(REPRESALIAS[defObjeto(PETO_SELVA).represalia!].nombre);
+  });
+
+  it('cada represalia tiene su renglón', () => {
+    for (const clase of CLASES_REPRESALIA) {
+      expect(textoRepresalia(clase)).toContain(REPRESALIAS[clase].nombre);
+    }
   });
 });
