@@ -495,6 +495,11 @@ function crearFuenteNube(capaUI: HTMLElement, local: SaveAdapter): FuenteNube {
       const { AlmacenNube } = await import('./nube/adaptador');
       await new AlmacenNube().canjear(codigo);
     },
+
+    async invitar(idPartida: string): Promise<string> {
+      const { AlmacenNube } = await import('./nube/adaptador');
+      return new AlmacenNube().invitar(idPartida);
+    },
   };
 }
 

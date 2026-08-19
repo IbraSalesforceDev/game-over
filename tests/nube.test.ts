@@ -236,6 +236,36 @@ describe('AlmacenNube', () => {
     expect(m!.modificado).toBe(Date.parse('2026-08-18T12:00:00Z'));
   });
 
+  /**
+   * De quién es cada partida.
+   *
+   * Es lo que decide si sale el botón de invitar, y solo el dueño puede: un
+   * botón que siempre falla es peor que no tenerlo.
+   */
+  it('marca cuáles son mías y cuáles me han prestado', async () => {
+    const base = {
+      nombre: 'M',
+      semilla: 'S',
+      ancho: 1400,
+      alto: 450,
+      version_formato: 16,
+      version_juego: '7.5.0',
+      hardcore: false,
+      caido: false,
+      jugado: 0,
+      bytes: 1,
+      creado: '2026-08-18T10:00:00Z',
+      actualizado: '2026-08-18T10:00:00Z',
+    };
+    filas = [
+      { ...base, id: 'mia', propietario: 'yo' },
+      { ...base, id: 'prestada', propietario: 'otro' },
+    ];
+    const lista = await new AlmacenNube().listar();
+    expect(lista.find((m) => m.id === 'mia')!.mio).toBe(true);
+    expect(lista.find((m) => m.id === 'prestada')!.mio).toBe(false);
+  });
+
   it('el código se limpia antes de canjearlo', async () => {
     await new AlmacenNube().canjear('  abcd2345 ');
     expect(pasos.some((p) => p.includes('"p_codigo":"ABCD2345"'))).toBe(true);

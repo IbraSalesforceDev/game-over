@@ -39,6 +39,14 @@ export interface MetaMundo {
    */
   hardcore?: boolean;
   caido?: boolean;
+  /**
+   * La partida es mía y no de alguien que me ha invitado.
+   *
+   * Solo lo rellena el almacén de la nube; en local todo es tuyo. Sirve para
+   * saber si enseñar el botón de invitar sin tener que preguntarlo por cada
+   * mundo de la lista.
+   */
+  mio?: boolean;
 }
 
 export interface SaveAdapter {

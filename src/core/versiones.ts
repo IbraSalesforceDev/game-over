@@ -680,6 +680,17 @@ export const VERSIONES: readonly Version[] = [
       'Todavía sin bichos: eso es lo siguiente',
     ],
   },
+  {
+    id: '7.5.1',
+    etapa: 'prealfa',
+    nombre: 'Invitar sin salir del juego',
+    resumen: 'El código para que entre alguien se pide desde la ficha del mundo.',
+    cambios: [
+      'Botón de invitar en tus mundos de la nube, con el código a la vista',
+      'Se copia de un clic, y si el navegador no deja, ahí sigue para copiarlo',
+      'El botón solo sale en los mundos tuyos, que son los que puedes compartir',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

@@ -61,6 +61,8 @@ export interface FuenteNube {
   subir(meta: MetaMundo): Promise<void>;
   /** Canjea un código de invitación. */
   canjear(codigo: string): Promise<void>;
+  /** Crea un código para que entre alguien a esta partida. */
+  invitar(idPartida: string): Promise<string>;
 }
 
 const ESTILO = `
@@ -82,6 +84,11 @@ const ESTILO = `
   background: #131a22; border: 1px solid #2a343f;
 }
 #menu .mundo:hover { border-color: #3d4a58; }
+#menu .codigo {
+  font: 13px ui-monospace, monospace; letter-spacing: .22em; color: #e8b64c;
+  background: #0d1117; border: 1px solid #7a6428; border-radius: 5px;
+  padding: 6px 10px; user-select: all;
+}
 #menu .mundo .datos { flex: 1; min-width: 0; }
 #menu .mundo .nombre { color: #d8cfc0; margin-bottom: 3px; }
 #menu .mundo .detalle { color: #6d7a8a; font-size: 10px; }
@@ -300,6 +307,48 @@ export function mostrarMenu(
       return b;
     }
 
+    /**
+     * «Invitar»: pide un código y lo deja a la vista para copiarlo.
+     *
+     * El código sustituye al botón en vez de salir en un diálogo: es lo que hay
+     * que leer y copiar, así que estorba menos donde estaba el botón que encima
+     * de todo lo demás.
+     */
+    function botonInvitar(meta: MetaMundo): HTMLElement {
+      const b = document.createElement('button');
+      b.textContent = 'Invitar';
+      b.title = 'Crear un código para que entre alguien';
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        b.textContent = 'Pidiendo…';
+        try {
+          const codigo = await nube!.invitar(meta.id);
+          const caja = document.createElement('span');
+          caja.className = 'codigo';
+          caja.textContent = codigo;
+          const copiar = document.createElement('button');
+          copiar.textContent = 'Copiar';
+          copiar.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(codigo);
+              copiar.textContent = 'Copiado';
+            } catch {
+              // Sin permiso de portapapeles el código sigue a la vista: se
+              // copia a mano y no se pierde nada.
+              copiar.textContent = 'Cópialo tú';
+            }
+          });
+          b.replaceWith(caja, copiar);
+          decirEnPie(`Código creado. Vale 7 días y para 5 personas.`, false);
+        } catch (e) {
+          b.disabled = false;
+          b.textContent = 'Invitar';
+          decirEnPie(e instanceof Error ? e.message : 'No se ha podido invitar', true);
+        }
+      });
+      return b;
+    }
+
     /** Recado al pie del menú, para lo que no cabe en un botón. */
     function decirEnPie(texto: string, mal: boolean): void {
       const pie = caja.querySelector('.pie');
@@ -368,7 +417,11 @@ export function mostrarMenu(
         caja.appendChild(vacio);
       }
       for (const meta of deAlli) {
-        caja.appendChild(pintarFila(meta, nube.almacen, 'nube'));
+        const fila = pintarFila(meta, nube.almacen, 'nube');
+        // Solo el dueño puede invitar, así que a los demás ni se les enseña:
+        // un botón que siempre falla es peor que no tenerlo.
+        if (meta.mio !== false) fila.insertBefore(botonInvitar(meta), fila.lastChild);
+        caja.appendChild(fila);
       }
 
       // --- Invitación ---

@@ -16,6 +16,7 @@ import { BUCKET, nube, rutaMundo } from './cliente';
 /** Una fila de `juego.partidas`. */
 interface FilaPartida {
   id: string;
+  propietario: string;
   nombre: string;
   semilla: string;
   ancho: number;
@@ -31,11 +32,12 @@ interface FilaPartida {
 }
 
 const CAMPOS =
-  'id,nombre,semilla,ancho,alto,version_formato,version_juego,hardcore,caido,jugado,bytes,creado,actualizado';
+  'id,propietario,nombre,semilla,ancho,alto,version_formato,version_juego,hardcore,caido,jugado,bytes,creado,actualizado';
 
-function aMeta(f: FilaPartida): MetaMundo {
+function aMeta(f: FilaPartida, yo: string | null): MetaMundo {
   return {
     id: f.id,
+    mio: f.propietario === yo,
     nombre: f.nombre,
     semilla: f.semilla,
     ancho: f.ancho,
@@ -60,12 +62,14 @@ export const TOPE_BYTES = 2 * 1024 * 1024;
 export class AlmacenNube implements SaveAdapter {
   async listar(): Promise<MetaMundo[]> {
     const sb = await nube();
+    const { data: sesion } = await sb.auth.getSession();
+    const yo = sesion.session?.user.id ?? null;
     const { data, error } = await sb
       .from('partidas')
       .select(CAMPOS)
       .order('actualizado', { ascending: false });
     if (error) throw new Error(`No se ha podido leer la lista de partidas: ${error.message}`);
-    return (data as FilaPartida[]).map(aMeta);
+    return (data as FilaPartida[]).map((f) => aMeta(f, yo));
   }
 
   async cargar(id: string): Promise<Uint8Array> {
