@@ -8,12 +8,17 @@ import {
   FORTALEZA,
   FORTALEZA_INFERNAL,
   MINA,
+  esSantuario,
   nombreEstructura,
   rumbo,
+  SANTUARIOS,
+  santuarioDelAltar,
 } from '../src/world/estructuras';
+import { jefeDeSantuario } from '../src/world/jefes';
 import {
   AIRE,
   ALTAR,
+  ALTAR_BIOMA,
   ANTORCHA,
   ARENISCA,
   COFRE,
@@ -536,5 +541,91 @@ describe('la guarnición de cada estructura', () => {
     expect(esElite(dia, 'esqueleto', false, () => justo)).toBe(false);
     // Pero sigue sin haberlos entre los animales.
     expect(esElite({ ...dia, estructura: FORTALEZA }, 'conejo', false, siempre)).toBe(false);
+  });
+});
+
+/**
+ * Los seis santuarios.
+ *
+ * Lo que hay que comprobar no es que se dibujen bonitos sino las tres cosas de
+ * las que depende que sirvan: que estén en su bioma, que el altar esté de verdad
+ * donde dice la lista, y que la explanada esté despejada. Un santuario con un
+ * roble dentro es un jefe enganchado en las copas.
+ */
+describe('los santuarios de los jefes', () => {
+  const GRANDE = { ancho: 2100, alto: 900, semilla: 'SANTUARIOS' };
+
+  it('un mundo grande tiene los seis, uno de cada', () => {
+    const { estructuras } = generarMundo(GRANDE);
+    for (const tipo of SANTUARIOS) {
+      const suyos = estructuras.filter((e) => e.tipo === tipo);
+      expect(suyos.length, nombreEstructura(tipo)).toBe(1);
+    }
+  });
+
+  it('el altar está donde dice la lista', () => {
+    const { mundo, estructuras } = generarMundo(GRANDE);
+    for (const e of estructuras.filter((x) => esSantuario(x.tipo))) {
+      expect(mundo.getTile(e.tx, e.ty), nombreEstructura(e.tipo)).toBe(ALTAR_BIOMA);
+    }
+  });
+
+  it('cada altar llama a su jefe, y no dos al mismo', () => {
+    const { estructuras } = generarMundo(GRANDE);
+    const llamados = new Set<string>();
+    for (const e of estructuras.filter((x) => esSantuario(x.tipo))) {
+      const def = jefeDeSantuario(e.tipo);
+      expect(def, nombreEstructura(e.tipo)).not.toBeNull();
+      llamados.add(def!.especie);
+    }
+    expect(llamados.size).toBe(SANTUARIOS.length);
+  });
+
+  it('la explanada está despejada y se apoya en suelo macizo', () => {
+    const { mundo, estructuras } = generarMundo(GRANDE);
+    for (const e of estructuras.filter((x) => esSantuario(x.tipo))) {
+      // El altar se apoya en su pedestal, y el pedestal en el suelo.
+      expect(esSolido(mundo.getTile(e.tx, e.ty + 1)), nombreEstructura(e.tipo)).toBe(true);
+      expect(esSolido(mundo.getTile(e.tx, e.ty + 2)), nombreEstructura(e.tipo)).toBe(true);
+      // Y por encima no hay nada con lo que chocar en toda la altura del jefe.
+      for (let d = 1; d <= 8; d++) {
+        expect(mundo.getTile(e.tx, e.ty - d), `${nombreEstructura(e.tipo)} +${d}`).toBe(AIRE);
+      }
+    }
+  });
+
+  it('el altar de un santuario solo se reconoce en su casilla', () => {
+    const { estructuras } = generarMundo(GRANDE);
+    const uno = estructuras.find((e) => esSantuario(e.tipo))!;
+    expect(santuarioDelAltar(estructuras, uno.tx, uno.ty)).toBe(uno.tipo);
+    // Dos tiles al lado ya no: un altar puesto a mano cerca no llama a nadie.
+    expect(santuarioDelAltar(estructuras, uno.tx + 2, uno.ty)).toBeNull();
+  });
+
+  it('no se pisan entre ellos ni con las demás estructuras', () => {
+    const { estructuras } = generarMundo(GRANDE);
+    const santuarios = estructuras.filter((e) => esSantuario(e.tipo));
+    for (const s of santuarios) {
+      for (const otra of estructuras) {
+        if (otra === s) continue;
+        expect(
+          Math.hypot(otra.tx - s.tx, otra.ty - s.ty),
+          `${nombreEstructura(s.tipo)} vs ${nombreEstructura(otra.tipo)}`,
+        ).toBeGreaterThan(30);
+      }
+    }
+  });
+
+  it('en un mundo anterior a 7.11.0 no hay ninguno', () => {
+    const { estructuras, mundo } = generarMundo({ ...GRANDE, version: '7.10.0' });
+    expect(estructuras.filter((e) => esSantuario(e.tipo))).toHaveLength(0);
+    // Y el tile tampoco existe entonces.
+    let hayAltar = false;
+    for (let tx = 0; tx < mundo.ancho; tx += 7) {
+      for (let ty = 0; ty < mundo.alto; ty += 7) {
+        if (mundo.getTile(tx, ty) === ALTAR_BIOMA) hayAltar = true;
+      }
+    }
+    expect(hayAltar).toBe(false);
   });
 });

@@ -115,6 +115,16 @@ export const PLACA_NIEVE = 70;
 export const PLACA_JUNGLA = 71;
 export const PLACA_CUEVA = 72;
 export const PLACA_INFIERNO = 73;
+/**
+ * 7.11.0: el altar de un santuario de bioma.
+ *
+ * Es el altar de la fortaleza contado otra vez para los seis jefes que no lo
+ * tenían: los suyos se llamaban con un ídolo en la mano y en cualquier parte del
+ * bioma, y eso dejaba a seis de los siete jefes del juego sin ningún sitio al
+ * que ir. A qué jefe llama cada uno no lo dice el tile —sería un tile por
+ * jefe— sino el santuario en el que está.
+ */
+export const ALTAR_BIOMA = 74;
 
 /** Las seis, en el orden de los jefes. */
 export const PLACAS: readonly number[] = [
@@ -609,6 +619,19 @@ export const TILES: readonly DefTile[] = [
   // Las seis placas. No frenan el paso —son un cuadro, no un bloque— y alumbran
   // un poco: una sala de trofeos que hay que iluminar aparte no la monta nadie.
   ...placas(),
+  // El altar de bioma. Alumbra más que el antiguo y es más blando: el de la
+  // fortaleza pide pico de oro porque está al final de una fortaleza entera, y
+  // estos están a cielo abierto en su bioma. Aun así no es un bloque que uno
+  // vaya a picar sin querer.
+  {
+    nombre: 'altar de bioma',
+    solido: false,
+    plataforma: false,
+    dureza: 320,
+    color: '#c07ad8',
+    luz: 180,
+    nivelPico: 4,
+  },
 ];
 
 /**
@@ -718,6 +741,7 @@ export function esBlando(id: number): boolean {
  * la versión fuera tan vieja que ni la hierba existiera, seguiría a tierra.
  */
 const TILE_DESDE: Readonly<Record<number, string>> = {
+  [ALTAR_BIOMA]: '7.11.0',
   [TRONCO]: '1.3.0',
   [HOJAS]: '1.3.0',
   [COBRE]: '1.3.0',
@@ -854,6 +878,10 @@ const TILE_SUSTITUTO: Readonly<Record<number, number>> = {
   [CALDERO]: AIRE,
   // Y una placa de un jefe que aún no existía no es nada de nada.
   ...Object.fromEntries(PLACAS.map((p) => [p, AIRE])),
+  // Un altar de bioma en un mundo sin santuarios es el altar de siempre: la
+  // pieza sigue significando lo mismo —aquí se despierta algo— y dejarlo en
+  // aire convertiría el santuario en un agujero con antorchas.
+  [ALTAR_BIOMA]: ALTAR,
 };
 
 /** Versión en la que apareció este tile. */

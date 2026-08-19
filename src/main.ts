@@ -32,6 +32,7 @@ import {
 import {
   JEFE_FINAL,
   jefeDeInvocador,
+  jefeDeSantuario,
   pagarReliquias,
   RELIQUIAS_BIOMA,
   reliquiasQueFaltan,
@@ -92,6 +93,7 @@ import {
   estructuraMasCercana,
   estructuraEn,
   nombreEstructura,
+  santuarioDelAltar,
   type Estructura,
 } from './world/estructuras';
 import { puedeSembrar, tickCultivos } from './world/cultivo';
@@ -122,6 +124,7 @@ import { Contenedores, type DatosCofre } from './world/contenedores';
 import {
   AIRE,
   ALTAR,
+  ALTAR_BIOMA,
   CAMA,
   COFRE,
   defTile,
@@ -1622,14 +1625,46 @@ async function arrancar(): Promise<void> {
     const c = jugador.caja;
     // Nace a un lado y por encima, mirando al jugador: encima de la cabeza se
     // solaparía con él y saldría empujado a saber dónde.
-    const nuevo = crearEnemigo(
-      def.especie,
-      c.x + c.mirando * (d.ancho + 40),
-      c.y - d.alto - 16,
-      nivelDif.fuerza,
-      false,
-      versionMundo,
-    );
+    nacerJefeDeBioma(def, c.x + c.mirando * (d.ancho + 40), c.y - d.alto - 16);
+  }
+
+  /**
+   * El altar de un santuario: el mismo rito, pero en el sitio del jefe.
+   *
+   * Dos diferencias con el ídolo suelto, y las dos salen de que aquí hay un
+   * lugar. Una: no hace falta llevar el ídolo en la mano, basta con tenerlo en
+   * el zurrón, igual que en el altar de la fortaleza —lo que uno quiere tener en
+   * la mano al despertar a un jefe es la espada—. Y dos: no se pregunta por el
+   * bioma, porque el santuario ya está en el suyo; llegar hasta él **es** haber
+   * cumplido el requisito.
+   */
+  function ritualDeSantuario(tx: number, ty: number): void {
+    const tipo = santuarioDelAltar(partida.estado.estructuras, tx, ty);
+    const def = tipo === null ? null : jefeDeSantuario(tipo);
+    if (!def) {
+      aviso.mostrar('Este altar no llama a nadie', true);
+      return;
+    }
+    if (jefe) {
+      aviso.mostrar('Ya has despertado a algo', true);
+      return;
+    }
+    if (inventario.contar(def.invocador) <= 0) {
+      aviso.mostrar(`Al altar le falta ${defObjeto(def.invocador).nombre}`, true);
+      return;
+    }
+    inventario.quitar(def.invocador, 1);
+    barra.refrescar(capa);
+
+    const d = ENEMIGOS[def.especie];
+    // Sobre el altar y a un lado, para que no nazca dentro del pedestal.
+    nacerJefeDeBioma(def, (tx + 2) * TILE, (ty - 1) * TILE - d.alto);
+  }
+
+  /** Lo que pasa cuando un jefe de bioma se despierta, venga de donde venga. */
+  function nacerJefeDeBioma(def: DefJefe, x: number, y: number): void {
+    const d = ENEMIGOS[def.especie];
+    const nuevo = crearEnemigo(def.especie, x, y, nivelDif.fuerza, false, versionMundo);
     enemigos.push(nuevo);
     jefe = nuevo;
     furiaAnunciada = false;
@@ -2575,6 +2610,14 @@ async function arrancar(): Promise<void> {
       derAnterior = puntero.der;
       if (!tiene('jefe') || !enAlcance(jugador.caja, tx, ty)) return;
       invocarJefe(tx, ty);
+      return;
+    }
+
+    // Y el altar de un santuario, igual: clic derecho con su ídolo en el zurrón.
+    if (puntero.der && !derAnterior && mundo.getTile(tx, ty) === ALTAR_BIOMA) {
+      derAnterior = puntero.der;
+      if (!enAlcance(jugador.caja, tx, ty)) return;
+      ritualDeSantuario(tx, ty);
       return;
     }
 

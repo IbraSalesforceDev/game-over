@@ -21,6 +21,7 @@ import {
   RELIQUIA_PRADERA,
 } from '../items/items';
 import type { Inventario } from '../items/inventory';
+import { indiceDeSantuario } from './estructuras';
 
 /**
  * Los jefes de bioma y sus rituales.
@@ -197,6 +198,22 @@ export function jefeDeInvocador(objeto: number): DefJefe | null {
     if (JEFES[clase].invocador === objeto) return JEFES[clase];
   }
   return null;
+}
+
+/**
+ * El jefe al que llama el altar de un santuario, o null si ese tipo no lo es.
+ *
+ * El santuario y el jefe se atan por la posición en la lista, y por eso las dos
+ * listas están en el mismo orden: `SANTUARIOS` y `CLASES_JEFE`. Un campo
+ * «jefe» dentro de cada santuario sería lo mismo escrito dos veces en dos
+ * ficheros, y la clase de cosa que se queda desparejada en cuanto alguien añada
+ * el séptimo.
+ */
+export function jefeDeSantuario(tipoEstructura: number): DefJefe | null {
+  const i = indiceDeSantuario(tipoEstructura);
+  if (i < 0) return null;
+  const clase = CLASES_JEFE[i];
+  return clase === undefined ? null : JEFES[clase];
 }
 
 /** La clase de jefe de una especie, o null si esa especie no es de bioma. */

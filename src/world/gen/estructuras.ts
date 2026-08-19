@@ -1,8 +1,10 @@
 import {
   AIRE,
   ALTAR,
+  ALTAR_BIOMA,
   ANTORCHA,
   ARENISCA,
+  BARRO,
   COBALTO,
   COFRE,
   esSolido,
@@ -21,11 +23,18 @@ import {
   CUEVA_NIEVE,
   FORTALEZA,
   FORTALEZA_INFERNAL,
+  esSantuario,
   MINA,
+  SANTUARIO_CUEVA,
+  SANTUARIO_DESIERTO,
+  SANTUARIO_INFIERNO,
+  SANTUARIO_JUNGLA,
+  SANTUARIO_NIEVE,
+  SANTUARIO_PRADERA,
   type Estructura,
   type TipoEstructura,
 } from '../estructuras';
-import { DESIERTO, NIEVE_B, type MapaBiomas } from './biomas';
+import { DESIERTO, JUNGLA, NIEVE_B, type MapaBiomas } from './biomas';
 import {
   FLECHA,
   FLECHA_HIERRO,
@@ -173,6 +182,12 @@ export function levantarEstructuras(
     for (let i = 0; i < cuantas; i++) {
       levantarFortalezaInfernal(mundo, inframundo.techo, inframundo.suelo, rng, salida, ctx);
     }
+  }
+
+  // Y los seis santuarios, si este mundo los conoce. Van los últimos porque son
+  // los que más sitio piden.
+  if (hay('santuarios', version)) {
+    levantarSantuarios(mundo, superficie, caverna, fondo, rng, salida, biomas, inframundo);
   }
 
   // Y la invariante, al final: cada cofre de la lista tiene que ser un cofre en
@@ -1035,5 +1050,225 @@ function construirMina(
 
     anotar(salida, MINA, tx + largo / 2, ty + alto - 1);
     return;
+  }
+}
+
+// --- Los seis santuarios -----------------------------------------------------
+
+/**
+ * Un santuario: una explanada con el altar de su jefe en el centro.
+ *
+ * Es la respuesta a que seis de los siete jefes del juego no tuvieran sitio. El
+ * guardián tiene su fortaleza desde el principio; los de bioma se llamaban de
+ * pie en cualquier parte y se peleaba donde cayera, muchas veces en una ladera
+ * con árboles por medio.
+ *
+ * La forma es la misma en los seis y solo cambia el material, y eso es
+ * deliberado: lo que tiene que reconocerse de lejos es el rito —una plataforma
+ * despejada, cuatro columnas y una luz morada en medio—, no seis arquitecturas
+ * distintas que habría que aprender una a una. El bioma ya pone el color.
+ *
+ * Se despeja de verdad, hasta el techo. Un jefe que aparece en un claro con dos
+ * robles dentro se queda enganchado en las copas, y la mitad de la pelea es
+ * mirar cómo intenta rodear un tronco.
+ */
+const SANTUARIO_RADIO = 11;
+const SANTUARIO_ALTO = 14;
+
+function levantarSantuario(
+  mundo: Mundo,
+  cx: number,
+  cy: number,
+  material: number,
+  tipo: TipoEstructura,
+  salida: ResultadoEstructuras,
+): void {
+  const tx0 = cx - SANTUARIO_RADIO;
+  const tx1 = cx + SANTUARIO_RADIO;
+  const suelo = cy;
+  const techo = suelo - SANTUARIO_ALTO;
+
+  limpiar(mundo, tx0 - 1, techo, tx1 + 1, suelo);
+
+  // El suelo, macizo y de una pieza: es lo que hace que la pelea pase aquí y no
+  // en el agujero que se abre al primer golpe. Y se rellena hacia abajo hasta
+  // dar con terreno: en una ladera, una plataforma de tres tiles se quedaría
+  // flotando con medio santuario al aire.
+  for (let tx = tx0; tx <= tx1; tx++) {
+    for (let d = 0; d < 3; d++) mundo.setTile(tx, suelo + d, material);
+    for (let d = 3; d < 14 && !esSolido(mundo.getTile(tx, suelo + d)); d++) {
+      mundo.setTile(tx, suelo + d, material);
+    }
+    mundo.setPared(tx, suelo - 1, material);
+  }
+
+  // Cuatro columnas, dos a cada lado, con su antorcha arriba. No cierran el
+  // recinto —un jefe encerrado con el jugador dentro no es una arena, es una
+  // trampa— sino que lo enmarcan.
+  for (const dx of [-SANTUARIO_RADIO, -SANTUARIO_RADIO + 4, SANTUARIO_RADIO - 4, SANTUARIO_RADIO]) {
+    const tx = cx + dx;
+    for (let dy = 1; dy <= 5; dy++) mundo.setTile(tx, suelo - dy, material);
+    mundo.setTile(tx, suelo - 6, ANTORCHA);
+  }
+
+  // Y el altar, sobre un pedestal de dos tiles para que se vea desde lejos.
+  mundo.setTile(cx, suelo - 1, material);
+  mundo.setTile(cx, suelo - 2, ALTAR_BIOMA);
+  mundo.setLiquido(cx, suelo - 2, 0);
+
+  anotar(salida, tipo, cx, suelo - 2);
+}
+
+/**
+ * ¿Cabe un santuario aquí sin comerse otra estructura?
+ *
+ * `holgura` es lo que se le exige de distancia a lo que ya está puesto, y baja
+ * en los intentos siguientes. Preferir un santuario a cuarenta tiles de una
+ * mina antes que quedarse sin santuario no es una concesión: sin él, el jefe de
+ * ese bioma vuelve a no tener sitio, que es justo lo que se venía a arreglar.
+ */
+function sitioLibre(
+  mundo: Mundo,
+  salida: ResultadoEstructuras,
+  cx: number,
+  cy: number,
+  holgura: number,
+): boolean {
+  if (cx - SANTUARIO_RADIO < 5 || cx + SANTUARIO_RADIO >= mundo.ancho - 5) return false;
+  if (cy - SANTUARIO_ALTO < 3 || cy + 14 >= mundo.alto - 3) return false;
+  // Ni encima de la fortaleza: va antes y una explanada encima le abriría un
+  // boquete de veintitrés tiles en una sala.
+  if (hayLadrillo(mundo, cx, cy, SANTUARIO_RADIO + 6)) return false;
+  for (const otra of salida.estructuras) {
+    // Entre santuarios se guarda más: dos explanadas contiguas se leen como una
+    // sola con dos altares, y entonces no hay seis sitios sino uno.
+    const pide = esSantuario(otra.tipo) ? Math.max(holgura, 70) : holgura;
+    if (Math.hypot(otra.tx - cx, otra.ty - cy) < pide) return false;
+  }
+  return true;
+}
+
+/**
+ * El de un bioma de superficie.
+ *
+ * Va en tres pasadas cada vez menos exigentes, y el motivo es que la primera
+ * fallaba demasiado: pedir a la vez bioma en los dos extremos, veintitrés
+ * columnas llanas y setenta tiles de despeje dejaba sin santuario al desierto o
+ * a la nieve en la mitad de las semillas. Un santuario en una ladera aterrazada
+ * es peor que uno en un llano; ninguno es mucho peor que los dos.
+ */
+function santuarioDeSuperficie(
+  mundo: Mundo,
+  superficie: Int32Array,
+  biomas: MapaBiomas | undefined,
+  bioma: number | null,
+  material: number,
+  tipo: TipoEstructura,
+  rng: Rng,
+  salida: ResultadoEstructuras,
+): void {
+  const pasadas = [
+    { bordes: true, desnivel: 2, holgura: 70 },
+    { bordes: false, desnivel: 5, holgura: 45 },
+    { bordes: false, desnivel: 99, holgura: 30 },
+  ];
+  for (const pasada of pasadas) {
+    for (let intento = 0; intento < 500; intento++) {
+      const cx = rng.entero(20, mundo.ancho - 21);
+      // El bioma manda siempre en el centro. En la primera pasada también en los
+      // extremos: medio santuario de la nieve plantado en el bosque de al lado
+      // no es el santuario de la nieve.
+      if (bioma !== null && biomas) {
+        if (biomas[cx] !== bioma) continue;
+        if (pasada.bordes) {
+          if (biomas[cx - SANTUARIO_RADIO] !== bioma) continue;
+          if (biomas[cx + SANTUARIO_RADIO] !== bioma) continue;
+        }
+      }
+      const base = superficie[cx]!;
+      let llano = true;
+      for (let d = -SANTUARIO_RADIO; d <= SANTUARIO_RADIO && llano; d++) {
+        if (Math.abs((superficie[cx + d] ?? base) - base) > pasada.desnivel) llano = false;
+      }
+      if (!llano) continue;
+      if (mundo.getLiquido(cx, base - 1) > 0) continue;
+      if (!sitioLibre(mundo, salida, cx, base - 1, pasada.holgura)) continue;
+
+      levantarSantuario(mundo, cx, base - 1, material, tipo, salida);
+      return;
+    }
+  }
+}
+
+/** El de la caverna y el del inframundo: se busca hueco a una profundidad dada. */
+function santuarioHondo(
+  mundo: Mundo,
+  tyDesde: number,
+  tyHasta: number,
+  material: number,
+  tipo: TipoEstructura,
+  rng: Rng,
+  salida: ResultadoEstructuras,
+): void {
+  for (const holgura of [70, 45, 30]) {
+    for (let intento = 0; intento < 500; intento++) {
+      const cx = rng.entero(20, mundo.ancho - 21);
+      const cy = rng.entero(tyDesde, tyHasta);
+      if (!sitioLibre(mundo, salida, cx, cy, holgura)) continue;
+      levantarSantuario(mundo, cx, cy, material, tipo, salida);
+      return;
+    }
+  }
+}
+
+/**
+ * Los seis, en el orden de los jefes.
+ *
+ * Se levantan los últimos, después de la fortaleza, las cuevas, las cabañas y
+ * las minas: son los que más sitio piden y los que menos pueden negociarlo, así
+ * que es más barato que esquiven ellos a que los esquiven todos los demás.
+ */
+export function levantarSantuarios(
+  mundo: Mundo,
+  superficie: Int32Array,
+  caverna: number,
+  fondo: number,
+  rng: Rng,
+  salida: ResultadoEstructuras,
+  biomas?: MapaBiomas,
+  inframundo?: { techo: number; suelo: number },
+): void {
+  santuarioDeSuperficie(mundo, superficie, biomas, null, PIEDRA, SANTUARIO_PRADERA, rng, salida);
+  if (biomas) {
+    santuarioDeSuperficie(
+      mundo, superficie, biomas, DESIERTO, ARENISCA, SANTUARIO_DESIERTO, rng, salida,
+    );
+    santuarioDeSuperficie(
+      mundo, superficie, biomas, NIEVE_B, HIELO, SANTUARIO_NIEVE, rng, salida,
+    );
+    santuarioDeSuperficie(
+      mundo, superficie, biomas, JUNGLA, BARRO, SANTUARIO_JUNGLA, rng, salida,
+    );
+  }
+  // La caverna: por debajo de donde empiezan las cuevas y por encima del fondo.
+  santuarioHondo(
+    mundo,
+    Math.min(caverna + 40, fondo - 20),
+    Math.max(caverna + 41, fondo - 10),
+    PIEDRA,
+    SANTUARIO_CUEVA,
+    rng,
+    salida,
+  );
+  if (inframundo) {
+    santuarioHondo(
+      mundo,
+      inframundo.techo + 10,
+      Math.max(inframundo.techo + 11, inframundo.suelo - 6),
+      LADRILLO_INFERNAL,
+      SANTUARIO_INFIERNO,
+      rng,
+      salida,
+    );
   }
 }

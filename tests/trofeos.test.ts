@@ -73,8 +73,17 @@ describe('las placas de trofeo', () => {
     }
   });
 
-  it('la tabla de tiles acaba justo donde acaban las placas', () => {
-    expect(TILES.length).toBe(PLACAS[PLACAS.length - 1]! + 1);
+  /**
+   * Las seis van seguidas y sin huecos. Comprobar que la tabla *acaba* en ellas
+   * era comprobar de paso que nadie había añadido un tile detrás, y eso duró
+   * hasta 7.11.0, que añadió el altar de bioma. Lo que de verdad importaba —que
+   * las seis placas existan y estén juntas— sigue comprobado aquí.
+   */
+  it('las seis van seguidas en la tabla', () => {
+    for (const [i, p] of PLACAS.entries()) {
+      expect(TILES[p], `placa #${i}`).toBeDefined();
+      if (i > 0) expect(p).toBe(PLACAS[i - 1]! + 1);
+    }
   });
 });
 

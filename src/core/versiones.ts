@@ -778,6 +778,19 @@ export const VERSIONES: readonly Version[] = [
       'Con el peto de un jefe puesto se pueden llevar dos represalias a la vez',
     ],
   },
+  {
+    id: '7.11.0',
+    etapa: 'prealfa',
+    nombre: 'Los seis santuarios',
+    resumen: 'Cada jefe de bioma tiene por fin un sitio donde se le llama.',
+    cambios: [
+      'Seis santuarios nuevos, uno por jefe, cada uno en su bioma',
+      'Una explanada despejada con el altar de su jefe en el centro',
+      'El altar despierta a su jefe si llevas el ídolo encima, y se lo queda',
+      'Los marca la brújula y salen en el mapa, como las demás estructuras',
+      'El ídolo sigue funcionando por su cuenta en cualquier parte del bioma',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
@@ -903,6 +916,8 @@ export const DESDE = {
   represalia: '7.9.0',
   // Y cada élite deja unos guantes con lo que ella hacía.
   guantesDeElite: '7.10.0',
+  // Los seis jefes de bioma tienen por fin un sitio al que ir.
+  santuarios: '7.11.0',
   nivelesHerramienta: '3.0.0',
   dificultad: '3.0.0',
   armadura: '3.0.0',

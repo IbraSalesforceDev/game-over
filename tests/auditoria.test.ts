@@ -70,6 +70,7 @@ import {
   CABLE,
   INTERRUPTOR_ENCENDIDO,
   CALDERO,
+  ALTAR_BIOMA,
   PLACAS,
   ROCA_INFERNAL,
   TIERRA,
@@ -413,6 +414,7 @@ describe('la tabla de tiles está en su sitio', () => {
       [CALDERO, 'caldero'],
       [PLACAS[0]!, 'placa de la pradera'],
       [PLACAS[5]!, 'placa del infierno'],
+      [ALTAR_BIOMA, 'altar de bioma'],
     ];
     for (const [id, nom] of esperado) {
       expect(`${id}=${TILES[id]?.nombre}`).toBe(`${id}=${nom}`);
@@ -423,8 +425,10 @@ describe('la tabla de tiles está en su sitio', () => {
     // Un hueco significa que alguien añadió una constante sin su definición, o
     // al revés. Las dos cosas se leen como "el tile existe" hasta que alguien
     // lo coloca y no pasa nada.
-    expect(TILES[PLACAS[PLACAS.length - 1]!]).toBeDefined();
-    expect(TILES.length).toBe(PLACAS[PLACAS.length - 1]! + 1);
+    // El último de la tabla, sea cual sea: lo que se vigila es que la constante
+    // más alta y el largo del array digan lo mismo.
+    expect(TILES[ALTAR_BIOMA]).toBeDefined();
+    expect(TILES.length).toBe(ALTAR_BIOMA + 1);
     for (let id = 0; id < TILES.length; id++) {
       expect(TILES[id], `falta el tile #${id}`).toBeDefined();
     }
