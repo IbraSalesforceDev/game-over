@@ -65,7 +65,7 @@ import {
   destinoDeViaje,
   MARGEN_VIAJE,
 } from './ui/debugmenu';
-import { AJUSTES_POR_DEFECTO, type Ajustes } from './entities/physics';
+import { AJUSTES_POR_DEFECTO, type Ajustes, type Caja } from './entities/physics';
 import { actualizarJugador, crearJugador, reaparecer } from './entities/player';
 import { crearEstadoDebug, dibujarDebug } from './render/debug';
 import { ARMADURA_DESNUDA } from './render/sprites';
@@ -142,6 +142,7 @@ import {
   actualizarDrop,
   crearDrop,
   fusionarDrops,
+  RADIO_IMAN,
   soltar,
   type Drop,
 } from './entities/drop';
@@ -170,6 +171,8 @@ import {
   resolverGolpe,
   sentidoDeVector,
   tickGolpe,
+  type Golpe,
+  type Sentido,
 } from './entities/combat';
 import {
   actualizarFlechas,
@@ -784,6 +787,9 @@ async function arrancar(): Promise<void> {
           bytesDelMundo: () => empaquetarFuera(mundo, partida.estado),
           bichos: () => enemigos,
           minutos: () => reloj.minutos,
+          objetos: () => drops,
+          alGolpear: (_quien, g, caja) => resolverMandoble(g, caja, g.arma, false),
+          alPedirObjeto: darObjetoAInvitado,
         });
         // La sala está abierta: a partir de aquí lo que falta es que entre
         // alguien, y eso ya no es un problema de conexión.
@@ -795,6 +801,11 @@ async function arrancar(): Promise<void> {
           alLlegarMundo: (bytes) => void adoptarMundoDelAnfitrion(bytes),
           alDarLaHora: ponerEnHora,
           alRecibirGolpe: recibirGolpeDeRed,
+          alRecogerObjeto: (objeto, cantidad) => {
+            inventario.anadir(objeto, cantidad);
+            barra.refrescar(capa);
+            audio.sonar('recoger', 0.9 + Math.random() * 0.3);
+          },
         });
       }
     } catch (e) {
@@ -802,6 +813,24 @@ async function arrancar(): Promise<void> {
       aviso.mostrar('No se ha podido conectar con los demás', true);
       acompanados.estado('fallo');
     }
+  }
+
+  /**
+   * Darle a un invitado un objeto del suelo que ha pedido.
+   *
+   * Se comprueba que lo tenga a mano —el mismo radio del imán que se aplica en
+   * local— porque el que pide es un cliente: sin esto, uno modificado podría
+   * vaciar el suelo del mundo entero desde su sitio. Y se quita del mundo antes
+   * de mandarlo, para que dos que lo pidan a la vez no lo cojan los dos.
+   */
+  function darObjetoAInvitado(quien: number, idDrop: number, caja: Caja): void {
+    const d = drops.find((x) => x.id === idDrop && x.vivo);
+    if (!d) return;
+    const cx = caja.x + caja.ancho / 2;
+    const cy = caja.y + caja.alto / 2;
+    if (Math.hypot(d.x - cx, d.y - cy) > RADIO_IMAN * TILE) return;
+    d.vivo = false;
+    sesionRed?.entregar(quien, d.objeto, d.cantidad);
   }
 
   /**
@@ -1457,8 +1486,51 @@ async function arrancar(): Promise<void> {
     });
   }
 
+  /**
+   * Lo que el invitado pide del suelo, y cuándo lo pidió.
+   *
+   * Se guarda para no mandar una petición por tick y por objeto: un montón de
+   * carbón a los pies serían cuarenta mensajes cada dieciséis milisegundos.
+   */
+  const pedidos = new Map<number, number>();
+  /** Cada cuántos ticks se vuelve a pedir algo que no ha llegado. */
+  const REINTENTO_PETICION = 30;
+  /** Un contador que solo sube, para medir esperas cortas. */
+  let tickJuego = 0;
+
+  /**
+   * El invitado no mueve los objetos del suelo: los mueve el anfitrión y él los
+   * ve llegar. Lo único que hace es pedir los que tiene al alcance.
+   *
+   * Pide en vez de coger, y esa es la diferencia que importa: si los cogiera
+   * por su cuenta, dos jugadores sobre el mismo montón se lo llevarían los dos.
+   * Quien decide de quién es cada cosa es el que tiene el mundo.
+   */
+  function pedirObjetosDelSuelo(): void {
+    const mios = sesionRed?.objetos();
+    if (!mios || mios.length === 0) return;
+    const cx = jugador.caja.x + jugador.caja.ancho / 2;
+    const cy = jugador.caja.y + jugador.caja.alto / 2;
+    for (const [id, cuando] of pedidos) {
+      if (tickJuego - cuando > REINTENTO_PETICION) pedidos.delete(id);
+    }
+    for (const d of mios) {
+      if (pedidos.has(d.id)) continue;
+      if (Math.hypot(d.x - cx, d.y - cy) > RADIO_IMAN * TILE) continue;
+      // Sin sitio en el zurrón no se pide: dejarlo en el suelo es lo que hace
+      // el juego en local, y pedirlo para tirarlo sería perderlo.
+      if (!inventario.cabe(d.objeto, d.cantidad)) continue;
+      pedidos.set(d.id, tickJuego);
+      sesionRed?.pedirObjeto(d.id);
+    }
+  }
+
   /** Mueve los objetos del suelo, los recoge y limpia los que ya no están. */
   function actualizarDrops(): void {
+    if (sesionRed?.papel === 'invitado') {
+      pedirObjetosDelSuelo();
+      return;
+    }
     if (drops.length === 0) return;
     const centro = {
       x: jugador.caja.x + jugador.caja.ancho / 2,
@@ -1482,6 +1554,14 @@ async function arrancar(): Promise<void> {
       audio.sonar('recoger', 0.9 + Math.random() * 0.3);
     }
   }
+
+  /**
+   * El sentido del mandoble, en un número, para que quepa en un byte.
+   *
+   * La tabla vive aquí y no en el protocolo porque el protocolo no tiene por
+   * qué saber que existe algo llamado «arriba»: transporta un número.
+   */
+  const SENTIDO_A_NUMERO: Record<Sentido, number> = { lado: 0, arriba: 1, abajo: 2 };
 
   /** Estado del botón derecho en el tick anterior, para detectar el flanco. */
   let derAnterior = false;
@@ -1714,8 +1794,7 @@ async function arrancar(): Promise<void> {
    * el mandoble de la caverna en la mano— y por eso va aparte: solo mira dos
    * números y no deduce el bioma recorriendo tiles.
    */
-  function estoyBajoTierra(): boolean {
-    const c = jugador.caja;
+  function estoyBajoTierra(c: Caja = jugador.caja): boolean {
     const tx = Math.floor((c.x + c.ancho / 2) / TILE);
     const ty = Math.floor((c.y + c.alto) / TILE);
     const superficie = motorLuz.alturaCielo[tx] ?? 0;
@@ -2100,44 +2179,7 @@ async function arrancar(): Promise<void> {
   function actualizarCombate(): void {
     actualizarLoMio();
 
-    // El golpe activo alcanza a quien toque, una vez por mandoble.
-    // El filo del arma entra en dos sitios: aquí, si multiplica el daño, y en
-    // cada bicho tocado, si le pega un efecto o cura al que golpea.
-    const filo = tiene('equipoDeJefe') ? filoDe(barra.objetoActivo()) : null;
-    // Solo el filo de la caverna mira la profundidad, y se pregunta con la
-    // cuenta barata —una resta contra la altura del cielo— y no con
-    // `dondeEstoy`, que además deduce el bioma recorriendo tiles: eso corría
-    // sesenta veces por segundo por llevar una espada en la mano.
-    const hondo = filo !== null && FILOS[filo].bonusHondo !== 1 && estoyBajoTierra();
-    const multiplicador =
-      trucos.danoMultiplicador *
-      multiplicadorDano(estados) *
-      (hondo ? FILOS[filo!].bonusHondo : 1);
-    const r = resolverGolpe(
-      golpe,
-      jugador.caja,
-      enemigos,
-      multiplicador,
-      tiene('golpeConVista') ? mundo : null,
-    );
-    if (filo !== null && r.tocados.length > 0) aplicarFilo(filo, r.tocados, multiplicador);
-    for (const tocado of r.tocados) {
-      // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
-      // de que el mandoble ha entrado, que hasta ahora solo decía la barra de
-      // vida del bicho.
-      particulas.emitir(tocado.caja.x + tocado.caja.ancho / 2, tocado.caja.y + tocado.caja.alto / 2, {
-        cantidad: 8,
-        color: '#ffe9a8',
-        forma: 'chispa',
-        dispersion: 2.4,
-        empujeX: jugador.caja.mirando * 1.4,
-        vida: 14,
-        tam: 2,
-        gravedad: 0.08,
-      });
-      sacudir(1.4);
-    }
-    for (const muerto of r.muertos) morir(muerto);
+    resolverMandoble(golpe, jugador.caja, barra.objetoActivo(), true);
 
     // Las flechas van antes que los enemigos: una flecha que mata a un zombi
     // este tick tiene que impedir que ese zombi pegue en el mismo tick.
@@ -2618,7 +2660,12 @@ async function arrancar(): Promise<void> {
       // no hace nada si el arma aún está en su cadencia, y un silbido por cada
       // clic mantenido convertiría la espada en una batidora.
       if (puedeGolpear(golpe)) audio.sonar('espadazo', 0.9 + Math.random() * 0.25);
-      lanzarGolpe(golpe, enMano, jugador.caja.mirando, sentido);
+      // Si el arma sigue en su cadencia, `lanzarGolpe` dice que no y no hay
+      // nada que contar: mandarlo igual sería pedirle al anfitrión que
+      // comprobara lo que aquí ya se sabe.
+      if (lanzarGolpe(golpe, enMano, jugador.caja.mirando, sentido)) {
+        sesionRed?.golpear(enMano, jugador.caja.mirando, SENTIDO_A_NUMERO[sentido]);
+      }
       reiniciarPicado(picado);
       objetivo.valido = false;
       derAnterior = puntero.der;
@@ -3232,6 +3279,61 @@ async function arrancar(): Promise<void> {
   }
 
   /**
+   * Un mandoble contra los bichos, venga de quien venga.
+   *
+   * `mio` distingue el del jugador de esta máquina del de un invitado, y lo que
+   * cambia son dos cosas que no viajan por el cable: las pociones y los trucos,
+   * que son de cada uno, y a quién cura el filo de savia. Un invitado con savia
+   * se curaría aquí, en el anfitrión, que es exactamente al revés de lo que
+   * tiene que pasar; hasta que la vida de cada uno viaje, no se cura a nadie.
+   *
+   * Lo demás es idéntico a propósito: el mismo alcance, la misma línea de
+   * visión y el mismo filo. Un invitado no puede pegar distinto de como pega
+   * quien hospeda.
+   */
+  function resolverMandoble(g: Golpe, caja: Caja, arma: number, mio: boolean): void {
+    // El filo del arma entra en dos sitios: aquí, si multiplica el daño, y en
+    // cada bicho tocado, si le pega un efecto o cura al que golpea.
+    const filo = tiene('equipoDeJefe') ? filoDe(arma) : null;
+    // Solo el filo de la caverna mira la profundidad, y se pregunta con la
+    // cuenta barata —una resta contra la altura del cielo— y no con
+    // `dondeEstoy`, que además deduce el bioma recorriendo tiles: eso corría
+    // sesenta veces por segundo por llevar una espada en la mano.
+    const hondo = filo !== null && FILOS[filo].bonusHondo !== 1 && estoyBajoTierra(caja);
+    const multiplicador =
+      (mio ? trucos.danoMultiplicador * multiplicadorDano(estados) : 1) *
+      (hondo ? FILOS[filo!].bonusHondo : 1);
+    const r = resolverGolpe(
+      g,
+      caja,
+      enemigos,
+      multiplicador,
+      tiene('golpeConVista') ? mundo : null,
+    );
+    if (filo !== null && r.tocados.length > 0) {
+      aplicarFilo(filo, r.tocados, multiplicador, arma, mio);
+    }
+    for (const tocado of r.tocados) {
+      // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
+      // de que el mandoble ha entrado, que hasta ahora solo decía la barra de
+      // vida del bicho.
+      particulas.emitir(tocado.caja.x + tocado.caja.ancho / 2, tocado.caja.y + tocado.caja.alto / 2, {
+        cantidad: 8,
+        color: '#ffe9a8',
+        forma: 'chispa',
+        dispersion: 2.4,
+        empujeX: caja.mirando * 1.4,
+        vida: 14,
+        tam: 2,
+        gravedad: 0.08,
+      });
+      // La sacudida es de quien mira la pantalla: el golpe de otro no la mueve.
+      if (mio) sacudir(1.4);
+    }
+    for (const muerto of r.muertos) morir(muerto);
+  }
+
+  /**
    * Lo que hace el filo del arma en los bichos que acaba de tocar.
    *
    * El golpe doble se resuelve aquí y no dentro de `resolverGolpe` porque es
@@ -3243,6 +3345,8 @@ async function arrancar(): Promise<void> {
     clase: ClaseFilo,
     tocados: readonly Enemigo[],
     multiplicador: number,
+    arma: number,
+    mio: boolean,
   ): void {
     const def = FILOS[clase];
     for (const e of tocados) {
@@ -3252,7 +3356,7 @@ async function arrancar(): Promise<void> {
         // fuerza no servía de nada en el segundo impacto y el arma del
         // desierto era la única del juego a la que no le afectaban las
         // pociones, que es la clase de rareza que nadie llega a explicarse.
-        const dano = (defObjeto(barra.objetoActivo()).dano ?? 0) * multiplicador;
+        const dano = (defObjeto(arma).dano ?? 0) * multiplicador;
         if (danarEnemigo(e, dano, jugador.caja.x)) morir(e);
         particulas.emitir(e.caja.x + e.caja.ancho / 2, e.caja.y + 6, {
           cantidad: 6,
@@ -3264,7 +3368,8 @@ async function arrancar(): Promise<void> {
         });
       }
     }
-    if (def.curacion > 0 && salud.vida < salud.vidaMax) {
+    // La savia cura a quien pega, y quien pega puede no estar en esta máquina.
+    if (mio && def.curacion > 0 && salud.vida < salud.vidaMax) {
       curar(salud, def.curacion * tocados.length);
       panelVida.refrescar(salud);
     }
@@ -3559,6 +3664,7 @@ async function arrancar(): Promise<void> {
       if (esperaAvisoVersion > 0) esperaAvisoVersion--;
       if (esperaAvisoFlechas > 0) esperaAvisoFlechas--;
       if (esperaAvisoSiembra > 0) esperaAvisoSiembra--;
+      tickJuego++;
       editar();
       const sumergido = actualizarLiquidos();
       const enSueloAntes = jugador.caja.enSuelo;
@@ -3621,7 +3727,8 @@ async function arrancar(): Promise<void> {
         objetivo,
         motorLuz,
         reloj,
-        drops,
+        // En el invitado, los del anfitrión: los suyos propios no existen.
+        drops: sesionRed?.objetos() ?? drops,
         enemigos,
         golpe,
       flechas,

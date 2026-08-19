@@ -22,6 +22,8 @@
 import type { Ajustes, Caja, Entrada } from '../entities/physics';
 import type { Mundo } from '../world/world';
 import type { Acompanante, Enemigo } from '../entities/enemies';
+import type { Drop } from '../entities/drop';
+import type { Golpe } from '../entities/combat';
 import { Anfitrion, type Enlace, type JugadorConectado } from './anfitrion';
 import { ConexionAnfitrion, ConexionInvitado, type EstadoConexion } from './conexion';
 import { Invitado, type OtroJugador } from './invitado';
@@ -69,6 +71,14 @@ export interface OpcionesSesion extends AvisosSesion {
   bichos?: () => readonly Enemigo[];
   /** Solo el anfitrión: la hora del mundo, que es suya. */
   minutos?: () => number;
+  /** Solo el anfitrión: los objetos del suelo, para mandarlos. */
+  objetos?: () => readonly Drop[];
+  /** Solo el anfitrión: un invitado ha dado un mandoble ya comprobado. */
+  alGolpear?: (quien: number, golpe: Golpe, caja: Caja) => void;
+  /** Solo el anfitrión: un invitado quiere coger algo del suelo. */
+  alPedirObjeto?: (quien: number, idDrop: number, caja: Caja) => void;
+  /** Solo el invitado: el anfitrión te da lo que habías pedido. */
+  alRecogerObjeto?: (objeto: number, cantidad: number) => void;
   /** Con qué versión nació el mundo, para recrear bien los bichos que llegan. */
   versionMundo?: string;
   /**
@@ -114,6 +124,22 @@ export interface SesionRed {
   /** Cobrarle un golpe a un invitado. En el invitado no hace nada. */
   cobrar(id: number, dano: number, desdeX: number): void;
   /**
+   * Un mandoble. En el invitado se manda al anfitrión, que es quien lo resuelve;
+   * en el anfitrión no hace nada, porque el suyo lo resuelve el juego.
+   */
+  golpear(arma: number, direccion: 1 | -1, sentido: number): void;
+  /** Pedir un objeto del suelo. Solo el invitado tiene que pedir permiso. */
+  pedirObjeto(idDrop: number): void;
+  /** Darle a un invitado lo que ha pedido. Solo el anfitrión reparte. */
+  entregar(id: number, objeto: number, cantidad: number): void;
+  /**
+   * Los objetos del suelo que hay que dibujar.
+   *
+   * En el anfitrión, null: los suyos ya los tiene el juego. En el invitado, los
+   * que manda el anfitrión.
+   */
+  objetos(): readonly Drop[] | null;
+  /**
    * Los bichos que hay que dibujar.
    *
    * En el anfitrión, null: los suyos ya los tiene el juego y no hace falta
@@ -135,6 +161,9 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     bytesDelMundo: op.bytesDelMundo ?? (async () => new Uint8Array(0)),
     bichos: op.bichos,
     minutos: op.minutos,
+    objetos: op.objetos,
+    alGolpear: op.alGolpear,
+    alPedirObjeto: op.alPedirObjeto,
     alEntrar: (j) => {
       nombres.set(j.id, j.nombre);
       op.alContar?.(`${j.nombre} ha entrado`);
@@ -240,6 +269,18 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     cobrar(id, dano, desdeX) {
       anfitrion.cobrar(id, dano, desdeX);
     },
+    golpear() {
+      /* el mandoble del anfitrión lo resuelve el juego, aquí y ahora */
+    },
+    pedirObjeto() {
+      /* el anfitrión coge del suelo sin pedirle permiso a nadie */
+    },
+    entregar(id, objeto, cantidad) {
+      anfitrion.entregar(id, objeto, cantidad);
+    },
+    objetos() {
+      return null; // los suyos ya los tiene el juego
+    },
     bichos() {
       return null; // los suyos ya los tiene el juego
     },
@@ -328,6 +369,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     versionMundo: op.versionMundo,
     alDarLaHora: (minutos) => op.alDarLaHora?.(minutos),
     alRecibirGolpe: (dano, desdeX) => op.alRecibirGolpe?.(dano, desdeX),
+    alRecogerObjeto: (objeto, cantidad) => op.alRecogerObjeto?.(objeto, cantidad),
     alRechazar: (motivo) => {
       parar();
       op.alCambiarEstado?.('fallo', motivo);
@@ -399,6 +441,18 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     },
     cobrar() {
       /* de repartir golpes se encarga el anfitrión */
+    },
+    golpear(arma, direccion, sentido) {
+      invitado.golpear(arma, direccion, sentido);
+    },
+    pedirObjeto(idDrop) {
+      invitado.pedirObjeto(idDrop);
+    },
+    entregar() {
+      /* el invitado no reparte nada */
+    },
+    objetos() {
+      return invitado.objetos;
     },
     bichos() {
       return invitado.bichos;

@@ -22,12 +22,15 @@ import type { Ajustes, Caja, Entrada } from '../entities/physics';
 import type { Mundo } from '../world/world';
 import { Interpolador, Prediccion, autoridadDeEntidad } from './prediccion';
 import type { Enlace } from './anfitrion';
+import { crearDrop, type Drop } from '../entities/drop';
 import {
   BOTON,
   ENT,
   JuntaMundo,
   MSG,
+  escribirCojo,
   escribirEntrada,
+  escribirGolpe,
   escribirHola,
   escribirPidoTile,
   leerMensaje,
@@ -62,6 +65,8 @@ export interface OpcionesInvitado {
   alDarLaHora?: (minutos: number) => void;
   /** Un bicho del anfitrión te ha tocado: aplícatelo con tu armadura. */
   alRecibirGolpe?: (dano: number, desdeX: number) => void;
+  /** El anfitrión te da lo que habías pedido del suelo. */
+  alRecogerObjeto?: (objeto: number, cantidad: number) => void;
 }
 
 export function botonesDeEntrada(e: Entrada): number {
@@ -85,6 +90,14 @@ export class Invitado {
    * tocara los sprites.
    */
   private bichosRemotos = new Map<number, Enemigo>();
+  /**
+   * Los objetos del suelo, como los manda el anfitrión.
+   *
+   * Igual que con los bichos, se guardan como `Drop` de verdad para que el
+   * renderer los dibuje con el mismo código y no haya una segunda ruta que se
+   * quede atrás.
+   */
+  private objetosRemotos = new Map<number, Drop>();
   private junta = new JuntaMundo();
   private tickPropio = 0;
   private _miId = 0;
@@ -144,6 +157,10 @@ export class Invitado {
         this.op.alRecibirGolpe?.(m.dano, m.desdeX);
         break;
 
+      case MSG.RECOGIDO:
+        this.op.alRecogerObjeto?.(m.objeto, m.cantidad);
+        break;
+
       case MSG.INSTANTANEA:
         this.guardarInstantanea(m.instantanea.entidades);
         this.ultimaInstantanea = m.instantanea;
@@ -158,6 +175,7 @@ export class Invitado {
 
   private guardarInstantanea(entidades: readonly EntidadRed[]): void {
     this.guardarBichos(entidades);
+    this.guardarObjetos(entidades);
     const vistos = new Set<number>();
     for (const e of entidades) {
       if (e.clase !== ENT.JUGADOR || e.id === this._miId) continue;
@@ -242,6 +260,11 @@ export class Invitado {
       b.caja.vy = e.vy;
       b.caja.enSuelo = (e.banderas & BANDERA.EN_SUELO) !== 0;
       b.caja.mirando = (e.banderas & BANDERA.MIRA_DERECHA) !== 0 ? 1 : -1;
+      // Si ha perdido vida desde la última instantánea es que le han dado, y
+      // eso es lo único que hace falta para que parpadee: el destello sale del
+      // mismo contador que en local, así que el invitado ve entrar sus golpes
+      // sin necesidad de que el anfitrión se lo cuente aparte.
+      if (e.vida < b.salud.vida) b.salud.desdeGolpe = 0;
       b.salud.vida = e.vida;
       if (e.vidaMax > 0) b.salud.vidaMax = e.vidaMax;
       // El reloj de animación corre aquí: si viniera del anfitrión, entre
@@ -255,9 +278,58 @@ export class Invitado {
     }
   }
 
+  /** Los objetos del suelo, con los que llegan y sin los que ya no están. */
+  private guardarObjetos(entidades: readonly EntidadRed[]): void {
+    const vistos = new Set<number>();
+    for (const e of entidades) {
+      if (e.clase !== ENT.OBJETO) continue;
+      vistos.add(e.id);
+      const existente = this.objetosRemotos.get(e.id);
+      if (existente) {
+        existente.x = e.x;
+        existente.y = e.y;
+        existente.vx = e.vx;
+        existente.vy = e.vy;
+        existente.cantidad = e.vida;
+        existente.edad++;
+        continue;
+      }
+      const nuevo = crearDrop(e.sub, e.vida, 0, 0);
+      nuevo.id = e.id;
+      nuevo.x = e.x;
+      nuevo.y = e.y;
+      this.objetosRemotos.set(e.id, nuevo);
+    }
+    // Lo que deja de aparecer es que alguien lo ha cogido o ha caducado.
+    for (const id of [...this.objetosRemotos.keys()]) {
+      if (!vistos.has(id)) this.objetosRemotos.delete(id);
+    }
+  }
+
   /** Pide picar o poner. Se pinta ya; si el anfitrión dice que no, se deshace. */
   pedirTile(c: CambioTile): void {
     this.op.enlace.mandarFirme(escribirPidoTile(c));
+  }
+
+  /**
+   * Avisa de un mandoble. Quién lo cobra lo decide el anfitrión.
+   *
+   * No se predice nada: la animación del arma ya la pinta el juego de aquí, y
+   * adivinar que un bicho ha muerto para desdecirse medio segundo después se ve
+   * mucho peor que esperar a la siguiente instantánea.
+   */
+  golpear(arma: number, direccion: 1 | -1, sentido: number): void {
+    this.op.enlace.mandarFirme(escribirGolpe(arma, direccion, sentido));
+  }
+
+  /** Pide un objeto del suelo. El anfitrión mira si lo tiene a mano. */
+  pedirObjeto(idDrop: number): void {
+    this.op.enlace.mandarFirme(escribirCojo(idDrop));
+  }
+
+  /** Los objetos del suelo que dice el anfitrión, tal cual los espera el juego. */
+  get objetos(): readonly Drop[] {
+    return [...this.objetosRemotos.values()];
   }
 
   /** Al salir del mundo o al desconectar. */
@@ -265,6 +337,7 @@ export class Invitado {
     this.prediccion.olvidar();
     this.otros.clear();
     this.bichosRemotos.clear();
+    this.objetosRemotos.clear();
     this.ultimaInstantanea = null;
     this._dentro = false;
   }

@@ -9,8 +9,18 @@ import {
 import { Mundo } from '../src/world/world';
 import { AIRE, PIEDRA, TIERRA } from '../src/world/tiles';
 import { ALCANCE_TILES, Anfitrion, type Enlace } from '../src/red/anfitrion';
+import { TICKS_GOLPE } from '../src/entities/combat';
 import { Invitado } from '../src/red/invitado';
-import { escribirInstantanea, type CambioTile } from '../src/red/protocolo';
+import {
+  ENT,
+  escribirGolpe,
+  escribirHola,
+  escribirInstantanea,
+  escribirRecogido,
+  leerMensaje,
+  type CambioTile,
+} from '../src/red/protocolo';
+import { defObjeto, ESPADA_HIERRO, GEL, IDS_OBJETO } from '../src/items/items';
 import { actualizarEnemigos, crearEnemigo, type Enemigo } from '../src/entities/enemies';
 
 /**
@@ -594,5 +604,169 @@ describe('dos jugadores, un solo mundo', () => {
     const bicho = crearEnemigo('zombi', 12 * TILE, 36 * TILE);
     const r = actualizarEnemigos(mundo, [bicho], jugador, { invulnerable: 0 });
     expect(r.danoAAcompanantes).toEqual([]);
+  });
+});
+
+/**
+ * El invitado peleando.
+ *
+ * Lo que no podía hacer hasta 7.12.0: su espada atravesaba a los bichos sin
+ * tocarlos, porque los que veía eran copias y los de verdad los tenía el
+ * anfitrión.
+ */
+describe('el invitado pelea', () => {
+  it('su mandoble lo resuelve el anfitrión, no él', () => {
+    const resueltos: number[] = [];
+    const mundo = mundoDePruebas();
+    const anfitrion = new Anfitrion({
+      mundo,
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+      alGolpear: (quien) => resueltos.push(quien),
+    });
+    const enlace: Enlace = { mandarVivo: () => {}, mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null);
+    expect(quien).not.toBeNull();
+
+    anfitrion.recibir(enlace, escribirGolpe(ESPADA_HIERRO, 1, 0), quien);
+    // El arma barre durante unos ticks, igual que en local: se resuelve en cada
+    // uno mientras dure, y la lista de tocados del propio golpe evita repetir.
+    expect(resueltos).toEqual([]);
+    anfitrion.avanzar(crearCaja(0, 0, 26, 46));
+    expect(resueltos).toEqual([quien]);
+  });
+
+  /**
+   * La cadencia se comprueba donde se decide, no donde se pulsa.
+   *
+   * Se cuentan los ticks barridos y no los clics: veinte clics seguidos tienen
+   * que barrer exactamente lo mismo que uno, que es lo que dura un mandoble.
+   */
+  it('veinte clics seguidos barren lo mismo que uno', () => {
+    const resueltos: number[] = [];
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+      alGolpear: (quien) => resueltos.push(quien),
+    });
+    const enlace: Enlace = { mandarVivo: () => {}, mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null);
+    const cadencia = defObjeto(ESPADA_HIERRO).cadencia!;
+
+    for (let t = 0; t < cadencia; t++) {
+      anfitrion.recibir(enlace, escribirGolpe(ESPADA_HIERRO, 1, 0), quien);
+      anfitrion.avanzar(crearCaja(0, 0, 26, 46));
+    }
+    expect(resueltos).toHaveLength(TICKS_GOLPE);
+
+    // Y pasada la cadencia, el siguiente sí sale.
+    anfitrion.recibir(enlace, escribirGolpe(ESPADA_HIERRO, 1, 0), quien);
+    anfitrion.avanzar(crearCaja(0, 0, 26, 46));
+    expect(resueltos).toHaveLength(TICKS_GOLPE + 1);
+  });
+
+  it('un «arma» que no es un arma no da ningún golpe', () => {
+    const resueltos: number[] = [];
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+      alGolpear: (quien) => resueltos.push(quien),
+    });
+    const enlace: Enlace = { mandarVivo: () => {}, mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null);
+    anfitrion.recibir(enlace, escribirGolpe(GEL, 1, 0), quien);
+    anfitrion.recibir(enlace, escribirGolpe(0, 1, 0), quien);
+    anfitrion.avanzar(crearCaja(0, 0, 26, 46));
+    expect(resueltos).toEqual([]);
+  });
+
+  it('los objetos del suelo viajan con lo que son y cuántos hay', () => {
+    let recibido: { objeto: number; cantidad: number } | null = null;
+    const invitado = new Invitado({
+      enlace: { mandarVivo: () => {}, mandarFirme: () => {} },
+      nombre: 'Inv',
+      idPartida: 'p1',
+      ajustes: AJUSTES_POR_DEFECTO,
+      alLlegarMundo: () => {},
+      alCambiarTiles: () => {},
+      alRecogerObjeto: (objeto, cantidad) => {
+        recibido = { objeto, cantidad };
+      },
+    });
+
+    invitado.recibir(
+      escribirInstantanea({
+        tick: 1,
+        tickConfirmado: 0,
+        minutos: 0,
+        entidades: [
+          {
+            clase: ENT.OBJETO,
+            id: 77,
+            x: 100,
+            y: 200,
+            vx: 0,
+            vy: 0,
+            banderas: 0,
+            vida: 9,
+            sub: GEL,
+            ticksCoyote: 0,
+            ticksBuffer: 0,
+            ticksSalto: 0,
+            yInicioCaida: 0,
+            vidaMax: 0,
+          },
+        ],
+      }),
+    );
+    expect(invitado.objetos).toHaveLength(1);
+    expect(invitado.objetos[0]!.objeto).toBe(GEL);
+    expect(invitado.objetos[0]!.cantidad).toBe(9);
+    expect(invitado.objetos[0]!.id).toBe(77);
+
+    // Y lo que deja de venir es que alguien lo ha cogido.
+    invitado.recibir(
+      escribirInstantanea({ tick: 2, tickConfirmado: 0, minutos: 0, entidades: [] }),
+    );
+    expect(invitado.objetos).toHaveLength(0);
+
+    invitado.recibir(escribirRecogido(GEL, 3));
+    expect(recibido).toEqual({ objeto: GEL, cantidad: 3 });
+  });
+
+  /**
+   * El identificador de un objeto no cabía en el byte del subtipo: hay más de
+   * doscientos objetos y ese campo llegaba a 255. Por eso el protocolo 4 lo
+   * ensancha, y esto lo vigila.
+   */
+  it('el subtipo aguanta el objeto más alto del catálogo', () => {
+    const alto = Math.max(...IDS_OBJETO);
+    expect(alto).toBeGreaterThan(255);
+    const leida = leerMensaje(
+      escribirInstantanea({
+        tick: 1,
+        tickConfirmado: 0,
+        minutos: 0,
+        entidades: [
+          {
+            clase: ENT.OBJETO, id: 1, x: 0, y: 0, vx: 0, vy: 0, banderas: 0,
+            vida: 1, sub: alto, ticksCoyote: 0, ticksBuffer: 0, ticksSalto: 0,
+            yInicioCaida: 0, vidaMax: 0,
+          },
+        ],
+      }),
+    ) as { instantanea: { entidades: { sub: number }[] } };
+    expect(leida.instantanea.entidades[0]!.sub).toBe(alto);
   });
 });

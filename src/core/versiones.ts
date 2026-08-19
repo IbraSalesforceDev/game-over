@@ -817,6 +817,19 @@ export const VERSIONES: readonly Version[] = [
       'Al invitado ya le entra hambre, se le pasa la invulnerabilidad y puede morirse',
     ],
   },
+  {
+    id: '7.12.0',
+    etapa: 'prealfa',
+    nombre: 'El invitado también pelea',
+    resumen: 'Su espada por fin llega a los bichos, y el botín que cae es suyo.',
+    cambios: [
+      'El mandoble del invitado lo resuelve el anfitrión: mismo alcance y mismo filo',
+      'La cadencia se comprueba en el anfitrión, así que no se puede acelerar',
+      'Los bichos parpadean al recibir, también en la pantalla del invitado',
+      'Los objetos del suelo se ven en los dos lados',
+      'El invitado los pide y el anfitrión se los da: dos no pueden coger lo mismo',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

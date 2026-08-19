@@ -34,7 +34,17 @@ const REBOTE = 0.35;
 const FUERZA_IMAN = 0.55;
 const VEL_MAX_IMAN = 7;
 
+/**
+ * Un número por objeto del suelo, para poder hablar de él por la red.
+ *
+ * Nace aquí y no en la partida porque quien crea el drop es esto: un contador
+ * fuera obligaría a acordarse de asignarlo en los seis sitios que sueltan cosas.
+ */
+let siguienteId = 1;
+
 export interface Drop {
+  /** Su número, único en esta partida. Solo lo usa la red. */
+  id: number;
   objeto: number;
   cantidad: number;
   x: number;
@@ -54,6 +64,7 @@ export function crearDrop(
   rng: () => number = Math.random,
 ): Drop {
   return {
+    id: siguienteId++,
     objeto,
     cantidad,
     // Centrado en el tile, menos el propio tamaño del objeto.

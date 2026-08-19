@@ -19,13 +19,17 @@ import { actualizarFisica, crearCaja, type Ajustes, type Caja, type Entrada } fr
 import { JUGADOR_ALTO, JUGADOR_ANCHO } from '../core/constants';
 import type { Mundo } from '../world/world';
 import { indiceDeEspecie, type Acompanante, type Enemigo } from '../entities/enemies';
+import type { Drop } from '../entities/drop';
 import { TICKS_INVULNERABLE } from '../entities/salud';
 import { autoridadDeCaja } from './prediccion';
+import { crearGolpe, lanzarGolpe, tickGolpe, type Golpe, type Sentido } from '../entities/combat';
+import { esArma } from '../items/items';
 import {
   BOTON,
   ENT,
   MSG,
   escribirDano,
+  escribirRecogido,
   RECHAZO,
   VERSION_PROTOCOLO,
   escribirBienvenido,
@@ -72,6 +76,12 @@ export const BASE_ID_BICHO = 1000;
  */
 export const TOPE_BICHOS = 60;
 
+/**
+ * Y cuántos objetos del suelo. Menos que bichos y por el mismo motivo: pesan
+ * lo mismo en el cable y molestan menos si faltan.
+ */
+export const TOPE_OBJETOS = 40;
+
 export interface JugadorConectado {
   /** Número corto, el que viaja en las instantáneas. */
   id: number;
@@ -93,6 +103,14 @@ export interface JugadorConectado {
    * se toma la decisión.
    */
   invulnerable: number;
+  /**
+   * Su mandoble, con su cadencia.
+   *
+   * Uno por invitado y llevado aquí, no allí: si la cadencia la comprobara solo
+   * quien pulsa, un cliente modificado mandaría un golpe por tick. Es la misma
+   * regla del juego local, aplicada donde se toma la decisión.
+   */
+  golpe: Golpe;
 }
 
 export interface OpcionesAnfitrion {
@@ -111,6 +129,14 @@ export interface OpcionesAnfitrion {
   /** Un tile ha cambiado por petición de alguien: el juego tiene que enterarse. */
   alCambiarTile?: (c: CambioTile) => void;
   /**
+   * Un invitado ha dado un mandoble que ya ha pasado el filtro.
+   *
+   * El juego lo resuelve contra sus bichos: el anfitrión no los tiene.
+   */
+  alGolpear?: (quien: number, golpe: Golpe, caja: Caja) => void;
+  /** Un invitado quiere coger algo del suelo. El juego mira si lo tiene cerca. */
+  alPedirObjeto?: (quien: number, idDrop: number, caja: Caja) => void;
+  /**
    * Los bichos que hay ahora mismo.
    *
    * Se pide en cada instantánea en vez de guardarse: la lista del juego cambia
@@ -124,6 +150,8 @@ export interface OpcionesAnfitrion {
    * copia se quedaría vieja al momento.
    */
   minutos?: () => number;
+  /** Los objetos que hay por el suelo ahora mismo, para mandarlos. */
+  objetos?: () => readonly Drop[];
 }
 
 function entradaDeBotones(botones: number, antes: Entrada): Entrada {
@@ -215,6 +243,12 @@ export class Anfitrion {
       case MSG.PIDO_TILE:
         this.atenderPeticionDeTile(j, m.cambio);
         break;
+      case MSG.GOLPE:
+        this.atenderGolpe(j, m.arma, m.direccion, m.sentido);
+        break;
+      case MSG.COJO:
+        this.op.alPedirObjeto?.(j.id, m.idDrop, j.caja);
+        break;
       case MSG.ADIOS:
         this.quitar(quien);
         return null;
@@ -238,11 +272,38 @@ export class Anfitrion {
       ultimoTick: -1,
       listo: false,
       invulnerable: 0,
+      golpe: crearGolpe(),
     };
     this.jugadores.set(id, j);
     enlace.mandarFirme(escribirBienvenido(id, this.tickActual));
     this.op.alEntrar?.(j);
     return id;
+  }
+
+  /**
+   * Un mandoble de un invitado.
+   *
+   * Aquí solo se comprueba lo que hay que comprobar —que sea un arma de verdad
+   * y que le toque— y se prepara el golpe; a quién alcanza lo decide el juego,
+   * que es el que tiene los bichos, el botín y las partículas. Repartir así el
+   * trabajo es lo que evita que esta clase acabe sabiendo qué es una araña.
+   */
+  private atenderGolpe(
+    j: JugadorConectado,
+    arma: number,
+    direccion: 1 | -1,
+    sentido: number,
+  ): void {
+    if (!esArma(arma)) return;
+    const cual: Sentido = sentido === 1 ? 'arriba' : sentido === 2 ? 'abajo' : 'lado';
+    // `lanzarGolpe` dice que no si el arma sigue en su cadencia, y esa negativa
+    // es toda la protección que hace falta contra un cliente que insista.
+    if (!lanzarGolpe(j.golpe, arma, direccion, cual)) return;
+    j.caja.mirando = direccion;
+    // El barrido no se resuelve aquí sino en cada tick mientras dure, que es lo
+    // que hace el juego en local: un bicho que se mete en el arco a mitad del
+    // mandoble recibe igual. Resolviéndolo solo en el instante del clic, el
+    // invitado fallaría golpes que quien hospeda acierta.
   }
 
   /**
@@ -268,6 +329,18 @@ export class Anfitrion {
     if (!j || !j.listo || j.invulnerable > 0) return;
     j.invulnerable = TICKS_INVULNERABLE;
     j.enlace.mandarFirme(escribirDano(dano, desdeX));
+  }
+
+  /**
+   * Darle a un invitado lo que ha pedido del suelo.
+   *
+   * Va por el canal fiable: perder un «es tuyo» sería perder el objeto, porque
+   * el anfitrión ya lo ha quitado del mundo.
+   */
+  entregar(id: number, objeto: number, cantidad: number): void {
+    const j = this.jugadores.get(id);
+    if (!j?.listo) return;
+    j.enlace.mandarFirme(escribirRecogido(objeto, cantidad));
   }
 
   /** Manda el mundo al que acaba de entrar. Va por el canal fiable y troceado. */
@@ -343,6 +416,47 @@ export class Anfitrion {
   }
 
   /**
+   * Los objetos del suelo, para que el invitado los vea y los pueda pedir.
+   *
+   * Van con tope, como los bichos: una veta de carbón picada entera son
+   * cuarenta objetos por el suelo, y una cueva llena de restos no puede llenar
+   * el canal. Los que se queden fuera siguen ahí para quien los tenga cerca:
+   * lo único que se pierde es verlos desde lejos.
+   */
+  private objetosDeLaInstantanea(): EntidadRed[] {
+    const lista = this.op.objetos?.() ?? [];
+    const salida: EntidadRed[] = [];
+    for (const d of lista) {
+      if (salida.length >= TOPE_OBJETOS) break;
+      salida.push({
+        clase: ENT.OBJETO,
+        id: d.id,
+        sub: d.objeto,
+        vida: d.cantidad,
+        vidaMax: 0,
+        ...autoridadDeCaja({
+          x: d.x,
+          y: d.y,
+          vx: d.vx,
+          vy: d.vy,
+          mirando: 1,
+          enSuelo: false,
+          ticksCoyote: 0,
+          ticksBuffer: 0,
+          ticksSalto: 0,
+          saltando: false,
+          nadaba: false,
+          yInicioCaida: 0,
+          ultimaCaida: 0,
+          ancho: 0,
+          alto: 0,
+        }),
+      });
+    }
+    return salida;
+  }
+
+  /**
    * Un tick de mundo. Lo llama el juego, después de mover a su propio jugador.
    *
    * `miCaja` es la del anfitrión, que entra en las instantáneas como uno más:
@@ -357,6 +471,11 @@ export class Anfitrion {
       // mientras no llegue una entrada nueva.
       j.entrada = { ...j.entrada, saltoPulsado: false };
       if (j.invulnerable > 0) j.invulnerable--;
+      // Mientras el arma esté barriendo, se resuelve cada tick. La lista de
+      // tocados que lleva el propio golpe es lo que impide que uno reciba dos
+      // veces por el mismo mandoble.
+      if (j.golpe.restante > 0) this.op.alGolpear?.(j.id, j.golpe, j.caja);
+      tickGolpe(j.golpe);
     }
 
     if (this.pendientes.length > 0) {
@@ -380,6 +499,7 @@ export class Anfitrion {
         ...autoridadDeCaja(j.caja),
       })),
       ...this.bichosDeLaInstantanea(),
+      ...this.objetosDeLaInstantanea(),
     ];
 
     // Una instantánea por jugador y no una para todos: `tickConfirmado` es

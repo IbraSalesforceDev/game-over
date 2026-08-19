@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 3;
+export const VERSION_PROTOCOLO = 4;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -70,6 +70,20 @@ export const MSG = {
    * note: dónde está cada bicho y a quién ha tocado.
    */
   DANO: 10,
+  /**
+   * Cliente → anfitrión: he dado un mandoble con esto y hacia allí.
+   *
+   * No dice a quién le ha dado ni cuánto: eso lo resuelve el anfitrión con sus
+   * bichos y su mundo. Lo único que viaja es el arma y la dirección, que es lo
+   * mismo que ve el jugador al pulsar. La cadencia también la comprueba el
+   * anfitrión, con la misma regla que en local: sin eso, un cliente modificado
+   * mandaría un golpe por tick.
+   */
+  GOLPE: 11,
+  /** Cliente → anfitrión: quiero coger ese objeto del suelo. */
+  COJO: 12,
+  /** Anfitrión → cliente: es tuyo, mételo en el zurrón. */
+  RECOGIDO: 13,
 } as const;
 
 export type TipoMensaje = (typeof MSG)[keyof typeof MSG];
@@ -166,9 +180,16 @@ export interface EntidadRed {
   /**
    * Qué es exactamente, dentro de su clase.
    *
-   * Para un `BICHO` es su especie; para un `JUGADOR` no significa nada. Este
-   * byte es lo que hace que la instantánea no tenga que saber qué transporta:
-   * añadir bichos no le cambió ni un campo, solo le dio un uso a este.
+   * Para un `BICHO` es su especie, para un `OBJETO` es qué objeto y para un
+   * `JUGADOR` no significa nada. Es lo que hace que la instantánea no tenga que
+   * saber qué transporta: añadir bichos no le cambió ni un campo, solo le dio un
+   * uso a este.
+   *
+   * Ocupa dos bytes desde el protocolo 4. Con uno solo cabían las especies, que
+   * son veintitrés, pero no los objetos, que pasan de doscientos: la alternativa
+   * era meter el identificador del objeto en el campo de la vida, y un campo que
+   * significa dos cosas según quién lo mire es la clase de atajo que se cobra
+   * meses después.
    */
   sub: number;
   /**
@@ -291,13 +312,39 @@ export function escribirInstantanea(inst: Instantanea): Uint8Array {
     e.i16(Math.max(-32768, Math.min(32767, Math.round(ent.vy * 256))));
     e.u8(ent.banderas);
     e.u16(Math.max(0, Math.min(65535, Math.round(ent.vida))));
-    e.u8(Math.max(0, Math.min(255, ent.sub)));
+    e.u16(Math.max(0, Math.min(65535, ent.sub)));
     e.u8(Math.max(0, Math.min(255, ent.ticksCoyote)));
     e.u8(Math.max(0, Math.min(255, ent.ticksBuffer)));
     e.u8(Math.max(0, Math.min(255, ent.ticksSalto)));
     e.i16(Math.max(-32768, Math.min(32767, Math.round(ent.yInicioCaida))));
     e.u16(Math.max(0, Math.min(65535, Math.round(ent.vidaMax))));
   }
+  return e.terminar();
+}
+
+/** Un mandoble del invitado, para que lo resuelva quien tiene los bichos. */
+export function escribirGolpe(arma: number, direccion: 1 | -1, sentido: number): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.GOLPE);
+  e.u16(arma);
+  e.u8(direccion === 1 ? 1 : 0);
+  e.u8(sentido);
+  return e.terminar();
+}
+
+/** «Quiero ese de ahí» y «tuyo es», las dos mitades de recoger algo del suelo. */
+export function escribirCojo(idDrop: number): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.COJO);
+  e.u16(idDrop);
+  return e.terminar();
+}
+
+export function escribirRecogido(objeto: number, cantidad: number): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.RECOGIDO);
+  e.u16(objeto);
+  e.u16(cantidad);
   return e.terminar();
 }
 
@@ -351,7 +398,10 @@ export type Mensaje =
   | { tipo: typeof MSG.PIDO_TILE; cambio: CambioTile }
   | { tipo: typeof MSG.TILES; cambios: CambioTile[] }
   | { tipo: typeof MSG.ADIOS }
-  | { tipo: typeof MSG.DANO; dano: number; desdeX: number };
+  | { tipo: typeof MSG.DANO; dano: number; desdeX: number }
+  | { tipo: typeof MSG.GOLPE; arma: number; direccion: 1 | -1; sentido: number }
+  | { tipo: typeof MSG.COJO; idDrop: number }
+  | { tipo: typeof MSG.RECOGIDO; objeto: number; cantidad: number };
 
 /**
  * Lee un mensaje. Devuelve null si no se entiende.
@@ -395,7 +445,7 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
             vy: l.i16() / 256,
             banderas: l.u8(),
             vida: l.u16(),
-            sub: l.u8(),
+            sub: l.u16(),
             ticksCoyote: l.u8(),
             ticksBuffer: l.u8(),
             ticksSalto: l.u8(),
@@ -410,6 +460,17 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
       }
       case MSG.DANO:
         return { tipo: MSG.DANO, dano: l.u16(), desdeX: l.i16() };
+      case MSG.GOLPE:
+        return {
+          tipo: MSG.GOLPE,
+          arma: l.u16(),
+          direccion: l.u8() === 1 ? 1 : -1,
+          sentido: l.u8(),
+        };
+      case MSG.COJO:
+        return { tipo: MSG.COJO, idDrop: l.u16() };
+      case MSG.RECOGIDO:
+        return { tipo: MSG.RECOGIDO, objeto: l.u16(), cantidad: l.u16() };
       case MSG.PIDO_TILE:
         return {
           tipo: MSG.PIDO_TILE,

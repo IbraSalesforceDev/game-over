@@ -23,6 +23,9 @@ import { empaquetar } from '../src/world/save';
 import { generarMundo } from '../src/world/gen/worldgen';
 import { VERSION_ACTUAL } from '../src/core/versiones';
 import { PIEDRA, AIRE } from '../src/world/tiles';
+import { crearDrop, type Drop } from '../src/entities/drop';
+import { ESPADA_HIERRO, GEL } from '../src/items/items';
+import { TICKS_GOLPE } from '../src/entities/combat';
 
 const lista = document.getElementById('resultados')!;
 const fallos: string[] = [];
@@ -110,6 +113,11 @@ async function main(): Promise<void> {
   let horaDelAnfitrion = 615;
   let horaEnElInvitado = -1;
   let golpesRecibidos = 0;
+  /** Lo que el anfitrión resuelve de los mandobles del invitado. */
+  /** Un apunte por tick barrido; los que empiezan un mandoble van marcados. */
+  const mandobles: { arma: number; empieza: boolean }[] = [];
+  const recogido: { objeto: number; cantidad: number }[] = [];
+  const suelo: Drop[] = [];
   const tilesEnB: { tx: number; ty: number; id: number }[] = [];
   const tilesEnA: { tx: number; ty: number; id: number }[] = [];
 
@@ -124,6 +132,16 @@ async function main(): Promise<void> {
     bytesDelMundo: () => empaquetar(genA.mundo, estado as any),
     bichos: () => [],
     minutos: () => horaDelAnfitrion,
+    objetos: () => suelo,
+    alGolpear: (_quien, g) =>
+      mandobles.push({ arma: g.arma, empieza: g.restante === TICKS_GOLPE }),
+    alPedirObjeto: (quien, idDrop) => {
+      const d = suelo.find((x) => x.id === idDrop);
+      if (!d) return;
+      d.vivo = false;
+      suelo.splice(suelo.indexOf(d), 1);
+      anfitrion.entregar(quien, d.objeto, d.cantidad);
+    },
     entrarEnSala: sala('anfitrion'),
     alCambiarTiles: (cs) => tilesEnA.push(...cs),
   });
@@ -145,6 +163,7 @@ async function main(): Promise<void> {
     alRecibirGolpe: () => {
       golpesRecibidos++;
     },
+    alRecogerObjeto: (objeto, cantidad) => recogido.push({ objeto, cantidad }),
   });
 
   // El bucle del juego: los dos avanzan a 60 Hz, como en la partida de verdad.
@@ -188,6 +207,41 @@ async function main(): Promise<void> {
   comprobar(
     'un golpe de un bicho le llega al invitado',
     await esperarA(() => golpesRecibidos > 0, 5000),
+  );
+
+  // El mandoble del invitado lo resuelve el anfitrión, que es quien tiene los
+  // bichos. Y con su cadencia: el segundo, seguido, no cuenta.
+  const empezados = () => mandobles.filter((m) => m.empieza).length;
+  invitado.golpear(ESPADA_HIERRO, 1, 0);
+  comprobar(
+    'el mandoble del invitado llega al anfitrión',
+    await esperarA(() => empezados() === 1, 5000),
+  );
+  invitado.golpear(ESPADA_HIERRO, 1, 0);
+  await esperar(400);
+  comprobar('y el siguiente, sin esperar la cadencia, no cuela', empezados() === 1);
+
+  // Un objeto en el suelo del anfitrión tiene que verse en el invitado y poder
+  // pedirse.
+  suelo.push(crearDrop(GEL, 5, 0, 0));
+  comprobar(
+    'el invitado ve lo que hay por el suelo',
+    await esperarA(() => (invitado.objetos() ?? []).length === 1, 5000),
+  );
+  const enElSuelo = invitado.objetos()![0]!;
+  comprobar('y sabe qué es y cuánto hay', enElSuelo.objeto === GEL && enElSuelo.cantidad === 5);
+  invitado.pedirObjeto(enElSuelo.id);
+  comprobar(
+    'lo pide y el anfitrión se lo da',
+    await esperarA(() => recogido.length === 1, 5000),
+  );
+  comprobar(
+    'con lo que era y cuánto era',
+    recogido[0]?.objeto === GEL && recogido[0]?.cantidad === 5,
+  );
+  comprobar(
+    'y deja de estar en el suelo',
+    await esperarA(() => (invitado.objetos() ?? []).length === 0, 5000),
   );
 
   // Un bloque puesto por el anfitrión tiene que aparecer en el invitado.
