@@ -2,12 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { TILE } from '../src/core/constants';
 import { actualizarDrop, crearDrop, fusionarDrops, RADIO_IMAN } from '../src/entities/drop';
 import { equipoInicial, mejorPico, PICO_INICIAL } from '../src/items/equipo';
-import { Inventario, RANURAS_BARRA, TOTAL_RANURAS } from '../src/items/inventory';
+import {
+  estaVacia,
+  Inventario,
+  RANURAS_BARRA,
+  tocar,
+  TOTAL_RANURAS,
+} from '../src/items/inventory';
 import {
   defObjeto,
   dropDeTile,
   esColocable,
   esHerramienta,
+  GEL,
+  HUESO,
   NADA,
   PICO_HIERRO,
   PICO_MADERA,
@@ -285,5 +293,78 @@ describe('objetos por el suelo', () => {
     const d = crearDrop(PIEDRA, 1, 10, 0, () => 0.5);
     for (let i = 0; i < 400; i++) actualizarDrop(m, d, lejos, inv);
     expect(d.y).toBeLessThan(SUELO * TILE);
+  });
+});
+
+/**
+ * Coger, soltar, apilar e intercambiar.
+ *
+ * Estaba dentro del panel del inventario hasta 7.12.2, y salió de ahí porque
+ * ahora lo ejecutan dos sitios: quien hace clic y, en una partida acompañada,
+ * el anfitrión repitiendo el movimiento sobre su propio cofre. Dos copias de
+ * esta regla acabarían apilando distinto y el cofre tendría más cosas de las
+ * que entraron.
+ */
+describe('tocar una ranura con algo en la mano', () => {
+  it('con la mano vacía, se lleva la pila entera', () => {
+    const inv = new Inventario(4);
+    inv.ponerEn(0, GEL, 30);
+    const mano = { objeto: NADA, cantidad: 0 };
+    expect(tocar(inv, 0, mano)).toBe(true);
+    expect(mano).toEqual({ objeto: GEL, cantidad: 30 });
+    expect(estaVacia(inv.ranuras[0]!)).toBe(true);
+  });
+
+  it('con la mano vacía y la ranura vacía, no pasa nada', () => {
+    const inv = new Inventario(4);
+    const mano = { objeto: NADA, cantidad: 0 };
+    expect(tocar(inv, 0, mano)).toBe(false);
+  });
+
+  it('sobre una ranura vacía, se suelta todo', () => {
+    const inv = new Inventario(4);
+    const mano = { objeto: GEL, cantidad: 12 };
+    tocar(inv, 2, mano);
+    expect(inv.ranuras[2]).toMatchObject({ objeto: GEL, cantidad: 12 });
+    expect(mano.objeto).toBe(NADA);
+  });
+
+  it('sobre lo mismo, se apila hasta el tope y el resto se queda en la mano', () => {
+    const inv = new Inventario(4);
+    const tope = defObjeto(GEL).maxPila;
+    inv.ponerEn(0, GEL, tope - 5);
+    const mano = { objeto: GEL, cantidad: 20 };
+    tocar(inv, 0, mano);
+    expect(inv.ranuras[0]!.cantidad).toBe(tope);
+    expect(mano).toEqual({ objeto: GEL, cantidad: 15 });
+  });
+
+  it('sobre otra cosa, se intercambian', () => {
+    const inv = new Inventario(4);
+    inv.ponerEn(0, GEL, 3);
+    const mano = { objeto: HUESO, cantidad: 8 };
+    tocar(inv, 0, mano);
+    expect(inv.ranuras[0]).toMatchObject({ objeto: HUESO, cantidad: 8 });
+    expect(mano).toEqual({ objeto: GEL, cantidad: 3 });
+  });
+
+  it('lo que la ranura no admite, no entra; sacar de ella sí se puede', () => {
+    const inv = new Inventario(4);
+    inv.ponerEn(0, GEL, 3);
+    const soloHueso = (o: number) => o === HUESO;
+    const mano = { objeto: GEL, cantidad: 1 };
+    expect(tocar(inv, 0, mano, soloHueso)).toBe(false);
+    expect(inv.ranuras[0]!.cantidad).toBe(3);
+
+    const vacia = { objeto: NADA, cantidad: 0 };
+    expect(tocar(inv, 0, vacia, soloHueso)).toBe(true);
+    expect(vacia).toEqual({ objeto: GEL, cantidad: 3 });
+  });
+
+  it('una ranura que no existe no rompe nada', () => {
+    const inv = new Inventario(4);
+    const mano = { objeto: GEL, cantidad: 1 };
+    expect(tocar(inv, 99, mano)).toBe(false);
+    expect(mano).toEqual({ objeto: GEL, cantidad: 1 });
   });
 });

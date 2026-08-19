@@ -28,6 +28,8 @@ import {
   ENT,
   JuntaMundo,
   MSG,
+  escribirCofreAbrir,
+  escribirCofreTocar,
   escribirCojo,
   escribirCubo,
   escribirEntrada,
@@ -39,6 +41,7 @@ import {
   type CambioLiquido,
   type CambioTile,
   type EntidadRed,
+  type EstadoCofre,
 } from './protocolo';
 
 export interface OtroJugador {
@@ -71,6 +74,8 @@ export interface OpcionesInvitado {
   alRecogerObjeto?: (objeto: number, cantidad: number) => void;
   /** Cómo ha quedado el agua. La simula el anfitrión y aquí solo se aplica. */
   alCambiarLiquidos?: (cambios: readonly CambioLiquido[]) => void;
+  /** Cómo ha quedado un cofre, y qué te ha quedado en la mano si lo tocaste tú. */
+  alSaberDelCofre?: (cofre: EstadoCofre) => void;
 }
 
 export function botonesDeEntrada(e: Entrada): number {
@@ -167,6 +172,10 @@ export class Invitado {
 
       case MSG.LIQUIDOS:
         this.op.alCambiarLiquidos?.(m.cambios);
+        break;
+
+      case MSG.COFRE:
+        this.op.alSaberDelCofre?.(m.cofre);
         break;
 
       case MSG.INSTANTANEA:
@@ -338,6 +347,16 @@ export class Invitado {
   /** Avisa de un cubo usado. El agua que salga de ahí la reparte el anfitrión. */
   avisarCubo(objeto: number, tx: number, ty: number): void {
     this.op.enlace.mandarFirme(escribirCubo(objeto, tx, ty));
+  }
+
+  /** Pide abrir un cofre. Lo que llegue es lo que hay dentro de verdad. */
+  abrirCofre(tx: number, ty: number): void {
+    this.op.enlace.mandarFirme(escribirCofreAbrir(tx, ty));
+  }
+
+  /** Cuenta que ha tocado una ranura, con lo que llevaba en la mano. */
+  tocarCofre(tx: number, ty: number, ranura: number, objeto: number, cantidad: number): void {
+    this.op.enlace.mandarFirme(escribirCofreTocar(tx, ty, ranura, objeto, cantidad));
   }
 
   /** Los objetos del suelo que dice el anfitrión, tal cual los espera el juego. */

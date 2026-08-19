@@ -100,7 +100,7 @@ import {
 import { puedeSembrar, tickCultivos } from './world/cultivo';
 import { plantarArbolEn, techoInframundo } from './world/gen/worldgen';
 import { MotorLuz } from './world/lighting';
-import { Inventario } from './items/inventory';
+import { Inventario, tocar } from './items/inventory';
 import { equipoInicial, nivelEnMano, potenciaContra } from './items/equipo';
 import {
   cabeEnEquipo,
@@ -211,7 +211,7 @@ import {
   tickHambre,
 } from './entities/hambre';
 import { SimuladorLiquidos, sumersion } from './world/liquids';
-import type { CambioLiquido } from './red/protocolo';
+import type { CambioLiquido, EstadoCofre } from './red/protocolo';
 import { puedeUsarCubo, usarCubo } from './items/cubo';
 import {
   alcanceDeMapa,
@@ -810,6 +810,11 @@ async function arrancar(): Promise<void> {
           liquidosCambiados: (tope) => liquidos.tomarSucias(tope),
           alGolpear: (_quien, g, caja) => resolverMandoble(g, caja, g.arma, false),
           alPedirObjeto: darObjetoAInvitado,
+          alAbrirCofre: (quien, tx, ty) => {
+            if (mundo.getTile(tx, ty) !== COFRE) return;
+            sesionRed?.contarCofre(estadoDelCofre(tx, ty), quien);
+          },
+          alTocarCofre: tocarCofreDeInvitado,
           alUsarCubo: (objeto, tx, ty) => {
             if (!puedeUsarCubo(mundo, objeto, tx, ty)) return;
             usarCubo(mundo, liquidos, objeto, tx, ty);
@@ -829,6 +834,7 @@ async function arrancar(): Promise<void> {
           alDarLaHora: ponerEnHora,
           alRecibirGolpe: recibirGolpeDeRed,
           alCambiarLiquidos: aplicarLiquidosDeRed,
+          alSaberDelCofre: aplicarCofreDeRed,
           alRecogerObjeto: (objeto, cantidad) => {
             inventario.anadir(objeto, cantidad);
             barra.refrescar(capa);
@@ -841,6 +847,65 @@ async function arrancar(): Promise<void> {
       aviso.mostrar('No se ha podido conectar con los demás', true);
       acompanados.estado('fallo');
     }
+  }
+
+  /** El estado de un cofre tal cual viaja por el cable. */
+  function estadoDelCofre(
+    tx: number,
+    ty: number,
+    mano: { objeto: number; cantidad: number } | null = null,
+  ): EstadoCofre {
+    return { tx, ty, ranuras: cofres.obtener(tx, ty).aDatos(), mano };
+  }
+
+  /**
+   * Si el anfitrión tiene un cofre abierto, cuenta cómo ha quedado.
+   *
+   * Se llama en cada cambio del inventario, que es más veces de las que hace
+   * falta, pero es el único sitio por el que pasan todos los movimientos y un
+   * cofre abierto es cosa de segundos.
+   */
+  function contarCofreAbierto(): void {
+    if (sesionRed?.papel !== 'anfitrion') return;
+    const abierto = barra.cofreAbierto;
+    if (!abierto) return;
+    sesionRed.contarCofre(estadoDelCofre(abierto.tx, abierto.ty));
+  }
+
+  /**
+   * Un invitado ha tocado una ranura de un cofre.
+   *
+   * Se repite aquí el mismo movimiento con la misma función que usa el panel, y
+   * se contesta con las dos mitades: cómo ha quedado el cofre y qué le queda en
+   * la mano. Si dos cogen lo mismo a la vez, el segundo se encuentra la ranura
+   * vacía y se queda con las manos vacías, que es lo correcto.
+   */
+  function tocarCofreDeInvitado(
+    quien: number,
+    tx: number,
+    ty: number,
+    ranura: number,
+    objeto: number,
+    cantidad: number,
+  ): void {
+    if (mundo.getTile(tx, ty) !== COFRE) return;
+    const mano = { objeto, cantidad };
+    tocar(cofres.obtener(tx, ty), ranura, mano);
+    sesionRed?.contarCofre(estadoDelCofre(tx, ty, mano), quien);
+    // Y a los demás, sin mano: puede que alguien lo tenga abierto delante.
+    sesionRed?.contarCofre(estadoDelCofre(tx, ty));
+  }
+
+  /** Aplica lo que el anfitrión dice que hay en un cofre. */
+  function aplicarCofreDeRed(cofre: EstadoCofre): void {
+    const inv = cofres.obtener(cofre.tx, cofre.ty);
+    for (let i = 0; i < inv.ranuras.length; i++) {
+      const r = cofre.ranuras[i];
+      inv.ranuras[i]!.objeto = r ? r[0] : NADA;
+      inv.ranuras[i]!.cantidad = r ? r[1] : 0;
+    }
+    if (cofre.mano) barra.ponerEnMano(cofre.mano.objeto, cofre.mano.cantidad);
+    barra.refrescar(capa);
   }
 
   /**
@@ -1275,7 +1340,13 @@ async function arrancar(): Promise<void> {
     conEquipo: tiene('armadura'),
     conFicha: tiene('fichaObjeto'),
     conIconos: tiene('iconosDibujados'),
-    alCambiar: () => reiniciarPicado(picado),
+    alCambiar: () => {
+      reiniciarPicado(picado);
+      // El anfitrión también toca cofres, y puede haber alguien mirándolos.
+      contarCofreAbierto();
+    },
+    alTocarCofre: (tx, ty, ranura, objeto, cantidad) =>
+      sesionRed?.tocarCofre(tx, ty, ranura, objeto, cantidad),
     estaciones: () => estacionesCerca(mundo, jugador.caja),
     alFabricar: () => audio.sonar('craftear'),
     alSoltarAlMundo: (objeto, cantidad) => {
@@ -2811,7 +2882,12 @@ async function arrancar(): Promise<void> {
     if (puntero.der && !derAnterior && mundo.getTile(tx, ty) === COFRE) {
       const abierto = barra.cofreAbierto;
       if (abierto && abierto.tx === tx && abierto.ty === ty) barra.cerrar();
-      else barra.abrirCofre(cofres.obtener(tx, ty), tx, ty);
+      else {
+        barra.abrirCofre(cofres.obtener(tx, ty), tx, ty);
+        // Lo que hay dentro lo dice el anfitrión: la copia de aquí es de cuando
+        // se entró, y desde entonces ha podido cambiar.
+        sesionRed?.abrirCofre(tx, ty);
+      }
       derAnterior = puntero.der;
       return;
     }

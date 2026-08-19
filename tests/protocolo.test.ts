@@ -11,6 +11,9 @@ import {
   escribirBienvenido,
   escribirEntrada,
   escribirHola,
+  escribirCofre,
+  escribirCofreAbrir,
+  escribirCofreTocar,
   escribirCubo,
   escribirInstantanea,
   escribirLiquidos,
@@ -22,7 +25,7 @@ import {
   trocearMundo,
   type EntidadRed,
 } from '../src/red/protocolo';
-import { CUBO_AGUA } from '../src/items/items';
+import { CUBO_AGUA, GEL } from '../src/items/items';
 
 describe('ida y vuelta de cada mensaje', () => {
   it('hola', () => {
@@ -92,6 +95,46 @@ describe('ida y vuelta de cada mensaje', () => {
       objeto: CUBO_AGUA,
       tx: -3,
       ty: 900,
+    });
+  });
+
+  it('el cofre va y vuelve con sus ranuras y la mano', () => {
+    const cofre = {
+      tx: 400,
+      ty: -2,
+      ranuras: [
+        [GEL, 40],
+        [0, 0],
+        [CUBO_AGUA, 1],
+      ] as [number, number][],
+      mano: { objeto: GEL, cantidad: 7 },
+    };
+    expect(leerMensaje(escribirCofre(cofre))).toEqual({ tipo: MSG.COFRE, cofre });
+  });
+
+  /** Abrir no cambia la mano, y por eso viaja sin ella. */
+  it('un cofre sin mano se distingue de uno con la mano vacía', () => {
+    const sinMano = { tx: 1, ty: 2, ranuras: [] as [number, number][], mano: null };
+    expect(leerMensaje(escribirCofre(sinMano))).toEqual({ tipo: MSG.COFRE, cofre: sinMano });
+
+    const manoVacia = { ...sinMano, mano: { objeto: 0, cantidad: 0 } };
+    const leido = leerMensaje(escribirCofre(manoVacia)) as { cofre: typeof manoVacia };
+    expect(leido.cofre.mano).toEqual({ objeto: 0, cantidad: 0 });
+  });
+
+  it('las dos peticiones del cofre llevan lo suyo', () => {
+    expect(leerMensaje(escribirCofreAbrir(-5, 900))).toEqual({
+      tipo: MSG.COFRE_ABRIR,
+      tx: -5,
+      ty: 900,
+    });
+    expect(leerMensaje(escribirCofreTocar(3, 4, 19, GEL, 40))).toEqual({
+      tipo: MSG.COFRE_TOCAR,
+      tx: 3,
+      ty: 4,
+      ranura: 19,
+      objeto: GEL,
+      cantidad: 40,
     });
   });
 

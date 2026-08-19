@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 5;
+export const VERSION_PROTOCOLO = 6;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -104,6 +104,26 @@ export const MSG = {
    * de líquidos lo deja como toque.
    */
   CUBO: 15,
+  /**
+   * Cliente → anfitrión: ábreme ese cofre.
+   *
+   * Hace falta preguntar aunque el invitado tenga su copia del mundo, porque su
+   * copia es de cuando entró: desde entonces el anfitrión ha podido guardar o
+   * sacar cosas de ese mismo cofre, y abrirlo con lo que uno recuerda es la
+   * forma más rápida de que dos jugadores vean cofres distintos.
+   */
+  COFRE_ABRIR: 16,
+  /**
+   * Cliente → anfitrión: he tocado esa ranura llevando esto en la mano.
+   *
+   * Lo que viaja es el gesto, no el resultado. El anfitrión lo repite sobre su
+   * cofre —con la misma función que usa el panel— y contesta con cómo ha
+   * quedado el cofre y qué ha quedado en la mano. Así dos que cojan lo mismo a
+   * la vez no lo duplican: el segundo se encuentra la ranura ya vacía.
+   */
+  COFRE_TOCAR: 17,
+  /** Anfitrión → cliente: así está ese cofre, y esto es lo que llevas. */
+  COFRE: 18,
 } as const;
 
 export type TipoMensaje = (typeof MSG)[keyof typeof MSG];
@@ -352,6 +372,62 @@ export function escribirGolpe(arma: number, direccion: 1 | -1, sentido: number):
   return e.terminar();
 }
 
+export interface EstadoCofre {
+  tx: number;
+  ty: number;
+  /** Las veinte ranuras, como pares (objeto, cantidad). */
+  ranuras: [number, number][];
+  /**
+   * Lo que le queda en la mano a quien tocó, o null si esto no viene de tocar.
+   *
+   * Va junto y no en un mensaje aparte porque es la otra mitad del mismo
+   * movimiento: el cofre y la mano cambian a la vez, y separarlos abriría un
+   * instante en el que un objeto está en los dos sitios o en ninguno.
+   */
+  mano: { objeto: number; cantidad: number } | null;
+}
+
+export function escribirCofreAbrir(tx: number, ty: number): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.COFRE_ABRIR);
+  e.i16(tx);
+  e.i16(ty);
+  return e.terminar();
+}
+
+export function escribirCofreTocar(
+  tx: number,
+  ty: number,
+  ranura: number,
+  objeto: number,
+  cantidad: number,
+): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.COFRE_TOCAR);
+  e.i16(tx);
+  e.i16(ty);
+  e.u8(ranura);
+  e.u16(objeto);
+  e.u16(cantidad);
+  return e.terminar();
+}
+
+export function escribirCofre(c: EstadoCofre): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.COFRE);
+  e.i16(c.tx);
+  e.i16(c.ty);
+  e.u8(c.mano ? 1 : 0);
+  e.u16(c.mano?.objeto ?? 0);
+  e.u16(c.mano?.cantidad ?? 0);
+  e.u8(c.ranuras.length);
+  for (const [objeto, cantidad] of c.ranuras) {
+    e.u16(objeto);
+    e.u16(cantidad);
+  }
+  return e.terminar();
+}
+
 /** Un cubo usado en una casilla. El anfitrión mira si se puede. */
 export function escribirCubo(objeto: number, tx: number, ty: number): Uint8Array {
   const e = new Escritor();
@@ -455,7 +531,17 @@ export type Mensaje =
   | { tipo: typeof MSG.COJO; idDrop: number }
   | { tipo: typeof MSG.RECOGIDO; objeto: number; cantidad: number }
   | { tipo: typeof MSG.LIQUIDOS; cambios: CambioLiquido[] }
-  | { tipo: typeof MSG.CUBO; objeto: number; tx: number; ty: number };
+  | { tipo: typeof MSG.CUBO; objeto: number; tx: number; ty: number }
+  | { tipo: typeof MSG.COFRE_ABRIR; tx: number; ty: number }
+  | {
+      tipo: typeof MSG.COFRE_TOCAR;
+      tx: number;
+      ty: number;
+      ranura: number;
+      objeto: number;
+      cantidad: number;
+    }
+  | { tipo: typeof MSG.COFRE; cofre: EstadoCofre };
 
 /**
  * Lee un mensaje. Devuelve null si no se entiende.
@@ -531,6 +617,31 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
       }
       case MSG.CUBO:
         return { tipo: MSG.CUBO, objeto: l.u16(), tx: l.i16(), ty: l.i16() };
+      case MSG.COFRE_ABRIR:
+        return { tipo: MSG.COFRE_ABRIR, tx: l.i16(), ty: l.i16() };
+      case MSG.COFRE_TOCAR:
+        return {
+          tipo: MSG.COFRE_TOCAR,
+          tx: l.i16(),
+          ty: l.i16(),
+          ranura: l.u8(),
+          objeto: l.u16(),
+          cantidad: l.u16(),
+        };
+      case MSG.COFRE: {
+        const tx = l.i16();
+        const ty = l.i16();
+        const hayMano = l.u8() === 1;
+        const objeto = l.u16();
+        const cantidad = l.u16();
+        const n = l.u8();
+        const ranuras: [number, number][] = [];
+        for (let i = 0; i < n; i++) ranuras.push([l.u16(), l.u16()]);
+        return {
+          tipo: MSG.COFRE,
+          cofre: { tx, ty, ranuras, mano: hayMano ? { objeto, cantidad } : null },
+        };
+      }
       case MSG.COJO:
         return { tipo: MSG.COJO, idDrop: l.u16() };
       case MSG.RECOGIDO:

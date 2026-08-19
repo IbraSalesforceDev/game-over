@@ -1,4 +1,4 @@
-import { maxPila, NADA } from './items';
+import { defObjeto, maxPila, NADA } from './items';
 
 /**
  * Inventario del jugador.
@@ -23,6 +23,69 @@ export interface Ranura {
 
 export function ranuraVacia(): Ranura {
   return { objeto: NADA, cantidad: 0 };
+}
+
+/**
+ * Lo que se lleva en la mano al mover cosas de un sitio a otro.
+ *
+ * Es el cursor del inventario: se coge de una ranura, se lleva y se suelta en
+ * otra. No es un sitio donde se guarde nada —al cerrar el panel vuelve al
+ * zurrón— pero mientras dura, es un estado más.
+ */
+export interface EnMano {
+  objeto: number;
+  cantidad: number;
+}
+
+/**
+ * Toca una ranura llevando algo (o nada) en la mano.
+ *
+ * Coger, soltar, apilar o intercambiar según lo que haya en cada lado, que es
+ * lo que hace todo el mundo sin pensarlo. Mueve **las dos** cosas: la ranura y
+ * la mano.
+ *
+ * Vive aquí y no en el panel porque desde 7.12.2 lo ejecutan dos sitios: quien
+ * hace clic y, en una partida acompañada, el anfitrión sobre su propio cofre.
+ * Si fueran dos copias de la misma regla, un día apilarían distinto y el cofre
+ * acabaría con más cosas de las que entraron.
+ */
+export function tocar(
+  inv: Inventario,
+  indice: number,
+  mano: EnMano,
+  admite: (objeto: number) => boolean = () => true,
+): boolean {
+  const r = inv.ranuras[indice];
+  if (!r) return false;
+  // Sacar siempre se puede; meter, solo lo que admita la ranura. Es lo que
+  // impide dejar una pila de tierra en el hueco del casco.
+  if (mano.objeto !== NADA && !admite(mano.objeto)) return false;
+
+  if (mano.objeto === NADA) {
+    if (estaVacia(r)) return false;
+    mano.objeto = r.objeto;
+    mano.cantidad = r.cantidad;
+    r.objeto = NADA;
+    r.cantidad = 0;
+  } else if (estaVacia(r)) {
+    r.objeto = mano.objeto;
+    r.cantidad = mano.cantidad;
+    mano.objeto = NADA;
+    mano.cantidad = 0;
+  } else if (r.objeto === mano.objeto) {
+    const tope = defObjeto(r.objeto).maxPila;
+    const cabe = Math.min(tope - r.cantidad, mano.cantidad);
+    r.cantidad += cabe;
+    mano.cantidad -= cabe;
+    if (mano.cantidad <= 0) mano.objeto = NADA;
+  } else {
+    const tmp = { objeto: r.objeto, cantidad: r.cantidad };
+    r.objeto = mano.objeto;
+    r.cantidad = mano.cantidad;
+    mano.objeto = tmp.objeto;
+    mano.cantidad = tmp.cantidad;
+  }
+  return true;
 }
 
 export function estaVacia(r: Ranura): boolean {

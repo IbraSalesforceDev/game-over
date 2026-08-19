@@ -842,6 +842,18 @@ export const VERSIONES: readonly Version[] = [
       'Se manda cómo ha quedado cada celda, no cada chapoteo: una catarata cuesta poco',
     ],
   },
+  {
+    id: '7.12.2',
+    etapa: 'prealfa',
+    nombre: 'Un cofre, un contenido',
+    resumen: 'Lo que hay dentro de un cofre lo dice el anfitrión, y es lo mismo para todos.',
+    cambios: [
+      'Al abrir un cofre se pide lo que hay dentro: no vale lo que uno recordara',
+      'Cada movimiento lo repite el anfitrión sobre su cofre y contesta cómo ha quedado',
+      'Dos que cojan la misma pila a la vez ya no la duplican: el segundo llega tarde',
+      'Y si el anfitrión toca un cofre que otro tiene abierto, el otro lo ve',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

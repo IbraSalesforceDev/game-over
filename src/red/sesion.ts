@@ -27,7 +27,12 @@ import type { Golpe } from '../entities/combat';
 import { Anfitrion, type Enlace, type JugadorConectado } from './anfitrion';
 import { ConexionAnfitrion, ConexionInvitado, type EstadoConexion } from './conexion';
 import { Invitado, type OtroJugador } from './invitado';
-import { escribirAdios, type CambioLiquido, type CambioTile } from './protocolo';
+import {
+  escribirAdios,
+  type CambioLiquido,
+  type CambioTile,
+  type EstadoCofre,
+} from './protocolo';
 import { entrarEnSala, type Recado, type Sala } from './senal';
 
 export type Papel = 'anfitrion' | 'invitado';
@@ -43,6 +48,8 @@ export interface AvisosSesion {
   alCambiarTiles?: (cambios: readonly CambioTile[]) => void;
   /** Solo en el invitado: cómo ha quedado el agua según el anfitrión. */
   alCambiarLiquidos?: (cambios: readonly CambioLiquido[]) => void;
+  /** Solo en el invitado: lo que hay de verdad en un cofre. */
+  alSaberDelCofre?: (cofre: EstadoCofre) => void;
   /**
    * Solo en el invitado: te han dado, y esto es lo que pega.
    *
@@ -83,6 +90,17 @@ export interface OpcionesSesion extends AvisosSesion {
   alPedirObjeto?: (quien: number, idDrop: number, caja: Caja) => void;
   /** Solo el anfitrión: un invitado ha usado un cubo dentro de su alcance. */
   alUsarCubo?: (objeto: number, tx: number, ty: number) => void;
+  /** Solo el anfitrión: un invitado quiere abrir un cofre. */
+  alAbrirCofre?: (quien: number, tx: number, ty: number) => void;
+  /** Solo el anfitrión: un invitado ha tocado una ranura de un cofre. */
+  alTocarCofre?: (
+    quien: number,
+    tx: number,
+    ty: number,
+    ranura: number,
+    objeto: number,
+    cantidad: number,
+  ) => void;
   /** Solo el invitado: el anfitrión te da lo que habías pedido. */
   alRecogerObjeto?: (objeto: number, cantidad: number) => void;
   /** Con qué versión nació el mundo, para recrear bien los bichos que llegan. */
@@ -138,6 +156,12 @@ export interface SesionRed {
   pedirObjeto(idDrop: number): void;
   /** Avisar de un cubo usado. En el anfitrión no hace nada: ya lo ha hecho. */
   avisarCubo(objeto: number, tx: number, ty: number): void;
+  /** Pedir abrir un cofre. En el anfitrión no hace nada: ya lo tiene. */
+  abrirCofre(tx: number, ty: number): void;
+  /** Contar que se ha tocado una ranura de un cofre. */
+  tocarCofre(tx: number, ty: number, ranura: number, objeto: number, cantidad: number): void;
+  /** Contar cómo ha quedado un cofre. Solo el anfitrión reparte. */
+  contarCofre(cofre: EstadoCofre, quien?: number): void;
   /** Darle a un invitado lo que ha pedido. Solo el anfitrión reparte. */
   entregar(id: number, objeto: number, cantidad: number): void;
   /**
@@ -174,6 +198,8 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     alGolpear: op.alGolpear,
     alPedirObjeto: op.alPedirObjeto,
     alUsarCubo: op.alUsarCubo,
+    alAbrirCofre: op.alAbrirCofre,
+    alTocarCofre: op.alTocarCofre,
     alEntrar: (j) => {
       nombres.set(j.id, j.nombre);
       op.alContar?.(`${j.nombre} ha entrado`);
@@ -288,6 +314,15 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     avisarCubo() {
       /* el cubo del anfitrión ya ha mojado su mundo, que es el que manda */
     },
+    abrirCofre() {
+      /* el anfitrión abre el suyo directamente */
+    },
+    tocarCofre() {
+      /* el anfitrión toca el suyo directamente; lo que hace es contarlo */
+    },
+    contarCofre(cofre, quien) {
+      anfitrion.contarCofre(cofre, quien);
+    },
     entregar(id, objeto, cantidad) {
       anfitrion.entregar(id, objeto, cantidad);
     },
@@ -384,6 +419,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     alRecibirGolpe: (dano, desdeX) => op.alRecibirGolpe?.(dano, desdeX),
     alRecogerObjeto: (objeto, cantidad) => op.alRecogerObjeto?.(objeto, cantidad),
     alCambiarLiquidos: (cs) => op.alCambiarLiquidos?.(cs),
+    alSaberDelCofre: (c) => op.alSaberDelCofre?.(c),
     alRechazar: (motivo) => {
       parar();
       op.alCambiarEstado?.('fallo', motivo);
@@ -464,6 +500,15 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     },
     avisarCubo(objeto, tx, ty) {
       invitado.avisarCubo(objeto, tx, ty);
+    },
+    abrirCofre(tx, ty) {
+      invitado.abrirCofre(tx, ty);
+    },
+    tocarCofre(tx, ty, ranura, objeto, cantidad) {
+      invitado.tocarCofre(tx, ty, ranura, objeto, cantidad);
+    },
+    contarCofre() {
+      /* el invitado no le cuenta a nadie lo que hay en un cofre */
     },
     entregar() {
       /* el invitado no reparte nada */

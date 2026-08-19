@@ -28,6 +28,7 @@ import {
   BOTON,
   ENT,
   MSG,
+  escribirCofre,
   escribirDano,
   escribirLiquidos,
   escribirRecogido,
@@ -41,6 +42,7 @@ import {
   trocearMundo,
   type CambioLiquido,
   type CambioTile,
+  type EstadoCofre,
   type EntidadRed,
 } from './protocolo';
 
@@ -150,6 +152,17 @@ export interface OpcionesAnfitrion {
   alPedirObjeto?: (quien: number, idDrop: number, caja: Caja) => void;
   /** Un invitado ha usado un cubo, y le pilla cerca. El juego decide si vale. */
   alUsarCubo?: (objeto: number, tx: number, ty: number) => void;
+  /** Un invitado quiere abrir un cofre que tiene al alcance. */
+  alAbrirCofre?: (quien: number, tx: number, ty: number) => void;
+  /** Un invitado ha tocado una ranura de un cofre con algo en la mano. */
+  alTocarCofre?: (
+    quien: number,
+    tx: number,
+    ty: number,
+    ranura: number,
+    objeto: number,
+    cantidad: number,
+  ) => void;
   /**
    * Los bichos que hay ahora mismo.
    *
@@ -270,6 +283,16 @@ export class Anfitrion {
         // cien tiles vaciaría un mar desde el otro lado del mundo.
         if (this.alAlcance(j, m.tx, m.ty)) this.op.alUsarCubo?.(m.objeto, m.tx, m.ty);
         break;
+      case MSG.COFRE_ABRIR:
+        if (this.alAlcance(j, m.tx, m.ty)) this.op.alAbrirCofre?.(j.id, m.tx, m.ty);
+        break;
+      case MSG.COFRE_TOCAR:
+        // Un cofre al otro lado del mundo no se toca. Es la misma regla que
+        // para picar y para el cubo, y por eso es la misma cuenta.
+        if (this.alAlcance(j, m.tx, m.ty)) {
+          this.op.alTocarCofre?.(j.id, m.tx, m.ty, m.ranura, m.objeto, m.cantidad);
+        }
+        break;
       case MSG.ADIOS:
         this.quitar(quien);
         return null;
@@ -362,6 +385,25 @@ export class Anfitrion {
     const j = this.jugadores.get(id);
     if (!j?.listo) return;
     j.enlace.mandarFirme(escribirRecogido(objeto, cantidad));
+  }
+
+  /**
+   * Cuenta cómo ha quedado un cofre.
+   *
+   * Con `quien` va solo a ese, que es el que ha tocado y necesita saber qué le
+   * ha quedado en la mano; sin él, a todos, que es lo que hace falta cuando el
+   * que ha cambiado el cofre es el anfitrión y otro lo tiene abierto delante.
+   */
+  contarCofre(cofre: EstadoCofre, quien?: number): void {
+    const bytes = escribirCofre(cofre);
+    if (quien !== undefined) {
+      const j = this.jugadores.get(quien);
+      if (j?.listo) j.enlace.mandarFirme(bytes);
+      return;
+    }
+    for (const j of this.jugadores.values()) {
+      if (j.listo) j.enlace.mandarFirme(bytes);
+    }
   }
 
   /** Manda el mundo al que acaba de entrar. Va por el canal fiable y troceado. */

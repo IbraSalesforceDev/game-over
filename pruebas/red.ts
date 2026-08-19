@@ -28,6 +28,9 @@ import { ESPADA_HIERRO, GEL } from '../src/items/items';
 import { TICKS_GOLPE } from '../src/entities/combat';
 import { SimuladorLiquidos } from '../src/world/liquids';
 import { CUBO_AGUA } from '../src/items/items';
+import { Contenedores } from '../src/world/contenedores';
+import { tocar } from '../src/items/inventory';
+import type { EstadoCofre } from '../src/red/protocolo';
 
 const lista = document.getElementById('resultados')!;
 const fallos: string[] = [];
@@ -123,6 +126,10 @@ async function main(): Promise<void> {
   /** El simulador del anfitrión, el único que corre. */
   const agua = new SimuladorLiquidos(genA.mundo);
   agua.anotarCambios(true);
+  /** Los cofres del anfitrión, los únicos de verdad. */
+  const cofresA = new Contenedores(genA.mundo.ancho);
+  /** Lo que el invitado sabe de los cofres. */
+  let cofreVisto: EstadoCofre | null = null;
   const tilesEnB: { tx: number; ty: number; id: number }[] = [];
   const tilesEnA: { tx: number; ty: number; id: number }[] = [];
 
@@ -140,6 +147,16 @@ async function main(): Promise<void> {
     objetos: () => suelo,
     liquidosCambiados: (tope) => agua.tomarSucias(tope),
     alUsarCubo: (_objeto, tx, ty) => agua.verter(tx, ty, 255),
+    alAbrirCofre: (quien, tx, ty) =>
+      anfitrion.contarCofre({ tx, ty, ranuras: cofresA.obtener(tx, ty).aDatos(), mano: null }, quien),
+    alTocarCofre: (quien, tx, ty, ranura, objeto, cantidad) => {
+      const mano = { objeto, cantidad };
+      tocar(cofresA.obtener(tx, ty), ranura, mano);
+      anfitrion.contarCofre(
+        { tx, ty, ranuras: cofresA.obtener(tx, ty).aDatos(), mano },
+        quien,
+      );
+    },
     alGolpear: (_quien, g) =>
       mandobles.push({ arma: g.arma, empieza: g.restante === TICKS_GOLPE }),
     alPedirObjeto: (quien, idDrop) => {
@@ -173,6 +190,9 @@ async function main(): Promise<void> {
     alRecogerObjeto: (objeto, cantidad) => recogido.push({ objeto, cantidad }),
     alCambiarLiquidos: (cs) => {
       for (const c of cs) genB.mundo.setLiquido(c.tx, c.ty, c.nivel, c.lava);
+    },
+    alSaberDelCofre: (c) => {
+      cofreVisto = c;
     },
   });
 
@@ -289,6 +309,45 @@ async function main(): Promise<void> {
   comprobar(
     'pero uno tirado a sesenta tiles no moja nada',
     genA.mundo.getLiquido(lejos, tyCubo) === 0,
+  );
+
+  // Los cofres: lo que hay dentro lo dice el anfitrión, siempre.
+  const txCofre = genA.spawnTx + 1;
+  const tyCofre = genA.spawnTy;
+  cofresA.obtener(txCofre, tyCofre).anadir(GEL, 40);
+  invitado.abrirCofre(txCofre, tyCofre);
+  comprobar(
+    'al abrir un cofre, el invitado recibe lo que hay dentro',
+    await esperarA(() => cofreVisto?.ranuras[0]?.[0] === GEL, 5000),
+  );
+  comprobar('con la cantidad que hay', cofreVisto?.ranuras[0]?.[1] === 40);
+
+  // Coger de una ranura con la mano vacía: se lleva la pila entera.
+  invitado.tocarCofre(txCofre, tyCofre, 0, 0, 0);
+  comprobar(
+    'coge la pila y le queda en la mano',
+    await esperarA(() => cofreVisto?.mano?.objeto === GEL && cofreVisto?.mano?.cantidad === 40, 5000),
+  );
+  comprobar('y el cofre se queda sin ella', cofresA.obtener(txCofre, tyCofre).contar(GEL) === 0);
+
+  /**
+   * La carrera que hacía falta cerrar: dos manos sobre la misma pila.
+   *
+   * El segundo llega tarde y se encuentra la ranura vacía. Sin que decida el
+   * anfitrión, los dos se llevarían cuarenta geles cada uno.
+   */
+  cofresA.obtener(txCofre, tyCofre).anadir(GEL, 40);
+  invitado.tocarCofre(txCofre, tyCofre, 0, 0, 0);
+  await esperar(300);
+  invitado.tocarCofre(txCofre, tyCofre, 0, 0, 0);
+  await esperar(300);
+  comprobar(
+    'dos manos sobre la misma pila no la duplican',
+    cofreVisto?.mano?.objeto === 0 || cofreVisto?.mano?.cantidad === 0,
+  );
+  comprobar(
+    'y el cofre sigue vacío',
+    cofresA.obtener(txCofre, tyCofre).contar(GEL) === 0,
   );
 
   // Un bloque puesto por el anfitrión tiene que aparecer en el invitado.

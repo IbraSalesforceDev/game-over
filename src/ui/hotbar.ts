@@ -1,6 +1,12 @@
 import { crearIconos, LADO_ICONO } from '../render/iconos';
 import { crearFicha } from './ficha';
-import { estaVacia, RANURAS_BARRA, TOTAL_RANURAS, type Inventario } from '../items/inventory';
+import {
+  estaVacia,
+  RANURAS_BARRA,
+  tocar,
+  TOTAL_RANURAS,
+  type Inventario,
+} from '../items/inventory';
 import { defObjeto, HUECOS, NADA, type Hueco } from '../items/items';
 import { cabeEnEquipo, defensaTotal } from '../items/equipado';
 import { craftear, recetasVisibles, sePuedeCraftear } from '../items/recipes';
@@ -139,6 +145,15 @@ export interface Barra {
   /** Cofre abierto ahora mismo, o null. */
   readonly cofreAbierto: { tx: number; ty: number } | null;
   abrirCofre(inv: Inventario, tx: number, ty: number): void;
+  /**
+   * Deja la mano como diga el anfitrión.
+   *
+   * Hace falta porque el invitado toca la ranura antes de que le contesten —
+   * esperar medio segundo por cada clic se siente fatal— y lo que salga de allí
+   * manda: si dos cogen lo mismo a la vez, el segundo se queda con las manos
+   * vacías y tiene que enterarse.
+   */
+  ponerEnMano(objeto: number, cantidad: number): void;
   /** Estación abierta ahora mismo, o null. */
   readonly tallerAbierto: { tx: number; ty: number } | null;
   /** Abre la estación con su lista de recetas en grande. */
@@ -157,6 +172,14 @@ interface RanuraDom {
 export interface OpcionesBarra {
   /** Se llama cuando el inventario cambia por acción del jugador. */
   alCambiar(): void;
+  /**
+   * Se ha tocado una ranura de un cofre, con esto en la mano antes de tocarla.
+   *
+   * Solo lo usa la partida acompañada: el cofre es del mundo y el mundo lo
+   * lleva el anfitrión, así que aquí se pinta el resultado que se supone y él
+   * dice el de verdad.
+   */
+  alTocarCofre?: (tx: number, ty: number, ranura: number, objeto: number, cantidad: number) => void;
   /** Estaciones de crafteo al alcance, para filtrar las recetas. */
   estaciones(): ReadonlySet<number>;
   /** Aviso sonoro de que una receta ha salido. Opcional: los tests no suenan. */
@@ -261,35 +284,10 @@ export function crearBarra(
     indice: number,
     admite: (objeto: number) => boolean = () => true,
   ): void {
-    const r = inv.ranuras[indice];
-    if (!r) return;
-    // Sacar siempre se puede; meter, solo lo que admita la ranura. Es lo que
-    // impide dejar una pila de tierra en el hueco del casco.
-    if (enMano.objeto !== NADA && !admite(enMano.objeto)) return;
-    if (enMano.objeto === NADA) {
-      if (estaVacia(r)) return;
-      enMano.objeto = r.objeto;
-      enMano.cantidad = r.cantidad;
-      r.objeto = NADA;
-      r.cantidad = 0;
-    } else if (estaVacia(r)) {
-      r.objeto = enMano.objeto;
-      r.cantidad = enMano.cantidad;
-      enMano.objeto = NADA;
-      enMano.cantidad = 0;
-    } else if (r.objeto === enMano.objeto) {
-      const tope = defObjeto(r.objeto).maxPila;
-      const cabe = Math.min(tope - r.cantidad, enMano.cantidad);
-      r.cantidad += cabe;
-      enMano.cantidad -= cabe;
-      if (enMano.cantidad <= 0) enMano.objeto = NADA;
-    } else {
-      const tmp = { objeto: r.objeto, cantidad: r.cantidad };
-      r.objeto = enMano.objeto;
-      r.cantidad = enMano.cantidad;
-      enMano.objeto = tmp.objeto;
-      enMano.cantidad = tmp.cantidad;
-    }
+    // La regla de coger, soltar, apilar e intercambiar vive en el inventario,
+    // no aquí: desde 7.12.2 la ejecuta también el anfitrión sobre su cofre, y
+    // dos copias de la misma regla acabarían apilando distinto.
+    if (!tocar(inv, indice, enMano, admite)) return;
     pintar();
     opciones.alCambiar();
   }
@@ -324,7 +322,14 @@ export function crearBarra(
         return;
       }
       const inv = esCofre ? cofre?.inv : inventario;
-      if (inv) tocarRanura(inv, indice);
+      if (!inv) return;
+      // Lo que había en la mano *antes* de tocar: es lo que necesita saber el
+      // anfitrión para repetir el movimiento sobre su cofre.
+      const antes = { objeto: enMano.objeto, cantidad: enMano.cantidad };
+      tocarRanura(inv, indice);
+      if (esCofre && cofre) {
+        opciones.alTocarCofre?.(cofre.tx, cofre.ty, indice, antes.objeto, antes.cantidad);
+      }
     });
 
     return { raiz, icono, cant };
@@ -568,6 +573,11 @@ export function crearBarra(
     },
     get inventarioAbierto() {
       return abierto;
+    },
+    ponerEnMano(objeto, cantidad) {
+      enMano.objeto = objeto;
+      enMano.cantidad = cantidad;
+      pintar();
     },
     get cofreAbierto() {
       return cofre ? { tx: cofre.tx, ty: cofre.ty } : null;
