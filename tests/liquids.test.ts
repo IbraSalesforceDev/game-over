@@ -402,3 +402,81 @@ describe('la lava quema a todo el mundo', () => {
     expect(e.salud.vida).toBe(e.salud.vidaMax);
   });
 });
+
+/**
+ * Lo que hace falta para que el agua viaje.
+ *
+ * El simulador no sabe nada de red, y no tiene por qué: lo único que se le pide
+ * es que apunte qué celdas ha tocado, y que lo apunte **solo si alguien se lo
+ * pide**. En una partida de un jugador no hay a quién contárselo y un `add` por
+ * escritura, con seis mil escrituras por paso, se nota.
+ */
+describe('apuntar lo que cambia, para contárselo a otro', () => {
+  it('sin pedirlo, no apunta nada', () => {
+    const m = new Mundo(40, 40);
+    const sim = new SimuladorLiquidos(m);
+    sim.verter(10, 5, 255);
+    for (let i = 0; i < 20; i++) sim.paso();
+    expect(sim.tomarSucias(100)).toEqual([]);
+  });
+
+  it('pidiéndolo, apunta las celdas que ha tocado y cómo han quedado', () => {
+    const m = new Mundo(40, 40);
+    m.rellenar(0, 20, 39, 39, PIEDRA);
+    const sim = new SimuladorLiquidos(m);
+    sim.anotarCambios(true);
+    sim.verter(10, 5, 255);
+    for (let i = 0; i < 40; i++) sim.paso();
+
+    const sucias = sim.tomarSucias(500);
+    expect(sucias.length).toBeGreaterThan(0);
+    // Lo que dice cada una es lo que hay ahora mismo en el mundo, no lo que
+    // hubo cuando se tocó: es lo que permite mandarlas tarde sin mentir.
+    for (const c of sucias) {
+      expect(c.nivel).toBe(m.getLiquido(c.tx, c.ty));
+      expect(c.lava).toBe(m.esLava(c.tx, c.ty));
+    }
+  });
+
+  it('una celda tocada mil veces se cuenta una', () => {
+    const m = new Mundo(40, 40);
+    m.rellenar(0, 20, 39, 39, PIEDRA);
+    const sim = new SimuladorLiquidos(m);
+    sim.anotarCambios(true);
+    // Un chorro largo sobre la misma columna: la celda de arriba se reescribe
+    // en cada paso, y aun así solo puede salir una vez en la lista.
+    for (let i = 0; i < 30; i++) {
+      sim.verter(10, 5, 60);
+      sim.paso();
+    }
+    const sucias = sim.tomarSucias(1000);
+    const repetidas = sucias.filter((c) => c.tx === 10 && c.ty === 5);
+    expect(repetidas).toHaveLength(1);
+  });
+
+  it('el tope deja lo que no cabe para la próxima, y no lo pierde', () => {
+    const m = new Mundo(60, 60);
+    m.rellenar(0, 40, 59, 59, PIEDRA);
+    const sim = new SimuladorLiquidos(m);
+    sim.anotarCambios(true);
+    for (let x = 5; x < 50; x++) sim.verter(x, 10, 255);
+    for (let i = 0; i < 30; i++) sim.paso();
+
+    const primera = sim.tomarSucias(5);
+    expect(primera).toHaveLength(5);
+    const resto = sim.tomarSucias(1000);
+    expect(resto.length).toBeGreaterThan(0);
+    // Y ninguna sale dos veces.
+    const todas = [...primera, ...resto].map((c) => `${c.tx},${c.ty}`);
+    expect(new Set(todas).size).toBe(todas.length);
+  });
+
+  it('dejar de apuntar tira lo apuntado', () => {
+    const m = new Mundo(40, 40);
+    const sim = new SimuladorLiquidos(m);
+    sim.anotarCambios(true);
+    sim.verter(10, 5, 255);
+    sim.anotarCambios(false);
+    expect(sim.tomarSucias(100)).toEqual([]);
+  });
+});

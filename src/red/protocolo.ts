@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 4;
+export const VERSION_PROTOCOLO = 5;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -84,6 +84,26 @@ export const MSG = {
   COJO: 12,
   /** Anfitrión → cliente: es tuyo, mételo en el zurrón. */
   RECOGIDO: 13,
+  /**
+   * Anfitrión → cliente: así está el agua ahora.
+   *
+   * El líquido lo simula solo el anfitrión y el invitado lo recibe hecho. Los
+   * dos simulándolo por su cuenta parece que funcionaría —el simulador es
+   * determinista— pero no lo es: el mundo de cada uno se toca en momentos
+   * distintos, y basta un bloque picado un tick antes en un lado para que dos
+   * cascadas idénticas acaben en sitios distintos. Y un cubo de agua vertido
+   * por uno no llegaba al otro de ninguna manera.
+   */
+  LIQUIDOS: 14,
+  /**
+   * Cliente → anfitrión: he usado un cubo aquí.
+   *
+   * Va como petición y no como hecho consumado por lo mismo que los tiles: el
+   * agua es del mundo y el mundo lo lleva el anfitrión. El invitado lo pinta al
+   * momento —esperar a que el agua caiga se siente fatal— y la siguiente tanda
+   * de líquidos lo deja como toque.
+   */
+  CUBO: 15,
 } as const;
 
 export type TipoMensaje = (typeof MSG)[keyof typeof MSG];
@@ -332,6 +352,16 @@ export function escribirGolpe(arma: number, direccion: 1 | -1, sentido: number):
   return e.terminar();
 }
 
+/** Un cubo usado en una casilla. El anfitrión mira si se puede. */
+export function escribirCubo(objeto: number, tx: number, ty: number): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.CUBO);
+  e.u16(objeto);
+  e.i16(tx);
+  e.i16(ty);
+  return e.terminar();
+}
+
 /** «Quiero ese de ahí» y «tuyo es», las dos mitades de recoger algo del suelo. */
 export function escribirCojo(idDrop: number): Uint8Array {
   const e = new Escritor();
@@ -345,6 +375,28 @@ export function escribirRecogido(objeto: number, cantidad: number): Uint8Array {
   e.u8(MSG.RECOGIDO);
   e.u16(objeto);
   e.u16(cantidad);
+  return e.terminar();
+}
+
+export interface CambioLiquido {
+  tx: number;
+  ty: number;
+  /** 0-255. Cero es que ahí ya no hay nada. */
+  nivel: number;
+  lava: boolean;
+}
+
+/** Cómo ha quedado el líquido de unas cuantas celdas. */
+export function escribirLiquidos(cambios: readonly CambioLiquido[]): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.LIQUIDOS);
+  e.u16(cambios.length);
+  for (const c of cambios) {
+    e.i16(c.tx);
+    e.i16(c.ty);
+    e.u8(Math.max(0, Math.min(255, c.nivel)));
+    e.u8(c.lava ? 1 : 0);
+  }
   return e.terminar();
 }
 
@@ -401,7 +453,9 @@ export type Mensaje =
   | { tipo: typeof MSG.DANO; dano: number; desdeX: number }
   | { tipo: typeof MSG.GOLPE; arma: number; direccion: 1 | -1; sentido: number }
   | { tipo: typeof MSG.COJO; idDrop: number }
-  | { tipo: typeof MSG.RECOGIDO; objeto: number; cantidad: number };
+  | { tipo: typeof MSG.RECOGIDO; objeto: number; cantidad: number }
+  | { tipo: typeof MSG.LIQUIDOS; cambios: CambioLiquido[] }
+  | { tipo: typeof MSG.CUBO; objeto: number; tx: number; ty: number };
 
 /**
  * Lee un mensaje. Devuelve null si no se entiende.
@@ -467,6 +521,16 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
           direccion: l.u8() === 1 ? 1 : -1,
           sentido: l.u8(),
         };
+      case MSG.LIQUIDOS: {
+        const n = l.u16();
+        const cambios: CambioLiquido[] = [];
+        for (let i = 0; i < n; i++) {
+          cambios.push({ tx: l.i16(), ty: l.i16(), nivel: l.u8(), lava: l.u8() === 1 });
+        }
+        return { tipo: MSG.LIQUIDOS, cambios };
+      }
+      case MSG.CUBO:
+        return { tipo: MSG.CUBO, objeto: l.u16(), tx: l.i16(), ty: l.i16() };
       case MSG.COJO:
         return { tipo: MSG.COJO, idDrop: l.u16() };
       case MSG.RECOGIDO:

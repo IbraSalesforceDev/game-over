@@ -830,6 +830,18 @@ export const VERSIONES: readonly Version[] = [
       'El invitado los pide y el anfitrión se los da: dos no pueden coger lo mismo',
     ],
   },
+  {
+    id: '7.12.1',
+    etapa: 'prealfa',
+    nombre: 'La misma agua para los dos',
+    resumen: 'El agua la simula el anfitrión y llega hecha: se acabaron los dos ríos.',
+    cambios: [
+      'El líquido lo lleva el anfitrión y el invitado lo recibe, como los bloques',
+      'Un cubo vertido por cualquiera de los dos moja el mundo de los dos',
+      'La obsidiana de una colada apagada también se cuenta: antes solo la veía uno',
+      'Se manda cómo ha quedado cada celda, no cada chapoteo: una catarata cuesta poco',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

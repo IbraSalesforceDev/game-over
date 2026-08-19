@@ -211,6 +211,7 @@ import {
   tickHambre,
 } from './entities/hambre';
 import { SimuladorLiquidos, sumersion } from './world/liquids';
+import type { CambioLiquido } from './red/protocolo';
 import { puedeUsarCubo, usarCubo } from './items/cubo';
 import {
   alcanceDeMapa,
@@ -667,6 +668,24 @@ async function arrancar(): Promise<void> {
     sesionRed?.tile({ tx, ty, id, pared });
   }
 
+  /**
+   * Aplica el agua que manda el anfitrión.
+   *
+   * Se escribe directamente en la capa, sin pasar por el simulador: aquí no hay
+   * nada que simular, solo que enseñar. Lo que sí hace falta es repintar y
+   * rehacer la luz, porque la lava alumbra.
+   */
+  function aplicarLiquidosDeRed(cambios: readonly CambioLiquido[]): void {
+    let habiaLava = false;
+    for (const c of cambios) {
+      if (!mundo.dentro(c.tx, c.ty)) continue;
+      if (c.lava || mundo.esLava(c.tx, c.ty)) habiaLava = true;
+      mundo.setLiquido(c.tx, c.ty, c.nivel, c.lava);
+      renderer.cache.invalidar(c.tx, c.ty);
+    }
+    if (habiaLava) motorLuz.marcarSucio();
+  }
+
   /** Aplica aquí un cambio que ha decidido el otro lado. */
   function aplicarTilesDeRed(cambios: readonly CambioTile[]): void {
     for (const c of cambios) {
@@ -788,9 +807,17 @@ async function arrancar(): Promise<void> {
           bichos: () => enemigos,
           minutos: () => reloj.minutos,
           objetos: () => drops,
+          liquidosCambiados: (tope) => liquidos.tomarSucias(tope),
           alGolpear: (_quien, g, caja) => resolverMandoble(g, caja, g.arma, false),
           alPedirObjeto: darObjetoAInvitado,
+          alUsarCubo: (objeto, tx, ty) => {
+            if (!puedeUsarCubo(mundo, objeto, tx, ty)) return;
+            usarCubo(mundo, liquidos, objeto, tx, ty);
+            motorLuz.marcarSucio();
+          },
         });
+        // A partir de aquí hay a quién contarle lo que le pasa al agua.
+        liquidos.anotarCambios(true);
         // La sala está abierta: a partir de aquí lo que falta es que entre
         // alguien, y eso ya no es un problema de conexión.
         acompanados.estado('solo');
@@ -801,6 +828,7 @@ async function arrancar(): Promise<void> {
           alLlegarMundo: (bytes) => void adoptarMundoDelAnfitrion(bytes),
           alDarLaHora: ponerEnHora,
           alRecibirGolpe: recibirGolpeDeRed,
+          alCambiarLiquidos: aplicarLiquidosDeRed,
           alRecogerObjeto: (objeto, cantidad) => {
             inventario.anadir(objeto, cantidad);
             barra.refrescar(capa);
@@ -2574,6 +2602,9 @@ async function arrancar(): Promise<void> {
       if (!usar || !posible) return;
       const r = usarCubo(mundo, liquidos, enMano, tx, ty);
       if (r.tipo !== 'nada') {
+        // El invitado lo pinta ya y avisa: el agua de verdad la reparte el
+        // anfitrión, y su siguiente tanda deja la casilla como toque.
+        sesionRed?.avisarCubo(enMano, tx, ty);
         inventario.sacarDe(barra.seleccion, 1);
         // Si la ranura ya no cabe —porque llevaba varios cubos vacíos— el que
         // vuelve va donde quepa, nunca al suelo.
@@ -2899,10 +2930,17 @@ async function arrancar(): Promise<void> {
       return 0;
     }
     const antes = liquidos.pendientes;
-    liquidos.paso();
+    // El invitado no simula el agua: la recibe hecha. Si la simulara además,
+    // tendría dos aguas peleándose en la misma capa —la suya y la que llega— y
+    // el resultado sería un charco parpadeando.
+    if (sesionRed?.papel !== 'invitado') liquidos.paso();
     // Una colada apagada deja obsidiana: hay que repintar el chunk y rehacer la
     // luz, porque donde había lava alumbrando ahora hay un bloque macizo.
     for (const { tx, ty } of liquidos.apagados) {
+      // Es un tile nuevo, no solo un chunk que repintar: sin contarlo, el
+      // invitado veía lava donde el anfitrión ya tenía obsidiana, y se metía
+      // dentro creyendo que podía pasar.
+      avisarTile(tx, ty, mundo.getTile(tx, ty));
       renderer.cache.invalidar(tx, ty);
       motorLuz.invalidar(tx);
       particulas.emitir(tx * TILE + 8, ty * TILE + 8, {

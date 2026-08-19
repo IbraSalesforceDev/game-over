@@ -221,7 +221,7 @@ su bioma **y** no estar bajo tierra, `cueva` acepta subsuelo o inframundo, e
 
 ```bash
 npm run build      # tsc --noEmit + vite build
-npx vitest run     # 1027 tests
+npx vitest run     # 1035 tests
 ```
 
 Para probar en el navegador de verdad, Playwright con el Chromium ya instalado:

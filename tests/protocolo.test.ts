@@ -11,7 +11,9 @@ import {
   escribirBienvenido,
   escribirEntrada,
   escribirHola,
+  escribirCubo,
   escribirInstantanea,
+  escribirLiquidos,
   escribirPidoTile,
   escribirRechazo,
   escribirTiles,
@@ -20,6 +22,7 @@ import {
   trocearMundo,
   type EntidadRed,
 } from '../src/red/protocolo';
+import { CUBO_AGUA } from '../src/items/items';
 
 describe('ida y vuelta de cada mensaje', () => {
   it('hola', () => {
@@ -65,6 +68,31 @@ describe('ida y vuelta de cada mensaje', () => {
 
     const cambios = [cambio, { tx: -1, ty: 5, id: 73, pared: false }];
     expect(leerMensaje(escribirTiles(cambios))).toEqual({ tipo: MSG.TILES, cambios });
+  });
+
+  it('los líquidos van y vuelven, con su nivel y su tipo', () => {
+    const cambios = [
+      { tx: 700, ty: 300, nivel: 255, lava: false },
+      { tx: -1, ty: 0, nivel: 0, lava: true },
+      { tx: 12, ty: 40, nivel: 128, lava: false },
+    ];
+    expect(leerMensaje(escribirLiquidos(cambios))).toEqual({
+      tipo: MSG.LIQUIDOS,
+      cambios,
+    });
+  });
+
+  it('una tanda de líquidos vacía es válida', () => {
+    expect(leerMensaje(escribirLiquidos([]))).toEqual({ tipo: MSG.LIQUIDOS, cambios: [] });
+  });
+
+  it('el cubo lleva qué cubo y dónde', () => {
+    expect(leerMensaje(escribirCubo(CUBO_AGUA, -3, 900))).toEqual({
+      tipo: MSG.CUBO,
+      objeto: CUBO_AGUA,
+      tx: -3,
+      ty: 900,
+    });
   });
 
   it('adios', () => {

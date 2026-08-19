@@ -29,12 +29,14 @@ import {
   JuntaMundo,
   MSG,
   escribirCojo,
+  escribirCubo,
   escribirEntrada,
   escribirGolpe,
   escribirHola,
   escribirPidoTile,
   leerMensaje,
   textoRechazo,
+  type CambioLiquido,
   type CambioTile,
   type EntidadRed,
 } from './protocolo';
@@ -67,6 +69,8 @@ export interface OpcionesInvitado {
   alRecibirGolpe?: (dano: number, desdeX: number) => void;
   /** El anfitrión te da lo que habías pedido del suelo. */
   alRecogerObjeto?: (objeto: number, cantidad: number) => void;
+  /** Cómo ha quedado el agua. La simula el anfitrión y aquí solo se aplica. */
+  alCambiarLiquidos?: (cambios: readonly CambioLiquido[]) => void;
 }
 
 export function botonesDeEntrada(e: Entrada): number {
@@ -159,6 +163,10 @@ export class Invitado {
 
       case MSG.RECOGIDO:
         this.op.alRecogerObjeto?.(m.objeto, m.cantidad);
+        break;
+
+      case MSG.LIQUIDOS:
+        this.op.alCambiarLiquidos?.(m.cambios);
         break;
 
       case MSG.INSTANTANEA:
@@ -325,6 +333,11 @@ export class Invitado {
   /** Pide un objeto del suelo. El anfitrión mira si lo tiene a mano. */
   pedirObjeto(idDrop: number): void {
     this.op.enlace.mandarFirme(escribirCojo(idDrop));
+  }
+
+  /** Avisa de un cubo usado. El agua que salga de ahí la reparte el anfitrión. */
+  avisarCubo(objeto: number, tx: number, ty: number): void {
+    this.op.enlace.mandarFirme(escribirCubo(objeto, tx, ty));
   }
 
   /** Los objetos del suelo que dice el anfitrión, tal cual los espera el juego. */

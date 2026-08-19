@@ -65,6 +65,20 @@ export class SimuladorLiquidos {
    * cuesta un byte por tile —trece megas en un titánico— y sale barato: el
    * `Set` de medio millón de enteros costaba bastante más que eso.
    */
+  /**
+   * Celdas cuyo líquido ha cambiado y aún no se ha contado por la red.
+   *
+   * Es un conjunto y no una lista a propósito: una cascada toca la misma celda
+   * decenas de veces por segundo y lo único que hace falta mandar es **cómo ha
+   * quedado**, no cada paso intermedio. Así una catarata larga cuesta lo que
+   * cuesta su frente de avance, no lo que cuesta su historia.
+   *
+   * Solo se llena si alguien lo ha pedido (`anotarCambios`). En una partida de
+   * un jugador no hay a quién contárselo, y un `add` por cada escritura, con
+   * seis mil escrituras por paso, se nota.
+   */
+  private readonly sucias = new Set<number>();
+  private anotando = false;
   private cola: number[] = [];
   /** Primera de la cola sin procesar. Avanza en vez de desplazar el vector. */
   private inicio = 0;
@@ -72,6 +86,55 @@ export class SimuladorLiquidos {
 
   constructor(private readonly mundo: Mundo) {
     this.enCola = new Uint8Array(mundo.ancho * mundo.alto);
+  }
+
+  /**
+   * Empieza (o deja) de apuntar lo que cambia, para poder mandarlo.
+   *
+   * Lo enciende el anfitrión de una partida acompañada y nadie más.
+   */
+  anotarCambios(si: boolean): void {
+    this.anotando = si;
+    if (!si) this.sucias.clear();
+  }
+
+  /**
+   * Escribe líquido en una celda y lo apunta.
+   *
+   * Todas las escrituras del simulador pasan por aquí, y esa es la razón de que
+   * exista: con `setLiquido` repartido por siete sitios, el día que uno se
+   * olvide de apuntar el cambio, al invitado le faltará agua en un rincón y no
+   * habrá forma de saber por qué.
+   */
+  private poner(tx: number, ty: number, nivel: number, lava?: boolean): void {
+    this.mundo.setLiquido(tx, ty, nivel, lava);
+    if (this.anotando) this.sucias.add(ty * this.mundo.ancho + tx);
+  }
+
+  /**
+   * Saca hasta `tope` celdas cambiadas, con el valor que tienen **ahora**.
+   *
+   * Con tope porque un mar rompiéndose son miles de celdas en un tick y el
+   * canal no da para eso. Las que no salen se quedan apuntadas para el
+   * siguiente, y como el valor se lee al mandarlo, esperar un turno no manda
+   * nada viejo: manda menos, y lo último.
+   */
+  tomarSucias(tope: number): { tx: number; ty: number; nivel: number; lava: boolean }[] {
+    const salida: { tx: number; ty: number; nivel: number; lava: boolean }[] = [];
+    const ancho = this.mundo.ancho;
+    for (const i of this.sucias) {
+      if (salida.length >= tope) break;
+      const tx = i % ancho;
+      const ty = (i / ancho) | 0;
+      salida.push({
+        tx,
+        ty,
+        nivel: this.mundo.getLiquido(tx, ty),
+        lava: this.mundo.esLava(tx, ty),
+      });
+      this.sucias.delete(i);
+    }
+    return salida;
   }
 
   /** Mete una celda en la cola si no estaba ya. */
@@ -97,7 +160,7 @@ export class SimuladorLiquidos {
   /** Añade líquido a una celda y la despierta. */
   verter(tx: number, ty: number, cantidad: number, lava = false): void {
     const actual = this.mundo.getLiquido(tx, ty);
-    this.mundo.setLiquido(tx, ty, actual + cantidad, lava || this.mundo.esLava(tx, ty));
+    this.poner(tx, ty, actual + cantidad, lava || this.mundo.esLava(tx, ty));
     this.activar(tx, ty);
   }
 
@@ -193,7 +256,7 @@ export class SimuladorLiquidos {
       // Una celda que acaba dentro de un bloque desaparece: es lo que pasa
       // cuando el jugador tapa el agua con tierra.
       if (esSolido(mundo.getTile(tx, ty))) {
-        mundo.setLiquido(tx, ty, 0);
+        this.poner(tx, ty, 0);
         cambios++;
         this.marcarVecinas(tx, ty);
         continue;
@@ -220,9 +283,9 @@ export class SimuladorLiquidos {
         if (hueco > 0 && this.compatible(tx, ty + 1, lava)) {
           const mueve = Math.min(nivel, hueco, FLUJO_MAX);
           if (mueve > 0) {
-            mundo.setLiquido(tx, ty + 1, abajo + mueve, lava);
+            this.poner(tx, ty + 1, abajo + mueve, lava);
             nivel -= mueve;
-            mundo.setLiquido(tx, ty, nivel, lava);
+            this.poner(tx, ty, nivel, lava);
             cambios++;
             this.marcarVecinas(tx, ty);
             this.marcarVecinas(tx, ty + 1);
@@ -243,9 +306,9 @@ export class SimuladorLiquidos {
         // de un lado a otro sin parar nunca.
         const mueve = Math.min(Math.floor(diferencia / 2), FLUJO_MAX);
         if (mueve <= 0) continue;
-        mundo.setLiquido(nx, ty, vecino + mueve, lava);
+        this.poner(nx, ty, vecino + mueve, lava);
         nivel -= mueve;
-        mundo.setLiquido(tx, ty, nivel, lava);
+        this.poner(tx, ty, nivel, lava);
         cambios++;
         this.marcarVecinas(tx, ty);
         this.marcarVecinas(nx, ty);
@@ -264,7 +327,7 @@ export class SimuladorLiquidos {
         // distinguir: el borde de un charco tiene agua de verdad pegada y se
         // conserva, mientras que el rastro que dejó una gota al extenderse no
         // tiene nada detrás y desaparece.
-        mundo.setLiquido(tx, ty, 0);
+        this.poner(tx, ty, 0);
         cambios++;
         this.marcarVecinas(tx, ty);
       }
@@ -314,8 +377,8 @@ export class SimuladorLiquidos {
       // La lava es la que se vuelve piedra; el agua simplemente se consume.
       const [lx, ly] = lava ? [tx, ty] : [nx, ny];
       const [ax, ay] = lava ? [nx, ny] : [tx, ty];
-      mundo.setLiquido(lx, ly, 0);
-      mundo.setLiquido(ax, ay, 0);
+      this.poner(lx, ly, 0);
+      this.poner(ax, ay, 0);
       mundo.setTile(lx, ly, OBSIDIANA);
       this.marcarVecinas(tx, ty);
       this.marcarVecinas(nx, ny);

@@ -27,7 +27,7 @@ import type { Golpe } from '../entities/combat';
 import { Anfitrion, type Enlace, type JugadorConectado } from './anfitrion';
 import { ConexionAnfitrion, ConexionInvitado, type EstadoConexion } from './conexion';
 import { Invitado, type OtroJugador } from './invitado';
-import { escribirAdios, type CambioTile } from './protocolo';
+import { escribirAdios, type CambioLiquido, type CambioTile } from './protocolo';
 import { entrarEnSala, type Recado, type Sala } from './senal';
 
 export type Papel = 'anfitrion' | 'invitado';
@@ -41,6 +41,8 @@ export interface AvisosSesion {
   alAvanzarMundo?: (progreso: number) => void;
   /** Tiles que hay que aplicar al mundo de aquí. */
   alCambiarTiles?: (cambios: readonly CambioTile[]) => void;
+  /** Solo en el invitado: cómo ha quedado el agua según el anfitrión. */
+  alCambiarLiquidos?: (cambios: readonly CambioLiquido[]) => void;
   /**
    * Solo en el invitado: te han dado, y esto es lo que pega.
    *
@@ -73,10 +75,14 @@ export interface OpcionesSesion extends AvisosSesion {
   minutos?: () => number;
   /** Solo el anfitrión: los objetos del suelo, para mandarlos. */
   objetos?: () => readonly Drop[];
+  /** Solo el anfitrión: las celdas de agua que han cambiado. */
+  liquidosCambiados?: (tope: number) => readonly CambioLiquido[];
   /** Solo el anfitrión: un invitado ha dado un mandoble ya comprobado. */
   alGolpear?: (quien: number, golpe: Golpe, caja: Caja) => void;
   /** Solo el anfitrión: un invitado quiere coger algo del suelo. */
   alPedirObjeto?: (quien: number, idDrop: number, caja: Caja) => void;
+  /** Solo el anfitrión: un invitado ha usado un cubo dentro de su alcance. */
+  alUsarCubo?: (objeto: number, tx: number, ty: number) => void;
   /** Solo el invitado: el anfitrión te da lo que habías pedido. */
   alRecogerObjeto?: (objeto: number, cantidad: number) => void;
   /** Con qué versión nació el mundo, para recrear bien los bichos que llegan. */
@@ -130,6 +136,8 @@ export interface SesionRed {
   golpear(arma: number, direccion: 1 | -1, sentido: number): void;
   /** Pedir un objeto del suelo. Solo el invitado tiene que pedir permiso. */
   pedirObjeto(idDrop: number): void;
+  /** Avisar de un cubo usado. En el anfitrión no hace nada: ya lo ha hecho. */
+  avisarCubo(objeto: number, tx: number, ty: number): void;
   /** Darle a un invitado lo que ha pedido. Solo el anfitrión reparte. */
   entregar(id: number, objeto: number, cantidad: number): void;
   /**
@@ -162,8 +170,10 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     bichos: op.bichos,
     minutos: op.minutos,
     objetos: op.objetos,
+    liquidosCambiados: op.liquidosCambiados,
     alGolpear: op.alGolpear,
     alPedirObjeto: op.alPedirObjeto,
+    alUsarCubo: op.alUsarCubo,
     alEntrar: (j) => {
       nombres.set(j.id, j.nombre);
       op.alContar?.(`${j.nombre} ha entrado`);
@@ -275,6 +285,9 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     pedirObjeto() {
       /* el anfitrión coge del suelo sin pedirle permiso a nadie */
     },
+    avisarCubo() {
+      /* el cubo del anfitrión ya ha mojado su mundo, que es el que manda */
+    },
     entregar(id, objeto, cantidad) {
       anfitrion.entregar(id, objeto, cantidad);
     },
@@ -370,6 +383,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     alDarLaHora: (minutos) => op.alDarLaHora?.(minutos),
     alRecibirGolpe: (dano, desdeX) => op.alRecibirGolpe?.(dano, desdeX),
     alRecogerObjeto: (objeto, cantidad) => op.alRecogerObjeto?.(objeto, cantidad),
+    alCambiarLiquidos: (cs) => op.alCambiarLiquidos?.(cs),
     alRechazar: (motivo) => {
       parar();
       op.alCambiarEstado?.('fallo', motivo);
@@ -447,6 +461,9 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     },
     pedirObjeto(idDrop) {
       invitado.pedirObjeto(idDrop);
+    },
+    avisarCubo(objeto, tx, ty) {
+      invitado.avisarCubo(objeto, tx, ty);
     },
     entregar() {
       /* el invitado no reparte nada */

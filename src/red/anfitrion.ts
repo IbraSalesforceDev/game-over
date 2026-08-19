@@ -29,6 +29,7 @@ import {
   ENT,
   MSG,
   escribirDano,
+  escribirLiquidos,
   escribirRecogido,
   RECHAZO,
   VERSION_PROTOCOLO,
@@ -38,6 +39,7 @@ import {
   escribirTiles,
   leerMensaje,
   trocearMundo,
+  type CambioLiquido,
   type CambioTile,
   type EntidadRed,
 } from './protocolo';
@@ -81,6 +83,16 @@ export const TOPE_BICHOS = 60;
  * lo mismo en el cable y molestan menos si faltan.
  */
 export const TOPE_OBJETOS = 40;
+
+/**
+ * Cuántas celdas de líquido caben en un aviso.
+ *
+ * Un paso del simulador puede tocar seis mil, y mandarlas todas a sesenta por
+ * segundo serían dos megas por segundo. Con este tope, un mar rompiéndose tarda
+ * unos segundos en llegar entero y una cascada normal va al día: como el valor
+ * se lee al mandarlo, esperar un turno no manda nada viejo, manda menos.
+ */
+export const TOPE_LIQUIDOS = 250;
 
 export interface JugadorConectado {
   /** Número corto, el que viaja en las instantáneas. */
@@ -136,6 +148,8 @@ export interface OpcionesAnfitrion {
   alGolpear?: (quien: number, golpe: Golpe, caja: Caja) => void;
   /** Un invitado quiere coger algo del suelo. El juego mira si lo tiene cerca. */
   alPedirObjeto?: (quien: number, idDrop: number, caja: Caja) => void;
+  /** Un invitado ha usado un cubo, y le pilla cerca. El juego decide si vale. */
+  alUsarCubo?: (objeto: number, tx: number, ty: number) => void;
   /**
    * Los bichos que hay ahora mismo.
    *
@@ -152,6 +166,8 @@ export interface OpcionesAnfitrion {
   minutos?: () => number;
   /** Los objetos que hay por el suelo ahora mismo, para mandarlos. */
   objetos?: () => readonly Drop[];
+  /** Las celdas de líquido que han cambiado, hasta un tope. */
+  liquidosCambiados?: (tope: number) => readonly CambioLiquido[];
 }
 
 function entradaDeBotones(botones: number, antes: Entrada): Entrada {
@@ -248,6 +264,11 @@ export class Anfitrion {
         break;
       case MSG.COJO:
         this.op.alPedirObjeto?.(j.id, m.idDrop, j.caja);
+        break;
+      case MSG.CUBO:
+        // El alcance se comprueba aquí, igual que al picar: un cubo tirado a
+        // cien tiles vaciaría un mar desde el otro lado del mundo.
+        if (this.alAlcance(j, m.tx, m.ty)) this.op.alUsarCubo?.(m.objeto, m.tx, m.ty);
         break;
       case MSG.ADIOS:
         this.quitar(quien);
@@ -371,13 +392,23 @@ export class Anfitrion {
    * segundo es lo que impide que un cliente modificado desmonte el mundo entero
    * sin moverse del sitio.
    */
+  /**
+   * ¿Le llega el brazo a esa casilla?
+   *
+   * La misma cuenta para picar, poner y usar un cubo: son tres formas de tocar
+   * el mundo desde donde estás, y tener tres alcances distintos sería una
+   * casualidad esperando a convertirse en un fallo.
+   */
+  private alAlcance(j: JugadorConectado, tx: number, ty: number): boolean {
+    const cx = (j.caja.x + j.caja.ancho / 2) / TILE;
+    const cy = (j.caja.y + j.caja.alto / 2) / TILE;
+    return Math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) <= ALCANCE_TILES;
+  }
+
   private atenderPeticionDeTile(j: JugadorConectado, c: CambioTile): void {
     const mundo = this.op.mundo;
     if (!mundo.dentro(c.tx, c.ty)) return;
-
-    const cx = (j.caja.x + j.caja.ancho / 2) / TILE;
-    const cy = (j.caja.y + j.caja.alto / 2) / TILE;
-    if (Math.hypot(c.tx + 0.5 - cx, c.ty + 0.5 - cy) > ALCANCE_TILES) return;
+    if (!this.alAlcance(j, c.tx, c.ty)) return;
 
     if (c.pared) mundo.setPared(c.tx, c.ty, c.id);
     else mundo.setTile(c.tx, c.ty, c.id);
@@ -413,6 +444,22 @@ export class Anfitrion {
       });
     }
     return salida;
+  }
+
+  /**
+   * Reparte cómo ha quedado el agua desde la última vez.
+   *
+   * Va por el canal fiable aunque sea información que se repite: perder «aquí
+   * ya no hay agua» deja un charco fantasma en la pantalla del otro, y como el
+   * simulador no volverá a tocar esa celda, ahí se queda para siempre.
+   */
+  private difundirLiquidos(): void {
+    const cambios = this.op.liquidosCambiados?.(TOPE_LIQUIDOS) ?? [];
+    if (cambios.length === 0) return;
+    const bytes = escribirLiquidos(cambios);
+    for (const j of this.jugadores.values()) {
+      if (j.listo) j.enlace.mandarFirme(bytes);
+    }
   }
 
   /**
@@ -485,6 +532,10 @@ export class Anfitrion {
         if (j.listo) j.enlace.mandarFirme(bytes);
       }
     }
+
+    // El agua va con las instantáneas y no en cada tick: es lo que se ve, no lo
+    // que se decide, y a veinte por segundo el ojo no distingue la diferencia.
+    if (this.tickActual % TICKS_POR_INSTANTANEA === 0) this.difundirLiquidos();
 
     if (this.tickActual % TICKS_POR_INSTANTANEA !== 0) return;
 

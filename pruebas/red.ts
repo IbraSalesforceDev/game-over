@@ -26,6 +26,8 @@ import { PIEDRA, AIRE } from '../src/world/tiles';
 import { crearDrop, type Drop } from '../src/entities/drop';
 import { ESPADA_HIERRO, GEL } from '../src/items/items';
 import { TICKS_GOLPE } from '../src/entities/combat';
+import { SimuladorLiquidos } from '../src/world/liquids';
+import { CUBO_AGUA } from '../src/items/items';
 
 const lista = document.getElementById('resultados')!;
 const fallos: string[] = [];
@@ -118,6 +120,9 @@ async function main(): Promise<void> {
   const mandobles: { arma: number; empieza: boolean }[] = [];
   const recogido: { objeto: number; cantidad: number }[] = [];
   const suelo: Drop[] = [];
+  /** El simulador del anfitrión, el único que corre. */
+  const agua = new SimuladorLiquidos(genA.mundo);
+  agua.anotarCambios(true);
   const tilesEnB: { tx: number; ty: number; id: number }[] = [];
   const tilesEnA: { tx: number; ty: number; id: number }[] = [];
 
@@ -133,6 +138,8 @@ async function main(): Promise<void> {
     bichos: () => [],
     minutos: () => horaDelAnfitrion,
     objetos: () => suelo,
+    liquidosCambiados: (tope) => agua.tomarSucias(tope),
+    alUsarCubo: (_objeto, tx, ty) => agua.verter(tx, ty, 255),
     alGolpear: (_quien, g) =>
       mandobles.push({ arma: g.arma, empieza: g.restante === TICKS_GOLPE }),
     alPedirObjeto: (quien, idDrop) => {
@@ -164,6 +171,9 @@ async function main(): Promise<void> {
       golpesRecibidos++;
     },
     alRecogerObjeto: (objeto, cantidad) => recogido.push({ objeto, cantidad }),
+    alCambiarLiquidos: (cs) => {
+      for (const c of cs) genB.mundo.setLiquido(c.tx, c.ty, c.nivel, c.lava);
+    },
   });
 
   // El bucle del juego: los dos avanzan a 60 Hz, como en la partida de verdad.
@@ -242,6 +252,43 @@ async function main(): Promise<void> {
   comprobar(
     'y deja de estar en el suelo',
     await esperarA(() => (invitado.objetos() ?? []).length === 0, 5000),
+  );
+
+  // El agua la simula el anfitrión y llega hecha.
+  const txAgua = genA.spawnTx + 8;
+  const tyAgua = genA.spawnTy - 6;
+  agua.verter(txAgua, tyAgua, 255);
+  comprobar(
+    'el agua del anfitrión aparece en el invitado',
+    await esperarA(() => genB.mundo.getLiquido(txAgua, tyAgua) > 0, 5000),
+  );
+
+  // Y sigue llegando mientras cae: lo que se comprueba es que no es una foto
+  // suelta sino el caudal.
+  const antesDeCaer = genB.mundo.getLiquido(txAgua, tyAgua);
+  for (let t = 0; t < 120; t++) agua.paso();
+  comprobar(
+    'y el agua que baja también',
+    await esperarA(() => genB.mundo.getLiquido(txAgua, tyAgua) !== antesDeCaer, 5000),
+  );
+
+  // El cubo del invitado moja el mundo del anfitrión.
+  // Cerca del invitado: el anfitrión comprueba el alcance, como al picar.
+  const txCubo = genA.spawnTx - 3;
+  const tyCubo = genA.spawnTy - 2;
+  invitado.avisarCubo(CUBO_AGUA, txCubo, tyCubo);
+  comprobar(
+    'un cubo del invitado moja el mundo del anfitrión',
+    await esperarA(() => genA.mundo.getLiquido(txCubo, tyCubo) > 0, 5000),
+  );
+
+  // Y uno tirado desde lejos, no: el alcance se comprueba donde se decide.
+  const lejos = genA.spawnTx + 60;
+  invitado.avisarCubo(CUBO_AGUA, lejos, tyCubo);
+  await esperar(600);
+  comprobar(
+    'pero uno tirado a sesenta tiles no moja nada',
+    genA.mundo.getLiquido(lejos, tyCubo) === 0,
   );
 
   // Un bloque puesto por el anfitrión tiene que aparecer en el invitado.
