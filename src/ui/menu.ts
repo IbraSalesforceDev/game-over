@@ -166,6 +166,69 @@ function peso(bytes: number): string {
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/**
+ * Cuántas versiones se ofrecen de entrada al crear o al migrar.
+ *
+ * Son 56 y subiendo, y un desplegable con 56 entradas no se lee: se busca. Las
+ * que interesan casi siempre son las últimas.
+ */
+export const VERSIONES_A_LA_VISTA = 15;
+
+/**
+ * Rellena un desplegable de versiones con las más nuevas, y deja el resto
+ * detrás de una entrada que las despliega.
+ *
+ * **No se esconden, se recogen.** Quitar las viejas del todo rompería la
+ * promesa del sistema de versiones —crear un mundo con las reglas de entonces—
+ * y dejaría sin destino a quien quiera bajar un mundo hasta 2.1.0. Un clic de
+ * más para lo que casi nadie hace es un cambio; perder la posibilidad es otro.
+ */
+function rellenarVersiones(
+  select: HTMLSelectElement,
+  todas: readonly { id: string; nombre: string }[],
+  etiqueta: (v: { id: string; nombre: string }) => string,
+  conservar: string,
+): void {
+  // Lo último que se eligió de verdad, para no perderlo al desplegar la lista.
+  let ultima = conservar;
+
+  const pintar = (completo: boolean): void => {
+    // Se conservan las opciones que no son versiones (el "Cambiar versión…").
+    for (const op of [...select.options]) {
+      if (op.value !== '') op.remove();
+    }
+    const lista = completo ? todas : todas.slice(0, VERSIONES_A_LA_VISTA);
+    for (const v of lista) {
+      const op = document.createElement('option');
+      op.value = v.id;
+      op.textContent = etiqueta(v);
+      select.appendChild(op);
+    }
+    if (!completo && todas.length > lista.length) {
+      const op = document.createElement('option');
+      op.value = TODAS;
+      op.textContent = `Ver las ${todas.length} versiones…`;
+      select.appendChild(op);
+    }
+    select.value = ultima;
+  };
+
+  select.addEventListener('change', () => {
+    if (select.value !== TODAS) {
+      ultima = select.value;
+      return;
+    }
+    // «Ver todas» es abrir la lista, no elegir nada: se repinta y se vuelve a
+    // dejar marcado lo que hubiera.
+    pintar(true);
+  });
+
+  pintar(false);
+}
+
+/** Valor de la entrada que despliega el resto. No es una versión. */
+const TODAS = '__todas';
+
 export function mostrarMenu(
   contenedor: HTMLElement,
   almacen: SaveAdapter,
@@ -236,15 +299,19 @@ export function mostrarMenu(
         vacia.value = '';
         vacia.textContent = 'Cambiar versión…';
         sMigrar.appendChild(vacia);
-        for (const v of [...destinosPosibles(versionMundo)].reverse()) {
-          const op = document.createElement('option');
-          op.value = v.id;
-          const flecha = alMenos(v.id, versionMundo) ? '↑' : '↓';
-          op.textContent = `${flecha} ${v.id} · ${v.nombre}`;
-          sMigrar.appendChild(op);
-        }
+        rellenarVersiones(
+          sMigrar,
+          [...destinosPosibles(versionMundo)].reverse(),
+          (v) => `${alMenos(v.id, versionMundo) ? '↑' : '↓'} ${v.id} · ${v.nombre}`,
+          '',
+        );
         sMigrar.addEventListener('change', () => {
           const destino = sMigrar.value;
+          // `TODAS` no es un destino. Para cuando llega aquí ya lo ha atendido
+          // `rellenarVersiones`, pero eso depende del orden en que se
+          // registraron los dos oyentes, y de eso no quiero que dependa migrar
+          // un mundo sin querer.
+          if (destino === TODAS) return;
           sMigrar.value = '';
           if (destino) cerrar({ tipo: 'migrar', meta, destino, fuente });
         });
@@ -520,13 +587,12 @@ export function mostrarMenu(
       const lVersion = document.createElement('label');
       lVersion.textContent = 'Versión';
       const sVersion = document.createElement('select');
-      for (const v of [...VERSIONES].reverse()) {
-        const op = document.createElement('option');
-        op.value = v.id;
-        op.textContent = `${v.id} · ${v.nombre}`;
-        sVersion.appendChild(op);
-      }
-      sVersion.value = VERSION_ACTUAL;
+      rellenarVersiones(
+        sVersion,
+        [...VERSIONES].reverse(),
+        (v) => `${v.id} · ${v.nombre}`,
+        VERSION_ACTUAL,
+      );
       lVersion.appendChild(sVersion);
 
       const lDif = document.createElement('label');

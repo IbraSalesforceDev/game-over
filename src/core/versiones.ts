@@ -703,6 +703,18 @@ export const VERSIONES: readonly Version[] = [
       'Todavía no hacen daño al invitado ni él puede pegarles: eso es lo siguiente',
     ],
   },
+  {
+    id: '7.6.1',
+    etapa: 'prealfa',
+    nombre: 'La lista de versiones, más corta',
+    resumen: 'Al crear un mundo salen las quince últimas, y el resto a un clic.',
+    cambios: [
+      'El desplegable de versiones enseña las quince más nuevas',
+      'Las demás siguen ahí, detrás de «ver todas»: no se quita ninguna',
+      'Lo mismo al cambiar de versión un mundo que ya existe',
+      'Desplegar la lista no pierde lo que tuvieras elegido',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
