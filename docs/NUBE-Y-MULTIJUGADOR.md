@@ -215,7 +215,7 @@ en todo momento **una sola copia con autoridad**. Se acabó el «¿cuál es más
 nueva?», el mezclar, y la cola de sincronización. Era la parte que estaba marcada
 como «más trabajo que todo lo demás junto», y con este modelo desaparece entera.
 
-### Qué decide el anfitrión, a día de hoy (7.13.0)
+### Qué decide el anfitrión, a día de hoy (7.14.0)
 
 La regla, dicha entera: **todo lo que es del mundo lo decide quien lo hospeda.**
 Lo que es de cada jugador —su inventario, su vida, su armadura, sus pociones—
@@ -258,6 +258,51 @@ deja la barra del compañero llena mientras se está muriendo. Cuando no llega
 —alguien acaba de entrar, o juega con una versión anterior a la 7.13.0— no se
 pinta barra en vez de pintar una a cero: una barra vacía diría «se está muriendo»
 y una llena diría «está perfecto», y las dos mentirían.
+
+### El duelo (7.14.0)
+
+Dos jugadores pueden pegarse, y lo resuelve el anfitrión. No es una excepción al
+reparto de arriba: es exactamente el mismo camino que un golpe de un bicho. El
+anfitrión, que es el único que tiene a todos en la misma máquina, decide que a
+alguien le han dado y cuánto pegaba lo que le tocó; la armadura, el empujón y la
+muerte los aplica cada uno en su casa. Al anfitrión mismo se le aplica por la
+misma función que usa un invitado al recibir un golpe de la red, para que un
+mandoble se sienta igual desde los dos lados.
+
+**Dos puertas, y hacen falta las dos.**
+
+1. **El mundo.** De dificultad «normal» en adelante (`hayDuelo`, en
+   `core/dificultad.ts`). Se pregunta por la fuerza del nivel y no por su id
+   porque la fuerza es lo que significa: 1 es «lo hostil pega lo que tiene que
+   pegar», y los tres niveles de debajo existen para poder aprender sin que te
+   maten. Se elige al crear el mundo y no se puede cambiar.
+2. **Las dos personas.** Cada uno tiene un interruptor, la tecla `G`, y el golpe
+   solo entra si lo tienen encendido **quien pega y quien recibe**. Nace apagado
+   en cada partida y no se guarda, a propósito: abrir el mundo y descubrir que
+   puedes matar a tu amigo de un despiste, porque anoche hicisteis un duelo, es
+   justo el accidente que el interruptor existe para evitar.
+
+La segunda puerta no es una precaución teórica. El arco de un arma barre dos
+tiles durante ocho ticks; dos personas picando el mismo túnel se alcanzan en casi
+cada mandoble. Sin el acuerdo de los dos, «duelo» no sería una forma de jugar:
+sería fuego amigo constante en una partida cooperativa, sin manera de apagarlo,
+porque la dificultad ya está fijada.
+
+El interruptor viaja en `MSG.ESTADO` —un byte de marcas, hoy con un solo bit— y
+vuelve a todos en las banderas de la entidad, en el mismo bit (`BANDERA.DUELO`).
+Se ve en dos sitios: el nombre sobre la cabeza en rojo, y unas espadas delante
+del nombre en el panel de la esquina. Sin eso, encenderlo y que no pase nada
+—porque el otro lo tiene apagado— se leería como que está roto.
+
+**Lo que no entra: las flechas y las bombas.** Y no por falta de ganas, sino
+porque los proyectiles no existen en la red: cada uno simula los suyos y no hay
+clase de entidad para ellos en la instantánea. El anfitrión podría acertarle a un
+invitado con una flecha, pero un invitado no podría acertarle al anfitrión, y esa
+asimetría es peor que no tener flechas en el duelo. El día que los proyectiles
+viajen —una clase más en la instantánea— entran por el mismo sitio que el
+mandoble. Tampoco viaja el filo de las armas de jefe: el veneno o el robo de vida
+se quedan en los bichos, porque aplicarle un efecto a otro jugador pide que los
+efectos viajen del anfitrión hacia fuera, y hoy solo van hacia dentro.
 
 ### El corolario que faltaba: guarda el anfitrión, y solo él (7.11.1)
 

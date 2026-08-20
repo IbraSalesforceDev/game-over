@@ -25,7 +25,12 @@ import { VERSION_ACTUAL } from '../src/core/versiones';
 import { PIEDRA, AIRE } from '../src/world/tiles';
 import { crearDrop, type Drop } from '../src/entities/drop';
 import { ESPADA_HIERRO, GEL } from '../src/items/items';
-import { TICKS_GOLPE } from '../src/entities/combat';
+import {
+  crearGolpe,
+  lanzarGolpe,
+  resolverGolpeAJugadores,
+  TICKS_GOLPE,
+} from '../src/entities/combat';
 import { SimuladorLiquidos } from '../src/world/liquids';
 import { CUBO_AGUA } from '../src/items/items';
 import { Contenedores } from '../src/world/contenedores';
@@ -128,6 +133,8 @@ async function main(): Promise<void> {
   const recogido: { objeto: number; cantidad: number }[] = [];
   const suelo: Drop[] = [];
   let curado = 0;
+  /** Cuánto pegaba el último golpe que le llegó al invitado. */
+  let ultimoGolpe = 0;
   /** El simulador del anfitrión, el único que corre. */
   const agua = new SimuladorLiquidos(genA.mundo);
   agua.anotarCambios(true);
@@ -193,8 +200,9 @@ async function main(): Promise<void> {
     alDecirElSuceso: (n) => {
       sucesoEnElInvitado = n;
     },
-    alRecibirGolpe: () => {
+    alRecibirGolpe: (dano) => {
       golpesRecibidos++;
+      ultimoGolpe = dano;
     },
     alRecogerObjeto: (objeto, cantidad) => recogido.push({ objeto, cantidad }),
     alCambiarLiquidos: (cs) => {
@@ -210,10 +218,16 @@ async function main(): Promise<void> {
 
   /** La vida que dice tener cada uno, para poder cambiarla a mitad de prueba. */
   const vidaA = { ahora: 100, tope: 100 };
+  /** Si el anfitrión va a duelo. Se enciende a mitad de prueba. */
+  const dueloA = { si: false };
 
   // El bucle del juego: los dos avanzan a 60 Hz, como en la partida de verdad.
   const reloj = setInterval(() => {
-    anfitrion.avanzar(cajaA, QUIETO, 0, vidaA.ahora, vidaA.tope);
+    anfitrion.avanzar(cajaA, QUIETO, 0, {
+      vida: vidaA.ahora,
+      vidaMax: vidaA.tope,
+      duelo: dueloA.si,
+    });
     invitado.avanzar(cajaB, QUIETO);
   }, 16);
 
@@ -341,7 +355,7 @@ async function main(): Promise<void> {
   );
 
   // Y la vida, que viaja en el mismo mensaje y vuelve dentro de la instantánea.
-  invitado.contarEstado([], 37, 140);
+  invitado.contarEstado([], { vida: 37, vidaMax: 140 });
   comprobar(
     'la vida del invitado le llega al anfitrión',
     await esperarA(() => anfitrion.otros()[0]?.vida === 37, 5000),
@@ -356,6 +370,71 @@ async function main(): Promise<void> {
     await esperarA(() => invitado.otros()[0]?.vida === 42, 5000),
   );
   vidaA.ahora = 100;
+
+  // El duelo: viaja en el mismo mensaje y el anfitrión lo apunta para poder
+  // resolver los mandobles.
+  dueloA.si = true;
+  invitado.contarEstado([], { vida: 37, vidaMax: 140, duelo: true });
+  comprobar(
+    'el duelo del invitado le llega al anfitrión',
+    await esperarA(() => anfitrion.rivales()[0]?.duelo === true, 5000),
+  );
+  comprobar(
+    'y el del anfitrión vuelve al invitado',
+    await esperarA(() => invitado.otros()[0]?.duelo === true, 5000),
+  );
+  invitado.contarEstado([], { vida: 37, vidaMax: 140, duelo: false });
+  comprobar(
+    'y apagarlo también se nota al otro lado',
+    await esperarA(() => anfitrion.rivales()[0]?.duelo === false, 5000),
+  );
+
+  // Y el duelo entero, de punta a punta: el anfitrión resuelve el mandoble
+  // contra el invitado y el golpe llega. Es el único trozo que no se puede
+  // probar sin los dos navegadores, porque hacen falta las tres piezas a la
+  // vez: la lista de rivales, el golpe y el mensaje de vuelta.
+  const yoAnfitrion = {
+    id: 1,
+    caja: cajaA,
+    invulnerable: 0,
+    duelo: true,
+  };
+  // Pegados el uno al otro y los dos en duelo.
+  cajaB.x = cajaA.x + 20;
+  cajaB.y = cajaA.y;
+  invitado.contarEstado([], { vida: 100, vidaMax: 100, duelo: true });
+  await esperarA(() => anfitrion.rivales()[0]?.duelo === true, 5000);
+  // La caja del invitado que ve el anfitrión es la suya, no la de aquí: se le
+  // pone donde toca para que el mandoble la alcance.
+  const suRival = anfitrion.rivales()[0]!;
+  suRival.caja.x = cajaA.x + 20;
+  suRival.caja.y = cajaA.y;
+
+  const antesDeLosGolpes = golpesRecibidos;
+  const mandoble = crearGolpe();
+  lanzarGolpe(mandoble, ESPADA_HIERRO, 1, 'lado');
+  const reparto = resolverGolpeAJugadores(mandoble, yoAnfitrion, [yoAnfitrion, suRival]);
+  comprobar('el mandoble del anfitrión alcanza al invitado', reparto.length === 1);
+  for (const t of reparto) anfitrion.cobrar(t.id, t.dano, t.desdeX);
+  comprobar(
+    'y el golpe le llega de verdad al otro navegador',
+    await esperarA(() => golpesRecibidos > antesDeLosGolpes, 5000),
+  );
+  comprobar('con lo que pegaba la espada', ultimoGolpe > 0);
+
+  // Y con el duelo apagado en el invitado, el mismo mandoble no hace nada.
+  invitado.contarEstado([], { vida: 100, vidaMax: 100, duelo: false });
+  await esperarA(() => anfitrion.rivales()[0]?.duelo === false, 5000);
+  const enPaz = anfitrion.rivales()[0]!;
+  enPaz.caja.x = cajaA.x + 20;
+  enPaz.caja.y = cajaA.y;
+  const otro = crearGolpe();
+  lanzarGolpe(otro, ESPADA_HIERRO, 1, 'lado');
+  comprobar(
+    'con el duelo apagado, el mismo mandoble no toca a nadie',
+    resolverGolpeAJugadores(otro, yoAnfitrion, [yoAnfitrion, enPaz]).length === 0,
+  );
+  dueloA.si = false;
 
   // Y la savia de un arma cura a quien pega, aunque pegue desde otra pantalla.
   anfitrion.curar(suyo, 5);

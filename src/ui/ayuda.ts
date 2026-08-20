@@ -64,6 +64,7 @@ const GRUPOS: Grupo[] = [
       ['M', 'Mapa — hace falta llevar uno encima'],
       ['+ −', 'Acercar y alejar la cámara'],
       ['Q', 'El poder del peto de jefe, si llevas uno puesto'],
+      ['G', 'Duelo: acompañado y de dificultad normal en adelante'],
       ['H', 'Esta ayuda'],
       ['⚙', 'Ajustes: volumen, zoom, oscuridad y resolución'],
       ['Esc', 'Cerrar paneles · menú de pausa'],

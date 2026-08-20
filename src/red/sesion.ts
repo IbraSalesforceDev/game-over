@@ -23,16 +23,18 @@ import type { Ajustes, Caja, Entrada } from '../entities/physics';
 import type { Mundo } from '../world/world';
 import type { Acompanante, Enemigo } from '../entities/enemies';
 import type { Drop } from '../entities/drop';
-import type { Golpe } from '../entities/combat';
+import type { Duelista, Golpe } from '../entities/combat';
 import { Anfitrion, type Enlace, type JugadorConectado } from './anfitrion';
 import { ConexionAnfitrion, ConexionInvitado, type EstadoConexion } from './conexion';
 import { Invitado, type OtroJugador } from './invitado';
 import {
+  BANDERA,
   escribirAdios,
   type CambioLiquido,
   type CambioTile,
   type EfectoRed,
   type EstadoCofre,
+  type EstadoPropio,
 } from './protocolo';
 import { entrarEnSala, type Recado, type Sala } from './senal';
 
@@ -144,7 +146,7 @@ export interface SesionRed {
    * La vida viaja aquí, en el mismo sitio que la caja, porque va al mismo
    * destino: la instantánea que ve todo el mundo.
    */
-  avanzar(miCaja: Caja, entrada: Entrada, sumergido?: number, vida?: number, vidaMax?: number): void;
+  avanzar(miCaja: Caja, entrada: Entrada, sumergido?: number, mio?: EstadoPropio): void;
   /** Los demás, ya colocados donde toca pintarlos y con la vida que les queda. */
   otros(): {
     id: number;
@@ -154,6 +156,8 @@ export interface SesionRed {
     mirando: 1 | -1;
     vida: number;
     vidaMax: number;
+    /** Si lleva el duelo encendido: puede pegar y le pueden pegar. */
+    duelo: boolean;
   }[];
   /** Picar o poner. El anfitrión lo hace y lo difunde; el invitado lo pide. */
   tile(c: CambioTile): void;
@@ -165,6 +169,14 @@ export interface SesionRed {
    * Solo el anfitrión devuelve algo: es el único que simula bichos.
    */
   acompanantes(): readonly Acompanante[];
+  /**
+   * Los demás jugadores, como los tiene que ver un mandoble.
+   *
+   * Solo el anfitrión devuelve algo, y por la misma razón que con los bichos:
+   * quien reparte los golpes es uno solo. Un invitado que resolviera aquí sus
+   * mandobles estaría decidiendo la vida de otro desde su máquina.
+   */
+  rivales(): readonly Duelista[];
   /** Cobrarle un golpe a un invitado. En el invitado no hace nada. */
   cobrar(id: number, dano: number, desdeX: number): void;
   /**
@@ -182,8 +194,8 @@ export interface SesionRed {
   tocarCofre(tx: number, ty: number, ranura: number, objeto: number, cantidad: number): void;
   /** Contar cómo ha quedado un cofre. Solo el anfitrión reparte. */
   contarCofre(cofre: EstadoCofre, quien?: number): void;
-  /** Contar lo que se lleva encima y cómo se anda de vida. */
-  contarEstado(efectos: readonly EfectoRed[], vida?: number, vidaMax?: number): void;
+  /** Contar lo que se lleva encima, cómo se anda de vida y si va a duelo. */
+  contarEstado(efectos: readonly EfectoRed[], mio?: EstadoPropio): void;
   /** Lo que multiplica el daño de un invitado. En el invitado, 1. */
   danoDe(quien: number): number;
   /** Curarle a un invitado. En el invitado no hace nada. */
@@ -306,8 +318,8 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
 
   return {
     papel: 'anfitrion',
-    avanzar(miCaja, _entrada, _sumergido = 0, vida = 0, vidaMax = 0) {
-      anfitrion.avanzar(miCaja, vida, vidaMax);
+    avanzar(miCaja, _entrada, _sumergido = 0, mio = {}) {
+      anfitrion.avanzar(miCaja, mio);
     },
     otros() {
       return anfitrion.conectados.map((j: JugadorConectado) => ({
@@ -318,6 +330,7 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
         mirando: j.caja.mirando,
         vida: j.vida,
         vidaMax: j.vidaMax,
+        duelo: j.duelo,
       }));
     },
     tile(c) {
@@ -330,6 +343,9 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     },
     acompanantes() {
       return anfitrion.acompanantes;
+    },
+    rivales() {
+      return anfitrion.rivales;
     },
     cobrar(id, dano, desdeX) {
       anfitrion.cobrar(id, dano, desdeX);
@@ -518,6 +534,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
             mirando: ((o.ultima.banderas & 8) !== 0 ? 1 : -1) as 1 | -1,
             vida: o.ultima.vida,
             vidaMax: o.ultima.vidaMax,
+            duelo: (o.ultima.banderas & BANDERA.DUELO) !== 0,
           },
         ];
       });
@@ -530,6 +547,9 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     },
     acompanantes() {
       return []; // el invitado no simula bichos: no tiene a quién enseñárselos
+    },
+    rivales() {
+      return []; // los mandobles de todos los resuelve el anfitrión, no este
     },
     cobrar() {
       /* de repartir golpes se encarga el anfitrión */
@@ -552,8 +572,8 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     contarCofre() {
       /* el invitado no le cuenta a nadie lo que hay en un cofre */
     },
-    contarEstado(efectos, vida = 0, vidaMax = 0) {
-      invitado.mandarEstado(efectos, vida, vidaMax);
+    contarEstado(efectos, mio = {}) {
+      invitado.mandarEstado(efectos, mio);
     },
     danoDe() {
       return 1; // aquí no se resuelven golpes de nadie

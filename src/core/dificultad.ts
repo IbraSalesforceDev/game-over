@@ -132,3 +132,21 @@ export function dificultad(id: number): NivelDificultad {
 export function hayHostiles(d: NivelDificultad): boolean {
   return d.aforo > 0 && d.fuerza > 0;
 }
+
+/**
+ * ¿En este mundo se pueden pegar dos jugadores?
+ *
+ * De «normal» en adelante. Se pregunta por la fuerza y no por el id porque la
+ * fuerza es lo que significa el nivel: 1 es «lo hostil pega lo que tiene que
+ * pegar», y los tres niveles de debajo existen para poder aprender sin que te
+ * maten. Un mundo donde el juego te está perdonando no es sitio para duelos.
+ *
+ * Esto solo dice si el mundo lo permite. Que dos se peguen de verdad pide
+ * además que los dos lo hayan encendido: ver `duelo` en `main.ts`. Son dos
+ * puertas y hacen falta las dos, porque responden a preguntas distintas —«¿qué
+ * clase de mundo es este?» y «¿qué queremos hacer hoy?»— y la primera se
+ * contesta al crearlo y ya no se puede cambiar.
+ */
+export function hayDuelo(d: NivelDificultad): boolean {
+  return d.fuerza >= 1;
+}

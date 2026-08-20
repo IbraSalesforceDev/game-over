@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 9;
+export const VERSION_PROTOCOLO = 10;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -143,6 +143,13 @@ export const MSG = {
    * empujón y la muerte los aplica él— pero verla no puede depender de eso: sin
    * la barra no se sabe si al de al lado le queda un golpe o veinte, y jugar
    * acompañado es sobre todo saber cuándo hay que ir a echar una mano.
+   *
+   * Y desde 7.14.0 lleva un byte de marcas, hoy con un solo bit: si tiene el
+   * duelo encendido. Va aquí y no en un mensaje propio porque es lo mismo que
+   * todo lo demás de este —una foto de lo que uno lleva puesto, repetida cada
+   * poco— y porque el anfitrión lo necesita para lo mismo que los efectos:
+   * resolver sus mandobles. Un byte y no un booleano por si mañana hay otro
+   * interruptor de estos; caben siete más sin volver a tocar el protocolo.
    */
   ESTADO: 19,
   /** Anfitrión → cliente: cúrate esto. Lo que hace la savia de un arma. */
@@ -227,6 +234,16 @@ export const BANDERA = {
   SALTANDO: 1 << 1,
   NADABA: 1 << 2,
   MIRA_DERECHA: 1 << 3,
+  /**
+   * Lleva el duelo encendido: se puede pegar y le pueden pegar.
+   *
+   * Es el mismo bit en los dos sitios donde viaja —el byte de marcas de
+   * `MSG.ESTADO`, del jugador al anfitrión, y las banderas de la entidad, del
+   * anfitrión a todos— porque dice exactamente lo mismo en los dos. Un bit con
+   * dos nombres es un bit que tarde o temprano se pone en uno y se lee en el
+   * otro.
+   */
+  DUELO: 1 << 4,
 } as const;
 
 export interface EntidadRed {
@@ -411,15 +428,34 @@ export interface EfectoRed {
   ticks: number;
 }
 
+/**
+ * Lo que cada uno cuenta de sí mismo.
+ *
+ * Va todo junto y en un objeto porque es lo mismo en los cuatro sitios por los
+ * que pasa —el mensaje, el invitado, la sesión y el anfitrión— y porque los
+ * campos son dos números seguidos: en una lista de parámetros sueltos, `vida` y
+ * `vidaMax` se cambian de orden una vez y no lo nota nadie hasta que alguien
+ * ve a un compañero con doscientos de vida sobre cien.
+ *
+ * Todo opcional: lo que no se cuenta viaja a cero, que es como llegan los que
+ * juegan con una versión anterior.
+ */
+export interface EstadoPropio {
+  vida?: number;
+  vidaMax?: number;
+  /** Si tiene el duelo encendido. */
+  duelo?: boolean;
+}
+
 export function escribirEstado(
   efectos: readonly EfectoRed[],
-  vida = 0,
-  vidaMax = 0,
+  mio: EstadoPropio = {},
 ): Uint8Array {
   const e = new Escritor();
   e.u8(MSG.ESTADO);
-  e.u16(Math.max(0, Math.min(65535, Math.round(vida))));
-  e.u16(Math.max(0, Math.min(65535, Math.round(vidaMax))));
+  e.u16(Math.max(0, Math.min(65535, Math.round(mio.vida ?? 0))));
+  e.u16(Math.max(0, Math.min(65535, Math.round(mio.vidaMax ?? 0))));
+  e.u8(mio.duelo ? BANDERA.DUELO : 0);
   e.u8(Math.min(255, efectos.length));
   for (const ef of efectos.slice(0, 255)) {
     e.u8(ef.clase);
@@ -605,7 +641,13 @@ export type Mensaje =
       cantidad: number;
     }
   | { tipo: typeof MSG.COFRE; cofre: EstadoCofre }
-  | { tipo: typeof MSG.ESTADO; vida: number; vidaMax: number; efectos: EfectoRed[] }
+  | {
+      tipo: typeof MSG.ESTADO;
+      vida: number;
+      vidaMax: number;
+      duelo: boolean;
+      efectos: EfectoRed[];
+    }
   | { tipo: typeof MSG.CURA; cantidad: number };
 
 /**
@@ -686,10 +728,17 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
       case MSG.ESTADO: {
         const vida = l.u16();
         const vidaMax = l.u16();
+        const marcas = l.u8();
         const n = l.u8();
         const efectos: EfectoRed[] = [];
         for (let i = 0; i < n; i++) efectos.push({ clase: l.u8(), ticks: l.u16() });
-        return { tipo: MSG.ESTADO, vida, vidaMax, efectos };
+        return {
+          tipo: MSG.ESTADO,
+          vida,
+          vidaMax,
+          duelo: (marcas & BANDERA.DUELO) !== 0,
+          efectos,
+        };
       }
       case MSG.CURA:
         return { tipo: MSG.CURA, cantidad: l.u16() };

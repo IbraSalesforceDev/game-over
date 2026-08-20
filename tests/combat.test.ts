@@ -6,9 +6,11 @@ import {
   lanzarGolpe,
   puedeGolpear,
   resolverGolpe,
+  resolverGolpeAJugadores,
   sentidoDeVector,
   tickGolpe,
   TICKS_GOLPE,
+  type Duelista,
 } from '../src/entities/combat';
 import {
   actualizarEnemigos,
@@ -565,5 +567,122 @@ describe('el agua amortigua la caída', () => {
     // Ni con un número absurdo: la fracción se recorta a 1.
     expect(danoDeCaida(ALTA, 99)).toBe(danoDeCaida(ALTA, 1));
     expect(danoDeCaida(ALTA, -5)).toBe(danoDeCaida(ALTA));
+  });
+});
+
+/**
+ * El duelo: el mismo mandoble, contra la gente.
+ *
+ * Las reglas de aquí son todas de la forma «no pasa nada salvo que», y por eso
+ * casi todas las pruebas comprueban que **no** ocurre. Un duelo que se dispara
+ * de más no es un duelo mal ajustado: es un amigo muerto sin quererlo.
+ */
+describe('golpes entre jugadores', () => {
+  function armar(x: number, duelo: boolean, id: number): Duelista {
+    return {
+      id,
+      caja: crearCaja(x, 100, JUGADOR_ANCHO, JUGADOR_ALTO),
+      invulnerable: 0,
+      duelo,
+    };
+  }
+
+  /** Con los dos en duelo y a un palmo, el mandoble entra. */
+  function pegar(a: Duelista, b: Duelista): ReturnType<typeof resolverGolpeAJugadores> {
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'lado');
+    return resolverGolpeAJugadores(g, a, [a, b]);
+  }
+
+  it('con los dos en duelo, el golpe entra', () => {
+    const r = pegar(armar(100, true, 1), armar(120, true, 2));
+    expect(r).toHaveLength(1);
+    expect(r[0]!.id).toBe(2);
+    expect(r[0]!.dano).toBeGreaterThan(0);
+  });
+
+  it('si quien pega no lo tiene encendido, no pasa nada', () => {
+    expect(pegar(armar(100, false, 1), armar(120, true, 2))).toHaveLength(0);
+  });
+
+  /** La regla que evita el accidente: picar al lado de alguien no le cuesta la vida. */
+  it('si quien recibe no lo tiene encendido, tampoco', () => {
+    expect(pegar(armar(100, true, 1), armar(120, false, 2))).toHaveLength(0);
+  });
+
+  it('nadie se pega a sí mismo', () => {
+    const yo = armar(100, true, 1);
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'lado');
+    expect(resolverGolpeAJugadores(g, yo, [yo])).toHaveLength(0);
+  });
+
+  it('de lejos no se llega', () => {
+    expect(pegar(armar(100, true, 1), armar(400, true, 2))).toHaveLength(0);
+  });
+
+  it('a quien está invulnerable no se le vuelve a dar', () => {
+    const otro = armar(120, true, 2);
+    otro.invulnerable = 20;
+    expect(pegar(armar(100, true, 1), otro)).toHaveLength(0);
+  });
+
+  /** Un barrido dura ocho ticks y no puede cobrarse ocho veces. */
+  it('un mismo mandoble solo pega una vez, aunque barra ocho ticks', () => {
+    const yo = armar(100, true, 1);
+    const otro = armar(120, true, 2);
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'lado');
+    let veces = 0;
+    for (let i = 0; i < TICKS_GOLPE; i++) {
+      veces += resolverGolpeAJugadores(g, yo, [yo, otro]).length;
+      tickGolpe(g);
+    }
+    expect(veces).toBe(1);
+  });
+
+  /** Y el siguiente mandoble sí, o pegar dos veces seguidas no serviría de nada. */
+  it('pero el mandoble siguiente vuelve a contar', () => {
+    const yo = armar(100, true, 1);
+    const otro = armar(120, true, 2);
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'lado');
+    expect(resolverGolpeAJugadores(g, yo, [yo, otro])).toHaveLength(1);
+    for (let i = 0; i < 60; i++) tickGolpe(g);
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'lado');
+    expect(resolverGolpeAJugadores(g, yo, [yo, otro])).toHaveLength(1);
+  });
+
+  it('las pociones de quien pega también cuentan aquí', () => {
+    const yo = armar(100, true, 1);
+    const otro = armar(120, true, 2);
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'lado');
+    const flojo = resolverGolpeAJugadores(g, yo, [yo, otro])[0]!.dano;
+    const g2 = crearGolpe();
+    lanzarGolpe(g2, ESPADA_HIERRO, 1, 'lado');
+    const fuerte = resolverGolpeAJugadores(g2, yo, [yo, armar(120, true, 3)], 2)[0]!.dano;
+    expect(fuerte).toBe(flojo * 2);
+  });
+
+  /** La misma pared que para los bichos: no se pega a través de un bloque. */
+  it('con una pared por medio, no llega', () => {
+    const mundo = new Mundo(40, 40);
+    for (let y = 0; y < 40; y++) mundo.setTile(7, y, PIEDRA);
+    const yo: Duelista = {
+      id: 1,
+      caja: crearCaja(6 * TILE, 10 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO),
+      invulnerable: 0,
+      duelo: true,
+    };
+    const otro: Duelista = {
+      id: 2,
+      caja: crearCaja(8 * TILE, 10 * TILE, JUGADOR_ANCHO, JUGADOR_ALTO),
+      invulnerable: 0,
+      duelo: true,
+    };
+    const g = crearGolpe();
+    lanzarGolpe(g, ESPADA_HIERRO, 1, 'lado');
+    expect(resolverGolpeAJugadores(g, yo, [yo, otro], 1, mundo)).toHaveLength(0);
   });
 });

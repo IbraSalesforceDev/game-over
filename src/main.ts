@@ -1,5 +1,5 @@
 import { TICK, TILE } from './core/constants';
-import { dificultad, DIFICULTAD_POR_DEFECTO } from './core/dificultad';
+import { dificultad, hayDuelo, DIFICULTAD_POR_DEFECTO } from './core/dificultad';
 import { hay, VERSION_ACTUAL, type Caracteristica } from './core/versiones';
 import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
@@ -171,8 +171,10 @@ import {
   lanzarGolpe,
   puedeGolpear,
   resolverGolpe,
+  resolverGolpeAJugadores,
   sentidoDeVector,
   tickGolpe,
+  type Duelista,
   type Golpe,
   type Sentido,
 } from './entities/combat';
@@ -1165,6 +1167,16 @@ async function arrancar(): Promise<void> {
    */
   const nivelDif = dificultad(partida.estado.dificultad);
   debug.dificultad = `${nivelDif.id} · ${nivelDif.nombre}`;
+  /**
+   * Si este jugador lleva el duelo encendido.
+   *
+   * Nace apagado siempre, también al volver a una partida donde estaba puesto:
+   * no se guarda a propósito. Abrir el mundo y descubrir que puedes matar a tu
+   * amigo de un despiste, porque anoche hicisteis un duelo, es exactamente el
+   * accidente que este interruptor existe para evitar. Encenderlo cuesta una
+   * tecla; que se quede encendido solo, no debería costar una partida.
+   */
+  let duelo = false;
   // Al abrir un mundo guardado el líquido está quieto en el array pero la
   // simulación no sabe que existe: hay que despertarlo o el agua se quedaría
   // congelada hasta que alguien la tocase.
@@ -1542,6 +1554,11 @@ async function arrancar(): Promise<void> {
   for (let i = 0; i < 10; i++) {
     entrada.alPulsar(`Digit${(i + 1) % 10}`, () => barra.seleccionar(i));
   }
+  // La G: el duelo. Es lo único del juego que decide si un amigo te puede
+  // matar, así que dice en voz alta cada vez que cambia y también cuando no
+  // puede cambiar: un interruptor invisible que a veces no hace nada es peor
+  // que no tenerlo.
+  entrada.alPulsar('KeyG', alternarDuelo);
   entrada.alPulsar('KeyR', () => {
     reaparecer(jugador);
     renderer.camara.centrar(jugador.caja.x, jugador.caja.y, mundo.ancho, mundo.alto);
@@ -3444,6 +3461,102 @@ async function arrancar(): Promise<void> {
    * visión y el mismo filo. Un invitado no puede pegar distinto de como pega
    * quien hospeda.
    */
+  /**
+   * Enciende o apaga el duelo, y dice por qué si no se puede.
+   *
+   * Las tres negativas son distintas y por eso dicen cosas distintas. «Solo
+   * acompañado» y «este mundo no» son dos callejones sin salida diferentes: del
+   * primero se sale invitando a alguien, y del segundo no se sale, porque la
+   * dificultad se elige al crear el mundo y no se toca más.
+   */
+  function alternarDuelo(): void {
+    if (pausa.abierto || mapa.abierto || ayuda.abierto || opciones.abierto) return;
+    if (barra.inventarioAbierto || depuracion.abierto) return;
+    if (!sesionRed) {
+      aviso.mostrar('El duelo es cosa de dos: hace falta jugar acompañado');
+      return;
+    }
+    if (!hayDuelo(nivelDif)) {
+      aviso.mostrar(`En dificultad «${nivelDif.nombre}» no hay duelos entre jugadores`, true);
+      return;
+    }
+    duelo = !duelo;
+    // Se dice al momento y no se espera a la siguiente foto de estado: quien
+    // pulsa tiene que saber ya si lo ha encendido o lo ha apagado.
+    aviso.mostrar(
+      duelo
+        ? 'Duelo encendido: puedes pegar y te pueden pegar'
+        : 'Duelo apagado: nadie puede hacerte daño',
+      duelo,
+    );
+    audio.sonar('golpe', duelo ? 0.6 : 0.3);
+  }
+
+  /**
+   * Lo mismo, pero contra los demás jugadores.
+   *
+   * Solo lo hace el anfitrión, y no por comodidad: es el único que tiene a
+   * todos en la misma máquina. Un invitado que resolviera esto en su casa
+   * estaría decidiendo cuánta vida le queda a otro, y esa es justo la clase de
+   * cosa que en esta arquitectura decide uno solo.
+   *
+   * Sale por la misma puerta que el golpe de un bicho: no se toca la vida de
+   * nadie aquí, se dice «a este le han dado y pegaba tanto» y cada uno lo
+   * aplica en su casa con su armadura. Al anfitrión mismo se le aplica por la
+   * misma función que usa un invitado al recibir un golpe de la red, para que
+   * un mandoble de un amigo se sienta exactamente igual desde los dos lados.
+   */
+  function repartirEntreJugadores(g: Golpe, atacante: number, multiplicador: number): void {
+    if (sesionRed?.papel !== 'anfitrion' || !hayDuelo(nivelDif)) return;
+    const rivales = sesionRed.rivales();
+    if (rivales.length === 0) return;
+    const yo: Duelista = {
+      id: 1,
+      caja: jugador.caja,
+      invulnerable: salud.invulnerable,
+      duelo,
+    };
+    // El anfitrión entra en la lista como uno más: si no, sería el único al que
+    // no se puede pegar, que es la clase de ventaja que arruina un duelo.
+    const todos = [yo, ...rivales];
+    const quienPega = todos.find((r) => r.id === atacante);
+    if (!quienPega) return;
+    const tocados = resolverGolpeAJugadores(
+      g,
+      quienPega,
+      todos,
+      multiplicador,
+      tiene('golpeConVista') ? mundo : null,
+    );
+    for (const t of tocados) {
+      if (t.id === 1) recibirGolpeDeRed(t.dano, t.desdeX);
+      else sesionRed.cobrar(t.id, t.dano, t.desdeX);
+      // Las chispas salen en quien las recibe, no en quien pega: es donde el
+      // ojo busca la confirmación de que el mandoble ha entrado. En rojo y no
+      // en el dorado de los bichos, porque lo que acaba de pasar es distinto y
+      // conviene que se lea distinto.
+      const victima = todos.find((r) => r.id === t.id);
+      if (victima) {
+        particulas.emitir(
+          victima.caja.x + victima.caja.ancho / 2,
+          victima.caja.y + victima.caja.alto / 2,
+          {
+            cantidad: 10,
+            color: '#ffb0a0',
+            forma: 'chispa',
+            dispersion: 2.4,
+            vida: 16,
+            tam: 2,
+            gravedad: 0.08,
+          },
+        );
+      }
+      // La sacudida es de quien mira la pantalla. Al recibir ya la pone
+      // `recibirGolpeDeRed`; esta es la de acertar.
+      if (atacante === 1 && t.id !== 1) sacudir(1.4);
+    }
+  }
+
   function resolverMandoble(
     g: Golpe,
     caja: Caja,
@@ -3493,6 +3606,11 @@ async function arrancar(): Promise<void> {
       if (mio) sacudir(1.4);
     }
     for (const muerto of r.muertos) morir(muerto);
+
+    // Y el mismo mandoble, contra la gente. Va después de los bichos por el
+    // mismo motivo por el que las flechas van antes que los enemigos: lo que
+    // pasa primero en el tick es lo que ya estaba decidido.
+    repartirEntreJugadores(g, mio ? 1 : quien, multiplicador);
   }
 
   /**
@@ -3846,13 +3964,22 @@ async function arrancar(): Promise<void> {
       efectosDelJugador(enSueloAntes, sumergido);
       // La red va justo detrás de mover al jugador: el invitado manda lo que ha
       // pulsado y cuadra su posición con la que diga el anfitrión.
-      sesionRed?.avanzar(jugador.caja, entrada.estado(), sumergido, salud.vida, salud.vidaMax);
+      sesionRed?.avanzar(jugador.caja, entrada.estado(), sumergido, {
+        vida: salud.vida,
+        vidaMax: salud.vidaMax,
+        duelo,
+      });
       // El panel de la esquina, al día. No repinta si no ha cambiado nada, así
       // que preguntarlo cada tick sale gratis y evita tener que avisarlo desde
       // los cinco sitios en los que alguien entra o se va.
       if (sesionRed) {
         acompanados.compania(
-          sesionRed.otros().map((o) => ({ nombre: o.nombre, vida: o.vida, vidaMax: o.vidaMax })),
+          sesionRed.otros().map((o) => ({
+            nombre: o.nombre,
+            vida: o.vida,
+            vidaMax: o.vidaMax,
+            duelo: o.duelo,
+          })),
         );
       }
       // Lo que lleva encima, dos veces por segundo. No hace falta más: es un
@@ -3872,8 +3999,7 @@ async function arrancar(): Promise<void> {
               clase: numeroDeEfecto(e.clase),
               ticks: e.restante,
             })),
-            salud.vida,
-            salud.vidaMax,
+            { vida: salud.vida, vidaMax: salud.vidaMax, duelo },
           );
         }
       }

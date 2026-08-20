@@ -890,6 +890,19 @@ export const VERSIONES: readonly Version[] = [
       'Cuando a alguien le dan, su barra baja al momento y no medio segundo después',
     ],
   },
+  {
+    id: '7.14.0',
+    etapa: 'prealfa',
+    nombre: 'Duelo',
+    resumen: 'De dificultad normal en adelante, dos jugadores pueden pegarse. Con la G y de mutuo acuerdo.',
+    cambios: [
+      'Duelo entre jugadores en los mundos de dificultad normal o superior',
+      'Se enciende con la G, y hacen falta los dos: sin el de enfrente, no pasa nada',
+      'Nace apagado en cada partida, para que nadie mate a un amigo por un despiste',
+      'Se ve quién va armado: el nombre en rojo sobre la cabeza y las espadas en el panel',
+      'Los mandobles entre jugadores los reparte el anfitrión, como todo lo demás',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

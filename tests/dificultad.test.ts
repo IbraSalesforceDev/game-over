@@ -4,6 +4,7 @@ import {
   dificultad,
   DIFICULTADES,
   DIFICULTAD_POR_DEFECTO,
+  hayDuelo,
   hayHostiles,
 } from '../src/core/dificultad';
 import { crearCaja, type Caja } from '../src/entities/physics';
@@ -170,5 +171,33 @@ describe('la dificultad por URL', () => {
     expect(leerDificultad('-3')).toBe(0);
     expect(leerDificultad('brutal')).toBe(DIFICULTAD_POR_DEFECTO);
     expect(leerDificultad(null)).toBe(DIFICULTAD_POR_DEFECTO);
+  });
+});
+
+/**
+ * Dónde se corta el duelo.
+ *
+ * «De normal en adelante» dicho en pruebas, para que mover un número de la
+ * tabla no cambie la regla en silencio: los tres niveles blandos existen para
+ * poder aprender, y en un sitio donde el juego te está perdonando no tiene
+ * sentido que te mate un amigo.
+ */
+describe('en qué mundos se puede pelear entre jugadores', () => {
+  it('de normal en adelante, sí', () => {
+    for (const d of DIFICULTADES.slice(DIFICULTAD_POR_DEFECTO)) {
+      expect(hayDuelo(d)).toBe(true);
+    }
+  });
+
+  it('por debajo de normal, no', () => {
+    for (const d of DIFICULTADES.slice(0, DIFICULTAD_POR_DEFECTO)) {
+      expect(hayDuelo(d)).toBe(false);
+    }
+  });
+
+  it('y normal es justo el primero que lo permite', () => {
+    expect(DIFICULTADES[DIFICULTAD_POR_DEFECTO]!.nombre).toBe('normal');
+    expect(hayDuelo(DIFICULTADES[DIFICULTAD_POR_DEFECTO]!)).toBe(true);
+    expect(hayDuelo(DIFICULTADES[DIFICULTAD_POR_DEFECTO - 1]!)).toBe(false);
   });
 });

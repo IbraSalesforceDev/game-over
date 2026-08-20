@@ -32,9 +32,29 @@ import {
   type Efectos,
 } from '../entities/efectos';
 import { autoridadDeCaja } from './prediccion';
-import { crearGolpe, lanzarGolpe, tickGolpe, type Golpe, type Sentido } from '../entities/combat';
+
+/**
+ * Enciende la marca de duelo en las banderas de una entidad.
+ *
+ * `autoridadDeCaja` solo sabe de física y no tiene por qué saber de duelos, así
+ * que la marca se le añade después en vez de meterle un parámetro que no le
+ * importa.
+ */
+function marcarDuelo<T extends { banderas: number }>(e: T, duelo: boolean): T {
+  if (duelo) e.banderas |= BANDERA.DUELO;
+  return e;
+}
+import {
+  crearGolpe,
+  lanzarGolpe,
+  tickGolpe,
+  type Golpe,
+  type Duelista,
+  type Sentido,
+} from '../entities/combat';
 import { esArma } from '../items/items';
 import {
+  BANDERA,
   BOTON,
   ENT,
   MSG,
@@ -51,6 +71,7 @@ import {
   escribirTiles,
   leerMensaje,
   trocearMundo,
+  type EstadoPropio,
   type CambioLiquido,
   type CambioTile,
   type EfectoRed,
@@ -154,6 +175,15 @@ export interface JugadorConectado {
    */
   vida: number;
   vidaMax: number;
+  /**
+   * Si lleva el duelo encendido.
+   *
+   * Lo cuenta él, no se decide aquí: encenderlo es una decisión de quien juega
+   * y el anfitrión solo la apunta para poder resolver los mandobles. Nace
+   * apagado, que es lo que hay que suponer de alguien que acaba de entrar y aún
+   * no ha dicho nada.
+   */
+  duelo: boolean;
 }
 
 export interface OpcionesAnfitrion {
@@ -336,6 +366,7 @@ export class Anfitrion {
         this.ponerEfectos(j, m.efectos);
         j.vida = m.vida;
         j.vidaMax = m.vidaMax;
+        j.duelo = m.duelo;
         break;
       case MSG.COFRE_TOCAR:
         // Un cofre al otro lado del mundo no se toca. Es la misma regla que
@@ -371,6 +402,7 @@ export class Anfitrion {
       efectos: crearEfectos(),
       vida: 0,
       vidaMax: 0,
+      duelo: false,
     };
     this.jugadores.set(id, j);
     enlace.mandarFirme(escribirBienvenido(id, this.tickActual));
@@ -442,6 +474,21 @@ export class Anfitrion {
     return [...this.jugadores.values()]
       .filter((j) => j.listo)
       .map((j) => ({ id: j.id, caja: j.caja, invulnerable: j.invulnerable }));
+  }
+
+  /**
+   * Los invitados, como los ve un mandoble.
+   *
+   * Es la misma gente que `acompanantes` pero con el interruptor de duelo, y va
+   * aparte porque los bichos no tienen por qué enterarse de que existe: a un
+   * zombi le da igual si dos amigos se están pegando. Mezclarlo dejaría el
+   * duelo colgando de una estructura que se pasa a `actualizarEnemigos`, y el
+   * día que alguien lo mirara allí sin querer nadie sabría por qué.
+   */
+  get rivales(): Duelista[] {
+    return [...this.jugadores.values()]
+      .filter((j) => j.listo)
+      .map((j) => ({ id: j.id, caja: j.caja, invulnerable: j.invulnerable, duelo: j.duelo }));
   }
 
   /**
@@ -633,7 +680,7 @@ export class Anfitrion {
    * `miCaja` es la del anfitrión, que entra en las instantáneas como uno más:
    * los invitados tienen que verlo moverse igual que él los ve a ellos.
    */
-  avanzar(miCaja: Caja, miVida = 0, miVidaMax = 0): void {
+  avanzar(miCaja: Caja, mio: EstadoPropio = {}): void {
     this.tickActual++;
 
     for (const j of this.jugadores.values()) {
@@ -675,9 +722,9 @@ export class Anfitrion {
         clase: ENT.JUGADOR,
         id: 1,
         sub: 0,
-        vida: miVida,
-        vidaMax: miVidaMax,
-        ...autoridadDeCaja(miCaja),
+        vida: mio.vida ?? 0,
+        vidaMax: mio.vidaMax ?? 0,
+        ...marcarDuelo(autoridadDeCaja(miCaja), mio.duelo === true),
       },
       ...[...this.jugadores.values()].map((j) => ({
         clase: ENT.JUGADOR,
@@ -685,7 +732,7 @@ export class Anfitrion {
         sub: 0,
         vida: j.vida,
         vidaMax: j.vidaMax,
-        ...autoridadDeCaja(j.caja),
+        ...marcarDuelo(autoridadDeCaja(j.caja), j.duelo),
       })),
       ...this.bichosDeLaInstantanea(),
       ...this.objetosDeLaInstantanea(),

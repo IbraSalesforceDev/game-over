@@ -56,6 +56,14 @@ export interface Golpe {
   arma: number;
   /** Enemigos ya alcanzados por este golpe. */
   tocados: Set<Enemigo>;
+  /**
+   * Jugadores ya alcanzados por este golpe, por su número de red.
+   *
+   * Aparte de `tocados` y no dentro: un jugador no es un `Enemigo` y meterlo en
+   * el mismo conjunto pediría inventarse uno de mentira. Son dos listas porque
+   * son dos clases de víctima, no por descuido.
+   */
+  tocadosJugador: Set<number>;
 }
 
 export function crearGolpe(): Golpe {
@@ -66,6 +74,7 @@ export function crearGolpe(): Golpe {
     sentido: 'lado',
     arma: 0,
     tocados: new Set(),
+    tocadosJugador: new Set(),
   };
 }
 
@@ -73,6 +82,7 @@ export function tickGolpe(g: Golpe): void {
   if (g.restante > 0) g.restante--;
   if (g.recarga > 0) g.recarga--;
   if (g.restante === 0 && g.tocados.size > 0) g.tocados.clear();
+  if (g.restante === 0 && g.tocadosJugador.size > 0) g.tocadosJugador.clear();
 }
 
 /** ¿Se puede lanzar un golpe ahora mismo? */
@@ -95,6 +105,7 @@ export function lanzarGolpe(
   g.sentido = sentido;
   g.arma = arma;
   g.tocados.clear();
+  g.tocadosJugador.clear();
   return true;
 }
 
@@ -207,6 +218,85 @@ export function resolverGolpe(
     salida.alcanzados++;
     salida.tocados.push(e);
     if (danarEnemigo(e, dano, desdeX)) salida.muertos.push(e);
+  }
+  return salida;
+}
+
+/**
+ * Un jugador, visto como algo a lo que se puede pegar.
+ *
+ * Lleva el interruptor de duelo dentro a propósito. La regla —«hacen falta los
+ * dos»— cabe entera en `resolverGolpeAJugadores` y se puede probar sin red, sin
+ * mundo y sin menús; si el interruptor se mirara fuera, la regla estaría
+ * repartida por tres ficheros y no habría un sitio donde leerla.
+ */
+export interface Duelista {
+  /** Su número de red. El anfitrión es el 1. */
+  id: number;
+  caja: Caja;
+  /** Ticks de invulnerabilidad que le quedan. */
+  invulnerable: number;
+  /** Si tiene el duelo encendido. */
+  duelo: boolean;
+}
+
+/** A quién le ha entrado el golpe y cuánto pegaba. */
+export interface DanoAJugador {
+  id: number;
+  dano: number;
+  /** Desde dónde vino, para el empujón. */
+  desdeX: number;
+}
+
+/**
+ * El mismo mandoble, aplicado a los demás jugadores.
+ *
+ * Es una función aparte de `resolverGolpe` y no un parámetro más porque lo que
+ * devuelve es distinto: de un bicho se sabe todo aquí —se le baja la vida y se
+ * mira si ha muerto— y de un jugador solo se puede decir «a este le han dado y
+ * pegaba tanto». La armadura, el empujón y la muerte los aplica cada uno en su
+ * casa, igual que con los golpes de los bichos. Aquí no se toca a nadie: se
+ * devuelve la lista y ya la reparte quien corresponda.
+ *
+ * Las tres puertas, en orden:
+ *
+ * 1. **Quien pega tiene que querer pegar.** Sin duelo encendido no sale nada,
+ *    y esto se mira antes que nada para que el mandoble de siempre no pague ni
+ *    un recorrido de más.
+ * 2. **Quien recibe también.** Es lo que impide que un mandoble a un bicho, con
+ *    un amigo picando al lado, le cueste la partida al amigo.
+ * 3. **Uno mismo no cuenta**, y lo demás es idéntico al golpe a un bicho: mismo
+ *    alcance, misma línea de visión, misma memoria de tocados para que un
+ *    barrido no pegue dos veces.
+ */
+export function resolverGolpeAJugadores(
+  g: Golpe,
+  atacante: Duelista,
+  objetivos: readonly Duelista[],
+  multiplicador = 1,
+  mundo: Mundo | null = null,
+): DanoAJugador[] {
+  const salida: DanoAJugador[] = [];
+  if (!atacante.duelo) return salida;
+  const caja = cajaGolpe(g, atacante.caja);
+  if (!caja) return salida;
+
+  const def = defObjeto(g.arma);
+  const dano = (def.dano ?? 0) * multiplicador;
+  if (dano <= 0) return salida;
+
+  const desdeX = atacante.caja.x + atacante.caja.ancho / 2;
+  const desdeY = atacante.caja.y + atacante.caja.alto / 2;
+  for (const o of objetivos) {
+    if (o.id === atacante.id || !o.duelo || o.invulnerable > 0) continue;
+    if (g.tocadosJugador.has(o.id)) continue;
+    if (!solapan(caja, o.caja)) continue;
+    if (mundo) {
+      const p = puntoDeContacto(caja, o.caja);
+      if (!hayVista(mundo, desdeX, desdeY, p.x, p.y)) continue;
+    }
+    g.tocadosJugador.add(o.id);
+    salida.push({ id: o.id, dano, desdeX });
   }
   return salida;
 }

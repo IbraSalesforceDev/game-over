@@ -41,6 +41,12 @@ const ESTILO = `
 #acompanados.fallo .papel { color: #e0857a; }
 #acompanados ul { margin: 4px 0 0; padding: 0; list-style: none; }
 #acompanados li { color: #e8d9b0; margin-top: 2px; }
+#acompanados li.duelo { color: #e0857a; }
+#acompanados .marca {
+  margin-left: 5px; padding: 0 4px; border-radius: 3px;
+  font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
+  background: rgba(224,133,122,.18); color: #e0857a;
+}
 #acompanados .vida {
   height: 3px; margin-top: 2px; border-radius: 2px;
   background: rgba(8,10,14,.7); overflow: hidden;
@@ -64,6 +70,8 @@ export interface Companero {
   nombre: string;
   vida: number;
   vidaMax: number;
+  /** Si lleva el duelo encendido. Se ve, porque saberlo cambia cómo te acercas. */
+  duelo: boolean;
 }
 
 export interface PanelAcompanados {
@@ -109,6 +117,26 @@ export function anchoVida(vida: number, vidaMax: number): number {
   return Math.round(Math.max(0, Math.min(1, vida / vidaMax)) * 100);
 }
 
+/**
+ * Todo lo que se ve del panel, en una cadena.
+ *
+ * Sirve para no tocar el DOM sesenta veces por segundo: si la firma no ha
+ * cambiado, lo pintado sigue valiendo. Está aquí fuera y exportada porque tiene
+ * una trampa que merece prueba: **lo que no entre en la firma no se repinta
+ * nunca**. El día que se añadió el duelo, olvidarlo aquí habría hecho que
+ * encenderlo no se viera hasta que además cambiara la vida de alguien.
+ */
+export function firmaPanel(
+  papel: 'anfitrion' | 'invitado',
+  estado: EstadoAcompanados,
+  gente: readonly Companero[],
+): string {
+  const lista = gente
+    .map((g) => `${g.nombre}:${anchoVida(g.vida, g.vidaMax)}:${g.duelo ? 'd' : ''}`)
+    .join(',');
+  return `${papel}|${estado}|${lista}`;
+}
+
 /** Lo que se lee debajo cuando no hay nadie. Distinto según de qué lado estés. */
 export function textoVacio(papel: 'anfitrion' | 'invitado', estado: EstadoAcompanados): string {
   if (estado === 'fallo') {
@@ -145,9 +173,7 @@ export function crearAcompanados(contenedor: HTMLElement): PanelAcompanados {
   let ultimo = '';
 
   function pintar(): void {
-    const firma = `${papel}|${ahora}|${gente
-      .map((g) => `${g.nombre}:${anchoVida(g.vida, g.vidaMax)}`)
-      .join(',')}`;
+    const firma = firmaPanel(papel, ahora, gente);
     if (firma === ultimo) return;
     ultimo = firma;
 
@@ -165,8 +191,18 @@ export function crearAcompanados(contenedor: HTMLElement): PanelAcompanados {
     const ul = document.createElement('ul');
     for (const g of gente) {
       const li = document.createElement('li');
+      if (g.duelo) li.className = 'duelo';
       const nombre = document.createElement('div');
       nombre.textContent = `· ${g.nombre}`;
+      // La marca va escrita y no con un icono de espadas: a diez píxeles y en
+      // monoespaciada, el dibujito se queda en una mancha que no se lee. Una
+      // palabra corta ocupa lo mismo y se entiende sin explicación.
+      if (g.duelo) {
+        const marca = document.createElement('span');
+        marca.className = 'marca';
+        marca.textContent = 'duelo';
+        nombre.appendChild(marca);
+      }
       li.appendChild(nombre);
       const pct = anchoVida(g.vida, g.vidaMax);
       if (pct >= 0) {

@@ -13,6 +13,7 @@ import { TICKS_GOLPE } from '../src/entities/combat';
 import { EFECTOS, numeroDeEfecto } from '../src/entities/efectos';
 import { Invitado } from '../src/red/invitado';
 import {
+  BANDERA,
   BOTON,
   ENT,
   escribirEntrada,
@@ -925,12 +926,13 @@ describe('la vida de los compañeros', () => {
 
   it('el mensaje de estado lleva la vida junto a los efectos', () => {
     const leido = leerMensaje(
-      escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 600 }], 42, 120),
+      escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 600 }], { vida: 42, vidaMax: 120 }),
     );
     expect(leido).toEqual({
       tipo: MSG.ESTADO,
       vida: 42,
       vidaMax: 120,
+      duelo: false,
       efectos: [{ clase: numeroDeEfecto('fuerza'), ticks: 600 }],
     });
   });
@@ -956,11 +958,11 @@ describe('la vida de los compañeros', () => {
     void anfitrion.mandarMundo(quien);
     anfitrion.conectados[0]!.listo = true;
 
-    anfitrion.recibir(enlace, escribirEstado([], 37, 140), quien);
+    anfitrion.recibir(enlace, escribirEstado([], { vida: 37, vidaMax: 140 }), quien);
     mandado.length = 0;
     // Las instantáneas no salen en todos los ticks: se corren unos cuantos.
     const mia = crearCaja(0, 0, JUGADOR_ANCHO, JUGADOR_ALTO);
-    for (let i = 0; i < 10; i++) anfitrion.avanzar(mia, 88, 200);
+    for (let i = 0; i < 10; i++) anfitrion.avanzar(mia, { vida: 88, vidaMax: 200 });
 
     const inst = mandado.map(leerMensaje).find((m) => m?.tipo === MSG.INSTANTANEA);
     expect(inst).toBeTruthy();
@@ -975,9 +977,9 @@ describe('la vida de los compañeros', () => {
   /** Perder un mensaje de estado no puede borrar la vida del que lo mandó. */
   it('un estado sin vida no pisa la que ya se sabía', () => {
     const { anfitrion, enlace, quien } = montar();
-    anfitrion.recibir(enlace, escribirEstado([], 55, 100), quien);
+    anfitrion.recibir(enlace, escribirEstado([], { vida: 55, vidaMax: 100 }), quien);
     expect(anfitrion.conectados[0]!.vida).toBe(55);
-    anfitrion.recibir(enlace, escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 60 }], 40, 100), quien);
+    anfitrion.recibir(enlace, escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 60 }], { vida: 40, vidaMax: 100 }), quien);
     expect(anfitrion.conectados[0]!.vida).toBe(40);
   });
 
@@ -1030,7 +1032,102 @@ describe('la vida de los compañeros', () => {
       alLlegarMundo: () => {},
       alCambiarTiles: () => {},
     });
-    invitado.mandarEstado([], 12, 40);
+    invitado.mandarEstado([], { vida: 12, vidaMax: 40 });
     expect(leerMensaje(mandado[0]!)).toMatchObject({ tipo: MSG.ESTADO, vida: 12, vidaMax: 40 });
+  });
+});
+
+/**
+ * El interruptor de duelo, por el cable.
+ *
+ * Aquí solo se comprueba que viaja y que vuelve. Que un golpe entre o no entre
+ * es cosa de `resolverGolpeAJugadores`, y se prueba en `combat.test.ts` sin red
+ * de por medio: son dos preguntas distintas y se contestan en dos sitios.
+ */
+describe('el duelo viaja', () => {
+  it('el mensaje de estado lo lleva puesto', () => {
+    expect(leerMensaje(escribirEstado([], { duelo: true }))).toMatchObject({
+      tipo: MSG.ESTADO,
+      duelo: true,
+    });
+    expect(leerMensaje(escribirEstado([], {}))).toMatchObject({ duelo: false });
+  });
+
+  it('el anfitrión lo apunta y lo enseña en la lista de rivales', () => {
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const enlace: Enlace = { mandarVivo: () => {}, mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null)!;
+    void anfitrion.mandarMundo(quien);
+    anfitrion.conectados[0]!.listo = true;
+
+    // Quien acaba de entrar no está en duelo: es lo que hay que suponer de
+    // alguien que aún no ha dicho nada.
+    expect(anfitrion.rivales[0]).toMatchObject({ id: quien, duelo: false });
+    anfitrion.recibir(enlace, escribirEstado([], { duelo: true }), quien);
+    expect(anfitrion.rivales[0]).toMatchObject({ id: quien, duelo: true });
+    anfitrion.recibir(enlace, escribirEstado([], { duelo: false }), quien);
+    expect(anfitrion.rivales[0]!.duelo).toBe(false);
+  });
+
+  it('y vuelve a todos en la instantánea, también el del anfitrión', () => {
+    const mandado: Uint8Array[] = [];
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const enlace: Enlace = { mandarVivo: (d) => mandado.push(d), mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null)!;
+    void anfitrion.mandarMundo(quien);
+    anfitrion.conectados[0]!.listo = true;
+    anfitrion.recibir(enlace, escribirEstado([], { duelo: true }), quien);
+
+    mandado.length = 0;
+    const mia = crearCaja(0, 0, JUGADOR_ANCHO, JUGADOR_ALTO);
+    for (let i = 0; i < 10; i++) anfitrion.avanzar(mia, { duelo: true });
+
+    const inst = mandado.map(leerMensaje).find((m) => m?.tipo === MSG.INSTANTANEA);
+    const jugadores =
+      inst?.tipo === MSG.INSTANTANEA
+        ? inst.instantanea.entidades.filter((e) => e.clase === ENT.JUGADOR)
+        : [];
+    expect(jugadores).toHaveLength(2);
+    for (const j of jugadores) expect(j.banderas & BANDERA.DUELO).toBeGreaterThan(0);
+  });
+
+  /** Sin encenderlo, la bandera no aparece: el bit no se enciende solo. */
+  it('sin encenderlo, la bandera no viaja', () => {
+    const mandado: Uint8Array[] = [];
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const enlace: Enlace = { mandarVivo: (d) => mandado.push(d), mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null)!;
+    void anfitrion.mandarMundo(quien);
+    anfitrion.conectados[0]!.listo = true;
+
+    const mia = crearCaja(0, 0, JUGADOR_ANCHO, JUGADOR_ALTO);
+    for (let i = 0; i < 10; i++) anfitrion.avanzar(mia);
+    const inst = mandado.map(leerMensaje).find((m) => m?.tipo === MSG.INSTANTANEA);
+    const jugadores =
+      inst?.tipo === MSG.INSTANTANEA
+        ? inst.instantanea.entidades.filter((e) => e.clase === ENT.JUGADOR)
+        : [];
+    for (const j of jugadores) expect(j.banderas & BANDERA.DUELO).toBe(0);
   });
 });

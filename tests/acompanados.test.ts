@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anchoVida, resumen, textoVacio } from '../src/ui/acompanados';
+import { anchoVida, firmaPanel, resumen, textoVacio } from '../src/ui/acompanados';
 
 /**
  * Lo que se lee en la esquina cuando juegas con alguien.
@@ -66,5 +66,36 @@ describe('cuánta barra de vida se pinta', () => {
   it('una vida imposible no se sale de la barra', () => {
     expect(anchoVida(500, 100)).toBe(100);
     expect(anchoVida(-20, 100)).toBe(0);
+  });
+});
+
+/**
+ * El panel dice quién va armado.
+ *
+ * Es lo que cierra el círculo del duelo: sin esto, encenderlo y que no pase
+ * nada —porque el otro lo tiene apagado— se lee como que está roto.
+ *
+ * Se prueba por la firma, que es lo que decide si el panel se repinta: lo que
+ * no entra en ella no se ve cambiar nunca.
+ */
+describe('la marca de duelo en el panel', () => {
+  const topo = { nombre: 'Topo', vida: 50, vidaMax: 100, duelo: false };
+
+  it('encender el duelo cambia lo que hay que pintar', () => {
+    expect(firmaPanel('anfitrion', 'conectado', [topo])).not.toBe(
+      firmaPanel('anfitrion', 'conectado', [{ ...topo, duelo: true }]),
+    );
+  });
+
+  it('y sin tocar nada, no', () => {
+    expect(firmaPanel('anfitrion', 'conectado', [topo])).toBe(
+      firmaPanel('anfitrion', 'conectado', [{ ...topo }]),
+    );
+  });
+
+  it('la vida también entra, que para eso está', () => {
+    expect(firmaPanel('anfitrion', 'conectado', [topo])).not.toBe(
+      firmaPanel('anfitrion', 'conectado', [{ ...topo, vida: 10 }]),
+    );
   });
 });

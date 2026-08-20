@@ -44,6 +44,7 @@ import {
   type EfectoRed,
   type EntidadRed,
   type EstadoCofre,
+  type EstadoPropio,
 } from './protocolo';
 
 export interface OtroJugador {
@@ -373,10 +374,12 @@ export class Invitado {
    *
    * La vida viaja con los efectos y no aparte porque se cuentan igual —una foto
    * cada poco— y porque casi siempre cambian a la vez: el veneno que baja la
-   * vida es justo uno de los efectos que van en este mismo mensaje.
+   * vida es justo uno de los efectos que van en este mismo mensaje. Y con ella
+   * va el interruptor de duelo, que el anfitrión necesita por lo mismo que los
+   * efectos: es él quien resuelve los mandobles de todos.
    */
-  mandarEstado(efectos: readonly EfectoRed[], vida = 0, vidaMax = 0): void {
-    this.op.enlace.mandarVivo(escribirEstado(efectos, vida, vidaMax));
+  mandarEstado(efectos: readonly EfectoRed[], mio: EstadoPropio = {}): void {
+    this.op.enlace.mandarVivo(escribirEstado(efectos, mio));
   }
 
   /** Cuenta que ha tocado una ranura, con lo que llevaba en la mano. */

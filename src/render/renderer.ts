@@ -125,6 +125,8 @@ export interface Escena {
     mirando: 1 | -1;
     vida: number;
     vidaMax: number;
+    /** Si lleva el duelo encendido. */
+    duelo: boolean;
   }[];
   /**
    * Cuánto se desplaza el dibujo del propio jugador, jugando acompañado.
@@ -500,7 +502,15 @@ export class Renderer {
    * delante: perderse a uno mismo detrás de otro es de lo que más molesta.
    */
   private companero(
-    c: { nombre: string; x: number; y: number; mirando: 1 | -1; vida: number; vidaMax: number },
+    c: {
+      nombre: string;
+      x: number;
+      y: number;
+      mirando: 1 | -1;
+      vida: number;
+      vidaMax: number;
+      duelo: boolean;
+    },
     ox: number,
     oy: number,
     epoca: EpocaVisual,
@@ -526,6 +536,12 @@ export class Renderer {
 
     // El nombre, para saber quién es quién. Pequeño y sin caja: estorba menos
     // que un bocadillo y se lee igual.
+    //
+    // En rojo si lleva el duelo encendido. No es decoración: es la única forma
+    // de saber, antes de acercarse, si el que viene por el túnel puede hacerte
+    // daño. Va en el nombre y no en un icono aparte porque el nombre ya está
+    // ahí y ya se lee; un segundo adorno sobre la cabeza sería una cosa más que
+    // tapa el mundo.
     ctx.save();
     ctx.font = `${Math.max(8, Math.round(5 * u))}px ui-monospace, monospace`;
     ctx.textAlign = 'center';
@@ -533,7 +549,7 @@ export class Renderer {
     const nx = ox + Math.round((c.x + JUGADOR_ANCHO / 2) * u);
     const ny = oy + Math.round((c.y - 5) * u);
     ctx.fillText(c.nombre, nx + 1, ny + 1);
-    ctx.fillStyle = '#d8cfc0';
+    ctx.fillStyle = c.duelo ? '#e0857a' : '#d8cfc0';
     ctx.fillText(c.nombre, nx, ny);
     ctx.restore();
 
