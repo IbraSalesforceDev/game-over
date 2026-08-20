@@ -138,10 +138,23 @@ export const REINTENTOS_MAXIMOS = 30;
 
 export interface SesionRed {
   readonly papel: Papel;
-  /** Un tick. Lo llama el juego después de mover a su propio jugador. */
-  avanzar(miCaja: Caja, entrada: Entrada, sumergido?: number): void;
-  /** Los demás, ya colocados donde toca pintarlos. */
-  otros(): { id: number; nombre: string; x: number; y: number; mirando: 1 | -1 }[];
+  /**
+   * Un tick. Lo llama el juego después de mover a su propio jugador.
+   *
+   * La vida viaja aquí, en el mismo sitio que la caja, porque va al mismo
+   * destino: la instantánea que ve todo el mundo.
+   */
+  avanzar(miCaja: Caja, entrada: Entrada, sumergido?: number, vida?: number, vidaMax?: number): void;
+  /** Los demás, ya colocados donde toca pintarlos y con la vida que les queda. */
+  otros(): {
+    id: number;
+    nombre: string;
+    x: number;
+    y: number;
+    mirando: 1 | -1;
+    vida: number;
+    vidaMax: number;
+  }[];
   /** Picar o poner. El anfitrión lo hace y lo difunde; el invitado lo pide. */
   tile(c: CambioTile): void;
   /** Cuánto hay que desplazar el dibujo del propio jugador, para no dar tirones. */
@@ -169,8 +182,8 @@ export interface SesionRed {
   tocarCofre(tx: number, ty: number, ranura: number, objeto: number, cantidad: number): void;
   /** Contar cómo ha quedado un cofre. Solo el anfitrión reparte. */
   contarCofre(cofre: EstadoCofre, quien?: number): void;
-  /** Contar lo que se lleva encima. Solo el invitado tiene que contarlo. */
-  contarEstado(efectos: readonly EfectoRed[]): void;
+  /** Contar lo que se lleva encima y cómo se anda de vida. */
+  contarEstado(efectos: readonly EfectoRed[], vida?: number, vidaMax?: number): void;
   /** Lo que multiplica el daño de un invitado. En el invitado, 1. */
   danoDe(quien: number): number;
   /** Curarle a un invitado. En el invitado no hace nada. */
@@ -293,8 +306,8 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
 
   return {
     papel: 'anfitrion',
-    avanzar(miCaja) {
-      anfitrion.avanzar(miCaja);
+    avanzar(miCaja, _entrada, _sumergido = 0, vida = 0, vidaMax = 0) {
+      anfitrion.avanzar(miCaja, vida, vidaMax);
     },
     otros() {
       return anfitrion.conectados.map((j: JugadorConectado) => ({
@@ -303,6 +316,8 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
         x: j.caja.x,
         y: j.caja.y,
         mirando: j.caja.mirando,
+        vida: j.vida,
+        vidaMax: j.vidaMax,
       }));
     },
     tile(c) {
@@ -501,6 +516,8 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
             x: donde.x,
             y: donde.y,
             mirando: ((o.ultima.banderas & 8) !== 0 ? 1 : -1) as 1 | -1,
+            vida: o.ultima.vida,
+            vidaMax: o.ultima.vidaMax,
           },
         ];
       });
@@ -535,8 +552,8 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     contarCofre() {
       /* el invitado no le cuenta a nadie lo que hay en un cofre */
     },
-    contarEstado(efectos) {
-      invitado.mandarEstado(efectos);
+    contarEstado(efectos, vida = 0, vidaMax = 0) {
+      invitado.mandarEstado(efectos, vida, vidaMax);
     },
     danoDe() {
       return 1; // aquí no se resuelven golpes de nadie

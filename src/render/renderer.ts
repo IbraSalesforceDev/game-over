@@ -117,7 +117,15 @@ export interface Escena {
    * Vienen ya colocados donde toca pintarlos: de ellos no tenemos las teclas,
    * así que la posición sale de interpolar entre instantáneas y no de simular.
    */
-  companeros?: readonly { id: number; nombre: string; x: number; y: number; mirando: 1 | -1 }[];
+  companeros?: readonly {
+    id: number;
+    nombre: string;
+    x: number;
+    y: number;
+    mirando: 1 | -1;
+    vida: number;
+    vidaMax: number;
+  }[];
   /**
    * Cuánto se desplaza el dibujo del propio jugador, jugando acompañado.
    *
@@ -492,7 +500,7 @@ export class Renderer {
    * delante: perderse a uno mismo detrás de otro es de lo que más molesta.
    */
   private companero(
-    c: { nombre: string; x: number; y: number; mirando: 1 | -1 },
+    c: { nombre: string; x: number; y: number; mirando: 1 | -1; vida: number; vidaMax: number },
     ox: number,
     oy: number,
     epoca: EpocaVisual,
@@ -528,6 +536,41 @@ export class Renderer {
     ctx.fillStyle = '#d8cfc0';
     ctx.fillText(c.nombre, nx, ny);
     ctx.restore();
+
+    this.barraCompanero(c, ox, oy);
+  }
+
+  /**
+   * Barra de vida sobre un compañero.
+   *
+   * A diferencia de la del enemigo, esta se pinta también con la vida llena. En
+   * un bicho la barra es información de combate y llena no dice nada; en un
+   * compañero es lo primero que se mira antes de decidir si ir a por el jefe o
+   * volver a por pociones, y una barra que solo aparece cuando ya va herido
+   * llega tarde. Sale sin la vida no se sabe si al de al lado le queda un golpe
+   * o veinte.
+   *
+   * Si no hay `vidaMax` es que del otro lado no llega la vida —protocolo
+   * anterior al 9— y entonces no se pinta nada en vez de inventarse una barra
+   * vacía que asustaría sin motivo.
+   */
+  private barraCompanero(
+    c: { x: number; y: number; vida: number; vidaMax: number },
+    ox: number,
+    oy: number,
+  ): void {
+    if (c.vidaMax <= 0) return;
+    const { ctx, camara } = this;
+    const z = camara.zoom;
+    const pct = Math.max(0, Math.min(1, c.vida / c.vidaMax));
+    const bx = ox + Math.round(c.x * z);
+    const by = oy + Math.round((c.y - 4) * z);
+    const bw = JUGADOR_ANCHO * z;
+    const bh = Math.max(2, Math.round(2 * z));
+    ctx.fillStyle = 'rgba(8,10,14,0.7)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = pct > 0.5 ? '#6fbf46' : pct > 0.25 ? '#e0a83a' : '#d94f4f';
+    ctx.fillRect(bx, by, bw * pct, bh);
   }
 
   private jugador(

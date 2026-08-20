@@ -41,6 +41,14 @@ const ESTILO = `
 #acompanados.fallo .papel { color: #e0857a; }
 #acompanados ul { margin: 4px 0 0; padding: 0; list-style: none; }
 #acompanados li { color: #e8d9b0; margin-top: 2px; }
+#acompanados .vida {
+  height: 3px; margin-top: 2px; border-radius: 2px;
+  background: rgba(8,10,14,.7); overflow: hidden;
+}
+#acompanados .vida i { display: block; height: 100%; }
+#acompanados .vida.mucha i { background: #6fbf46; }
+#acompanados .vida.media i { background: #e0a83a; }
+#acompanados .vida.poca i { background: #d94f4f; }
 #acompanados .nadie { color: #6a7686; font-style: italic; margin-top: 3px; }
 `;
 
@@ -51,12 +59,19 @@ const TEXTO_ESTADO: Record<EstadoAcompanados, string> = {
   fallo: 'sin conexión',
 };
 
+/** Lo que hace falta saber de cada uno para pintarlo en la esquina. */
+export interface Companero {
+  nombre: string;
+  vida: number;
+  vidaMax: number;
+}
+
 export interface PanelAcompanados {
   /** Enseña el panel y dice de qué lado estás. */
   empezar(papel: 'anfitrion' | 'invitado'): void;
   estado(e: EstadoAcompanados, motivo?: string): void;
-  /** Los nombres de quienes están contigo, tal cual se van a leer. */
-  compania(nombres: readonly string[]): void;
+  /** Quiénes están contigo y cómo andan de vida. */
+  compania(gente: readonly Companero[]): void;
   esconder(): void;
 }
 
@@ -78,6 +93,20 @@ export function resumen(
   if (estado === 'fallo') return `${quien} · ${TEXTO_ESTADO.fallo}`;
   if (estado === 'conectando') return `${quien} · ${TEXTO_ESTADO.conectando}`;
   return `${quien} · ${TEXTO_ESTADO.solo}`;
+}
+
+/**
+ * Cuánta barra se pinta, de 0 a 100. `-1` es «no se sabe».
+ *
+ * Lo de «no se sabe» no es un caso raro de laboratorio: pasa de verdad durante
+ * el primer segundo, entre que alguien entra y manda su primer estado, y pasa
+ * entero si el otro juega con una versión anterior a la 7.13.0. En los dos
+ * casos lo honesto es no pintar barra, porque una barra a cero dice «se está
+ * muriendo» y una a tope dice «está perfecto», y las dos mentirían.
+ */
+export function anchoVida(vida: number, vidaMax: number): number {
+  if (!(vidaMax > 0)) return -1;
+  return Math.round(Math.max(0, Math.min(1, vida / vidaMax)) * 100);
 }
 
 /** Lo que se lee debajo cuando no hay nadie. Distinto según de qué lado estés. */
@@ -111,20 +140,22 @@ export function crearAcompanados(contenedor: HTMLElement): PanelAcompanados {
 
   let papel: 'anfitrion' | 'invitado' = 'anfitrion';
   let ahora: EstadoAcompanados = 'conectando';
-  let nombres: readonly string[] = [];
+  let gente: readonly Companero[] = [];
   /** Lo último pintado, para no tocar el DOM sesenta veces por segundo. */
   let ultimo = '';
 
   function pintar(): void {
-    const firma = `${papel}|${ahora}|${nombres.join(',')}`;
+    const firma = `${papel}|${ahora}|${gente
+      .map((g) => `${g.nombre}:${anchoVida(g.vida, g.vidaMax)}`)
+      .join(',')}`;
     if (firma === ultimo) return;
     ultimo = firma;
 
-    titulo.textContent = resumen(papel, ahora, nombres.length);
-    raiz.className = `visible ${nombres.length > 0 ? 'conectado' : ahora}`;
+    titulo.textContent = resumen(papel, ahora, gente.length);
+    raiz.className = `visible ${gente.length > 0 ? 'conectado' : ahora}`;
 
     cuerpo.textContent = '';
-    if (nombres.length === 0) {
+    if (gente.length === 0) {
       const p = document.createElement('div');
       p.className = 'nadie';
       p.textContent = textoVacio(papel, ahora);
@@ -132,9 +163,20 @@ export function crearAcompanados(contenedor: HTMLElement): PanelAcompanados {
       return;
     }
     const ul = document.createElement('ul');
-    for (const n of nombres) {
+    for (const g of gente) {
       const li = document.createElement('li');
-      li.textContent = `· ${n}`;
+      const nombre = document.createElement('div');
+      nombre.textContent = `· ${g.nombre}`;
+      li.appendChild(nombre);
+      const pct = anchoVida(g.vida, g.vidaMax);
+      if (pct >= 0) {
+        const barra = document.createElement('div');
+        barra.className = `vida ${pct > 50 ? 'mucha' : pct > 25 ? 'media' : 'poca'}`;
+        const relleno = document.createElement('i');
+        relleno.style.width = `${pct}%`;
+        barra.appendChild(relleno);
+        li.appendChild(barra);
+      }
       ul.appendChild(li);
     }
     cuerpo.appendChild(ul);
@@ -151,7 +193,7 @@ export function crearAcompanados(contenedor: HTMLElement): PanelAcompanados {
       pintar();
     },
     compania(lista) {
-      nombres = [...lista];
+      gente = lista.map((g) => ({ ...g }));
       pintar();
     },
     esconder() {

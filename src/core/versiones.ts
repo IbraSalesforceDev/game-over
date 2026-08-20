@@ -878,6 +878,18 @@ export const VERSIONES: readonly Version[] = [
       'La savia de un arma cura a quien golpea, aunque golpee desde la otra pantalla',
     ],
   },
+  {
+    id: '7.13.0',
+    etapa: 'prealfa',
+    nombre: 'La vida de los compañeros',
+    resumen: 'Ya se ve cómo anda de vida el que juega contigo, en pantalla y en la esquina.',
+    cambios: [
+      'La vida viaja con el estado y vuelve en la instantánea: cada uno ve la de los demás',
+      'Barra de vida sobre la cabeza de los compañeros, con el color según lo justos que vayan',
+      'Y otra barra en el panel de la esquina, para verlos aunque estén lejos',
+      'Cuando a alguien le dan, su barra baja al momento y no medio segundo después',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

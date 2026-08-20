@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 8;
+export const VERSION_PROTOCOLO = 9;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -137,6 +137,12 @@ export const MSG = {
    * Se manda la causa y no el resultado: los efectos con lo que les queda, no
    * «multiplico la velocidad por 1,2». Así el día que haya una poción más, esto
    * no se entera.
+   *
+   * Y desde 7.13.0 lleva además la vida, que es lo que hace falta para pintarle
+   * la barra a un compañero. La vida sigue siendo de cada uno —la armadura, el
+   * empujón y la muerte los aplica él— pero verla no puede depender de eso: sin
+   * la barra no se sabe si al de al lado le queda un golpe o veinte, y jugar
+   * acompañado es sobre todo saber cuándo hay que ir a echar una mano.
    */
   ESTADO: 19,
   /** Anfitrión → cliente: cúrate esto. Lo que hace la savia de un arma. */
@@ -405,9 +411,15 @@ export interface EfectoRed {
   ticks: number;
 }
 
-export function escribirEstado(efectos: readonly EfectoRed[]): Uint8Array {
+export function escribirEstado(
+  efectos: readonly EfectoRed[],
+  vida = 0,
+  vidaMax = 0,
+): Uint8Array {
   const e = new Escritor();
   e.u8(MSG.ESTADO);
+  e.u16(Math.max(0, Math.min(65535, Math.round(vida))));
+  e.u16(Math.max(0, Math.min(65535, Math.round(vidaMax))));
   e.u8(Math.min(255, efectos.length));
   for (const ef of efectos.slice(0, 255)) {
     e.u8(ef.clase);
@@ -593,7 +605,7 @@ export type Mensaje =
       cantidad: number;
     }
   | { tipo: typeof MSG.COFRE; cofre: EstadoCofre }
-  | { tipo: typeof MSG.ESTADO; efectos: EfectoRed[] }
+  | { tipo: typeof MSG.ESTADO; vida: number; vidaMax: number; efectos: EfectoRed[] }
   | { tipo: typeof MSG.CURA; cantidad: number };
 
 /**
@@ -672,10 +684,12 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
       case MSG.CUBO:
         return { tipo: MSG.CUBO, objeto: l.u16(), tx: l.i16(), ty: l.i16() };
       case MSG.ESTADO: {
+        const vida = l.u16();
+        const vidaMax = l.u16();
         const n = l.u8();
         const efectos: EfectoRed[] = [];
         for (let i = 0; i < n; i++) efectos.push({ clase: l.u8(), ticks: l.u16() });
-        return { tipo: MSG.ESTADO, efectos };
+        return { tipo: MSG.ESTADO, vida, vidaMax, efectos };
       }
       case MSG.CURA:
         return { tipo: MSG.CURA, cantidad: l.u16() };

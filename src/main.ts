@@ -3821,6 +3821,8 @@ async function arrancar(): Promise<void> {
 
   /** Fracción sumergida del último tick, que el render necesita para la pose. */
   let sumergidoAhora = 0;
+  /** La última vida que se le contó al anfitrión, para no repetir la misma. */
+  let ultimaVidaContada = -1;
 
   const bucle = crearBucle(
     () => {
@@ -3844,20 +3846,36 @@ async function arrancar(): Promise<void> {
       efectosDelJugador(enSueloAntes, sumergido);
       // La red va justo detrás de mover al jugador: el invitado manda lo que ha
       // pulsado y cuadra su posición con la que diga el anfitrión.
-      sesionRed?.avanzar(jugador.caja, entrada.estado(), sumergido);
+      sesionRed?.avanzar(jugador.caja, entrada.estado(), sumergido, salud.vida, salud.vidaMax);
       // El panel de la esquina, al día. No repinta si no ha cambiado nada, así
       // que preguntarlo cada tick sale gratis y evita tener que avisarlo desde
       // los cinco sitios en los que alguien entra o se va.
-      if (sesionRed) acompanados.compania(sesionRed.otros().map((o) => o.nombre));
+      if (sesionRed) {
+        acompanados.compania(
+          sesionRed.otros().map((o) => ({ nombre: o.nombre, vida: o.vida, vidaMax: o.vidaMax })),
+        );
+      }
       // Lo que lleva encima, dos veces por segundo. No hace falta más: es un
       // estado que cambia despacio y el anfitrión lo va descontando solo.
-      if (sesionRed?.papel === 'invitado' && tickJuego % 30 === 0) {
-        sesionRed.contarEstado(
-          efectosActivos(estados).map((e) => ({
-            clase: numeroDeEfecto(e.clase),
-            ticks: e.restante,
-          })),
-        );
+      //
+      // La vida va en el mismo mensaje y por eso hay una segunda condición: un
+      // golpe se ve venir en un tick, y esperar medio segundo a contarlo deja la
+      // barra del compañero llena mientras él se está muriendo. Cuando cambia se
+      // manda cada seis ticks, que es diez veces por segundo como mucho y sigue
+      // siendo un mensaje diminuto por el canal que no espera respuesta.
+      if (sesionRed?.papel === 'invitado') {
+        const cambio = salud.vida !== ultimaVidaContada;
+        if (tickJuego % 30 === 0 || (cambio && tickJuego % 6 === 0)) {
+          ultimaVidaContada = salud.vida;
+          sesionRed.contarEstado(
+            efectosActivos(estados).map((e) => ({
+              clase: numeroDeEfecto(e.clase),
+              ticks: e.restante,
+            })),
+            salud.vida,
+            salud.vidaMax,
+          );
+        }
       }
       sumergidoAhora = sumergido;
       actualizarDrops();

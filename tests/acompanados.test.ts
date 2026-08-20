@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resumen, textoVacio } from '../src/ui/acompanados';
+import { anchoVida, resumen, textoVacio } from '../src/ui/acompanados';
 
 /**
  * Lo que se lee en la esquina cuando juegas con alguien.
@@ -41,5 +41,30 @@ describe('el panel de quién está contigo', () => {
     expect(textoVacio('invitado', 'solo')).toMatch(/anfitrión/i);
     expect(textoVacio('anfitrion', 'fallo')).toMatch(/sala/i);
     expect(textoVacio('invitado', 'fallo')).toMatch(/anfitrión/i);
+  });
+});
+
+/**
+ * La barra de vida del panel de la esquina.
+ *
+ * Es la única de las dos que se ve siempre: la de encima de la cabeza solo sirve
+ * si el compañero está en pantalla, y la mayor parte del tiempo no lo está.
+ */
+describe('cuánta barra de vida se pinta', () => {
+  it('la mitad es la mitad, y los extremos son los extremos', () => {
+    expect(anchoVida(50, 100)).toBe(50);
+    expect(anchoVida(100, 100)).toBe(100);
+    expect(anchoVida(0, 100)).toBe(0);
+  });
+
+  /** Sin saber la vida no se pinta barra: mentiría en los dos sentidos. */
+  it('sin vida máxima, no se sabe', () => {
+    expect(anchoVida(0, 0)).toBe(-1);
+    expect(anchoVida(50, 0)).toBe(-1);
+  });
+
+  it('una vida imposible no se sale de la barra', () => {
+    expect(anchoVida(500, 100)).toBe(100);
+    expect(anchoVida(-20, 100)).toBe(0);
   });
 });

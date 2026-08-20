@@ -366,13 +366,17 @@ export class Invitado {
   }
 
   /**
-   * Cuenta lo que lleva encima.
+   * Cuenta lo que lleva encima y cuánta vida le queda.
    *
    * Va por el canal no fiable y se repite: es una foto de un estado que cambia
    * despacio, así que perder una no cuesta nada y la siguiente lo arregla.
+   *
+   * La vida viaja con los efectos y no aparte porque se cuentan igual —una foto
+   * cada poco— y porque casi siempre cambian a la vez: el veneno que baja la
+   * vida es justo uno de los efectos que van en este mismo mensaje.
    */
-  mandarEstado(efectos: readonly EfectoRed[]): void {
-    this.op.enlace.mandarVivo(escribirEstado(efectos));
+  mandarEstado(efectos: readonly EfectoRed[], vida = 0, vidaMax = 0): void {
+    this.op.enlace.mandarVivo(escribirEstado(efectos, vida, vidaMax));
   }
 
   /** Cuenta que ha tocado una ranura, con lo que llevaba en la mano. */

@@ -898,3 +898,139 @@ describe('las pociones del invitado cuentan', () => {
     expect(mandado).toHaveLength(0);
   });
 });
+
+/**
+ * La vida de los demás.
+ *
+ * Es lo último que quedaba sin viajar. El anfitrión decidía que te habían dado y
+ * cuánto pegaba lo que te tocó, pero la vida resultante se la quedaba cada uno
+ * en su casa, y eso tenía una consecuencia muy visible: no se veía la barra de
+ * vida de los compañeros. Ahora la vida viaja con los efectos, en el mismo
+ * mensaje, y vuelve a todos dentro de la instantánea.
+ */
+describe('la vida de los compañeros', () => {
+  function montar(): { anfitrion: Anfitrion; enlace: Enlace; quien: number } {
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const enlace: Enlace = { mandarVivo: () => {}, mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null)!;
+    return { anfitrion, enlace, quien };
+  }
+
+  it('el mensaje de estado lleva la vida junto a los efectos', () => {
+    const leido = leerMensaje(
+      escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 600 }], 42, 120),
+    );
+    expect(leido).toEqual({
+      tipo: MSG.ESTADO,
+      vida: 42,
+      vidaMax: 120,
+      efectos: [{ clase: numeroDeEfecto('fuerza'), ticks: 600 }],
+    });
+  });
+
+  /** Los que juegan con una versión anterior no mandan vida: cero y ya está. */
+  it('sin decir nada de vida, se manda cero', () => {
+    const leido = leerMensaje(escribirEstado([]));
+    expect(leido).toMatchObject({ tipo: MSG.ESTADO, vida: 0, vidaMax: 0 });
+  });
+
+  it('lo que cuenta el invitado sale en la instantánea', () => {
+    const mandado: Uint8Array[] = [];
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const enlace: Enlace = { mandarVivo: (d) => mandado.push(d), mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null)!;
+    void anfitrion.mandarMundo(quien);
+    anfitrion.conectados[0]!.listo = true;
+
+    anfitrion.recibir(enlace, escribirEstado([], 37, 140), quien);
+    mandado.length = 0;
+    // Las instantáneas no salen en todos los ticks: se corren unos cuantos.
+    const mia = crearCaja(0, 0, JUGADOR_ANCHO, JUGADOR_ALTO);
+    for (let i = 0; i < 10; i++) anfitrion.avanzar(mia, 88, 200);
+
+    const inst = mandado.map(leerMensaje).find((m) => m?.tipo === MSG.INSTANTANEA);
+    expect(inst).toBeTruthy();
+    const jugadores = inst!.tipo === MSG.INSTANTANEA
+      ? inst!.instantanea.entidades.filter((e) => e.clase === ENT.JUGADOR)
+      : [];
+    // El anfitrión es el 1 y va con la suya; el invitado, con la que contó.
+    expect(jugadores.find((e) => e.id === 1)).toMatchObject({ vida: 88, vidaMax: 200 });
+    expect(jugadores.find((e) => e.id === quien)).toMatchObject({ vida: 37, vidaMax: 140 });
+  });
+
+  /** Perder un mensaje de estado no puede borrar la vida del que lo mandó. */
+  it('un estado sin vida no pisa la que ya se sabía', () => {
+    const { anfitrion, enlace, quien } = montar();
+    anfitrion.recibir(enlace, escribirEstado([], 55, 100), quien);
+    expect(anfitrion.conectados[0]!.vida).toBe(55);
+    anfitrion.recibir(enlace, escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 60 }], 40, 100), quien);
+    expect(anfitrion.conectados[0]!.vida).toBe(40);
+  });
+
+  it('el invitado se queda con la vida de los demás para pintarla', () => {
+    const mandado: Uint8Array[] = [];
+    const invitado = new Invitado({
+      enlace: { mandarVivo: (d) => mandado.push(d), mandarFirme: (d) => mandado.push(d) },
+      nombre: 'Inv',
+      idPartida: 'p1',
+      ajustes: AJUSTES_POR_DEFECTO,
+      alLlegarMundo: () => {},
+      alCambiarTiles: () => {},
+    });
+    invitado.recibir(
+      escribirInstantanea({
+        tick: 1,
+        tickConfirmado: 0,
+        minutos: 600,
+        suceso: 0,
+        entidades: [
+          {
+            clase: ENT.JUGADOR,
+            id: 1,
+            sub: 0,
+            x: 100,
+            y: 100,
+            vx: 0,
+            vy: 0,
+            vida: 63,
+            vidaMax: 200,
+            banderas: 0,
+            ticksCoyote: 0,
+            ticksBuffer: 0,
+            ticksSalto: 0,
+            yInicioCaida: 0,
+          },
+        ],
+      }),
+    );
+    expect(invitado.demas[0]!.ultima).toMatchObject({ vida: 63, vidaMax: 200 });
+  });
+
+  it('mandar el estado con vida cabe en el mensaje de siempre', () => {
+    const mandado: Uint8Array[] = [];
+    const invitado = new Invitado({
+      enlace: { mandarVivo: (d) => mandado.push(d), mandarFirme: () => {} },
+      nombre: 'Inv',
+      idPartida: 'p1',
+      ajustes: AJUSTES_POR_DEFECTO,
+      alLlegarMundo: () => {},
+      alCambiarTiles: () => {},
+    });
+    invitado.mandarEstado([], 12, 40);
+    expect(leerMensaje(mandado[0]!)).toMatchObject({ tipo: MSG.ESTADO, vida: 12, vidaMax: 40 });
+  });
+});

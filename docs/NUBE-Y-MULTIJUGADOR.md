@@ -215,7 +215,7 @@ en todo momento **una sola copia con autoridad**. Se acabó el «¿cuál es más
 nueva?», el mezclar, y la cola de sincronización. Era la parte que estaba marcada
 como «más trabajo que todo lo demás junto», y con este modelo desaparece entera.
 
-### Qué decide el anfitrión, a día de hoy (7.12.3)
+### Qué decide el anfitrión, a día de hoy (7.13.0)
 
 La regla, dicha entera: **todo lo que es del mundo lo decide quien lo hospeda.**
 Lo que es de cada jugador —su inventario, su vida, su armadura, sus pociones—
@@ -239,9 +239,25 @@ mueve y cuánto pega—. Se manda la causa y no el resultado: los efectos con lo
 que les queda, no «multiplico la velocidad por 1,2». Así el día que haya una
 poción más, el protocolo no se entera.
 
-Lo que sigue sin viajar es la **vida**: cada uno lleva la suya, el anfitrión
-dice que te han dado y cuánto pegaba lo que te tocó, y la armadura, el empujón y
-la muerte los aplica cada uno en su casa.
+Y otro que se cerró en 7.13.0: la **vida** también viaja, pero solo para verla.
+Quien decide cuánta le queda a uno sigue siendo uno mismo —el anfitrión dice que
+te han dado y cuánto pegaba lo que te tocó, y la armadura, el empujón y la muerte
+los aplica cada uno en su casa—; lo que se manda es el número ya calculado, para
+que los demás puedan pintar la barra. Es la diferencia entre autoridad y noticia:
+de la vida ajena aquí solo llega la noticia.
+
+Va en el mismo mensaje que los efectos (`MSG.ESTADO`, protocolo 9) porque se
+cuentan igual —una foto cada poco, por el canal que no espera respuesta— y
+porque casi siempre cambian a la vez: el veneno que baja la vida es uno de los
+efectos que van en ese mismo mensaje. Vuelve a todos dentro de la instantánea,
+en los mismos campos `vida`/`vidaMax` que ya llevaban los bichos.
+
+El invitado la manda dos veces por segundo, y **cada seis ticks mientras esté
+cambiando**: un golpe se ve venir en un tick, y esperar medio segundo a contarlo
+deja la barra del compañero llena mientras se está muriendo. Cuando no llega
+—alguien acaba de entrar, o juega con una versión anterior a la 7.13.0— no se
+pinta barra en vez de pintar una a cero: una barra vacía diría «se está muriendo»
+y una llena diría «está perfecto», y las dos mentirían.
 
 ### El corolario que faltaba: guarda el anfitrión, y solo él (7.11.1)
 

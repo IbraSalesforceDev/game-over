@@ -208,9 +208,12 @@ async function main(): Promise<void> {
     },
   });
 
+  /** La vida que dice tener cada uno, para poder cambiarla a mitad de prueba. */
+  const vidaA = { ahora: 100, tope: 100 };
+
   // El bucle del juego: los dos avanzan a 60 Hz, como en la partida de verdad.
   const reloj = setInterval(() => {
-    anfitrion.avanzar(cajaA, QUIETO);
+    anfitrion.avanzar(cajaA, QUIETO, 0, vidaA.ahora, vidaA.tope);
     invitado.avanzar(cajaB, QUIETO);
   }, 16);
 
@@ -336,6 +339,23 @@ async function main(): Promise<void> {
     'y cuando se le pasa, también',
     await esperarA(() => anfitrion.danoDe(suyo) === 1, 5000),
   );
+
+  // Y la vida, que viaja en el mismo mensaje y vuelve dentro de la instantánea.
+  invitado.contarEstado([], 37, 140);
+  comprobar(
+    'la vida del invitado le llega al anfitrión',
+    await esperarA(() => anfitrion.otros()[0]?.vida === 37, 5000),
+  );
+  comprobar(
+    'el invitado ve la vida del anfitrión',
+    await esperarA(() => invitado.otros()[0]?.vida === 100, 5000),
+  );
+  vidaA.ahora = 42;
+  comprobar(
+    'y cuando al anfitrión le dan, se le nota en la barra',
+    await esperarA(() => invitado.otros()[0]?.vida === 42, 5000),
+  );
+  vidaA.ahora = 100;
 
   // Y la savia de un arma cura a quien pega, aunque pegue desde otra pantalla.
   anfitrion.curar(suyo, 5);

@@ -145,6 +145,15 @@ export interface JugadorConectado {
    * cuánto pega, que es lo que se olvidaba antes de esto.
    */
   efectos: Efectos;
+  /**
+   * Su vida, como él la cuenta.
+   *
+   * No se lleva aquí: se recibe. La vida es de cada uno —él aplica su armadura
+   * y él se muere— y esto es solo la copia que hace falta para que los demás le
+   * puedan pintar la barra.
+   */
+  vida: number;
+  vidaMax: number;
 }
 
 export interface OpcionesAnfitrion {
@@ -325,6 +334,8 @@ export class Anfitrion {
         break;
       case MSG.ESTADO:
         this.ponerEfectos(j, m.efectos);
+        j.vida = m.vida;
+        j.vidaMax = m.vidaMax;
         break;
       case MSG.COFRE_TOCAR:
         // Un cofre al otro lado del mundo no se toca. Es la misma regla que
@@ -358,6 +369,8 @@ export class Anfitrion {
       invulnerable: 0,
       golpe: crearGolpe(),
       efectos: crearEfectos(),
+      vida: 0,
+      vidaMax: 0,
     };
     this.jugadores.set(id, j);
     enlace.mandarFirme(escribirBienvenido(id, this.tickActual));
@@ -620,7 +633,7 @@ export class Anfitrion {
    * `miCaja` es la del anfitrión, que entra en las instantáneas como uno más:
    * los invitados tienen que verlo moverse igual que él los ve a ellos.
    */
-  avanzar(miCaja: Caja, miVida = 0): void {
+  avanzar(miCaja: Caja, miVida = 0, miVidaMax = 0): void {
     this.tickActual++;
 
     for (const j of this.jugadores.values()) {
@@ -658,13 +671,20 @@ export class Anfitrion {
     if (this.tickActual % TICKS_POR_INSTANTANEA !== 0) return;
 
     const todos: EntidadRed[] = [
-      { clase: ENT.JUGADOR, id: 1, sub: 0, vida: miVida, vidaMax: 0, ...autoridadDeCaja(miCaja) },
+      {
+        clase: ENT.JUGADOR,
+        id: 1,
+        sub: 0,
+        vida: miVida,
+        vidaMax: miVidaMax,
+        ...autoridadDeCaja(miCaja),
+      },
       ...[...this.jugadores.values()].map((j) => ({
         clase: ENT.JUGADOR,
         id: j.id,
         sub: 0,
-        vida: 0,
-        vidaMax: 0,
+        vida: j.vida,
+        vidaMax: j.vidaMax,
         ...autoridadDeCaja(j.caja),
       })),
       ...this.bichosDeLaInstantanea(),
