@@ -12,6 +12,7 @@ import {
   defensaExtra,
   DURACION,
   EFECTOS,
+  efectosActivos,
   limpiarDaninos,
   limpiarEfectos,
   multiplicadorAire,
@@ -19,6 +20,7 @@ import {
   multiplicadorMinado,
   multiplicadorSalto,
   multiplicadorVelocidad,
+  numeroDeEfecto,
   tickEfectos,
 } from './entities/efectos';
 import { crearPanelEstados } from './ui/estados';
@@ -812,7 +814,7 @@ async function arrancar(): Promise<void> {
           suceso: () => numeroDeSuceso(sucesos.activo),
           objetos: () => drops,
           liquidosCambiados: (tope) => liquidos.tomarSucias(tope),
-          alGolpear: (_quien, g, caja) => resolverMandoble(g, caja, g.arma, false),
+          alGolpear: (quien, g, caja) => resolverMandoble(g, caja, g.arma, false, quien),
           alPedirObjeto: darObjetoAInvitado,
           alAbrirCofre: (quien, tx, ty) => {
             if (mundo.getTile(tx, ty) !== COFRE) return;
@@ -840,6 +842,11 @@ async function arrancar(): Promise<void> {
           alRecibirGolpe: recibirGolpeDeRed,
           alCambiarLiquidos: aplicarLiquidosDeRed,
           alSaberDelCofre: aplicarCofreDeRed,
+          alCurar: (cantidad) => {
+            if (salud.vida >= salud.vidaMax) return;
+            curar(salud, cantidad);
+            panelVida.refrescar(salud);
+          },
           alRecogerObjeto: (objeto, cantidad) => {
             inventario.anadir(objeto, cantidad);
             barra.refrescar(capa);
@@ -3437,7 +3444,13 @@ async function arrancar(): Promise<void> {
    * visión y el mismo filo. Un invitado no puede pegar distinto de como pega
    * quien hospeda.
    */
-  function resolverMandoble(g: Golpe, caja: Caja, arma: number, mio: boolean): void {
+  function resolverMandoble(
+    g: Golpe,
+    caja: Caja,
+    arma: number,
+    mio: boolean,
+    quien = 0,
+  ): void {
     // El filo del arma entra en dos sitios: aquí, si multiplica el daño, y en
     // cada bicho tocado, si le pega un efecto o cura al que golpea.
     const filo = tiene('equipoDeJefe') ? filoDe(arma) : null;
@@ -3446,9 +3459,12 @@ async function arrancar(): Promise<void> {
     // `dondeEstoy`, que además deduce el bioma recorriendo tiles: eso corría
     // sesenta veces por segundo por llevar una espada en la mano.
     const hondo = filo !== null && FILOS[filo].bonusHondo !== 1 && estoyBajoTierra(caja);
+    // Las pociones de quien pega. Las suyas si es de aquí; si es de un
+    // invitado, las que él ha contado.
     const multiplicador =
-      (mio ? trucos.danoMultiplicador * multiplicadorDano(estados) : 1) *
-      (hondo ? FILOS[filo!].bonusHondo : 1);
+      (mio
+        ? trucos.danoMultiplicador * multiplicadorDano(estados)
+        : (sesionRed?.danoDe(quien) ?? 1)) * (hondo ? FILOS[filo!].bonusHondo : 1);
     const r = resolverGolpe(
       g,
       caja,
@@ -3457,7 +3473,7 @@ async function arrancar(): Promise<void> {
       tiene('golpeConVista') ? mundo : null,
     );
     if (filo !== null && r.tocados.length > 0) {
-      aplicarFilo(filo, r.tocados, multiplicador, arma, mio);
+      aplicarFilo(filo, r.tocados, multiplicador, arma, mio, quien);
     }
     for (const tocado of r.tocados) {
       // Chispas en el punto de impacto, hacia donde mira el golpe: es el aviso
@@ -3493,6 +3509,7 @@ async function arrancar(): Promise<void> {
     multiplicador: number,
     arma: number,
     mio: boolean,
+    quien = 0,
   ): void {
     const def = FILOS[clase];
     for (const e of tocados) {
@@ -3514,9 +3531,17 @@ async function arrancar(): Promise<void> {
         });
       }
     }
-    // La savia cura a quien pega, y quien pega puede no estar en esta máquina.
-    if (mio && def.curacion > 0 && salud.vida < salud.vidaMax) {
-      curar(salud, def.curacion * tocados.length);
+    // La savia cura a quien pega, y quien pega puede no estar en esta máquina:
+    // al invitado se le manda la cura y se la aplica él, que es el que sabe
+    // cuánta vida le falta.
+    if (def.curacion <= 0) return;
+    const cuanto = def.curacion * tocados.length;
+    if (!mio) {
+      sesionRed?.curar(quien, cuanto);
+      return;
+    }
+    if (salud.vida < salud.vidaMax) {
+      curar(salud, cuanto);
       panelVida.refrescar(salud);
     }
   }
@@ -3824,6 +3849,16 @@ async function arrancar(): Promise<void> {
       // que preguntarlo cada tick sale gratis y evita tener que avisarlo desde
       // los cinco sitios en los que alguien entra o se va.
       if (sesionRed) acompanados.compania(sesionRed.otros().map((o) => o.nombre));
+      // Lo que lleva encima, dos veces por segundo. No hace falta más: es un
+      // estado que cambia despacio y el anfitrión lo va descontando solo.
+      if (sesionRed?.papel === 'invitado' && tickJuego % 30 === 0) {
+        sesionRed.contarEstado(
+          efectosActivos(estados).map((e) => ({
+            clase: numeroDeEfecto(e.clase),
+            ticks: e.restante,
+          })),
+        );
+      }
       sumergidoAhora = sumergido;
       actualizarDrops();
       if (tiene('cultivos')) actualizarCultivos();

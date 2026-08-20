@@ -143,6 +143,36 @@ export const EFECTOS: Readonly<Record<ClaseEfecto, DefEfecto>> = {
 
 export const CLASES_EFECTO = Object.keys(EFECTOS) as ClaseEfecto[];
 
+/**
+ * Los efectos en un orden fijo, para poder mandarlos por la red en un byte.
+ *
+ * Escrito a mano y no sacado de `Object.keys`, que es lo que hace `CLASES_EFECTO`
+ * unas líneas más arriba: para recorrerlos aquí dentro da igual el orden, pero
+ * para mandarlos no, porque el número tiene que significar lo mismo en los dos
+ * navegadores. Lo nuevo se añade **al final**.
+ */
+export const ORDEN_EFECTOS: readonly ClaseEfecto[] = [
+  'ardiendo',
+  'veneno',
+  'congelado',
+  'regeneracion',
+  'fuerza',
+  'pielDePiedra',
+  'ligereza',
+  'agallas',
+  'brio',
+];
+
+/** El efecto en un número, empezando por 1. Cero no es ninguno. */
+export function numeroDeEfecto(clase: ClaseEfecto): number {
+  return ORDEN_EFECTOS.indexOf(clase) + 1;
+}
+
+/** Devuelve null si el número no es de ninguno: llega de fuera y no se fía. */
+export function efectoDeNumero(n: number): ClaseEfecto | null {
+  return ORDEN_EFECTOS[n - 1] ?? null;
+}
+
 /** Cuánto duran las cosas, en ticks. */
 export const DURACION = {
   /** Lo que sigue ardiendo uno después de salir de la lava. */

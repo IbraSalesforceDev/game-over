@@ -10,14 +10,19 @@ import { Mundo } from '../src/world/world';
 import { AIRE, PIEDRA, TIERRA } from '../src/world/tiles';
 import { ALCANCE_TILES, Anfitrion, type Enlace } from '../src/red/anfitrion';
 import { TICKS_GOLPE } from '../src/entities/combat';
+import { EFECTOS, numeroDeEfecto } from '../src/entities/efectos';
 import { Invitado } from '../src/red/invitado';
 import {
+  BOTON,
   ENT,
+  escribirEntrada,
+  escribirEstado,
   escribirGolpe,
   escribirHola,
   escribirInstantanea,
   escribirRecogido,
   leerMensaje,
+  MSG,
   type CambioTile,
 } from '../src/red/protocolo';
 import { defObjeto, ESPADA_HIERRO, GEL, IDS_OBJETO } from '../src/items/items';
@@ -770,5 +775,126 @@ describe('el invitado pelea', () => {
       }),
     ) as { instantanea: { entidades: { sub: number }[] } };
     expect(leida.instantanea.entidades[0]!.sub).toBe(alto);
+  });
+});
+
+/**
+ * Lo que lleva encima el invitado.
+ *
+ * Sus pociones son suyas, pero el anfitrión las necesita para dos cosas que
+ * decide él: cómo se mueve y cuánto pega. Sin esto, beber ligereza como
+ * invitado se veía como un tirón —corrías y volvías atrás— y beber fuerza no
+ * hacía absolutamente nada.
+ */
+describe('las pociones del invitado cuentan', () => {
+  function montarConEfectos() {
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const enlace: Enlace = { mandarVivo: () => {}, mandarFirme: () => {} };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null)!;
+    return { anfitrion, enlace, quien };
+  }
+
+  it('sin contar nada, pega lo normal', () => {
+    const { anfitrion, quien } = montarConEfectos();
+    expect(anfitrion.danoDe(quien)).toBe(1);
+  });
+
+  it('con fuerza encima, pega más', () => {
+    const { anfitrion, enlace, quien } = montarConEfectos();
+    anfitrion.recibir(
+      enlace,
+      escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 600 }]),
+      quien,
+    );
+    expect(anfitrion.danoDe(quien)).toBe(EFECTOS.fuerza.dano);
+  });
+
+  /** La foto sustituye: lo que no viene en ella es que se ha pasado. */
+  it('lo que deja de contar, deja de contar', () => {
+    const { anfitrion, enlace, quien } = montarConEfectos();
+    anfitrion.recibir(
+      enlace,
+      escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 600 }]),
+      quien,
+    );
+    anfitrion.recibir(enlace, escribirEstado([]), quien);
+    expect(anfitrion.danoDe(quien)).toBe(1);
+  });
+
+  /** Si se pierde el mensaje, lo que hay se acaba solo en vez de quedarse. */
+  it('lo que llega se descuenta aunque no vuelvan a contarlo', () => {
+    const { anfitrion, enlace, quien } = montarConEfectos();
+    anfitrion.recibir(
+      enlace,
+      escribirEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 5 }]),
+      quien,
+    );
+    expect(anfitrion.danoDe(quien)).toBeGreaterThan(1);
+    for (let i = 0; i < 6; i++) anfitrion.avanzar(crearCaja(0, 0, 26, 46));
+    expect(anfitrion.danoDe(quien)).toBe(1);
+  });
+
+  it('un efecto que aquí no existe se ignora, no rompe nada', () => {
+    const { anfitrion, enlace, quien } = montarConEfectos();
+    anfitrion.recibir(enlace, escribirEstado([{ clase: 200, ticks: 600 }]), quien);
+    expect(anfitrion.danoDe(quien)).toBe(1);
+  });
+
+  /** Con ligereza corre más, y eso lo tiene que simular el anfitrión. */
+  it('con ligereza, el anfitrión lo mueve más deprisa', () => {
+    const correr = (conPocion: boolean): number => {
+      const { anfitrion, enlace, quien } = montarConEfectos();
+      if (conPocion) {
+        anfitrion.recibir(
+          enlace,
+          escribirEstado([{ clase: numeroDeEfecto('ligereza'), ticks: 6000 }]),
+          quien,
+        );
+      }
+      const antes = anfitrion.conectados[0]!.caja.x;
+      for (let i = 0; i < 90; i++) {
+        anfitrion.recibir(
+          enlace,
+          escribirEntrada({ tick: i + 1, botones: BOTON.DERECHA, ratonTx: 0, ratonTy: 0 }),
+          quien,
+        );
+        anfitrion.avanzar(crearCaja(0, 0, 26, 46));
+      }
+      return anfitrion.conectados[0]!.caja.x - antes;
+    };
+    expect(correr(true)).toBeGreaterThan(correr(false) * 1.1);
+  });
+
+  it('curar a un invitado se le manda por el canal fiable', () => {
+    const mandado: Uint8Array[] = [];
+    const anfitrion = new Anfitrion({
+      mundo: mundoDePruebas(),
+      ajustes: AJUSTES_POR_DEFECTO,
+      idPartida: 'p1',
+      spawnTx: 10,
+      spawnTy: 38,
+      bytesDelMundo: async () => new Uint8Array(0),
+    });
+    const enlace: Enlace = { mandarVivo: () => {}, mandarFirme: (d) => mandado.push(d) };
+    const quien = anfitrion.recibir(enlace, escribirHola('Inv', 'p1'), null)!;
+    void anfitrion.mandarMundo(quien);
+    anfitrion.conectados[0]!.listo = true;
+
+    mandado.length = 0;
+    anfitrion.curar(quien, 7);
+    const leido = leerMensaje(mandado[0]!);
+    expect(leido).toEqual({ tipo: MSG.CURA, cantidad: 7 });
+
+    // Y curar cero no manda nada: es un mensaje por el cable para nada.
+    mandado.length = 0;
+    anfitrion.curar(quien, 0);
+    expect(mandado).toHaveLength(0);
   });
 });

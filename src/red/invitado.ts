@@ -33,6 +33,7 @@ import {
   escribirCojo,
   escribirCubo,
   escribirEntrada,
+  escribirEstado,
   escribirGolpe,
   escribirHola,
   escribirPidoTile,
@@ -40,6 +41,7 @@ import {
   textoRechazo,
   type CambioLiquido,
   type CambioTile,
+  type EfectoRed,
   type EntidadRed,
   type EstadoCofre,
 } from './protocolo';
@@ -78,6 +80,8 @@ export interface OpcionesInvitado {
   alCambiarLiquidos?: (cambios: readonly CambioLiquido[]) => void;
   /** Cómo ha quedado un cofre, y qué te ha quedado en la mano si lo tocaste tú. */
   alSaberDelCofre?: (cofre: EstadoCofre) => void;
+  /** El anfitrión dice que te cures: es la savia de un arma. */
+  alCurar?: (cantidad: number) => void;
 }
 
 export function botonesDeEntrada(e: Entrada): number {
@@ -178,6 +182,10 @@ export class Invitado {
 
       case MSG.COFRE:
         this.op.alSaberDelCofre?.(m.cofre);
+        break;
+
+      case MSG.CURA:
+        this.op.alCurar?.(m.cantidad);
         break;
 
       case MSG.INSTANTANEA:
@@ -355,6 +363,16 @@ export class Invitado {
   /** Pide abrir un cofre. Lo que llegue es lo que hay dentro de verdad. */
   abrirCofre(tx: number, ty: number): void {
     this.op.enlace.mandarFirme(escribirCofreAbrir(tx, ty));
+  }
+
+  /**
+   * Cuenta lo que lleva encima.
+   *
+   * Va por el canal no fiable y se repite: es una foto de un estado que cambia
+   * despacio, así que perder una no cuesta nada y la siguiente lo arregla.
+   */
+  mandarEstado(efectos: readonly EfectoRed[]): void {
+    this.op.enlace.mandarVivo(escribirEstado(efectos));
   }
 
   /** Cuenta que ha tocado una ranura, con lo que llevaba en la mano. */

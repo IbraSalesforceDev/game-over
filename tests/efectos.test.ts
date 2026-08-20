@@ -6,12 +6,15 @@ import {
   defensaExtra,
   DURACION,
   EFECTOS,
+  efectoDeNumero,
   efectosActivos,
   limpiarDaninos,
   limpiarEfectos,
   multiplicadorDano,
   multiplicadorSalto,
   multiplicadorVelocidad,
+  numeroDeEfecto,
+  ORDEN_EFECTOS,
   quitarEfecto,
   segundos,
   tickEfectos,
@@ -315,5 +318,33 @@ describe('la flecha de fuego', () => {
     expect(puntaDe(FLECHA_FUEGO).efecto).toBe('ardiendo');
     expect(puntaDe(FLECHA_FUEGO).duracionEfecto).toBe(DURACION.ataque);
     expect(puntaDe(FLECHA).efecto).toBeUndefined();
+  });
+});
+
+/**
+ * Los efectos, en un número.
+ *
+ * Hacen falta para que el anfitrión sepa qué lleva encima un invitado: sus
+ * pociones cambian lo deprisa que corre y lo fuerte que pega, y sin esto el
+ * anfitrión simulaba a un invitado que no había bebido nada.
+ */
+describe('el efecto en un número, para el cable', () => {
+  it('están todos y ninguno es cero', () => {
+    expect(ORDEN_EFECTOS).toHaveLength(CLASES_EFECTO.length);
+    for (const c of ORDEN_EFECTOS) expect(numeroDeEfecto(c)).toBeGreaterThan(0);
+  });
+
+  it('ida y vuelta', () => {
+    for (const c of ORDEN_EFECTOS) expect(efectoDeNumero(numeroDeEfecto(c))).toBe(c);
+  });
+
+  it('un número que no es de ninguno no da un efecto', () => {
+    expect(efectoDeNumero(0)).toBeNull();
+    expect(efectoDeNumero(99)).toBeNull();
+  });
+
+  it('la tabla nombra efectos que existen y no repite', () => {
+    for (const c of ORDEN_EFECTOS) expect(EFECTOS[c]).toBeDefined();
+    expect(new Set(ORDEN_EFECTOS).size).toBe(ORDEN_EFECTOS.length);
   });
 });

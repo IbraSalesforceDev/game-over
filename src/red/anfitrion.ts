@@ -21,6 +21,16 @@ import type { Mundo } from '../world/world';
 import { indiceDeEspecie, type Acompanante, type Enemigo } from '../entities/enemies';
 import type { Drop } from '../entities/drop';
 import { TICKS_INVULNERABLE } from '../entities/salud';
+import {
+  CLASES_EFECTO,
+  crearEfectos,
+  efectoDeNumero,
+  multiplicadorDano,
+  multiplicadorSalto,
+  multiplicadorVelocidad,
+  tickEfectos,
+  type Efectos,
+} from '../entities/efectos';
 import { autoridadDeCaja } from './prediccion';
 import { crearGolpe, lanzarGolpe, tickGolpe, type Golpe, type Sentido } from '../entities/combat';
 import { esArma } from '../items/items';
@@ -29,6 +39,7 @@ import {
   ENT,
   MSG,
   escribirCofre,
+  escribirCura,
   escribirDano,
   escribirLiquidos,
   escribirRecogido,
@@ -42,6 +53,7 @@ import {
   trocearMundo,
   type CambioLiquido,
   type CambioTile,
+  type EfectoRed,
   type EstadoCofre,
   type EntidadRed,
 } from './protocolo';
@@ -125,6 +137,14 @@ export interface JugadorConectado {
    * regla del juego local, aplicada donde se toma la decisión.
    */
   golpe: Golpe;
+  /**
+   * Lo que lleva encima: sus pociones y lo que le hayan pegado.
+   *
+   * Lo manda él y aquí solo se guarda y se descuenta. Hace falta para dos cosas
+   * que decide el anfitrión: cómo se mueve —su física la simula esta máquina— y
+   * cuánto pega, que es lo que se olvidaba antes de esto.
+   */
+  efectos: Efectos;
 }
 
 export interface OpcionesAnfitrion {
@@ -183,6 +203,21 @@ export interface OpcionesAnfitrion {
   objetos?: () => readonly Drop[];
   /** Las celdas de líquido que han cambiado, hasta un tope. */
   liquidosCambiados?: (tope: number) => readonly CambioLiquido[];
+}
+
+/**
+ * Los ajustes de siempre, con lo que las pociones cambien.
+ *
+ * Es la misma cuenta que hace el juego para el jugador de casa, escrita aquí
+ * porque el anfitrión simula además a los invitados y no tiene su interfaz a
+ * mano. Si algún día un efecto toca algo más del movimiento, se toca en los dos
+ * sitios o se separa de verdad; de momento son dos multiplicadores.
+ */
+function ajustesCon(base: Ajustes, ef: Efectos): Ajustes {
+  const vel = multiplicadorVelocidad(ef);
+  const salto = multiplicadorSalto(ef);
+  if (vel === 1 && salto === 1) return base;
+  return { ...base, velMaxima: base.velMaxima * vel, impulsoSalto: base.impulsoSalto * salto };
 }
 
 function entradaDeBotones(botones: number, antes: Entrada): Entrada {
@@ -288,6 +323,9 @@ export class Anfitrion {
       case MSG.COFRE_ABRIR:
         if (this.alAlcance(j, m.tx, m.ty)) this.op.alAbrirCofre?.(j.id, m.tx, m.ty);
         break;
+      case MSG.ESTADO:
+        this.ponerEfectos(j, m.efectos);
+        break;
       case MSG.COFRE_TOCAR:
         // Un cofre al otro lado del mundo no se toca. Es la misma regla que
         // para picar y para el cubo, y por eso es la misma cuenta.
@@ -319,11 +357,40 @@ export class Anfitrion {
       listo: false,
       invulnerable: 0,
       golpe: crearGolpe(),
+      efectos: crearEfectos(),
     };
     this.jugadores.set(id, j);
     enlace.mandarFirme(escribirBienvenido(id, this.tickActual));
     this.op.alEntrar?.(j);
     return id;
+  }
+
+  /**
+   * Deja los efectos de un invitado como él dice que están.
+   *
+   * Se sustituyen enteros en vez de irlos añadiendo: el mensaje es una foto de
+   * lo que lleva, y lo que no viene en la foto es que se le ha pasado.
+   */
+  private ponerEfectos(j: JugadorConectado, llegan: readonly EfectoRed[]): void {
+    for (const clase of CLASES_EFECTO) delete j.efectos[clase];
+    for (const e of llegan) {
+      const clase = efectoDeNumero(e.clase);
+      // Un número que aquí no significa nada: el otro tiene otra versión.
+      if (clase) j.efectos[clase] = e.ticks;
+    }
+  }
+
+  /** Lo que multiplica el daño de un invitado por lo que lleva encima. */
+  danoDe(id: number): number {
+    const j = this.jugadores.get(id);
+    return j ? multiplicadorDano(j.efectos) : 1;
+  }
+
+  /** Le cura a un invitado lo que diga el juego. Va por el canal fiable. */
+  curar(id: number, cantidad: number): void {
+    const j = this.jugadores.get(id);
+    if (!j?.listo || cantidad <= 0) return;
+    j.enlace.mandarFirme(escribirCura(cantidad));
   }
 
   /**
@@ -557,11 +624,18 @@ export class Anfitrion {
     this.tickActual++;
 
     for (const j of this.jugadores.values()) {
-      actualizarFisica(this.op.mundo, j.caja, j.entrada, this.op.ajustes);
+      // Con sus pociones puestas: si aquí se usaran los ajustes de siempre, un
+      // invitado con ligereza correría en su pantalla y volvería atrás en la
+      // siguiente instantánea.
+      actualizarFisica(this.op.mundo, j.caja, j.entrada, ajustesCon(this.op.ajustes, j.efectos));
       // El flanco de salto dura un tick: si no se apaga, se salta sin parar
       // mientras no llegue una entrada nueva.
       j.entrada = { ...j.entrada, saltoPulsado: false };
       if (j.invulnerable > 0) j.invulnerable--;
+      // Los efectos se descuentan aquí aunque el invitado los vuelva a mandar:
+      // así, si se pierde un mensaje, lo que hay se acaba solo en vez de
+      // quedarse puesto para siempre.
+      tickEfectos(j.efectos);
       // Mientras el arma esté barriendo, se resuelve cada tick. La lista de
       // tocados que lleva el propio golpe es lo que impide que uno reciba dos
       // veces por el mismo mandoble.

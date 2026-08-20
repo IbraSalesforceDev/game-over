@@ -31,6 +31,7 @@ import {
   escribirAdios,
   type CambioLiquido,
   type CambioTile,
+  type EfectoRed,
   type EstadoCofre,
 } from './protocolo';
 import { entrarEnSala, type Recado, type Sala } from './senal';
@@ -50,6 +51,8 @@ export interface AvisosSesion {
   alCambiarLiquidos?: (cambios: readonly CambioLiquido[]) => void;
   /** Solo en el invitado: lo que hay de verdad en un cofre. */
   alSaberDelCofre?: (cofre: EstadoCofre) => void;
+  /** Solo en el invitado: cúrate esto, que lo dice el arma de quien golpeó. */
+  alCurar?: (cantidad: number) => void;
   /**
    * Solo en el invitado: te han dado, y esto es lo que pega.
    *
@@ -166,6 +169,12 @@ export interface SesionRed {
   tocarCofre(tx: number, ty: number, ranura: number, objeto: number, cantidad: number): void;
   /** Contar cómo ha quedado un cofre. Solo el anfitrión reparte. */
   contarCofre(cofre: EstadoCofre, quien?: number): void;
+  /** Contar lo que se lleva encima. Solo el invitado tiene que contarlo. */
+  contarEstado(efectos: readonly EfectoRed[]): void;
+  /** Lo que multiplica el daño de un invitado. En el invitado, 1. */
+  danoDe(quien: number): number;
+  /** Curarle a un invitado. En el invitado no hace nada. */
+  curar(quien: number, cantidad: number): void;
   /** Darle a un invitado lo que ha pedido. Solo el anfitrión reparte. */
   entregar(id: number, objeto: number, cantidad: number): void;
   /**
@@ -328,6 +337,15 @@ export async function hospedar(op: OpcionesSesion): Promise<SesionRed> {
     contarCofre(cofre, quien) {
       anfitrion.contarCofre(cofre, quien);
     },
+    contarEstado() {
+      /* el anfitrión ya sabe lo que lleva: es su propia partida */
+    },
+    danoDe(quien) {
+      return anfitrion.danoDe(quien);
+    },
+    curar(quien, cantidad) {
+      anfitrion.curar(quien, cantidad);
+    },
     entregar(id, objeto, cantidad) {
       anfitrion.entregar(id, objeto, cantidad);
     },
@@ -426,6 +444,7 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     alRecogerObjeto: (objeto, cantidad) => op.alRecogerObjeto?.(objeto, cantidad),
     alCambiarLiquidos: (cs) => op.alCambiarLiquidos?.(cs),
     alSaberDelCofre: (c) => op.alSaberDelCofre?.(c),
+    alCurar: (n) => op.alCurar?.(n),
     alRechazar: (motivo) => {
       parar();
       op.alCambiarEstado?.('fallo', motivo);
@@ -515,6 +534,15 @@ export async function unirse(op: OpcionesSesion): Promise<SesionRed> {
     },
     contarCofre() {
       /* el invitado no le cuenta a nadie lo que hay en un cofre */
+    },
+    contarEstado(efectos) {
+      invitado.mandarEstado(efectos);
+    },
+    danoDe() {
+      return 1; // aquí no se resuelven golpes de nadie
+    },
+    curar() {
+      /* de curar a los demás se encarga el anfitrión */
     },
     entregar() {
       /* el invitado no reparte nada */

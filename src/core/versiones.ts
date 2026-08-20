@@ -866,6 +866,18 @@ export const VERSIONES: readonly Version[] = [
       'Con esto, todo lo que decide el mundo lo decide un solo sitio',
     ],
   },
+  {
+    id: '7.12.4',
+    etapa: 'prealfa',
+    nombre: 'Las pociones del invitado',
+    resumen: 'Lo que bebe un invitado por fin cuenta: corre más, pega más y su savia le cura.',
+    cambios: [
+      'El invitado cuenta lo que lleva encima y el anfitrión lo tiene en cuenta',
+      'Con ligereza corre de verdad: antes se veía correr y volvía atrás de un tirón',
+      'Con fuerza pega más: antes la poción no hacía absolutamente nada',
+      'La savia de un arma cura a quien golpea, aunque golpee desde la otra pantalla',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

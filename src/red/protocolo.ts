@@ -36,7 +36,7 @@ import { Escritor, Lector } from '../core/bytes';
  * No tiene nada que ver con la versión del juego ni con la del guardado: son
  * tres números que suben por motivos distintos.
  */
-export const VERSION_PROTOCOLO = 7;
+export const VERSION_PROTOCOLO = 8;
 
 /** Tipos de mensaje. El primer byte de todo lo que se manda. */
 export const MSG = {
@@ -124,6 +124,23 @@ export const MSG = {
   COFRE_TOCAR: 17,
   /** Anfitrión → cliente: así está ese cofre, y esto es lo que llevas. */
   COFRE: 18,
+  /**
+   * Cliente → anfitrión: esto es lo que llevo encima.
+   *
+   * Los efectos de cada uno son suyos —se los bebe él y se le pasan a él— pero
+   * el anfitrión los necesita para dos cosas que decide él: lo deprisa que
+   * corre el invitado, porque su física la simula el anfitrión, y lo fuerte que
+   * pega, porque sus mandobles los resuelve el anfitrión. Sin esto, un invitado
+   * que bebía ligereza se veía a sí mismo corriendo y el anfitrión lo devolvía
+   * a su sitio veinte veces por segundo.
+   *
+   * Se manda la causa y no el resultado: los efectos con lo que les queda, no
+   * «multiplico la velocidad por 1,2». Así el día que haya una poción más, esto
+   * no se entera.
+   */
+  ESTADO: 19,
+  /** Anfitrión → cliente: cúrate esto. Lo que hace la savia de un arma. */
+  CURA: 20,
 } as const;
 
 export type TipoMensaje = (typeof MSG)[keyof typeof MSG];
@@ -381,6 +398,31 @@ export function escribirGolpe(arma: number, direccion: 1 | -1, sentido: number):
   return e.terminar();
 }
 
+/** Un efecto y lo que le queda, tal cual viaja. */
+export interface EfectoRed {
+  /** El número del efecto, según `ORDEN_EFECTOS`. */
+  clase: number;
+  ticks: number;
+}
+
+export function escribirEstado(efectos: readonly EfectoRed[]): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.ESTADO);
+  e.u8(Math.min(255, efectos.length));
+  for (const ef of efectos.slice(0, 255)) {
+    e.u8(ef.clase);
+    e.u16(Math.max(0, Math.min(65535, Math.round(ef.ticks))));
+  }
+  return e.terminar();
+}
+
+export function escribirCura(cantidad: number): Uint8Array {
+  const e = new Escritor();
+  e.u8(MSG.CURA);
+  e.u16(Math.max(0, Math.min(65535, Math.round(cantidad))));
+  return e.terminar();
+}
+
 export interface EstadoCofre {
   tx: number;
   ty: number;
@@ -550,7 +592,9 @@ export type Mensaje =
       objeto: number;
       cantidad: number;
     }
-  | { tipo: typeof MSG.COFRE; cofre: EstadoCofre };
+  | { tipo: typeof MSG.COFRE; cofre: EstadoCofre }
+  | { tipo: typeof MSG.ESTADO; efectos: EfectoRed[] }
+  | { tipo: typeof MSG.CURA; cantidad: number };
 
 /**
  * Lee un mensaje. Devuelve null si no se entiende.
@@ -627,6 +671,14 @@ export function leerMensaje(datos: Uint8Array): Mensaje | null {
       }
       case MSG.CUBO:
         return { tipo: MSG.CUBO, objeto: l.u16(), tx: l.i16(), ty: l.i16() };
+      case MSG.ESTADO: {
+        const n = l.u8();
+        const efectos: EfectoRed[] = [];
+        for (let i = 0; i < n; i++) efectos.push({ clase: l.u8(), ticks: l.u16() });
+        return { tipo: MSG.ESTADO, efectos };
+      }
+      case MSG.CURA:
+        return { tipo: MSG.CURA, cantidad: l.u16() };
       case MSG.COFRE_ABRIR:
         return { tipo: MSG.COFRE_ABRIR, tx: l.i16(), ty: l.i16() };
       case MSG.COFRE_TOCAR:

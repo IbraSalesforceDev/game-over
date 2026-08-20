@@ -32,6 +32,7 @@ import { Contenedores } from '../src/world/contenedores';
 import { tocar } from '../src/items/inventory';
 import type { EstadoCofre } from '../src/red/protocolo';
 import { numeroDeSuceso, sucesoDeNumero } from '../src/world/sucesos';
+import { numeroDeEfecto } from '../src/entities/efectos';
 
 const lista = document.getElementById('resultados')!;
 const fallos: string[] = [];
@@ -126,6 +127,7 @@ async function main(): Promise<void> {
   const mandobles: { arma: number; empieza: boolean }[] = [];
   const recogido: { objeto: number; cantidad: number }[] = [];
   const suelo: Drop[] = [];
+  let curado = 0;
   /** El simulador del anfitrión, el único que corre. */
   const agua = new SimuladorLiquidos(genA.mundo);
   agua.anotarCambios(true);
@@ -200,6 +202,9 @@ async function main(): Promise<void> {
     },
     alSaberDelCofre: (c) => {
       cofreVisto = c;
+    },
+    alCurar: (n) => {
+      curado += n;
     },
   });
 
@@ -317,6 +322,24 @@ async function main(): Promise<void> {
     'pero uno tirado a sesenta tiles no moja nada',
     genA.mundo.getLiquido(lejos, tyCubo) === 0,
   );
+
+  // Lo que lleva encima el invitado tiene que llegarle al anfitrión, que es
+  // quien lo mueve y quien resuelve sus golpes.
+  invitado.contarEstado([{ clase: numeroDeEfecto('fuerza'), ticks: 600 }]);
+  const suyo = anfitrion.acompanantes()[0]?.id ?? 0;
+  comprobar(
+    'la fuerza del invitado le llega al anfitrión',
+    await esperarA(() => anfitrion.danoDe(suyo) > 1, 5000),
+  );
+  invitado.contarEstado([]);
+  comprobar(
+    'y cuando se le pasa, también',
+    await esperarA(() => anfitrion.danoDe(suyo) === 1, 5000),
+  );
+
+  // Y la savia de un arma cura a quien pega, aunque pegue desde otra pantalla.
+  anfitrion.curar(suyo, 5);
+  comprobar('la cura del anfitrión llega al invitado', await esperarA(() => curado === 5, 5000));
 
   // Los sucesos también son del mundo: los sortea el anfitrión.
   comprobar(

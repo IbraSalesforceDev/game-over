@@ -233,9 +233,15 @@ tick, y esto es un juego para tres amigos, no un servidor público. Lo que sí
 decide el anfitrión es lo único que no se puede falsear sin que se note: dónde
 está cada cosa del mundo y quién ha llegado antes.
 
-Lo que queda de esa decisión, anotado para no perderlo: las pociones de un
-invitado no multiplican su daño —el anfitrión no las conoce— y el filo de savia
-no le cura, porque curaría a quien resuelve el golpe y no a quien lo da.
+Con un matiz que se cerró en 7.12.4: los **efectos** sí viajan, del invitado al
+anfitrión, porque hacen falta para dos cosas que decide el anfitrión —cómo se
+mueve y cuánto pega—. Se manda la causa y no el resultado: los efectos con lo
+que les queda, no «multiplico la velocidad por 1,2». Así el día que haya una
+poción más, el protocolo no se entera.
+
+Lo que sigue sin viajar es la **vida**: cada uno lleva la suya, el anfitrión
+dice que te han dado y cuánto pegaba lo que te tocó, y la armadura, el empujón y
+la muerte los aplica cada uno en su casa.
 
 ### El corolario que faltaba: guarda el anfitrión, y solo él (7.11.1)
 
