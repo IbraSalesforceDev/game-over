@@ -209,3 +209,108 @@ export function direccionJoystick(
     abajo: y >= MUERTO_ABAJO && y > Math.abs(x),
   };
 }
+
+/**
+ * Un dedo sobre una ranura de la mochila, o sobre una receta.
+ *
+ * Con ratón cada cosa tiene su gesto: pasar por encima enseña la ficha, el clic
+ * coge o deja, y arrastrar no existe porque no hace falta. Con el dedo todo es
+ * «apoyar», así que hay que distinguir por lo que pasa después:
+ *
+ * - **Levantar enseguida** es un toque: coger, dejar, elegir, fabricar.
+ * - **Quedarse quieto** un rato es preguntar qué es eso: sale la ficha, y al
+ *   levantar no se hace nada más. Es la única forma de leer una ficha sin
+ *   cogerla, que con ratón era pasar por encima.
+ * - **Moverse** depende de dónde. En una ranura con algo, es arrastrarlo a otra.
+ *   En una lista de recetas, es deslizar la lista, y entonces levantar el dedo
+ *   no puede fabricar nada: era la forma de bajar a la receta de abajo.
+ *
+ * La acción va al levantar y no al apoyar por eso mismo: al apoyar todavía no
+ * se sabe cuál de las tres cosas es.
+ */
+export const LARGA_MS = 450;
+export const ARRASTRE_PX = 10;
+
+export type ResultadoPulsacion = 'toque' | 'soltar' | 'nada';
+
+export class PulsacionRanura {
+  private fase: 'esperando' | 'larga' | 'arrastre' | 'desplazando' = 'esperando';
+  private x0 = 0;
+  private y0 = 0;
+  private t0 = 0;
+
+  /** `arrastrable`: si moverse es arrastrar (una ranura con algo) o deslizar. */
+  constructor(private readonly arrastrable: boolean) {}
+
+  apoyar(x: number, y: number, t: number): void {
+    this.fase = 'esperando';
+    this.x0 = x;
+    this.y0 = y;
+    this.t0 = t;
+  }
+
+  /** Devuelve `true` justo cuando empieza un arrastre. */
+  mover(x: number, y: number): boolean {
+    if (this.fase !== 'esperando') return false;
+    if (Math.hypot(x - this.x0, y - this.y0) < ARRASTRE_PX) return false;
+    this.fase = this.arrastrable ? 'arrastre' : 'desplazando';
+    return this.fase === 'arrastre';
+  }
+
+  /** Devuelve `true` justo cuando se convierte en pulsación larga. */
+  tick(t: number): boolean {
+    if (this.fase !== 'esperando' || t - this.t0 < LARGA_MS) return false;
+    this.fase = 'larga';
+    return true;
+  }
+
+  get arrastrando(): boolean {
+    return this.fase === 'arrastre';
+  }
+
+  levantar(t: number): ResultadoPulsacion {
+    // Por si el temporizador no llegó a tiempo: lo que dura lo que una larga
+    // es una larga, aunque nadie la haya anunciado.
+    this.tick(t);
+    if (this.fase === 'esperando') return 'toque';
+    if (this.fase === 'arrastre') return 'soltar';
+    return 'nada';
+  }
+}
+
+/**
+ * Dos dedos que se separan o se juntan: el zoom.
+ *
+ * El zoom del juego va por escalones enteros (×1 a ×6), que es lo que mantiene
+ * el pixel art nítido, así que el pellizco también: cada vez que la distancia
+ * entre los dedos crece o mengua un 30 % respecto a la del último escalón, se
+ * sube o se baja uno. Un pellizco largo sube varios, uno corto, uno.
+ */
+export const PASO_PELLIZCO = 1.3;
+
+export class Pellizco {
+  private base = 0;
+
+  empezar(distancia: number): void {
+    this.base = distancia;
+  }
+
+  /** +1 acercar, −1 alejar, 0 nada todavía. */
+  mover(distancia: number): -1 | 0 | 1 {
+    if (this.base <= 0) return 0;
+    const r = distancia / this.base;
+    if (r >= PASO_PELLIZCO) {
+      this.base = distancia;
+      return 1;
+    }
+    if (r <= 1 / PASO_PELLIZCO) {
+      this.base = distancia;
+      return -1;
+    }
+    return 0;
+  }
+
+  terminar(): void {
+    this.base = 0;
+  }
+}

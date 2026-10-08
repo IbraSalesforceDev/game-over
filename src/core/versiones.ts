@@ -920,6 +920,21 @@ export const VERSIONES: readonly Version[] = [
       'En los ajustes se puede forzar un modo u otro si la detección se equivoca',
     ],
   },
+  {
+    id: '7.16.0',
+    etapa: 'prealfa',
+    nombre: 'Cómodo con el dedo',
+    resumen: 'La mochila se maneja bien con el dedo: fichas manteniendo, arrastrar, y zoom pellizcando.',
+    cambios: [
+      'Mantener el dedo sobre una ranura o una receta enseña su ficha, sin cogerla',
+      'Los objetos se arrastran de una ranura a otra; soltarlos en otra cosa la intercambia',
+      'Deslizar la lista de recetas ya no fabrica la receta en la que se apoyó el dedo',
+      'Pellizcar sobre el mundo acerca y aleja, escalón a escalón',
+      'El taller de una estación sale en la columna de la derecha, con todas sus recetas',
+      'Las fichas en el móvil dicen «toca» en vez de «clic derecho»',
+      'Ya no sale sola la ficha de lo que había debajo de un toque',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

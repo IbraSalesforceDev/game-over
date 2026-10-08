@@ -1,5 +1,6 @@
 import { crearIconos, LADO_ICONO } from '../render/iconos';
 import { crearFicha } from './ficha';
+import { LARGA_MS, PulsacionRanura } from '../engine/gesto';
 import {
   estaVacia,
   RANURAS_BARRA,
@@ -43,6 +44,7 @@ const ESTILO = `
 }
 .ranura:hover { border-color: #5a6979; }
 .ranura.activa { border-color: #e8b64c; background: rgba(232,182,76,.14); }
+.ranura.destino { border-color: #8fb6d6; background: rgba(143,182,214,.18); }
 /* El icono es un canvas de 20x20 estirado; el renderizado pixelado es lo que
    conserva el pixel art al ampliarlo: sin él el navegador lo interpola. */
 .ranura .icono { position: absolute; inset: 5px; width: auto; height: auto;
@@ -98,6 +100,9 @@ const ESTILO = `
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.6));
 }
 #en-mano.lleno { display: block; }
+/* Con el dedo, lo que se lleva va por encima de la yema y no debajo: si no, el
+   propio pulgar tapa lo que se está arrastrando. */
+#en-mano.dedo { margin-top: -62px; }
 #en-mano span { position: absolute; right: 1px; bottom: -2px; text-shadow: 0 1px 2px #000; }
 
 #crafteo {
@@ -271,6 +276,13 @@ export function crearBarra(
   const cursorCant = document.createElement('span');
   cursor.append(lienzoCursor, cursorCant);
 
+  /**
+   * Lo que hace tocar cada ranura, por su nodo. Hace falta para arrastrar con
+   * el dedo: al soltar se sabe sobre qué nodo está, y hay que poder hacer lo
+   * mismo que si se hubiera tocado.
+   */
+  const accionDe = new WeakMap<Element, () => void>();
+
   const domsInv: RanuraDom[] = [];
   const domsCofre: RanuraDom[] = [];
   const domsEquipo: RanuraDom[] = [];
@@ -313,9 +325,7 @@ export function crearBarra(
       raiz.appendChild(tecla);
     }
 
-    raiz.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const accion = (): void => {
       // Con los paneles cerrados, la barra solo selecciona.
       if (!abierto && esBarra) {
         seleccionar(indice);
@@ -330,6 +340,13 @@ export function crearBarra(
       if (esCofre && cofre) {
         opciones.alTocarCofre?.(cofre.tx, cofre.ty, indice, antes.objeto, antes.cantidad);
       }
+    };
+    accionDe.set(raiz, accion);
+    raiz.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.pointerType === 'touch') empezarToque(e, raiz, accion, abierto);
+      else accion();
     });
 
     return { raiz, icono, cant };
@@ -355,11 +372,16 @@ export function crearBarra(
       icono: limpio.querySelector('.icono')!,
       cant: limpio.querySelector('.cant')!,
     };
+    const accion = (): void => {
+      if (!abierto) return;
+      tocarRanura(equipo, i, (objeto) => cabeEnEquipo(objeto, i));
+    };
+    accionDe.set(limpio, accion);
     limpio.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!abierto) return;
-      tocarRanura(equipo, i, (objeto) => cabeEnEquipo(objeto, i));
+      if (e.pointerType === 'touch') empezarToque(e, limpio, accion, abierto);
+      else accion();
     });
     domsEquipo.push(dom);
     panelEquipo.appendChild(limpio);
@@ -368,10 +390,16 @@ export function crearBarra(
 
   contenedor.append(barra, panel, panelCofre, panelEquipo, panelCrafteo, cursor);
 
-  document.addEventListener('pointermove', (e) => {
+  // El cursor sigue al puntero, y también se coloca al apoyar: con el dedo no
+  // hay movimiento entre toque y toque, y lo cogido aparecería donde fue el
+  // último arrastre en vez de donde se acaba de tocar.
+  const seguir = (e: PointerEvent): void => {
     cursor.style.left = `${e.clientX}px`;
     cursor.style.top = `${e.clientY}px`;
-  });
+    cursor.classList.toggle('dedo', e.pointerType === 'touch');
+  };
+  document.addEventListener('pointermove', seguir);
+  document.addEventListener('pointerdown', seguir, true);
 
   // --- La ficha del objeto ---
   //
@@ -384,18 +412,132 @@ export function crearBarra(
     return destino instanceof HTMLElement ? destino.closest('[data-objeto]') : null;
   }
 
+  // Con el dedo no hay «pasar por encima»: el navegador dispara `pointerover`
+  // al apoyar, y la ficha salía y se iba en el mismo instante en cada toque.
+  // Con el dedo, la ficha sale manteniendo (ver `empezarToque`).
+  //
+  // Y en modo táctil no sale nunca por «encima», venga de donde venga: tras un
+  // toque el navegador se queda con esa posición como si fuera un ratón, y
+  // cuando algo cambia debajo —se abre la mochila, aparece un panel— se
+  // inventa un `pointerover` de ratón. La ficha de lo que hubiera ahí salía
+  // sola, sin que nadie la pidiera.
+  const sinEncima = (e: PointerEvent): boolean =>
+    e.pointerType === 'touch' || document.documentElement.classList.contains('tactil');
   if (opciones.conFicha !== false) contenedor.addEventListener('pointerover', (e) => {
+    if (sinEncima(e)) return;
     const el = anclaDe(e.target);
     const id = Number(el?.dataset.objeto ?? 0);
     if (el && id > 0) ficha.mostrar(id, el);
     else ficha.ocultar();
   });
   contenedor.addEventListener('pointerout', (e) => {
+    if (sinEncima(e)) return;
     if (!anclaDe(e.relatedTarget)) ficha.ocultar();
   });
   // Al coger un objeto la ranura cambia de contenido bajo el ratón, y una
   // ficha que se queda describiendo lo que ya no está confunde más que ayuda.
-  contenedor.addEventListener('pointerdown', () => ficha.ocultar());
+  // Va en el documento y no solo en la interfaz: con el dedo, la ficha se
+  // queda abierta al levantar para poder leerla, y la cierra el siguiente
+  // toque, también si es sobre el mundo.
+  document.addEventListener('pointerdown', () => ficha.ocultar(), true);
+
+  /** Muestra la ficha de lo que haya en ese elemento, si hay algo. */
+  function fichaDe(el: HTMLElement): void {
+    if (opciones.conFicha === false) return;
+    const id = Number(el.dataset.objeto ?? 0);
+    if (id > 0) ficha.mostrar(id, el);
+  }
+
+  // --- El dedo en la mochila ---
+  //
+  // Un toque coge o deja, mantener enseña la ficha y moverse arrastra (ver
+  // `PulsacionRanura`). Solo un dedo a la vez: la mochila no se maneja con dos.
+  let pulsacion: {
+    gesto: PulsacionRanura;
+    id: number;
+    origen: HTMLElement;
+    accion: () => void;
+    reloj: ReturnType<typeof setTimeout>;
+  } | null = null;
+  /** La ranura sobre la que está el dedo mientras arrastra, para marcarla. */
+  let destinoMarcado: HTMLElement | null = null;
+
+  function empezarToque(
+    e: PointerEvent,
+    origen: HTMLElement,
+    accion: () => void,
+    sePuedeArrastrar: boolean,
+  ): void {
+    if (pulsacion) return;
+    // Solo se arrastra lo que hay: una ranura vacía con la mano vacía no tiene
+    // nada que llevarse. Con algo ya en la mano, moverse no arrastra: es un
+    // toque con el dedo poco quieto.
+    const arrastrable =
+      sePuedeArrastrar && origen.dataset.objeto !== undefined && enMano.cantidad <= 0;
+    const gesto = new PulsacionRanura(arrastrable);
+    gesto.apoyar(e.clientX, e.clientY, performance.now());
+    const reloj = setTimeout(() => {
+      if (pulsacion?.gesto === gesto && gesto.tick(performance.now())) fichaDe(origen);
+    }, LARGA_MS + 10);
+    pulsacion = { gesto, id: e.pointerId, origen, accion, reloj };
+  }
+
+  function ranuraEn(x: number, y: number): HTMLElement | null {
+    const el = document.elementFromPoint(x, y);
+    return el instanceof HTMLElement ? el.closest<HTMLElement>('.ranura') : null;
+  }
+
+  function marcarDestino(el: HTMLElement | null): void {
+    if (el === destinoMarcado) return;
+    destinoMarcado?.classList.remove('destino');
+    destinoMarcado = el;
+    destinoMarcado?.classList.add('destino');
+  }
+
+  function acabarToque(): void {
+    if (!pulsacion) return;
+    clearTimeout(pulsacion.reloj);
+    pulsacion = null;
+    marcarDestino(null);
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    if (!pulsacion || e.pointerId !== pulsacion.id) return;
+    if (pulsacion.gesto.mover(e.clientX, e.clientY)) {
+      // Empieza el arrastre: lo de la ranura pasa a la mano, que ya sigue al
+      // dedo. Es exactamente el toque de coger, hecho antes.
+      pulsacion.accion();
+    }
+    if (pulsacion.gesto.arrastrando) marcarDestino(ranuraEn(e.clientX, e.clientY));
+  });
+
+  document.addEventListener('pointerup', (e) => {
+    if (!pulsacion || e.pointerId !== pulsacion.id) return;
+    const { gesto, accion } = pulsacion;
+    const r = gesto.levantar(performance.now());
+    acabarToque();
+    if (r === 'toque') accion();
+    else if (r === 'soltar') {
+      // Se deja donde esté el dedo. Fuera de cualquier ranura vuelve a la de
+      // salida: soltar en mitad de la nada no puede tirar nada al suelo.
+      const destino = ranuraEn(e.clientX, e.clientY);
+      (destino ? (accionDe.get(destino) ?? accion) : accion)();
+      // Lo que quede en la mano vuelve a la ranura de salida, que ahora está
+      // vacía. Cubre los tres casos de una vez: soltar sobre otra cosa la
+      // intercambia, soltar sobre una pila llena deja el sobrante, y soltar
+      // donde no se admite —una espada en el hueco del casco— la devuelve.
+      if (enMano.cantidad > 0) accion();
+    }
+  });
+
+  document.addEventListener('pointercancel', (e) => {
+    if (!pulsacion || e.pointerId !== pulsacion.id) return;
+    const arrastrando = pulsacion.gesto.arrastrando;
+    const { accion } = pulsacion;
+    acabarToque();
+    // El sistema se ha quedado el dedo a medio arrastre: lo cogido vuelve.
+    if (arrastrando && enMano.cantidad > 0) accion();
+  });
 
   function pintarRanura(d: RanuraDom, inv: Inventario, i: number, activa: boolean): void {
     const r = inv.ranuras[i];
@@ -455,17 +597,26 @@ export function crearBarra(
       texto.append(nombre, coste);
 
       fila.append(muestra, texto);
-      if (puede) {
-        fila.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (craftear(inventario, receta, opciones.estaciones(), opciones.version)) {
-            pintar();
-            opciones.alCambiar();
-            opciones.alFabricar?.();
-          }
-        });
-      }
+      const fabricar = (): void => {
+        if (!puede) return;
+        if (craftear(inventario, receta, opciones.estaciones(), opciones.version)) {
+          pintar();
+          opciones.alCambiar();
+          opciones.alFabricar?.();
+        }
+      };
+      fila.addEventListener('pointerdown', (e) => {
+        // Con el dedo no se fabrica al apoyar: la lista se desliza con el mismo
+        // dedo, y bajar a la receta de abajo no puede gastar la madera en la de
+        // arriba. Ni se corta el evento, que es lo que deja deslizar.
+        if (e.pointerType === 'touch') {
+          empezarToque(e, fila, fabricar, false);
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        fabricar();
+      });
       lista.appendChild(fila);
     }
 

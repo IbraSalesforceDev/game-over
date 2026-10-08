@@ -1,4 +1,4 @@
-import { Toque, type Gesto } from './gesto';
+import { Pellizco, Toque, type Gesto } from './gesto';
 
 /**
  * Puntero del ratón —o del dedo— en coordenadas de canvas.
@@ -32,6 +32,11 @@ export interface Puntero {
    * clic izquierdo, que es lo que hacía siempre.
    */
   decidirToque: ((sx: number, sy: number) => Gesto) | null;
+  /**
+   * Dos dedos sobre el mundo se han separado (+1) o juntado (−1) lo bastante
+   * para un escalón de zoom. Lo pone el juego, que es quien sabe hacer zoom.
+   */
+  alPellizcar: ((paso: 1 | -1) => void) | null;
   destruir(): void;
 }
 
@@ -42,6 +47,18 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
   /** El dedo que está sobre el mundo, si lo hay. Los demás no cuentan. */
   let dedo: number | null = null;
   const toque = new Toque();
+  /**
+   * Todos los dedos que hay sobre el lienzo, con dónde están. Hace falta para
+   * el pellizco: con uno se juega, y con dos se hace zoom.
+   */
+  const dedos = new Map<number, { x: number; y: number }>();
+  const pellizco = new Pellizco();
+  let pellizcando = false;
+
+  const distanciaEntreDedos = (): number => {
+    const [a, b] = [...dedos.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
 
   const p: Puntero = {
     sx: 0,
@@ -60,6 +77,7 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
       return r;
     },
     decidirToque: null,
+    alPellizcar: null,
     destruir() {
       lienzo.removeEventListener('pointermove', onMove);
       lienzo.removeEventListener('pointerdown', onDown);
@@ -80,16 +98,36 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
   }
 
   function onMove(e: PointerEvent): void {
-    // Con el dedo solo cuenta el que se apoyó primero sobre el mundo: el del
-    // joystick y el del salto van por sus propios botones, pero un tercer dedo
-    // que roce el canvas no puede arrastrar el punto de mira.
-    if (e.pointerType === 'touch' && e.pointerId !== dedo) return;
+    if (e.pointerType === 'touch') {
+      if (dedos.has(e.pointerId)) dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pellizcando) {
+        const paso = pellizco.mover(distanciaEntreDedos());
+        if (paso !== 0) p.alPellizcar?.(paso);
+        return;
+      }
+      // Con el dedo solo cuenta el que se apoyó primero sobre el mundo: el del
+      // joystick y el del salto van por sus propios botones, pero un tercer
+      // dedo que roce el canvas no puede arrastrar el punto de mira.
+      if (e.pointerId !== dedo) return;
+    }
     actualizarPos(e);
   }
 
   function onDown(e: PointerEvent): void {
     if (e.pointerType === 'touch') {
-      if (dedo !== null && toque.apoyado) return;
+      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (dedos.size === 2) {
+        // El segundo dedo sobre el mundo convierte el gesto en un pellizco, y
+        // lo que iba a hacer el primero se anula: nadie pellizca para picar,
+        // y el bloque que tenía debajo no debería romperse por hacer zoom.
+        toque.cancelar();
+        dedo = null;
+        p.dentro = false;
+        pellizcando = true;
+        pellizco.empezar(distanciaEntreDedos());
+        return;
+      }
+      if (pellizcando || (dedo !== null && toque.apoyado)) return;
       dedo = e.pointerId;
       actualizarPos(e);
       toque.apoyar(p.decidirToque?.(p.sx, p.sy) ?? 'izq', performance.now());
@@ -104,6 +142,16 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
   // se queda pegado.
   function onUp(e: PointerEvent): void {
     if (e.pointerType === 'touch') {
+      dedos.delete(e.pointerId);
+      // El pellizco acaba cuando ya no queda ningún dedo: si acabara con el
+      // primero que se levanta, el que se queda empezaría a picar sin querer.
+      if (pellizcando) {
+        if (dedos.size === 0) {
+          pellizcando = false;
+          pellizco.terminar();
+        }
+        return;
+      }
       // Solo el dedo del mundo. Sin esta comprobación, levantar el pulgar del
       // joystick dejaba de picar con el otro.
       if (e.pointerId !== dedo) return;
@@ -120,7 +168,13 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
 
   /** El sistema se queda el dedo: no se hace nada de lo que iba a hacer. */
   function onCancel(e: PointerEvent): void {
-    if (e.pointerType !== 'touch' || e.pointerId !== dedo) return;
+    if (e.pointerType !== 'touch') return;
+    dedos.delete(e.pointerId);
+    if (pellizcando && dedos.size === 0) {
+      pellizcando = false;
+      pellizco.terminar();
+    }
+    if (e.pointerId !== dedo) return;
     dedo = null;
     toque.cancelar();
     p.dentro = false;

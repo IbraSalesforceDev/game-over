@@ -74,12 +74,19 @@ html.tactil #inventario, html.tactil #cofre {
 /* El cofre, encima del inventario y no a 300 px del suelo, que en un móvil en
    horizontal es por encima del borde de la pantalla. */
 html.tactil #cofre { bottom: auto; top: 8px; }
-html.tactil #crafteo:not(.taller) {
+/* La fabricación, y también el taller de una estación: en escritorio el
+   taller sale grande en el centro, por encima de la mochila, y en un móvil en
+   horizontal eso dejaba tres recetas a la vista. Aquí va en la columna de la
+   derecha, de arriba abajo, con una receta por fila. */
+html.tactil #crafteo, html.tactil #crafteo.taller {
   left: calc(514px + env(safe-area-inset-left)); right: calc(8px + env(safe-area-inset-right));
-  /* Por encima del botón «Cerrar», que ocupa la esquina de saltar. */
-  width: auto; bottom: 108px; max-height: calc(100dvh - 116px);
+  transform: none; top: auto; width: auto;
+  /* Por encima del botón «Cerrar», que ocupa la esquina de saltar, y por
+     debajo de la vida y el hambre, que no se tapan nunca: se puede estar en
+     la mochila con un zombi pegando. */
+  bottom: 108px; max-height: calc(100dvh - 168px);
 }
-html.tactil #crafteo.taller { top: 8px; bottom: auto; max-height: calc(100dvh - 250px); }
+html.tactil #crafteo.taller .lista { grid-template-columns: 1fr; }
 /* Con la mochila abierta, los botones del borde y el de saltar quedan debajo
    de la fabricación. Se apartan, y en el sitio de saltar sale «Cerrar»: el
    pulgar ya sabe dónde está esa esquina. */

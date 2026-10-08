@@ -1430,6 +1430,8 @@ async function arrancar(): Promise<void> {
     const ty = Math.floor(renderer.camara.aMundoY(sy) / TILE);
     return gestoDelToque(barra.objetoActivo(), mundo.getTile(tx, ty));
   };
+  // Pellizcar es lo mismo que las teclas de zoom, escalón a escalón.
+  puntero.alPellizcar = (paso) => entrada.pulsar(paso > 0 ? 'Equal' : 'Minus');
   crearTactil(capaUI, {
     entrada,
     abrirAjustes: () => opciones.alternar(),

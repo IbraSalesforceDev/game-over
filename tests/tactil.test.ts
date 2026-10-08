@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { decidirModo } from '../src/engine/dispositivo';
 import {
+  ARRASTRE_PX,
   direccionJoystick,
   ESPERA_TOQUE_MS,
   gestoDelToque,
+  LARGA_MS,
+  Pellizco,
+  PASO_PELLIZCO,
+  PulsacionRanura,
   PULSO_MINIMO_MS,
   Toque,
 } from '../src/engine/gesto';
@@ -13,6 +18,10 @@ import {
   AZADA,
   CUBO,
   defObjeto,
+  descripcionDe,
+  IDS_OBJETO,
+  inscripcionDe,
+  inscripcionParaElDedo,
   ESPADA_MADERA,
   PAN,
   PICO_MADERA,
@@ -241,5 +250,124 @@ describe('los controles de la pantalla entran por el teclado', () => {
     e.pulsar('KeyE');
     v.disparar('keydown', 'KeyE');
     expect(abierto).toBe(2);
+  });
+});
+
+describe('el dedo en la mochila', () => {
+  it('apoyar y levantar enseguida es un toque', () => {
+    const p = new PulsacionRanura(true);
+    p.apoyar(100, 100, 0);
+    expect(p.levantar(120)).toBe('toque');
+  });
+
+  /** Un dedo nunca está quieto del todo: temblar un poco sigue siendo un toque. */
+  it('temblar un poco sigue siendo un toque', () => {
+    const p = new PulsacionRanura(true);
+    p.apoyar(100, 100, 0);
+    expect(p.mover(100 + ARRASTRE_PX - 2, 101)).toBe(false);
+    expect(p.levantar(150)).toBe('toque');
+  });
+
+  /**
+   * Mantener es preguntar qué es: sale la ficha, y al levantar no se coge
+   * nada. Es la única forma de leer una ficha con el dedo sin llevarse el
+   * objeto.
+   */
+  it('mantener enseña la ficha y luego no hace nada', () => {
+    const p = new PulsacionRanura(true);
+    p.apoyar(100, 100, 0);
+    expect(p.tick(LARGA_MS - 1)).toBe(false);
+    expect(p.tick(LARGA_MS)).toBe(true);
+    expect(p.levantar(LARGA_MS + 500)).toBe('nada');
+  });
+
+  it('aunque el reloj no llegue a avisar, lo que dura una larga es una larga', () => {
+    const p = new PulsacionRanura(true);
+    p.apoyar(100, 100, 0);
+    expect(p.levantar(LARGA_MS + 20)).toBe('nada');
+  });
+
+  it('moverse desde una ranura con algo es arrastrar, y levantar es soltar', () => {
+    const p = new PulsacionRanura(true);
+    p.apoyar(100, 100, 0);
+    expect(p.mover(140, 100)).toBe(true);
+    expect(p.arrastrando).toBe(true);
+    // Avisa una sola vez, al empezar.
+    expect(p.mover(180, 100)).toBe(false);
+    expect(p.levantar(400)).toBe('soltar');
+  });
+
+  /** Una vez arrastrando, quedarse quieto no saca la ficha. */
+  it('arrastrar despacio no se convierte en pulsación larga', () => {
+    const p = new PulsacionRanura(true);
+    p.apoyar(100, 100, 0);
+    p.mover(140, 100);
+    expect(p.tick(LARGA_MS * 3)).toBe(false);
+    expect(p.levantar(LARGA_MS * 3)).toBe('soltar');
+  });
+
+  /**
+   * En la lista de recetas moverse es deslizar la lista. Levantar el dedo
+   * después no puede fabricar la receta en la que se apoyó.
+   */
+  it('en una lista, moverse es deslizar, y no fabrica nada', () => {
+    const p = new PulsacionRanura(false);
+    p.apoyar(100, 300, 0);
+    expect(p.mover(100, 200)).toBe(false);
+    expect(p.arrastrando).toBe(false);
+    expect(p.levantar(200)).toBe('nada');
+  });
+});
+
+describe('el pellizco', () => {
+  it('separar los dedos acerca, un escalón cada vez', () => {
+    const z = new Pellizco();
+    z.empezar(100);
+    expect(z.mover(110)).toBe(0);
+    expect(z.mover(100 * PASO_PELLIZCO)).toBe(1);
+    // El siguiente escalón se cuenta desde aquí, no desde el principio.
+    expect(z.mover(100 * PASO_PELLIZCO + 5)).toBe(0);
+    expect(z.mover(100 * PASO_PELLIZCO * PASO_PELLIZCO)).toBe(1);
+  });
+
+  it('juntarlos aleja', () => {
+    const z = new Pellizco();
+    z.empezar(200);
+    expect(z.mover(200 / PASO_PELLIZCO)).toBe(-1);
+  });
+
+  it('sin empezar, no hace nada', () => {
+    const z = new Pellizco();
+    expect(z.mover(500)).toBe(0);
+    z.empezar(100);
+    z.terminar();
+    expect(z.mover(500)).toBe(0);
+  });
+});
+
+/**
+ * Las fichas, en el móvil, no hablan de clics.
+ *
+ * Se recorre el catálogo entero en vez de mirar tres objetos: el día que
+ * alguien añada una poción nueva con «clic derecho para beberla» escrito a
+ * mano, esto lo pilla.
+ */
+describe('las fichas para el dedo', () => {
+  it('ninguna descripción habla de clics ni de ratón', () => {
+    for (const id of IDS_OBJETO) {
+      expect(descripcionDe(id, true), defObjeto(id).nombre).not.toMatch(/clic|ratón/i);
+    }
+  });
+
+  it('ni las inscripciones de poder hablan de la tecla Q', () => {
+    for (const id of IDS_OBJETO) {
+      const t = inscripcionParaElDedo(inscripcionDe(id));
+      expect(t, defObjeto(id).nombre).not.toMatch(/^Q:|ratón/m);
+    }
+  });
+
+  it('con ratón, las de siempre', () => {
+    expect(descripcionDe(AZADA)).toMatch(/clic derecho/i);
+    expect(descripcionDe(AZADA, true)).toMatch(/toca/i);
   });
 });

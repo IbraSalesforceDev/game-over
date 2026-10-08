@@ -1,4 +1,11 @@
-import { defObjeto, descripcionDe, inscripcionDe, NADA, resumenDe } from '../items/items';
+import {
+  defObjeto,
+  descripcionDe,
+  inscripcionDe,
+  inscripcionParaElDedo,
+  NADA,
+  resumenDe,
+} from '../items/items';
 import { defTile } from '../world/tiles';
 import type { Iconos } from '../render/iconos';
 
@@ -69,7 +76,8 @@ export function crearFicha(contenedor: HTMLElement, iconos: Iconos): Ficha {
   capa.append(cabecera, numeros, que, inscripcion);
   contenedor.appendChild(capa);
 
-  let ultimo = NADA;
+  /** Lo último pintado: el objeto, y si era para el dedo o para el ratón. */
+  let ultimo = '';
 
   return {
     mostrar(objeto, ancla) {
@@ -77,8 +85,12 @@ export function crearFicha(contenedor: HTMLElement, iconos: Iconos): Ficha {
         capa.classList.remove('visible');
         return;
       }
-      if (objeto !== ultimo) {
-        ultimo = objeto;
+      // Con el dedo las fichas no hablan de clics: se mira en cada ficha y no
+      // una vez, porque el modo se puede cambiar en los ajustes.
+      const conDedo = document.documentElement.classList.contains('tactil');
+      const clave = `${objeto}|${conDedo}`;
+      if (clave !== ultimo) {
+        ultimo = clave;
         const def = defObjeto(objeto);
         iconos.pintarEn(icono, objeto);
         titulo.textContent = def.nombre;
@@ -89,9 +101,10 @@ export function crearFicha(contenedor: HTMLElement, iconos: Iconos): Ficha {
         // un pico mejor, y hasta ahora solo se descubría fallando al picarlos.
         que.textContent =
           def.tile !== undefined
-            ? `${descripcionDe(objeto)} Dureza ${defTile(def.tile).dureza}.`
-            : descripcionDe(objeto);
-        const grabado = inscripcionDe(objeto);
+            ? `${descripcionDe(objeto, conDedo)} Dureza ${defTile(def.tile).dureza}.`
+            : descripcionDe(objeto, conDedo);
+        const crudo = inscripcionDe(objeto);
+        const grabado = conDedo ? inscripcionParaElDedo(crudo) : crudo;
         inscripcion.textContent = grabado;
         inscripcion.style.display = grabado ? 'block' : 'none';
       }

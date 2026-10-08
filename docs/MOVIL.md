@@ -91,14 +91,30 @@ el joystick, picar manteniendo el dedo, colocar un bloque con un toque, el menú
 «más», la mochila y el aviso de girar. Y en escritorio, que el ratón sigue
 picando igual y que el ajuste cambia de modo en caliente.
 
-### Entrega 2 — cómoda
+### Entrega 2 — cómoda (7.16.0) ✔
 
-- Fichas de los objetos al mantener el dedo sobre una ranura (hoy salen al pasar
-  el ratón por encima, y con el dedo no hay «encima»).
-- Zoom pellizcando.
-- Arrastrar objetos en la mochila, además de tocar y tocar.
-- Repasar los paneles que quedan: el mapa, el cofre con la fabricación abierta y
-  el taller de una estación, que en un móvil van justos de alto.
+- **Mantener el dedo enseña la ficha** de una ranura o una receta, sin cogerla.
+  Con ratón la ficha salía al pasar por encima, y con el dedo no hay «encima».
+- **Arrastrar** objetos de una ranura a otra, además de tocar y tocar. Soltar
+  sobre otra cosa la intercambia; soltar fuera de toda ranura lo devuelve.
+- **Las recetas se fabrican al levantar el dedo, no al apoyarlo.** Antes,
+  deslizar la lista para bajar a una receta gastaba los materiales en la receta
+  en la que se apoyó el dedo.
+- **Pellizcar sobre el mundo** acerca y aleja, un escalón de zoom cada vez que
+  la distancia entre los dedos cambia un 30 %. El segundo dedo anula lo que iba
+  a hacer el primero: nadie pellizca para picar.
+- **El taller de una estación** sale en la columna de la derecha, de arriba
+  abajo, en vez de en una franja de tres recetas.
+- **Las fichas dicen «toca»** y no «clic derecho» (`descripcionDe(id, true)`),
+  y los poderes dicen «Más → Poder» en vez de «Q». Una prueba recorre el
+  catálogo entero para que ninguna vuelva a hablar de clics.
+- **Ninguna ficha sale sola.** Tras un toque, el navegador se queda con esa
+  posición como si fuera un ratón y, cuando algo cambia debajo, se inventa un
+  «ratón encima». En modo táctil la ficha solo sale manteniendo el dedo.
+
+Cómo se distingue un toque de mantener o de arrastrar está en
+`PulsacionRanura` (`src/engine/gesto.ts`): la acción va al levantar porque al
+apoyar todavía no se sabe cuál de las tres cosas es.
 
 ### Entrega 3 — según lo que se vea en un iPhone de verdad
 

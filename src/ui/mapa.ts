@@ -241,7 +241,10 @@ export function crearMapa(contenedor: HTMLElement): PanelMapa {
       capa.classList.toggle('visible', abriendo);
       if (!abriendo) return;
       dibujar(mundo, tx, ty, alcance, estructuras);
-      pie.innerHTML = `<b>${etiqueta}</b> · X ${tx} Y ${ty} · M o clic para cerrar`;
+      const cerrar = document.documentElement.classList.contains('tactil')
+        ? 'toca para cerrar'
+        : 'M o clic para cerrar';
+      pie.innerHTML = `<b>${etiqueta}</b> · X ${tx} Y ${ty} · ${cerrar}`;
     },
     cerrar: () => capa.classList.remove('visible'),
     get abierto() {

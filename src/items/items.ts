@@ -1441,9 +1441,50 @@ const DESCRIPCION_POR_TIPO: Readonly<Record<TipoObjeto, string>> = {
   trofeo: 'Lo que queda de un jefe. Guárdalo.',
 };
 
-/** Qué es este objeto, en una frase. */
-export function descripcionDe(id: number): string {
-  return DESCRIPCIONES[id] ?? DESCRIPCION_POR_TIPO[defObjeto(id).tipo];
+/**
+ * Las mismas frases, para quien juega con el dedo.
+ *
+ * Solo las que hablan de cómo se usa: «clic derecho» no significa nada en un
+ * móvil, donde lo que pasa al tocar lo decide lo que llevas en la mano. Lo que
+ * no está aquí se dice igual en los dos sitios.
+ */
+const DESCRIPCIONES_DEDO: Readonly<Record<number, string>> = {
+  [AZADA]: 'Toca hierba o tierra: la deja labrada para sembrar.',
+  [ARCO]: 'Toca hacia donde quieras disparar. Gasta una flecha por disparo.',
+  [CRISTAL]: 'Llévalo en la mano y toca en cualquier sitio: sube un corazón la vida máxima. Para siempre.',
+};
+
+const DESCRIPCION_POR_TIPO_DEDO: Readonly<Partial<Record<TipoObjeto, string>>> = {
+  bloque: 'Se coloca en el mundo: llévalo en la mano y toca donde lo quieras.',
+  herramienta: 'Herramienta. Mantén el dedo sobre lo que quieras romper.',
+  arma: 'Toca hacia donde quieras golpear: a un lado, arriba o abajo.',
+  comida: 'Llévala en la mano y toca en cualquier sitio para comer.',
+  cristal: 'Llévalo en la mano y toca en cualquier sitio para usarlo.',
+  mapa: 'Se abre desde Más → Mapa. Enseña el terreno de alrededor.',
+  explosivo: 'Toca hacia donde quieras tirarla. Estalla sola, y a ti también te pilla.',
+  pocion: 'Llévala en la mano y toca en cualquier sitio para beberla.',
+  invocador: 'Llévalo en la mano y toca en su bioma: despierta a lo que vive ahí.',
+};
+
+/** Qué es este objeto, en una frase. Con `conDedo`, como se usa en el móvil. */
+export function descripcionDe(id: number, conDedo = false): string {
+  const tipo = defObjeto(id).tipo;
+  if (conDedo) {
+    const dedo = DESCRIPCIONES_DEDO[id] ?? (DESCRIPCIONES[id] ? undefined : DESCRIPCION_POR_TIPO_DEDO[tipo]);
+    if (dedo) return dedo;
+  }
+  return DESCRIPCIONES[id] ?? DESCRIPCION_POR_TIPO[tipo];
+}
+
+/**
+ * Una inscripción de poder, dicha para el dedo.
+ *
+ * Los poderes se escriben con la tecla delante —«Q: congela a todo lo que
+ * tengas cerca»—, y en el móvil esa tecla es un botón dentro de «Más». Se
+ * traduce aquí y no en cada poder porque la forma es siempre la misma.
+ */
+export function inscripcionParaElDedo(texto: string): string {
+  return texto.replace(/^Q: /gm, 'Más → Poder: ').replace(/hacia el ratón/g, 'hacia donde tocaste');
 }
 
 /**
