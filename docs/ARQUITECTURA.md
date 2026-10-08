@@ -19,7 +19,7 @@ reflejo legible de `src/core/versiones.ts`.
 | Arte | **Procedural, cero ficheros.** Ni un PNG, ni un WAV |
 | Simulación | Paso fijo a 60 Hz con acumulador; el render interpola |
 | Guardado | Binario propio, RLE + `deflate-raw`, en IndexedDB detrás de `SaveAdapter` |
-| Tamaño | ~30 400 líneas en `src/`, ~14 400 en tests (50 ficheros, 1089 tests) |
+| Tamaño | ~39 000 líneas en `src/`, ~14 600 en tests (51 ficheros, 1114 tests) |
 | Versiones | 49, de la 1.0.0 a la 7.3.0, todas `prealfa` |
 | Dependencias de runtime | **Ninguna** |
 
@@ -221,7 +221,7 @@ su bioma **y** no estar bajo tierra, `cueva` acepta subsuelo o inframundo, e
 
 ```bash
 npm run build      # tsc --noEmit + vite build
-npx vitest run     # 1089 tests
+npx vitest run     # 1114 tests
 ```
 
 Para probar en el navegador de verdad, Playwright con el Chromium ya instalado:

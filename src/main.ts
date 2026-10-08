@@ -5,6 +5,10 @@ import { crearEntrada } from './engine/input';
 import { crearBucle } from './engine/loop';
 import { AMANECER, Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
+import { vigilarModo } from './engine/dispositivo';
+import { hacerInstalable } from './core/instalable';
+import { gestoDelToque } from './engine/gesto';
+import { crearTactil } from './ui/tactil';
 import { crearAudio } from './engine/audio';
 import {
   aplicarEfecto,
@@ -54,7 +58,7 @@ import {
   tickPoder,
   type ClaseFilo,
 } from './items/inscripciones';
-import { crearAjustes, type Graficos } from './ui/ajustes';
+import { crearAjustes, preferenciaControles, type Graficos } from './ui/ajustes';
 import { crearAyuda } from './ui/ayuda';
 import { crearAcompanados } from './ui/acompanados';
 import { crearMapa } from './ui/mapa';
@@ -635,6 +639,10 @@ async function arrancar(): Promise<void> {
   const capaUI = document.getElementById('capa-ui');
   if (!capaUI) throw new Error('Falta la capa de interfaz #capa-ui');
 
+  // Lo primero, antes del menú: con qué se juega decide qué interfaz se enseña,
+  // y el menú del principio ya es interfaz.
+  const dispositivo = vigilarModo(preferenciaControles());
+
   const { almacen, persistente } = await crearAlmacen();
   const nube = crearFuenteNube(capaUI, almacen);
   const partida = await elegirPartida(capaUI, almacen, persistente, nube);
@@ -1208,13 +1216,16 @@ async function arrancar(): Promise<void> {
   const graficosDeLaVersion = (g: Graficos): Graficos =>
     tiene('luz') ? g : { ...g, oscuridad: 255 };
 
-  const opciones = crearAjustes(capaUI, audio, (g) =>
-    renderer.aplicarGraficos(graficosDeLaVersion(g)),
+  const opciones = crearAjustes(
+    capaUI,
+    audio,
+    (g) => renderer.aplicarGraficos(graficosDeLaVersion(g)),
+    (c) => dispositivo.preferir(c),
   );
   // Los ajustes guardados se aplican al arrancar, no solo al tocarlos: si no,
   // quien eligió jugar a ×2 vería la primera partida a otro zoom cada vez.
   renderer.aplicarGraficos(graficosDeLaVersion(opciones.graficos));
-  const ayuda = crearAyuda(capaUI);
+  const ayuda = crearAyuda(capaUI, () => dispositivo.modo);
   const acompanados = crearAcompanados(capaUI);
   const mapa = crearMapa(capaUI);
   const brujula = crearBrujula(capaUI);
@@ -1409,6 +1420,25 @@ async function arrancar(): Promise<void> {
   });
   barra.seleccionar(partida.estado.material);
   barra.refrescar(capa);
+
+  // --- Con el dedo ---
+  // Qué botón es cada toque lo decide lo que hay en la mano y lo que hay
+  // debajo del dedo (ver `engine/gesto.ts`). Se mira siempre la capa de
+  // bloques: lo que se abre con un toque —cofres, mesas, camas— son bloques.
+  puntero.decidirToque = (sx, sy) => {
+    const tx = Math.floor(renderer.camara.aMundoX(sx) / TILE);
+    const ty = Math.floor(renderer.camara.aMundoY(sy) / TILE);
+    return gestoDelToque(barra.objetoActivo(), mundo.getTile(tx, ty));
+  };
+  crearTactil(capaUI, {
+    entrada,
+    abrirAjustes: () => opciones.alternar(),
+    // Ponerse en vertical en mitad de una pelea no puede costar la vida: el
+    // aviso de girar tapa la pantalla, así que el juego se pausa detrás.
+    alGirar: (vertical) => {
+      if (vertical && !pausa.abierto) pausa.abrir();
+    },
+  });
 
   // --- Guardado ---
   const inicioSesion = Date.now();
@@ -4127,6 +4157,7 @@ async function arrancar(): Promise<void> {
   window.addEventListener('pagehide', () => void sesionRed?.cerrar());
 }
 
+hacerInstalable();
 arrancar().catch(mostrarError);
 
 window.addEventListener('error', (e) => mostrarError(e.error ?? e.message));

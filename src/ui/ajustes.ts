@@ -1,4 +1,5 @@
 import type { Audio } from '../engine/audio';
+import { PREFERENCIAS_CONTROL, type PreferenciaControl } from '../engine/dispositivo';
 
 /**
  * Panel de ajustes: volumen y poco más.
@@ -25,6 +26,11 @@ interface Preferencias {
   oscuridad: number;
   /** Índice dentro de `RESOLUCIONES`. */
   resolucion: number;
+  /**
+   * Con qué se juega. «Automático» lo decide el navegador; los otros dos
+   * fuerzan uno, para cuando la detección se equivoca.
+   */
+  controles: PreferenciaControl;
 }
 
 /**
@@ -89,6 +95,7 @@ const POR_DEFECTO: Preferencias = {
   // Por defecto, oscura: es lo que hace que una antorcha valga para algo.
   oscuridad: 1,
   resolucion: 2,
+  controles: 'auto',
 };
 
 function cargar(): Preferencias {
@@ -103,6 +110,9 @@ function cargar(): Preferencias {
       zoom: ZOOMS.some((z) => z.valor === p.zoom) ? p.zoom! : POR_DEFECTO.zoom,
       oscuridad: enRango(p.oscuridad, OSCURIDADES.length, POR_DEFECTO.oscuridad),
       resolucion: enRango(p.resolucion, RESOLUCIONES.length, POR_DEFECTO.resolucion),
+      controles: PREFERENCIAS_CONTROL.some((c) => c.valor === p.controles)
+        ? p.controles!
+        : POR_DEFECTO.controles,
     };
   } catch {
     // Un localStorage bloqueado no puede tumbar el arranque del juego.
@@ -113,6 +123,16 @@ function cargar(): Preferencias {
 /** Un índice guardado que sigue siendo válido, o el de por defecto. */
 function enRango(v: unknown, largo: number, defecto: number): number {
   return typeof v === 'number' && v >= 0 && v < largo ? Math.floor(v) : defecto;
+}
+
+/**
+ * La preferencia de controles, leída sin montar el panel.
+ *
+ * Hace falta antes que nada: el menú del principio ya tiene que saber si se
+ * juega con el dedo, y el panel de ajustes solo existe dentro de la partida.
+ */
+export function preferenciaControles(): PreferenciaControl {
+  return cargar().controles;
 }
 
 function guardar(p: Preferencias): void {
@@ -198,6 +218,7 @@ export function crearAjustes(
   contenedor: HTMLElement,
   audio: Audio,
   alCambiarGraficos: (g: Graficos) => void = () => {},
+  alCambiarControles: (c: PreferenciaControl) => void = () => {},
 ): PanelAjustes {
   const prefs = cargar();
   audio.volumen = prefs.volumen;
@@ -248,6 +269,13 @@ export function crearAjustes(
         (r, i) => `<option value="${i}">${r.nombre}</option>`,
       ).join('')}</select>
     </div>
+    <h3 class="seccion">Controles</h3>
+    <div class="fila">
+      <label for="aj-ctl">Controles</label>
+      <select id="aj-ctl">${PREFERENCIAS_CONTROL.map(
+        (c) => `<option value="${c.valor}">${c.nombre}</option>`,
+      ).join('')}</select>
+    </div>
     <div class="pie">El panel de físicas sigue en F4.</div>
   `;
 
@@ -260,6 +288,7 @@ export function crearAjustes(
   const selZoom = panel.querySelector<HTMLSelectElement>('#aj-zoom')!;
   const selOsc = panel.querySelector<HTMLSelectElement>('#aj-osc')!;
   const selRes = panel.querySelector<HTMLSelectElement>('#aj-res')!;
+  const selCtl = panel.querySelector<HTMLSelectElement>('#aj-ctl')!;
 
   function graficos(): Graficos {
     return {
@@ -280,6 +309,7 @@ export function crearAjustes(
     selZoom.value = String(prefs.zoom);
     selOsc.value = String(prefs.oscuridad);
     selRes.value = String(prefs.resolucion);
+    selCtl.value = prefs.controles;
   }
 
   /** Un cambio de gráficos: se guarda, se repinta y se avisa al render. */
@@ -316,6 +346,12 @@ export function crearAjustes(
   selRes.addEventListener('change', () => {
     prefs.resolucion = Number(selRes.value);
     cambiarGraficos();
+  });
+  selCtl.addEventListener('change', () => {
+    prefs.controles = selCtl.value as PreferenciaControl;
+    guardar(prefs);
+    pintar();
+    alCambiarControles(prefs.controles);
   });
 
   rango.addEventListener('input', () => {

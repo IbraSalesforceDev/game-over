@@ -7,6 +7,8 @@
  * panel que hay que cerrar en cada partida estorba desde la segunda.
  */
 
+import type { ModoControl } from '../engine/dispositivo';
+
 const CLAVE_VISTA = 'game-over:ayuda-vista';
 
 interface Grupo {
@@ -76,6 +78,74 @@ const GRUPOS: Grupo[] = [
   },
 ];
 
+/**
+ * Los mismos controles, para el dedo.
+ *
+ * Es una lista aparte y no la de escritorio con las palabras cambiadas: «clic
+ * derecho» no se traduce a nada, porque con el dedo no hay dos botones sino lo
+ * que llevas en la mano. Los consejos que no hablan de controles —los biomas,
+ * la lava, el altar— están repetidos a propósito, con el verbo cambiado donde
+ * hacía falta; separarlos en una tercera lista compartida obligaría a leer tres
+ * sitios para entender una ayuda que cabe en una pantalla.
+ */
+const GRUPOS_TACTIL: Grupo[] = [
+  {
+    titulo: 'Moverse',
+    filas: [
+      ['Joystick', 'Andar · apoya el pulgar abajo a la izquierda, donde quieras'],
+      ['Saltar', 'Mantener salta más alto · en el agua, nada hacia arriba'],
+      ['Abajo + saltar', 'Bajar por una plataforma'],
+    ],
+  },
+  {
+    titulo: 'Tocar el mundo',
+    filas: [
+      ['Lo que llevas', 'Decide qué pasa al tocar: no hay botón izquierdo ni derecho'],
+      ['Pico o pala', 'Mantén el dedo para picar · arrástralo para seguir'],
+      ['Un bloque', 'Toca donde lo quieras poner'],
+      ['Un arma', 'Toca hacia donde golpear: a un lado, arriba o abajo'],
+      ['Arco', 'Toca hacia donde disparar · gasta una flecha'],
+      ['Comida, poción', 'Toca en cualquier sitio y te la tomas'],
+      ['Cubo', 'Toca el agua para llenarlo, y donde quieras vaciarlo'],
+      ['Cofre, mesa, cama', 'Un toque abre · mantener el dedo rompe'],
+      ['Barra de abajo', 'Toca una ranura para llevar eso en la mano'],
+      ['Mochila', 'Toca un objeto para cogerlo y otra ranura para dejarlo'],
+      ['Armadura', 'Se pone en los tres huecos de la izquierda de la mochila'],
+    ],
+  },
+  {
+    titulo: 'Botones',
+    filas: [
+      ['Mochila', 'Inventario, equipo y fabricación'],
+      ['Más', 'Mapa · bloque o pared · poder · zoom · duelo · ajustes'],
+      ['Pausa', 'Menú de pausa · también cierra lo que haya abierto'],
+      ['iPhone', 'Compartir → Añadir a pantalla de inicio: se juega sin barras'],
+    ],
+  },
+  {
+    titulo: 'Para no perderse',
+    filas: [
+      ['Pico', 'Cada bloque pide su nivel: piedra → madera, oro → hierro'],
+      ['Cristal de vida', 'Brilla en las cuevas · tócalo llevándolo y sube un corazón'],
+      ['Pala', 'Vuela cavando tierra, arena y nieve · fatal con la piedra'],
+      ['Azada', 'Toca hierba o tierra: la deja labrada'],
+      ['Semillas', 'Salen de segar hierba · toca sobre tierra labrada'],
+      ['Caña', 'Crece en las orillas · 3 caña → papel · 2 papel → mapa'],
+      ['Biomas', 'Cada uno tira de un metal: cobre, hierro, plata y oro'],
+      ['Lava', 'Quema a todos · el agua la apaga y deja obsidiana'],
+      ['Caldero', 'La cuarta estación · ahí se preparan las pociones'],
+      ['Bichos', 'Algunos lanzan cosas · ponerse detrás de algo los para'],
+      ['Cama', 'De noche: se duerme hasta el amanecer'],
+      ['Brújula', 'Llevándola, la aguja y el mapa señalan las estructuras'],
+      ['Fortaleza', 'De ladrillo, en la caverna · dentro está el altar'],
+      ['Altar', 'Tócalo con la ofrenda: despierta al guardián'],
+      ['Ídolos', 'Se preparan en el caldero · tócalos en su bioma: sale su jefe'],
+      ['Reliquia', 'La suelta cualquier hostil · es lo que pide el altar'],
+      ['Reliquias de bioma', 'Una por jefe, del arma que suelta · las seis abren el final'],
+    ],
+  },
+];
+
 const ESTILO = `
 #ayuda {
   pointer-events: auto;
@@ -129,7 +199,10 @@ export interface PanelAyuda {
   readonly abierto: boolean;
 }
 
-export function crearAyuda(contenedor: HTMLElement): PanelAyuda {
+export function crearAyuda(
+  contenedor: HTMLElement,
+  modo: () => ModoControl = () => 'escritorio',
+): PanelAyuda {
   const estilo = document.createElement('style');
   estilo.textContent = ESTILO;
   document.head.appendChild(estilo);
@@ -144,31 +217,49 @@ export function crearAyuda(contenedor: HTMLElement): PanelAyuda {
   h2.textContent = 'Controles';
   const sub = document.createElement('div');
   sub.className = 'sub';
-  sub.textContent = 'Se abre y se cierra con H.';
-  caja.append(h2, sub);
-
-  for (const grupo of GRUPOS) {
-    const h3 = document.createElement('h3');
-    h3.textContent = grupo.titulo;
-    caja.appendChild(h3);
-    for (const [tecla, que] of grupo.filas) {
-      const fila = document.createElement('div');
-      fila.className = 'fila';
-      const kbd = document.createElement('kbd');
-      kbd.textContent = tecla;
-      const texto = document.createElement('span');
-      texto.className = 'que';
-      texto.textContent = que;
-      fila.append(kbd, texto);
-      caja.appendChild(fila);
-    }
-  }
+  const lista = document.createElement('div');
 
   const cerrarBtn = document.createElement('button');
   cerrarBtn.className = 'cerrar';
   cerrarBtn.textContent = 'A jugar';
-  caja.appendChild(cerrarBtn);
+  caja.append(h2, sub, lista, cerrarBtn);
   capa.appendChild(caja);
+
+  /** El modo con el que se pintó por última vez, para no rehacerlo de balde. */
+  let pintadoPara: ModoControl | null = null;
+
+  /**
+   * Rellena la lista según se juegue con el dedo o con teclado.
+   *
+   * Se rehace al abrir y no una sola vez al crear: el modo se puede cambiar en
+   * los ajustes a mitad de partida, y una ayuda que sigue hablando de teclas
+   * en un móvil es peor que no tener ayuda.
+   */
+  function pintar(): void {
+    const m = modo();
+    if (m === pintadoPara) return;
+    pintadoPara = m;
+    sub.textContent =
+      m === 'tactil' ? 'Se vuelve a abrir desde Más → Controles.' : 'Se abre y se cierra con H.';
+    lista.textContent = '';
+    for (const grupo of m === 'tactil' ? GRUPOS_TACTIL : GRUPOS) {
+      const h3 = document.createElement('h3');
+      h3.textContent = grupo.titulo;
+      lista.appendChild(h3);
+      for (const [tecla, que] of grupo.filas) {
+        const fila = document.createElement('div');
+        fila.className = 'fila';
+        const kbd = document.createElement('kbd');
+        kbd.textContent = tecla;
+        const texto = document.createElement('span');
+        texto.className = 'que';
+        texto.textContent = que;
+        fila.append(kbd, texto);
+        lista.appendChild(fila);
+      }
+    }
+  }
+  pintar();
 
   const boton = document.createElement('button');
   boton.id = 'ayuda-boton';
@@ -178,7 +269,10 @@ export function crearAyuda(contenedor: HTMLElement): PanelAyuda {
   contenedor.append(capa, boton);
 
   const api: PanelAyuda = {
-    alternar: () => capa.classList.toggle('visible'),
+    alternar: () => {
+      pintar();
+      capa.classList.toggle('visible');
+    },
     cerrar: () => capa.classList.remove('visible'),
     get abierto() {
       return capa.classList.contains('visible');
@@ -198,6 +292,7 @@ export function crearAyuda(contenedor: HTMLElement): PanelAyuda {
   // La primera partida en este navegador se abre con la ayuda delante.
   try {
     if (!localStorage.getItem(CLAVE_VISTA)) {
+      pintar();
       capa.classList.add('visible');
       localStorage.setItem(CLAVE_VISTA, '1');
     }

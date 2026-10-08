@@ -12,6 +12,8 @@ Se construye por fases, cada una jugable y desplegable por separado.
 
 📋 **[Hoja de ruta por fases (historia) → `docs/ROADMAP.md`](docs/ROADMAP.md)**
 
+📱 **[Jugar desde el móvil e instalarlo → `docs/MOVIL.md`](docs/MOVIL.md)**
+
 ## Estado
 
 - ✅ **Fase 0** — Andamiaje y despliegue
@@ -66,6 +68,11 @@ movimiento con `F4`, y es más rápido comprobar una regla de la física en un
 tramo hecho a mano que buscando el terreno adecuado en un mundo generado.
 
 ## Controles
+
+En el móvil la interfaz cambia sola: joystick abajo a la izquierda, saltar abajo
+a la derecha, y tocar el mundo usa lo que llevas en la mano. Se juega en
+horizontal, y se puede instalar en la pantalla de inicio. Ver
+[`docs/MOVIL.md`](docs/MOVIL.md). Con teclado y ratón:
 
 | Tecla | Acción |
 |---|---|

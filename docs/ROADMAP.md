@@ -172,6 +172,7 @@ Sprites de píxel generados por código para el personaje y los cinco enemigos, 
 ### Fase 11 — Controles táctiles (M)
 Joystick virtual, botones de acción, minar con toque, interfaz adaptada a pantalla pequeña, viewport bloqueado como en tus otros juegos.
 **DoD**: jugable en móvil sin teclado.
+**Estado**: primera entrega hecha en la 7.15.0, junto con la instalación como aplicación. El plan por entregas y las decisiones están en `docs/MOVIL.md`.
 
 ### Bloques posteriores (la lista larga)
 

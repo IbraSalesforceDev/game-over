@@ -8,8 +8,17 @@
     />
     <meta name="theme-color" content="#0d1117" />
     <meta name="description" content="Juego sandbox 2D de tiles: cava, construye, sobrevive." />
+    <!-- Para jugar desde la pantalla de inicio del móvil: sin barras del
+         navegador, que en horizontal se comen un buen trozo de la altura. El
+         iPhone sigue leyendo su etiqueta propia además del manifiesto. -->
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Game Over" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <!-- El icono de la pantalla de inicio: se genera al compilar, ver
+         herramientas/iconos.ts. -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <!-- Icono en línea: evita una petición de red y el 404 en las capturas. -->
     <link
       rel="icon"

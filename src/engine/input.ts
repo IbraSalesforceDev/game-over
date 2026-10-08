@@ -4,8 +4,8 @@ import type { Entrada } from '../entities/physics';
  * Traduce el teclado a acciones abstractas.
  *
  * El resto del juego no sabe qué teclas existen: solo pregunta por `izq`,
- * `der`, `abajo` y `salto`. Cuando lleguen los controles táctiles (fase 11) se
- * enchufan aquí y nadie más se entera.
+ * `der`, `abajo` y `salto`. Los controles táctiles se enchufan aquí, con
+ * `fijar` y `pulsar`, y nadie más se entera.
  */
 
 const MAPA: Record<string, keyof Acciones> = {
@@ -69,11 +69,30 @@ export interface GestorEntrada {
   mantenida(codigo: string): boolean;
   /** ¿Está Alt pulsado? */
   readonly alt: boolean;
+  /**
+   * Aprieta o suelta una acción desde fuera del teclado: el joystick y el botón
+   * de saltar de la pantalla táctil.
+   *
+   * Va en un estado aparte del teclado y se suman los dos. Si compartieran
+   * estado, soltar el joystick soltaría también la D que alguien mantiene con
+   * un teclado conectado a la tableta.
+   */
+  fijar(accion: keyof Acciones, apretada: boolean): void;
+  /**
+   * Dispara el atajo de una tecla como si se hubiera pulsado.
+   *
+   * Es lo que hacen los botones de la pantalla táctil: «Mochila» pulsa la E.
+   * Así cada acción sigue viviendo en un solo sitio —el atajo— y no hay dos
+   * copias de «abrir el inventario» que se puedan separar con el tiempo.
+   */
+  pulsar(codigo: string): void;
   destruir(): void;
 }
 
 export function crearEntrada(objetivo: Window = window): GestorEntrada {
   const mantenido: Acciones = { izq: false, der: false, abajo: false, salto: false };
+  /** Lo que aprietan los controles de la pantalla. Se suma al teclado. */
+  const virtual: Acciones = { izq: false, der: false, abajo: false, salto: false };
   let saltoPulsado = false;
   const atajos = new Map<string, () => void>();
   /** Todas las teclas pulsadas ahora mismo, para poder leer acordes. */
@@ -126,6 +145,7 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
   // corriendo solo al volver a la pestaña.
   function onBlur(): void {
     mantenido.izq = mantenido.der = mantenido.abajo = mantenido.salto = false;
+    virtual.izq = virtual.der = virtual.abajo = virtual.salto = false;
     saltoPulsado = false;
     pulsadas.clear();
     alt = false;
@@ -137,12 +157,23 @@ export function crearEntrada(objetivo: Window = window): GestorEntrada {
 
   return {
     estado() {
-      salida.izq = mantenido.izq;
-      salida.der = mantenido.der;
-      salida.abajo = mantenido.abajo;
-      salida.salto = mantenido.salto;
+      salida.izq = mantenido.izq || virtual.izq;
+      salida.der = mantenido.der || virtual.der;
+      salida.abajo = mantenido.abajo || virtual.abajo;
+      salida.salto = mantenido.salto || virtual.salto;
       salida.saltoPulsado = saltoPulsado;
       return salida;
+    },
+    fijar(accion, apretada) {
+      // El flanco del salto, igual que con la tecla: solo cuenta al pasar de
+      // suelto a apretado, y solo si no lo estaba ya por el otro lado.
+      if (accion === 'salto' && apretada && !virtual.salto && !mantenido.salto) {
+        saltoPulsado = true;
+      }
+      virtual[accion] = apretada;
+    },
+    pulsar(codigo) {
+      atajos.get(codigo)?.();
     },
     finTick() {
       saltoPulsado = false;

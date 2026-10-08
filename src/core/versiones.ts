@@ -903,6 +903,23 @@ export const VERSIONES: readonly Version[] = [
       'Los mandobles entre jugadores los reparte el anfitrión, como todo lo demás',
     ],
   },
+  {
+    id: '7.15.0',
+    etapa: 'prealfa',
+    nombre: 'Con el dedo',
+    resumen: 'Se puede jugar desde el móvil: joystick, saltar y tocar el mundo. Y se instala como una app.',
+    cambios: [
+      'El juego detecta si se juega con el dedo o con teclado y ratón, y enseña la interfaz que toca',
+      'Joystick abajo a la izquierda, que aparece donde se apoya el pulgar, y botón de saltar',
+      'Tocar el mundo usa lo que llevas en la mano: el pico pica, un bloque se coloca, la espada golpea',
+      'En un cofre, una mesa o una cama, un toque abre y mantener el dedo rompe',
+      'Mochila, pausa y un botón «más» con el mapa, la capa, el poder, el zoom y el duelo',
+      'La mochila se recoloca para que quepa entera en un móvil en horizontal',
+      'Se juega en horizontal: en vertical sale un aviso y el juego se pausa',
+      'Se instala en la pantalla de inicio y se abre sin conexión',
+      'En los ajustes se puede forzar un modo u otro si la detección se equivoca',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */
