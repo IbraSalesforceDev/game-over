@@ -101,7 +101,7 @@ const GRUPOS_TACTIL: Grupo[] = [
     titulo: 'Tocar el mundo',
     filas: [
       ['Lo que llevas', 'Decide qué pasa al tocar: no hay botón izquierdo ni derecho'],
-      ['Pico o pala', 'Mantén el dedo para picar · arrástralo para seguir'],
+      ['Pico o pala', 'Mantén el dedo hacia donde quieras cavar: pica el primer bloque de esa línea'],
       ['Un bloque', 'Toca donde lo quieras poner'],
       ['Un arma', 'Toca hacia donde golpear: a un lado, arriba o abajo'],
       ['Arco', 'Toca hacia donde disparar · gasta una flecha'],

@@ -116,11 +116,30 @@ Cómo se distingue un toque de mantener o de arrastrar está en
 `PulsacionRanura` (`src/engine/gesto.ts`): la acción va al levantar porque al
 apoyar todavía no se sabe cuál de las tres cosas es.
 
+### Cavar hacia donde se toca (7.17.0) ✔
+
+Lo primero que salió al probarlo en un iPhone: picar era incómodo, porque había
+que acertar con el dedo en un bloque de dieciséis píxeles y la yema tapa tres.
+
+Ahora, con el dedo, **el toque da la dirección y no el bloque**: se traza una
+línea desde el centro del jugador hacia el dedo y se pica el primer bloque
+sólido que haya en ella dentro del alcance (`bloqueEnDireccion`, en
+`src/world/edit.ts`). Es lo que Terraria llama «cursor inteligente».
+
+- Mantener el dedo cava un túnel en esa dirección sin moverlo: al romperse un
+  bloque, la misma línea da el siguiente. Hacia abajo, se hace un pozo.
+- Lo que no es sólido —antorchas, plantas, troncos, plataformas— se atraviesa:
+  cavar no puede ir llevándose las antorchas del camino. Pero si el dedo cae
+  justo encima de una de esas cosas y no hay nada sólido antes, se coge esa.
+- Solo al picar y solo en la capa de bloques. Las armas, el arco y las bombas
+  ya iban hacia donde se toca; colocar sigue siendo donde se toca; y en la capa
+  de paredes la primera pared de la línea sería casi siempre la que hay detrás
+  del propio jugador.
+- Con ratón no cambia nada.
+
 ### Entrega 3 — según lo que se vea en un iPhone de verdad
 
 - Rendimiento: si va justo, bajar la resolución de dibujo por defecto en móvil.
-- Apuntado automático como opción (picar el bloque más cercano hacia donde
-  empuja el joystick).
 - Multijugador desde el móvil: reconexión automática tras un corte breve (hoy un
   corte de un segundo saca al invitado de la partida) y, si con datos móviles no
   conecta, un servidor TURN. Ver `NUBE-Y-MULTIJUGADOR.md`.

@@ -37,6 +37,12 @@ export interface Puntero {
    * para un escalón de zoom. Lo pone el juego, que es quien sabe hacer zoom.
    */
   alPellizcar: ((paso: 1 | -1) => void) | null;
+  /**
+   * ¿Lo último que apretó un botón fue un dedo? El juego lo usa para apuntar
+   * solo al picar (ver `bloqueEnDireccion`): con ratón se pica exactamente
+   * donde se apunta, que es lo que se espera de un ratón.
+   */
+  readonly porDedo: boolean;
   destruir(): void;
 }
 
@@ -54,6 +60,7 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
   const dedos = new Map<number, { x: number; y: number }>();
   const pellizco = new Pellizco();
   let pellizcando = false;
+  let porDedo = false;
 
   const distanciaEntreDedos = (): number => {
     const [a, b] = [...dedos.values()];
@@ -78,6 +85,9 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
     },
     decidirToque: null,
     alPellizcar: null,
+    get porDedo() {
+      return porDedo;
+    },
     destruir() {
       lienzo.removeEventListener('pointermove', onMove);
       lienzo.removeEventListener('pointerdown', onDown);
@@ -114,6 +124,7 @@ export function crearPuntero(lienzo: HTMLCanvasElement): Puntero {
   }
 
   function onDown(e: PointerEvent): void {
+    porDedo = e.pointerType === 'touch';
     if (e.pointerType === 'touch') {
       dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (dedos.size === 2) {

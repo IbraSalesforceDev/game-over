@@ -4,6 +4,7 @@ import { crearCaja, type Caja } from '../src/entities/physics';
 import {
   ALCANCE,
   avanzarPicado,
+  bloqueEnDireccion,
   crearPicado,
   enAlcance,
   etapaGrieta,
@@ -13,7 +14,7 @@ import {
   solapaJugador,
   tieneApoyo,
 } from '../src/world/edit';
-import { AIRE, PIEDRA, PLATAFORMA, TIERRA, TILES } from '../src/world/tiles';
+import { AIRE, ANTORCHA, PIEDRA, PLATAFORMA, TIERRA, TILES } from '../src/world/tiles';
 import { Mundo } from '../src/world/world';
 
 const SUELO = 20;
@@ -207,5 +208,83 @@ describe('minar: comprobaciones previas', () => {
     expect(puedeMinar(m, c, 10, SUELO, 'pared').motivo).toBe('nada');
     m.setPared(10, SUELO, TIERRA);
     expect(puedeMinar(m, c, 10, SUELO, 'pared').ok).toBe(true);
+  });
+});
+
+/**
+ * Picar con el dedo: el dedo da la dirección, no el bloque.
+ *
+ * El jugador está de pie en el suelo, en la columna 10, con la cabeza en la
+ * fila SUELO − 3 y los pies en la SUELO − 1.
+ */
+describe('el bloque en la dirección del dedo', () => {
+  /** Un punto del mundo, en píxeles, en el centro de un tile. */
+  const centroDe = (tx: number, ty: number): [number, number] => [
+    tx * TILE + TILE / 2,
+    ty * TILE + TILE / 2,
+  ];
+  const filaMedia = SUELO - 2;
+
+  it('tocando lejos a un lado, se pica el primer bloque de esa línea', () => {
+    const { m, c } = escenario();
+    m.setTile(13, filaMedia, PIEDRA);
+    m.setTile(14, filaMedia, PIEDRA);
+    // El dedo, mucho más allá: lo que cuenta es la dirección.
+    expect(bloqueEnDireccion(m, c, ...centroDe(40, filaMedia))).toEqual({ tx: 13, ty: filaMedia });
+  });
+
+  /** Mantener el dedo cava un túnel: roto uno, la misma línea da el siguiente. */
+  it('roto el primero, la misma dirección da el siguiente', () => {
+    const { m, c } = escenario();
+    m.setTile(13, filaMedia, PIEDRA);
+    m.setTile(14, filaMedia, PIEDRA);
+    m.setTile(13, filaMedia, AIRE);
+    expect(bloqueEnDireccion(m, c, ...centroDe(40, filaMedia))).toEqual({ tx: 14, ty: filaMedia });
+  });
+
+  it('tocando debajo de los pies, se cava hacia abajo', () => {
+    const { m, c } = escenario();
+    const b = bloqueEnDireccion(m, c, c.x + c.ancho / 2, (SUELO + 10) * TILE);
+    expect(b?.ty).toBe(SUELO);
+  });
+
+  it('lo que está fuera de alcance no se pica, aunque esté en la línea', () => {
+    const { m, c } = escenario();
+    m.setTile(10 + Math.ceil(ALCANCE) + 2, filaMedia, PIEDRA);
+    expect(bloqueEnDireccion(m, c, ...centroDe(40, filaMedia))).toBeNull();
+  });
+
+  /** Cavar no puede ir llevándose las antorchas que hay por el camino. */
+  it('una antorcha en el camino se atraviesa', () => {
+    const { m, c } = escenario();
+    m.setTile(12, filaMedia, ANTORCHA);
+    m.setTile(14, filaMedia, PIEDRA);
+    expect(bloqueEnDireccion(m, c, ...centroDe(40, filaMedia))).toEqual({ tx: 14, ty: filaMedia });
+  });
+
+  it('pero tocando justo encima de la antorcha, se coge ella', () => {
+    const { m, c } = escenario();
+    m.setTile(12, filaMedia, ANTORCHA);
+    m.setTile(14, filaMedia, PIEDRA);
+    expect(bloqueEnDireccion(m, c, ...centroDe(12, filaMedia))).toEqual({ tx: 12, ty: filaMedia });
+  });
+
+  it('en una dirección vacía no hay nada que picar', () => {
+    const { m, c } = escenario();
+    expect(bloqueEnDireccion(m, c, ...centroDe(10, 0))).toBeNull();
+  });
+
+  it('tocando encima del propio jugador no hay dirección', () => {
+    const { m, c } = escenario();
+    expect(bloqueEnDireccion(m, c, c.x + c.ancho / 2, c.y + c.alto / 2)).toBeNull();
+  });
+
+  /** Lo que devuelve siempre es algo que `puedeMinar` acepta por alcance. */
+  it('el bloque elegido siempre está al alcance', () => {
+    const { m, c } = escenario();
+    for (let x = 0; x < 60; x++) for (let y = 0; y < 40; y += 3) {
+      const b = bloqueEnDireccion(m, c, ...centroDe(x, y));
+      if (b) expect(enAlcance(c, b.tx, b.ty)).toBe(true);
+    }
   });
 });

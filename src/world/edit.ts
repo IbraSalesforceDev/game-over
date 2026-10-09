@@ -42,6 +42,59 @@ export function enAlcance(caja: Caja, tx: number, ty: number): boolean {
   return distanciaTiles(caja, tx, ty) <= ALCANCE;
 }
 
+/**
+ * El bloque que se picaría tocando en esa dirección.
+ *
+ * Con el dedo, acertar en un tile de dieciséis píxeles es una lotería: la yema
+ * tapa tres. Así que el dedo no elige el bloque, elige **la dirección**: desde
+ * el centro del jugador hacia donde se toca, y se pica el primer bloque sólido
+ * que haya en esa línea dentro del alcance. Mantener el dedo cava un túnel en
+ * esa dirección sin moverlo, porque al romperse uno la línea sigue hasta el
+ * siguiente.
+ *
+ * Lo que no es sólido —una antorcha, una planta, un tronco, una plataforma— se
+ * atraviesa: llevarse por delante las antorchas al cavar sería un fastidio. Pero
+ * si el dedo cae justo encima de una de esas cosas y no hay nada sólido antes,
+ * se coge esa: es la forma de quitarla a propósito.
+ *
+ * Devuelve null si en esa dirección no hay nada que picar al alcance.
+ */
+export function bloqueEnDireccion(
+  mundo: Mundo,
+  caja: Caja,
+  haciaX: number,
+  haciaY: number,
+): { tx: number; ty: number } | null {
+  const cx = caja.x + caja.ancho / 2;
+  const cy = caja.y + caja.alto / 2;
+  const dx = haciaX - cx;
+  const dy = haciaY - cy;
+  const largo = Math.hypot(dx, dy);
+  if (largo < 1) return null;
+  const tocadoX = Math.floor(haciaX / TILE);
+  const tocadoY = Math.floor(haciaY / TILE);
+  // Pasos de un cuarto de tile: lo bastante finos para no saltarse la esquina
+  // de un bloque en diagonal, y apenas veinticinco por consulta.
+  const paso = TILE / 4;
+  const ux = (dx / largo) * paso;
+  const uy = (dy / largo) * paso;
+  let ultimoX = Number.NaN;
+  let ultimoY = Number.NaN;
+  for (let i = 1; i * paso <= (ALCANCE + 1) * TILE; i++) {
+    const tx = Math.floor((cx + ux * i) / TILE);
+    const ty = Math.floor((cy + uy * i) / TILE);
+    if (tx === ultimoX && ty === ultimoY) continue;
+    ultimoX = tx;
+    ultimoY = ty;
+    if (!mundo.dentro(tx, ty)) return null;
+    if (!enAlcance(caja, tx, ty)) return null;
+    const id = mundo.getTile(tx, ty);
+    if (esSolido(id)) return { tx, ty };
+    if (id !== AIRE && tx === tocadoX && ty === tocadoY) return { tx, ty };
+  }
+  return null;
+}
+
 /** ¿El tile se solapa con la caja del jugador? */
 export function solapaJugador(caja: Caja, tx: number, ty: number): boolean {
   const x0 = tx * TILE;

@@ -7,7 +7,7 @@ import { AMANECER, Reloj } from './engine/time';
 import { crearPuntero } from './engine/mouse';
 import { vigilarModo } from './engine/dispositivo';
 import { hacerInstalable } from './core/instalable';
-import { gestoDelToque } from './engine/gesto';
+import { gestoDelToque, seUsaConDerecho } from './engine/gesto';
 import { crearTactil } from './ui/tactil';
 import { crearAudio } from './engine/audio';
 import {
@@ -88,6 +88,7 @@ import {
   enAlcance,
   puedeColocarBloque,
   puedeColocarPared,
+  bloqueEnDireccion,
   puedeMinar,
   reiniciarPicado,
   type Capa,
@@ -2548,6 +2549,11 @@ async function arrancar(): Promise<void> {
     if (salud.invulnerable > 0 || salud.desdeGolpe < 3) panelVida.refrescar(salud);
   }
 
+  /** ¿Lo que hay en la mano pica cuando se toca? Las armas no: golpean. */
+  function picaConElDedo(enMano: number): boolean {
+    return !esArma(enMano) && !esArco(enMano) && !esExplosivo(enMano) && !seUsaConDerecho(enMano);
+  }
+
   /** Un tick de edición: apuntar, picar y colocar. */
   function editar(): void {
     const rueda = puntero.consumirRueda();
@@ -2555,8 +2561,20 @@ async function arrancar(): Promise<void> {
 
     const wx = renderer.camara.aMundoX(puntero.sx);
     const wy = renderer.camara.aMundoY(puntero.sy);
-    const tx = Math.floor(wx / TILE);
-    const ty = Math.floor(wy / TILE);
+    let tx = Math.floor(wx / TILE);
+    let ty = Math.floor(wy / TILE);
+    // Con el dedo, picar no pide acertar en el bloque: el dedo da la dirección
+    // y se pica el primero que haya en esa línea (ver `bloqueEnDireccion`).
+    // Solo al picar —lo que no sea un arma, un arco o una bomba, que ya van
+    // hacia donde se toca— y solo en la capa de bloques: detrás del jugador
+    // casi siempre hay pared, y la primera de la línea sería la suya.
+    if (puntero.porDedo && puntero.izq && capa === 'bloque' && picaConElDedo(barra.objetoActivo())) {
+      const b = bloqueEnDireccion(mundo, jugador.caja, wx, wy);
+      if (b) {
+        tx = b.tx;
+        ty = b.ty;
+      }
+    }
     objetivo.tx = tx;
     objetivo.ty = ty;
     objetivo.capa = capa;

@@ -935,6 +935,19 @@ export const VERSIONES: readonly Version[] = [
       'Ya no sale sola la ficha de lo que había debajo de un toque',
     ],
   },
+  {
+    id: '7.17.0',
+    etapa: 'prealfa',
+    nombre: 'Cavar hacia donde se toca',
+    resumen: 'Con el dedo ya no hay que acertar en el bloque: se toca hacia donde se quiere cavar.',
+    cambios: [
+      'Con el dedo, picar pica el primer bloque que haya en la dirección del toque, al alcance',
+      'Mantener el dedo cava un túnel en esa dirección sin tener que moverlo',
+      'Las antorchas, plantas y troncos del camino no se rompen al cavar',
+      'Tocando justo encima de una antorcha o una planta, se quita esa',
+      'Con ratón no cambia nada: se pica exactamente donde se apunta',
+    ],
+  },
 ];
 
 /** La más nueva. Es la que trae marcada el menú. */

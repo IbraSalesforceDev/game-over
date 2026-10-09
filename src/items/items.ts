@@ -1456,7 +1456,7 @@ const DESCRIPCIONES_DEDO: Readonly<Record<number, string>> = {
 
 const DESCRIPCION_POR_TIPO_DEDO: Readonly<Partial<Record<TipoObjeto, string>>> = {
   bloque: 'Se coloca en el mundo: llévalo en la mano y toca donde lo quieras.',
-  herramienta: 'Herramienta. Mantén el dedo sobre lo que quieras romper.',
+  herramienta: 'Herramienta. Mantén el dedo hacia donde quieras cavar.',
   arma: 'Toca hacia donde quieras golpear: a un lado, arriba o abajo.',
   comida: 'Llévala en la mano y toca en cualquier sitio para comer.',
   cristal: 'Llévalo en la mano y toca en cualquier sitio para usarlo.',
