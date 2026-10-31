@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router';
+import { BrowserRouter, HashRouter } from 'react-router';
 
 // Tipografías incluidas en el proyecto: no se pide nada a Google Fonts ni a
 // ningún tercero (importante para la política de privacidad).
@@ -12,10 +12,13 @@ import './index.css';
 
 import App from './App';
 
+// En la versión de un solo archivo no hay servidor: rutas con # (index.html#/sedes).
+const Router = import.meta.env.MODE === 'archivo' ? HashRouter : BrowserRouter;
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <Router>
       <App />
-    </BrowserRouter>
+    </Router>
   </StrictMode>,
 );

@@ -16,6 +16,16 @@ npm run build      # genera dist/ (comprueba tipos antes)
 npm run preview    # sirve dist/ para probarlo como en producción
 ```
 
+### Versión de un solo archivo (para enseñarla sin desplegar)
+
+```bash
+npm run build:archivo
+```
+
+Genera `dist-archivo/index.html`: toda la web (código, estilos y tipografías) en un único archivo
+que se puede enviar por WhatsApp o email y abrir con doble clic. Navega con `#` en la dirección
+(`index.html#/sedes`). Las fotos de `public/images/` no van incluidas en esta versión.
+
 ## Dónde se edita cada cosa
 
 Todo el contenido está en `src/data/`. Los componentes no llevan textos escritos a mano.

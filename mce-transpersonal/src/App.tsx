@@ -42,21 +42,26 @@ export default function App() {
     if (location.hash) irAlAncla(location.hash);
   }, [location.pathname, location.hash, location.key]);
 
+  // Hash de la ruta actual según el router (sirve igual con BrowserRouter y HashRouter).
+  const hashActual = useRef(location.hash);
+  hashActual.current = location.hash;
+
   // Al terminar la transición de salida: arriba del todo, o al ancla si la hay.
   const alCambiarDePagina = () => {
-    if (window.location.hash) irAlAncla(window.location.hash, false);
+    if (hashActual.current) irAlAncla(hashActual.current, false);
     else window.scrollTo(0, 0);
   };
 
   return (
     <MotionConfig reducedMotion="user">
       <ProveedorConsentimiento>
-        <a
-          href="#contenido"
+        <button
+          type="button"
+          onClick={() => document.getElementById('contenido')?.focus()}
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-full focus:bg-carbon focus:px-5 focus:py-3 focus:text-marfil"
         >
           Saltar al contenido
-        </a>
+        </button>
         <Cabecera />
         <AnimatePresence mode="wait" onExitComplete={alCambiarDePagina}>
           <Routes location={location} key={location.pathname}>
