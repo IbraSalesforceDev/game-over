@@ -11,7 +11,6 @@ import Pie from './components/layout/Pie';
 import BannerCookies from './components/legal/BannerCookies';
 import ModalLegal from './components/legal/ModalLegal';
 import Intro from './components/anim/Intro';
-import Cursor from './components/anim/Cursor';
 
 import Inicio from './pages/Inicio';
 import SobreMce from './pages/SobreMce';
@@ -96,7 +95,6 @@ export default function App() {
         <Pie />
         <BannerCookies />
         <ModalLegal />
-        <Cursor />
       </ProveedorConsentimiento>
     </MotionConfig>
   );

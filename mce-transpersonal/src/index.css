@@ -9,27 +9,33 @@
    (Ajustar el dorado cuando llegue el logo.)
    ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-marfil: #f7f2e9;
-  --color-lino: #efe6d6;
-  --color-arena: #e2d5be;
-  --color-carbon: #2a2622;
-  --color-carbon-suave: #5a524a;
-  --color-dorado: #c29a3e;
-  --color-dorado-claro: #ead7a2;
-  /* Variante oscura del dorado para textos: contraste AA sobre marfil */
-  --color-dorado-hondo: #7a5a14;
-  --color-salvia: #8e9f82;
-  --color-salvia-clara: #dde3d3;
-  --color-salvia-honda: #44523c;
-  --color-bosque: #232c25;
-  --color-terracota: #c47a5a;
-  --color-terracota-clara: #f0d8c9;
-  --color-terracota-honda: #8f4529;
+  /* Nombres heredados, valores nuevos (paleta mediterránea · v3):
+     marfil = cal, carbon = tinta azul noche, dorado = azafrán,
+     terracota = granada, salvia = olivo, bosque = noche. */
+  --color-marfil: #f8f6f1;
+  --color-lino: #efebe2;
+  --color-arena: #e3ddd0;
+  --color-carbon: #1f2433;
+  --color-carbon-suave: #4e5466;
+  --color-dorado: #e9a23b;
+  --color-dorado-claro: #f8dda8;
+  /* Azafrán oscuro para textos: contraste AA sobre cal */
+  --color-dorado-hondo: #8a5a08;
+  --color-salvia: #7f8a4a;
+  --color-salvia-clara: #e2e6cc;
+  --color-salvia-honda: #4e5a23;
+  --color-terracota: #c13e55;
+  --color-terracota-clara: #f6d3d3;
+  --color-terracota-honda: #9a2338;
+  --color-bosque: #17203a;
+  --color-mar: #1e5e78;
+  --color-mar-claro: #cfe3ea;
+  --color-amanecer: #f7d9c4;
 
-  --font-serif: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Young Serif', 'Iowan Old Style', Georgia, serif;
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  --ease-suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-suave: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-cortina: cubic-bezier(0.76, 0, 0.24, 1);
 }
 
@@ -38,7 +44,7 @@
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
     scroll-padding-top: 6rem;
-    background-color: var(--color-carbon);
+    background-color: var(--color-bosque);
   }
 
   body {
@@ -50,8 +56,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: clip;
-    /* Sin letras "wonky" en la cursiva de Fraunces: más clásico */
-    font-variation-settings: 'WONK' 0;
+    /* Young Serif no tiene cursiva: nunca se fabrica una falsa */
+    font-synthesis: none;
   }
 
   /* Textura de papel muy sutil: le quita el aspecto "plano digital". */
@@ -71,9 +77,9 @@
   h3,
   h4 {
     font-family: var(--font-serif);
-    font-weight: 380;
-    line-height: 1.08;
-    letter-spacing: -0.015em;
+    font-weight: 400;
+    line-height: 1.06;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
@@ -124,12 +130,12 @@
     }
   }
 
+  /* Rótulo pequeño en minúscula normal (sin mayúsculas espaciadas). */
   .etiqueta {
     font-family: var(--font-sans);
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 500;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+    letter-spacing: 0;
     color: var(--color-carbon-suave);
   }
 
@@ -142,7 +148,7 @@
     background-size: 0% 1px;
     background-position: 100% 100%;
     background-repeat: no-repeat;
-    transition: background-size 0.5s var(--ease-suave);
+    transition: background-size 0.3s var(--ease-suave);
     padding-bottom: 2px;
   }
   .enlace-linea:hover,
@@ -285,6 +291,15 @@
   animation: deriva-c 38s ease-in-out infinite;
 }
 
+@keyframes olas {
+  to {
+    transform: translateX(-80px);
+  }
+}
+.olas {
+  animation: olas 9s linear infinite;
+}
+
 @keyframes respirar {
   0%,
   100% {
@@ -314,7 +329,8 @@
   .deriva-a,
   .deriva-b,
   .deriva-c,
-  .respirar {
+  .respirar,
+  .olas {
     animation: none !important;
   }
 }

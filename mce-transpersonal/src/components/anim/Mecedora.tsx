@@ -30,10 +30,26 @@ const trazos = [
   { d: 'M160 160c4 24 2 42-6 58M178 158c5 22 4 38-2 52', ancho: 1.6, opacidad: 0.7, color: 'text-terracota' },
 ];
 
-export default function Mecedora({ className, mecer = true }: { className?: string; mecer?: boolean }) {
+export default function Mecedora({
+  className,
+  mecer = true,
+  halo,
+  dibujar = true,
+}: {
+  className?: string;
+  mecer?: boolean;
+  /** Color de un trazo grueso por detrás, para que se lea sobre fondos oscuros. */
+  halo?: string;
+  /** false: aparece ya dibujada (sin animación de trazo). */
+  dibujar?: boolean;
+}) {
   return (
     <svg viewBox="0 0 400 380" className={cx('overflow-visible', className)} role="img" aria-label="Dibujo de una mecedora">
       <g className={mecer ? 'mecer' : undefined}>
+        {halo &&
+          trazos.map((t, i) => (
+            <path key={`h${i}`} d={t.d} fill="none" stroke={halo} strokeWidth={t.ancho + 7} strokeLinecap="round" strokeLinejoin="round" />
+          ))}
         {trazos.map((t, i) => (
           <motion.path
             key={i}
@@ -45,8 +61,8 @@ export default function Mecedora({ className, mecer = true }: { className?: stri
             strokeLinejoin="round"
             className={t.color}
             style={{ opacity: t.opacidad ?? 1 }}
-            initial={{ pathLength: 0 }}
-            whileInView={{ pathLength: 1 }}
+            initial={dibujar ? { pathLength: 0 } : false}
+            whileInView={dibujar ? { pathLength: 1 } : undefined}
             viewport={{ once: true }}
             transition={{ duration: 1.1, delay: 0.25 + i * 0.12, ease: [0.65, 0, 0.35, 1] }}
           />

@@ -7,6 +7,7 @@ import { useConsentimiento } from '../../lib/consentimiento';
 import { IconoEmail, IconoInstagram, IconoTelefono } from '../ui/Iconos';
 import { BotonEnlace } from '../ui/Boton';
 import Logo from './Logo';
+import Azulejo from '../anim/Azulejo';
 
 /**
  * Pie oscuro que queda fijo debajo del contenido: al llegar al final de la
@@ -24,14 +25,14 @@ export default function Pie() {
   return (
     <footer
       ref={ref}
-      className="relative z-0 overflow-hidden bg-carbon text-marfil [@media(min-width:1024px)_and_(min-height:780px)]:sticky [@media(min-width:1024px)_and_(min-height:780px)]:bottom-0"
+      className="relative z-0 overflow-hidden bg-bosque text-marfil [@media(min-width:1024px)_and_(min-height:780px)]:sticky [@media(min-width:1024px)_and_(min-height:780px)]:bottom-0"
     >
+      <Azulejo fondo="#17203a" className="opacity-90" />
       <motion.div style={reducido ? undefined : { y, scale: escala }} className="origin-bottom">
         <div className="marco pt-24 lg:pt-20">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
             <p className="font-serif text-[clamp(2rem,4.2vw,3.4rem)] font-light leading-[1.08] lg:col-span-8">
-              Comprendamos que no estamos solos,
-              <span className="italic text-dorado-claro"> que realmente, todos somos uno.</span>
+              Comprendamos que no estamos solos, que realmente, todos somos uno.
             </p>
             <div className="lg:col-span-4 lg:justify-self-end">
               <BotonEnlace a="/sedes" variante="claro">
@@ -54,12 +55,12 @@ export default function Pie() {
             </div>
 
             <nav aria-label="Pie de página" className="md:col-span-3">
-              <h2 className="etiqueta mb-5 !text-marfil/50">Secciones</h2>
+              <h2 className="mb-4 text-[1rem] font-semibold text-marfil/70">Secciones</h2>
               <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5">
                 {[...menu, contacto].map((e) => (
                   <li key={e.ruta}>
                     <Link to={e.ruta} className="group inline-flex items-center gap-2 text-[1rem] text-marfil/85 transition-colors hover:text-marfil">
-                      <span className="h-px w-0 bg-dorado transition-all duration-500 ease-[var(--ease-suave)] group-hover:w-4" />
+                      <span className="h-1.5 w-1.5 scale-0 rounded-full bg-dorado transition-transform duration-200 group-hover:scale-100" />
                       {e.nombre}
                     </Link>
                   </li>
@@ -68,7 +69,7 @@ export default function Pie() {
             </nav>
 
             <div className="md:col-span-5">
-              <h2 className="etiqueta mb-5 !text-marfil/50">Hablemos</h2>
+              <h2 className="mb-4 text-[1rem] font-semibold text-marfil/70">Hablemos</h2>
               <ul className="space-y-3 text-[1rem]">
                 {escuela.telefono && (
                   <li>
@@ -105,7 +106,7 @@ export default function Pie() {
           </p>
         </div>
 
-        <div className="relative border-t border-marfil/10 bg-carbon">
+        <div className="relative border-t border-marfil/10 bg-bosque">
           <div className="marco flex flex-col gap-4 py-6 text-[0.85rem] text-marfil/55 sm:flex-row sm:items-center sm:justify-between">
             <p>
               © {anio} {escuela.nombre}

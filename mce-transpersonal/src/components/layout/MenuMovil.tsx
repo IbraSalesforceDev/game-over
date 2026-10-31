@@ -36,7 +36,7 @@ export default function MenuMovil({ abierto, alCerrar }: { abierto: boolean; alC
         <motion.div
           id="menu-movil"
           data-lenis-prevent
-          className="fixed inset-0 z-[49] overflow-y-auto bg-lino lg:hidden"
+          className="fixed inset-0 z-[49] overflow-y-auto bg-amanecer lg:hidden"
           initial={{ clipPath: 'circle(0% at calc(100% - 2.5rem) 2.75rem)' }}
           animate={{ clipPath: 'circle(150% at calc(100% - 2.5rem) 2.75rem)' }}
           exit={{ clipPath: 'circle(0% at calc(100% - 2.5rem) 2.75rem)', transition: { duration: 0.6, ease: [0.76, 0, 0.24, 1], delay: 0.1 } }}
@@ -56,7 +56,6 @@ export default function MenuMovil({ abierto, alCerrar }: { abierto: boolean; alC
                   <NavLink to={e.ruta} end onClick={alCerrar} className="group flex items-baseline gap-5 py-4">
                     {({ isActive }) => (
                       <>
-                        <span className="w-6 font-serif text-sm italic text-dorado-hondo">{String(i + 1).padStart(2, '0')}</span>
                         <span
                           className={cx(
                             'font-serif text-[clamp(2rem,9vw,3.25rem)] leading-none transition-transform duration-500 ease-[var(--ease-suave)] group-hover:translate-x-2',
@@ -65,7 +64,7 @@ export default function MenuMovil({ abierto, alCerrar }: { abierto: boolean; alC
                         >
                           {e.nombre}
                         </span>
-                        {isActive && <span className="ml-auto h-2 w-2 self-center rounded-full bg-dorado" aria-hidden />}
+                        {isActive && <span className="ml-auto h-3 w-3 self-center rounded-full bg-dorado" aria-hidden />}
                       </>
                     )}
                   </NavLink>

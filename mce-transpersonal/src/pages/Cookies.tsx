@@ -7,7 +7,8 @@ import TextoCookies from '../components/legal/TextoCookies';
 export default function Cookies() {
   return (
     <Pagina titulo="Política de cookies">
-      <CabeceraPagina etiqueta="Información legal" titulo={['Política de', { texto: 'cookies', cursiva: true }]} />
+      <CabeceraPagina etiqueta="Información legal" titulo={['Política de cookies']}
+        momento={0.2} />
       <div className="marco pb-24 sm:pb-32">
         <div className="filete max-w-3xl border-t pt-4">
           <TextoCookies />

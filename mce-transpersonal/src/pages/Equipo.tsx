@@ -9,8 +9,8 @@ import { disciplinas, equipo } from '../data/equipo';
 import { facilitadoresConSedes } from '../data/sedes';
 import { cx } from '../lib/utilidades';
 
-const coloresDisciplina = ['#ead7a2', '#dde3d3', '#f0d8c9', '#e2d5be'];
-const puntos = ['bg-dorado', 'bg-salvia', 'bg-terracota', 'bg-carbon'];
+const coloresDisciplina = ['#f8dda8', '#cfe3ea', '#f6d3d3', '#e2e6cc'];
+const puntos = ['bg-dorado', 'bg-mar', 'bg-terracota', 'bg-salvia'];
 const listaDisciplinas = `${disciplinas.slice(0, -1).join(', ')} y ${disciplinas[disciplinas.length - 1]}`;
 
 /** Lista de disciplinas: al pasar el ratón, una mancha de color sigue al cursor. */
@@ -59,7 +59,6 @@ function Disciplinas() {
             className="filete group flex items-baseline justify-between gap-6 border-b py-8 sm:py-10"
           >
             <span className="flex items-baseline gap-5 sm:gap-10">
-              <span className="w-8 font-serif text-sm italic text-carbon-suave">{String(i + 1).padStart(2, '0')}</span>
               <span
                 className={cx(
                   'font-serif text-[clamp(2.6rem,7.6vw,7rem)] font-[320] leading-none tracking-[-0.03em] transition-[transform,color] duration-700 ease-[var(--ease-suave)] group-hover:translate-x-4 group-hover:italic',
@@ -116,8 +115,8 @@ export default function Equipo() {
     <Pagina titulo="Equipo">
       <CabeceraPagina
         etiqueta="Equipo"
-        numero="03"
-        titulo={['Quiénes', { texto: 'acompañan', cursiva: true, clase: 'pl-[10vw] text-terracota-honda' }]}
+        momento={0.4}
+        titulo={['Quiénes', { texto: 'acompañan', cursiva: true, clase: 'pl-[10vw]' }]}
         entradilla={<p>{equipo.presentacion ?? `El equipo de MCE reúne cuatro disciplinas: ${listaDisciplinas}.`}</p>}
       />
 
@@ -131,13 +130,13 @@ export default function Equipo() {
         </div>
       </section>
 
-      <section className="overflow-hidden bg-lino py-28 sm:py-36" aria-labelledby="titulo-personas">
+      <section className="overflow-hidden bg-amanecer py-28 sm:py-36" aria-labelledby="titulo-personas">
         <div className="marco flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Etiqueta numero="02">Personas</Etiqueta>
             <Revelar>
               <h2 id="titulo-personas" className="mt-8 max-w-3xl text-[clamp(2.4rem,5vw,4.4rem)] leading-[1.02]">
-                Fundadora y facilitadores <span className="italic text-salvia-honda">en las sedes</span>
+                Fundadora y facilitadores en las sedes
               </h2>
             </Revelar>
           </div>

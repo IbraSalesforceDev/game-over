@@ -15,8 +15,8 @@ export default function Contacto() {
     <Pagina titulo="Contacto">
       <CabeceraPagina
         etiqueta="Contacto"
-        numero="05"
-        titulo={['Habla con', { texto: 'tu sede', cursiva: true, clase: 'pl-[10vw] text-salvia-honda' }]}
+        momento={0.74}
+        titulo={['Habla con', { texto: 'tu sede', cursiva: true, clase: 'pl-[10vw]' }]}
         entradilla={<p>Cada sede tiene su teléfono y sus redes. Si prefieres escribir a la escuela, el formulario está más abajo.</p>}
       />
 
@@ -30,12 +30,12 @@ export default function Contacto() {
       </section>
 
       {/* ── Formulario + panel lateral ───────────────────────────────── */}
-      <section className="bg-lino py-24 sm:py-32" aria-labelledby="titulo-formulario">
+      <section className="bg-mar-claro py-24 sm:py-32" aria-labelledby="titulo-formulario">
         <div className="marco grid gap-16 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
             <Etiqueta numero="02">Escribir a MCE</Etiqueta>
             <h2 id="titulo-formulario" className="mt-8 text-[clamp(2.2rem,4.6vw,3.6rem)]">
-              Cuéntanos <span className="italic">qué necesitas</span>
+              Cuéntanos qué necesitas
             </h2>
             <div className="mt-10">
               <Formulario />
@@ -50,7 +50,7 @@ export default function Contacto() {
                     {animoContacto.linea1}
                     <Subrayado retraso={0.8} />
                   </span>{' '}
-                  <span className="mt-3 block italic text-dorado-hondo">{animoContacto.linea2}</span>
+                  <span className="mt-3 block text-dorado-hondo">{animoContacto.linea2}</span>
                 </p>
 
                 <div className="filete mt-10 border-t pt-8">

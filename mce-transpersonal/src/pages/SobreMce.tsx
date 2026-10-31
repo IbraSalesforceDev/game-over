@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
-import Mecedora from '../components/anim/Mecedora';
 import TextoScroll from '../components/anim/TextoScroll';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
 import { Subrayado } from '../components/anim/Trazo';
@@ -10,8 +9,8 @@ import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
 import { historia, valores } from '../data/textos';
 
-const fondosValor = ['#efe6d6', '#dde3d3', '#f0d8c9', '#ead7a2', '#232c25'];
-const textosValor = ['#2a2622', '#2a2622', '#2a2622', '#2a2622', '#f7f2e9'];
+const fondosValor = ['#f7d9c4', '#cfe3ea', '#e2e6cc', '#f8dda8', '#17203a'];
+const textosValor = ['#1f2433', '#1f2433', '#1f2433', '#1f2433', '#f8f6f1'];
 
 /** Los cinco valores: la sección se fija y cada valor ocupa la pantalla al hacer scroll. */
 function Valores({ frase }: { frase: string }) {
@@ -54,7 +53,7 @@ function Valores({ frase }: { frase: string }) {
         <div className="marco flex items-start justify-between gap-6">
           <div>
             <p className="etiqueta !text-current opacity-70">
-              <span className="mr-3 font-serif italic normal-case tracking-normal">02</span> Lo que nos sostiene
+              Lo que nos sostiene
             </p>
             <h2 id="titulo-valores" className="sr-only">
               Valores: {valores.join(', ')}
@@ -122,10 +121,9 @@ export default function SobreMce() {
     <Pagina titulo="Sobre MCE">
       <CabeceraPagina
         etiqueta="Sobre MCE"
-        numero="01"
-        titulo={['Es hogar.', { texto: 'Es llegar a casa.', cursiva: true, clase: 'pl-[8vw] text-dorado-hondo' }]}
+        titulo={['Es hogar.', { texto: 'Es llegar a casa.', cursiva: true, clase: 'pl-[8vw]' }]}
         entradilla={<p>{historia.titulo}</p>}
-        lateral={<Mecedora className="ml-auto hidden w-full max-w-[18rem] text-carbon lg:block" />}
+        momento={0.05}
       />
 
       {/* ── Historia ─────────────────────────────────────────────────── */}
@@ -162,8 +160,7 @@ export default function SobreMce() {
       <section className="marco py-28 sm:py-36" aria-label="La propuesta de MCE">
         <Escalonado className="grid gap-12 md:grid-cols-3" como="div">
           {resto.map((p, i) => (
-            <motion.div key={i} variants={hijoEscalonado} className="filete border-t pt-6">
-              <span className="mb-5 block font-serif text-sm italic text-dorado-hondo">{String(i + 1).padStart(2, '0')}</span>
+            <motion.div key={i} variants={hijoEscalonado} className={['border-t-[3px] pt-6', ['border-dorado', 'border-terracota', 'border-mar'][i % 3]].join(' ')}>
               <p className="text-[1.1rem] leading-[1.85] text-carbon-suave">{p}</p>
             </motion.div>
           ))}
@@ -171,11 +168,11 @@ export default function SobreMce() {
       </section>
 
       {/* ── Betty ────────────────────────────────────────────────────── */}
-      <section className="bg-lino py-28 sm:py-36" aria-labelledby="titulo-ir-betty">
+      <section className="bg-mar-claro py-28 sm:py-36" aria-labelledby="titulo-ir-betty">
         <Revelar className="marco flex flex-col items-start gap-10 lg:flex-row lg:items-end lg:justify-between">
           <h2 id="titulo-ir-betty" className="max-w-3xl text-[clamp(2.4rem,5.4vw,4.6rem)] leading-[1.02]">
             El proyecto MCE nace de la mano de{' '}
-            <span className="relative inline-block italic text-terracota-honda">
+            <span className="relative inline-block">
               Betty Merino
               <Subrayado />
             </span>

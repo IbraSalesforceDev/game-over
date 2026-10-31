@@ -20,9 +20,9 @@ export default function Sedes() {
     <Pagina titulo="Sedes">
       <CabeceraPagina
         etiqueta="Sedes"
-        numero="04"
-        titulo={['No tengas miedo', { texto: 'de hablarles.', cursiva: true, clase: 'pl-[8vw] text-dorado-hondo' }]}
-        entradilla={<p className="font-serif text-[1.45em] italic text-carbon">{animoContacto.linea2}</p>}
+        momento={0.58}
+        titulo={['No tengas miedo', { texto: 'de hablarles.', cursiva: true, clase: 'pl-[8vw]' }]}
+        entradilla={<p className="font-serif text-[1.45em] text-carbon">{animoContacto.linea2}</p>}
       />
 
       <section id="listado" className="marco pb-24 sm:pb-32" aria-label="Listado de sedes">
@@ -32,7 +32,7 @@ export default function Sedes() {
         <ListadoSedes activa={activa} />
       </section>
 
-      <section className="bg-lino py-24 sm:py-32" aria-label="Elige tu comunidad autónoma">
+      <section className="bg-amanecer py-24 sm:py-32" aria-label="Elige tu comunidad autónoma">
         <div className="marco">
           <ElegirComunidad
             alElegir={(c) => {

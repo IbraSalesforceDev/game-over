@@ -129,18 +129,19 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 
 ## Notas de diseño y accesibilidad
 
-- **Paleta:** marfil y lino de base, dorado para lo importante, salvia y terracota como acentos y
-  verde bosque (`bosque`) para las secciones oscuras. Todo en `src/index.css` (`@theme`).
-- **Tipografías** (Fraunces y DM Sans) incluidas en el proyecto: no se conecta a Google Fonts.
-- **Movimiento:** intro la primera vez por sesión (`Intro.tsx`), scroll suave con Lenis
-  (`lib/scroll.ts`), cortina curva entre páginas con el nombre del destino (`Pagina.tsx`), titulares
-  por palabras, textos que se iluminan con el scroll (`TextoScroll.tsx`), marquesina de valores,
-  cifras animadas calculadas de los datos (`Contador.tsx`), sección horizontal (`Horizontal.tsx`),
-  valores a pantalla completa (Sobre MCE), tarjetas apiladas (Formaciones), tira de retratos
-  arrastrable (Equipo), botones magnéticos y cursor propio en ordenador (`Cursor.tsx`).
-- **Accesibilidad:** foco visible, contraste AA (el dorado de los textos es `dorado-hondo`).
-  Con `prefers-reduced-motion` no hay intro, ni scroll suave, ni cortina, ni cursor, ni secciones
-  fijadas: el contenido se muestra en listas normales con fundidos cortos.
+- **Concepto:** «llegar a casa al atardecer». La pieza central es una ventana en arco que da al mar,
+  con la mecedora dentro (`components/anim/Ventana.tsx`, dibujada en código). En la portada el sol
+  se pone mientras haces scroll; en cada página interior la ventana está a una hora distinta.
+- **Paleta mediterránea** (`src/index.css`, `@theme`): cal `#F8F6F1` de fondo, tinta azul noche
+  `#1F2433`, azafrán `#E9A23B` para lo que se pulsa, y granada, mar, olivo y noche como colores de
+  bloque. Los nombres de las variables son los de la versión anterior (`dorado` = azafrán, etc.).
+- **Tipografías:** Young Serif (titulares) y Figtree (texto), incluidas en el proyecto.
+- **Detalles:** franja de azulejo (`Azulejo.tsx`), cifras reales en arcos de colores, cielo estrellado
+  en «Miles de personas», valores a pantalla completa, tarjetas apiladas, tira de retratos arrastrable.
+- **Movimiento:** intro una vez por sesión, scroll suave (Lenis) y cortina entre páginas. Los
+  botones y menús usan transiciones de 200–300 ms.
+- **Accesibilidad:** foco visible, contraste AA (los textos dorados usan `dorado-hondo`). Con
+  `prefers-reduced-motion` no hay intro, ni scroll suave, ni cortina, ni secciones fijadas.
 - Las políticas de privacidad y cookies son **plantillas**: deben revisarlas un profesional.
 
 ## Pendientes (`TODO`)

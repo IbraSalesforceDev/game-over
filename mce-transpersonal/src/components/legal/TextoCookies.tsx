@@ -34,7 +34,7 @@ export default function TextoCookies() {
       <h2>3. Servicios de terceros</h2>
       <ul>
         <li>
-          <strong>Tipografías:</strong> las fuentes de la web (Fraunces y DM Sans) están alojadas en el mismo servidor que la web. No se
+          <strong>Tipografías:</strong> las fuentes de la web (Young Serif y Figtree) están alojadas en el mismo servidor que la web. No se
           descargan de Google Fonts ni de otro proveedor, así que tu navegador no se conecta a terceros por este motivo.
         </li>
         <li>

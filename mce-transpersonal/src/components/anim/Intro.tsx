@@ -32,7 +32,7 @@ export default function Intro() {
       {visible && (
         <motion.div
           aria-hidden
-          className="fixed inset-0 z-[95] flex flex-col items-center justify-center bg-marfil"
+          className="fixed inset-0 z-[95] flex flex-col items-center justify-center bg-dorado-claro"
           exit={{
             y: '-101%',
             borderBottomLeftRadius: '50% 20vh',
@@ -42,7 +42,7 @@ export default function Intro() {
         >
           <motion.div exit={{ y: -60, opacity: 0, transition: { duration: 0.5 } }} className="flex flex-col items-center">
             <Mecedora className="w-40 text-carbon sm:w-48" mecer={false} />
-            <div className="mt-6 flex gap-4 font-serif text-[1.35rem] italic text-carbon-suave sm:gap-6 sm:text-[1.6rem]">
+            <div className="mt-6 flex gap-2 font-serif text-[1.45rem] text-carbon sm:gap-3 sm:text-[1.8rem]">
               {palabras.map((p, i) => (
                 <span key={p} className="overflow-hidden">
                   <motion.span
@@ -52,7 +52,8 @@ export default function Intro() {
                     transition={{ duration: 0.8, delay: 0.55 + i * 0.22, ease: [0.22, 1, 0.36, 1] }}
                   >
                     {p}
-                    {i < palabras.length - 1 && <span className="ml-4 text-dorado sm:ml-6">·</span>}
+                    {i === 0 ? ',' : ''}
+                    {i === 1 ? ' y' : ''}
                   </motion.span>
                 </span>
               ))}

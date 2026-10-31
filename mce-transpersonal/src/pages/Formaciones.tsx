@@ -3,17 +3,16 @@ import { Link } from 'react-router';
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
-import { Circulo } from '../components/anim/Trazo';
 import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import { bloques, type Bloque, type Formacion } from '../data/formaciones';
 import { cx, useEsGrande } from '../lib/utilidades';
 
 const estilosTarjeta = [
-  { fondo: 'bg-lino', texto: 'text-carbon', boton: 'secundario' as const },
-  { fondo: 'bg-salvia-clara', texto: 'text-carbon', boton: 'secundario' as const },
-  { fondo: 'bg-terracota-clara', texto: 'text-carbon', boton: 'secundario' as const },
-  { fondo: 'bg-bosque', texto: 'text-marfil', boton: 'claro' as const },
+  { fondo: 'bg-amanecer', texto: 'text-carbon', boton: 'principal' as const },
+  { fondo: 'bg-mar-claro', texto: 'text-carbon', boton: 'principal' as const },
+  { fondo: 'bg-salvia-clara', texto: 'text-carbon', boton: 'principal' as const },
+  { fondo: 'bg-bosque', texto: 'text-marfil', boton: 'principal' as const },
 ];
 
 /** Detalles de una formación: solo se pintan los campos que tienen datos. */
@@ -112,9 +111,7 @@ function Tarjeta({
         )}
         aria-labelledby={`t-${bloque.id}`}
       >
-        <span aria-hidden className="contorno pointer-events-none absolute -right-4 -top-10 select-none font-serif text-[clamp(10rem,24vw,20rem)] font-light leading-none opacity-[0.18]">
-          {String(indice + 1).padStart(2, '0')}
-        </span>
+        <span aria-hidden className="pointer-events-none absolute -right-16 -top-10 h-[22rem] w-[18rem] rounded-t-[999px] border-[3px] border-current opacity-[0.12] sm:-right-10" />
         <div className="relative flex h-full flex-col">
           <p className="etiqueta !text-current opacity-70">{esIET ? 'Formación por niveles' : 'Formación'}</p>
           <h2 id={`t-${bloque.id}`} className="mt-6 max-w-4xl text-[clamp(2.6rem,6.4vw,5.6rem)] font-[330] leading-[0.98] tracking-[-0.025em]">
@@ -156,16 +153,14 @@ export default function Formaciones() {
     <Pagina titulo="Formaciones">
       <CabeceraPagina
         etiqueta="Formaciones"
-        numero="02"
-        titulo={['Aprender', { texto: 'desde el corazón', cursiva: true, clase: 'pl-[6vw] text-salvia-honda' }]}
+        titulo={['Aprender', { texto: 'desde el corazón', cursiva: true, clase: 'pl-[6vw]' }]}
         lateral={
-          <nav aria-label="En esta página" className="rounded-[1.5rem] bg-marfil/70 p-6 backdrop-blur-sm">
+          <nav aria-label="En esta página" className="rounded-[1.5rem] border border-carbon/10 bg-lino p-6">
             <p className="etiqueta mb-4">En esta página</p>
             <ol className="filete divide-y divide-carbon/15 border-y">
-              {bloques.map((b, i) => (
+              {bloques.map((b) => (
                 <li key={b.id}>
                   <Link to={`#${b.id}`} className="group flex items-baseline gap-4 py-3 text-[0.98rem]">
-                    <span className="font-serif text-xs italic text-dorado-hondo">{String(i + 1).padStart(2, '0')}</span>
                     <span className="enlace-linea">{b.titulo}</span>
                   </Link>
                 </li>
@@ -186,11 +181,7 @@ export default function Formaciones() {
       <section className="marco py-28 sm:py-36" aria-label="Personas formadas">
         <Revelar className="grid gap-12 lg:grid-cols-12 lg:items-end">
           <p className="font-serif text-[clamp(2.6rem,6.4vw,5.6rem)] font-[320] leading-[1] tracking-[-0.025em] lg:col-span-8">
-            <span className="relative inline-block italic text-terracota-honda">
-              Miles
-              <Circulo />
-            </span>{' '}
-            de personas ya se han formado con MCE.
+            Miles de personas ya se han formado con MCE.
           </p>
           <div className="space-y-6 text-carbon-suave lg:col-span-4">
             <p className="text-[1.05rem]">Fechas, duración y precios de cada formación: pregunta en tu sede.</p>

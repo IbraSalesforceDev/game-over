@@ -9,7 +9,7 @@ import Retrato from '../ui/Retrato';
  * Ficha de una sede, separada por filetes finos (sin cajas).
  * `compacta`: versión para Contacto, sin retratos.
  */
-export default function FichaSede({ sede, numero, compacta = false }: { sede: Sede; numero: number; compacta?: boolean }) {
+export default function FichaSede({ sede, compacta = false }: { sede: Sede; numero?: number; compacta?: boolean }) {
   const tieneRedes = sede.instagram || sede.facebook;
 
   return (
@@ -27,7 +27,6 @@ export default function FichaSede({ sede, numero, compacta = false }: { sede: Se
       />
 
       <header className="relative md:col-span-4">
-        <span className="font-serif text-sm italic text-dorado-hondo">{String(numero).padStart(2, '0')}</span>
         <h3
           id={`sede-${sede.id}`}
           className={cx(

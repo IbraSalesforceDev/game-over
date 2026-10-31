@@ -83,7 +83,8 @@ export function ListadoSedes({ activa, compacta = false }: { activa: ComunidadId
             className="pt-12 first:pt-6"
           >
             <div className="flex items-baseline justify-between gap-6 pb-2">
-              <h2 id={`grupo-${c.id}`} className="font-serif text-[1.1rem] italic text-salvia-honda">
+              <h2 id={`grupo-${c.id}`} className="flex items-center gap-3 font-sans text-[1rem] font-semibold text-mar">
+                <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-mar" />
                 {c.nombre}
               </h2>
               <span className="text-sm tabular-nums text-carbon-suave">

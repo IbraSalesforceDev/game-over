@@ -4,10 +4,10 @@ import { BrowserRouter, HashRouter } from 'react-router';
 
 // Tipografías incluidas en el proyecto: no se pide nada a Google Fonts ni a
 // ningún tercero (importante para la política de privacidad).
-import '@fontsource-variable/fraunces/opsz.css';
-// Cursiva "full": incluye el eje WONK, que se desactiva en index.css para un aire más clásico.
-import '@fontsource-variable/fraunces/full-italic.css';
-import '@fontsource-variable/dm-sans/index.css';
+// Young Serif (titulares) y Figtree (texto). Solo subconjuntos latinos.
+import '@fontsource/young-serif/latin-400.css';
+import '@fontsource/young-serif/latin-ext-400.css';
+import '@fontsource-variable/figtree/index.css';
 import './index.css';
 
 import App from './App';

@@ -1,20 +1,24 @@
-import { motion } from 'framer-motion';
 import { cx } from '../../lib/utilidades';
 
-/** Numeración editorial: "01 — La escuela", con un filete que se extiende. */
-export default function Etiqueta({ numero, children, className }: { numero?: string; children: string; className?: string }) {
+/**
+ * Rótulo de sección: texto pequeño en minúscula normal con un punto de color.
+ * (`numero` se acepta por compatibilidad pero no se muestra: solo se numeran
+ * las cosas que de verdad son una secuencia.)
+ */
+export default function Etiqueta({
+  children,
+  className,
+  color = 'bg-dorado',
+}: {
+  numero?: string;
+  children: string;
+  className?: string;
+  color?: string;
+}) {
   return (
-    <div className={cx('etiqueta flex items-center gap-4', className)}>
-      {numero && <span className="font-serif text-[0.95rem] tracking-normal text-dorado-hondo normal-case italic">{numero}</span>}
-      <motion.span
-        aria-hidden
-        className="h-px w-10 origin-left bg-current opacity-40"
-        initial={{ scaleX: 0 }}
-        whileInView={{ scaleX: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-      />
-      <span>{children}</span>
-    </div>
+    <p className={cx('etiqueta flex items-center gap-3', className)}>
+      <span aria-hidden className={cx('h-2.5 w-2.5 rounded-full', color)} />
+      {children}
+    </p>
   );
 }

@@ -8,7 +8,7 @@ type Variante = 'principal' | 'secundario' | 'claro' | 'texto';
 
 const estilos: Record<Variante, string> = {
   principal: 'bg-dorado text-carbon px-7 py-3.5 rounded-full',
-  secundario: 'border border-carbon/25 text-carbon px-7 py-3.5 rounded-full',
+  secundario: 'border border-carbon/30 text-carbon px-7 py-3.5 rounded-full hover:border-dorado',
   claro: 'border border-marfil/30 text-marfil px-7 py-3.5 rounded-full',
   texto: 'text-carbon py-1',
 };
@@ -16,20 +16,20 @@ const estilos: Record<Variante, string> = {
 /** Color del relleno que sube al pasar el ratón. */
 const relleno: Record<Variante, string> = {
   principal: 'bg-carbon',
-  secundario: 'bg-carbon',
+  secundario: 'bg-dorado',
   claro: 'bg-marfil',
   texto: 'bg-transparent',
 };
 const textoHover: Record<Variante, string> = {
   principal: 'group-hover:text-marfil',
-  secundario: 'group-hover:text-marfil',
+  secundario: 'group-hover:text-carbon',
   claro: 'group-hover:text-carbon',
   texto: '',
 };
 
 export function clasesBoton(variante: Variante = 'principal', className?: string) {
   return cx(
-    'group relative isolate inline-flex items-center gap-3 overflow-hidden text-[0.95rem] font-medium tracking-[0.01em] transition-[color,border-color,transform] duration-500 ease-[var(--ease-suave)] active:scale-[0.97]',
+    'group relative isolate inline-flex items-center gap-3 overflow-hidden text-[0.95rem] font-medium tracking-[0.01em] transition-[color,border-color,transform] duration-300 ease-[var(--ease-suave)] active:scale-[0.97]',
     estilos[variante],
     className,
   );
@@ -42,7 +42,7 @@ export function RellenoBoton({ variante = 'principal' }: { variante?: Variante }
     <span
       aria-hidden
       className={cx(
-        'absolute left-1/2 top-full -z-10 aspect-square w-[160%] -translate-x-1/2 rounded-full transition-transform duration-[650ms] ease-[var(--ease-suave)] group-hover:-translate-y-[62%]',
+        'absolute left-1/2 top-full -z-10 aspect-square w-[160%] -translate-x-1/2 rounded-full transition-transform duration-300 ease-[var(--ease-suave)] group-hover:-translate-y-[62%]',
         relleno[variante],
       )}
     />
@@ -53,9 +53,9 @@ function Contenido({ children, flecha, variante }: { children: ReactNode; flecha
   return (
     <>
       <RellenoBoton variante={variante} />
-      <span className={cx('relative transition-colors duration-500', textoHover[variante])}>{children}</span>
+      <span className={cx('relative transition-colors duration-300', textoHover[variante])}>{children}</span>
       {flecha && (
-        <span className={cx('relative overflow-hidden transition-colors duration-500', textoHover[variante])}>
+        <span className={cx('relative overflow-hidden transition-colors duration-300', textoHover[variante])}>
           <FlechaMano className="block transition-transform duration-500 ease-[var(--ease-suave)] group-hover:translate-x-[180%]" />
           <FlechaMano className="absolute left-0 top-0 block -translate-x-[180%] transition-transform duration-500 ease-[var(--ease-suave)] group-hover:translate-x-0" />
         </span>
@@ -69,7 +69,7 @@ export function BotonEnlace({
   a,
   children,
   variante = 'principal',
-  flecha = true,
+  flecha = false,
   className,
 }: {
   a: string;
