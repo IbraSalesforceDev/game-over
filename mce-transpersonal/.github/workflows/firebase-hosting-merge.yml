@@ -1,0 +1,36 @@
+# Publica en Firebase Hosting (canal "live") cada vez que se sube algo a `main`.
+# Solo hace falta si se usa Firebase en lugar de Vercel. Ver README.
+#
+# IMPORTANTE: GitHub solo ejecuta los workflows que están en la carpeta
+# `.github/workflows` de la RAÍZ del repositorio. Si este proyecto vive dentro
+# de una subcarpeta, mueve esta carpeta `.github` a la raíz y descomenta
+# `working-directory` / `entryPoint`.
+name: Publicar en Firebase Hosting (producción)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    # defaults:
+    #   run:
+    #     working-directory: mce-transpersonal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_FORMSPREE_ENDPOINT: ${{ vars.VITE_FORMSPREE_ENDPOINT }}
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          # TODO: el nombre exacto del secreto lo crea `firebase init hosting:github`.
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          # entryPoint: mce-transpersonal

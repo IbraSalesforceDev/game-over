@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.vercel/
+.firebase/
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+firebase-debug.log*
+
+# Generados por `npm run fotos` (se regeneran en cada dev/build)
+public/images/_opt/
+src/data/fotos.generated.json

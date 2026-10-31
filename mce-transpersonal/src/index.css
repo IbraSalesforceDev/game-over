@@ -1,0 +1,248 @@
+@import 'tailwindcss';
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Sistema de diseño MCE
+   Clásico, cálido y sobrio. Marfil de base, dorado para lo importante,
+   salvia y terracota con moderación. Texto en carbón cálido, nunca negro.
+   (Ajustar el dorado cuando llegue el logo.)
+   ─────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-marfil: #faf6ee;
+  --color-lino: #f3ecdf;
+  --color-arena: #e6dbc6;
+  --color-carbon: #2e2a26;
+  --color-carbon-suave: #5b544c;
+  --color-dorado: #c9a23f;
+  --color-dorado-claro: #ead9a6;
+  /* Variante oscura del dorado para textos: cumple contraste AA sobre marfil */
+  --color-dorado-hondo: #7a5c14;
+  --color-salvia: #8a9a7b;
+  --color-salvia-clara: #dfe4d6;
+  --color-salvia-honda: #4f5e45;
+  --color-terracota: #c27b5e;
+  --color-terracota-clara: #f1dccf;
+  --color-terracota-honda: #93492d;
+
+  --font-serif: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --ease-suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-cortina: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scroll-padding-top: 6rem;
+  }
+
+  body {
+    background-color: var(--color-marfil);
+    color: var(--color-carbon);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    /* Sin letras "wonky" en la cursiva de Fraunces: más clásico */
+    font-variation-settings: 'WONK' 0;
+  }
+
+  /* Textura de papel muy sutil: le quita el aspecto "plano digital". */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .18 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 380;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-dorado-claro);
+    color: var(--color-carbon);
+  }
+
+  /* Foco visible y coherente en toda la web */
+  :focus-visible {
+    outline: 2px solid var(--color-dorado-hondo);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* Contenedor editorial: márgenes generosos, 16px en móvil */
+  .marco {
+    width: 100%;
+    max-width: 84rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .marco {
+      padding-inline: 2rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .marco {
+      padding-inline: 3.5rem;
+    }
+  }
+
+  /* Etiqueta editorial: "01 — La escuela" */
+  .etiqueta {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-carbon-suave);
+  }
+
+  /* Filete fino */
+  .filete {
+    border-color: color-mix(in srgb, var(--color-carbon) 16%, transparent);
+  }
+
+  /* Enlace con subrayado que se dibuja al pasar */
+  .enlace-linea {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.45s var(--ease-suave);
+    padding-bottom: 2px;
+  }
+  .enlace-linea:hover,
+  .enlace-linea:focus-visible {
+    background-size: 100% 1px;
+  }
+
+  /* Enlace subrayado permanente (dentro de textos) */
+  .enlace-texto {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--color-dorado);
+    transition: text-decoration-color 0.3s;
+  }
+  .enlace-texto:hover {
+    text-decoration-color: currentColor;
+  }
+
+  /* Texto legal */
+  .prosa-legal h2 {
+    font-size: 1.6rem;
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+  }
+  .prosa-legal h3 {
+    font-size: 1.2rem;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  .prosa-legal p,
+  .prosa-legal ul {
+    margin-bottom: 1rem;
+    color: var(--color-carbon-suave);
+  }
+  .prosa-legal ul {
+    list-style: none;
+    padding-left: 0;
+  }
+  .prosa-legal li {
+    position: relative;
+    padding-left: 1.25rem;
+    margin-bottom: 0.4rem;
+  }
+  .prosa-legal li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.8em;
+    width: 0.6rem;
+    height: 1px;
+    background: var(--color-dorado);
+  }
+  .prosa-legal strong {
+    color: var(--color-carbon);
+    font-weight: 600;
+  }
+}
+
+/* Zoom lento para imágenes de cabecera */
+@keyframes zoom-lento {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.zoom-lento {
+  animation: zoom-lento 14s var(--ease-suave) both;
+}
+
+/* Vaivén de la mecedora */
+@keyframes mecer {
+  0%,
+  100% {
+    transform: rotate(-1.6deg);
+  }
+  50% {
+    transform: rotate(1.6deg);
+  }
+}
+.mecer {
+  transform-box: view-box;
+  transform-origin: 50% 92%;
+  animation: mecer 5.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .zoom-lento,
+  .mecer {
+    animation: none !important;
+  }
+}

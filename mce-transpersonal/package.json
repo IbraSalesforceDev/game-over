@@ -1,0 +1,38 @@
+{
+  "name": "mce-transpersonal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Web de MCE Transpersonal (Mente, Cuerpo y Espíritu)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "fotos": "node scripts/fotos.mjs",
+    "predev": "node scripts/fotos.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/fotos.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "framer-motion": "^14.9.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^7.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.5"
+  }
+}

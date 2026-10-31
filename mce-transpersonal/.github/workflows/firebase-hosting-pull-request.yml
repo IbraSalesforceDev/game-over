@@ -1,0 +1,35 @@
+# En cada pull request publica una versión de prueba en un canal temporal de
+# Firebase Hosting y deja la URL como comentario. Ver README.
+#
+# IMPORTANTE: igual que el otro workflow, solo funciona desde la raíz del repo.
+name: Previsualización en Firebase Hosting
+
+on: pull_request
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  build_and_preview:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    # defaults:
+    #   run:
+    #     working-directory: mce-transpersonal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_FORMSPREE_ENDPOINT: ${{ vars.VITE_FORMSPREE_ENDPOINT }}
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # entryPoint: mce-transpersonal
