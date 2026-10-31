@@ -1,14 +1,15 @@
 import type { ElementType, ReactNode } from 'react';
 import { motion, type Variants } from 'framer-motion';
+import { useRetrasoPagina } from './Pagina';
 
 const suave = [0.22, 1, 0.36, 1] as const;
 
-/** Aparece con un fundido y un desplazamiento corto al entrar en pantalla. */
+/** Aparece con fundido, desplazamiento corto y un leve desenfoque al entrar en pantalla. */
 export function Revelar({
   children,
   className,
   retraso = 0,
-  y = 22,
+  y = 34,
   como = 'div',
 }: {
   children: ReactNode;
@@ -17,28 +18,24 @@ export function Revelar({
   y?: number;
   como?: 'div' | 'section' | 'li' | 'p' | 'span' | 'article' | 'header' | 'figure' | 'aside';
 }) {
+  const { vivo } = useRetrasoPagina();
   const Componente = motion[como] as ElementType;
   return (
     <Componente
       className={className}
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y, filter: 'blur(6px)' }}
+      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
       viewport={{ once: true, margin: '0px 0px -12% 0px' }}
-      transition={{ duration: 0.9, ease: suave, delay: retraso }}
+      transition={{ duration: 1.05, ease: suave, delay: retraso + vivo }}
     >
       {children}
     </Componente>
   );
 }
 
-const contenedor: Variants = {
-  oculto: {},
-  visible: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
-};
-
 export const hijoEscalonado: Variants = {
-  oculto: { opacity: 0, y: 18 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: suave } },
+  oculto: { opacity: 0, y: 26, filter: 'blur(5px)' },
+  visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.9, ease: suave }, transitionEnd: { filter: 'none' } },
 };
 
 /** Lista con aparición escalonada. Los hijos deben usar `variants={hijoEscalonado}`. */
@@ -46,16 +43,19 @@ export function Escalonado({
   children,
   className,
   como = 'ul',
+  paso = 0.09,
 }: {
   children: ReactNode;
   className?: string;
   como?: 'ul' | 'ol' | 'div' | 'dl';
+  paso?: number;
 }) {
+  const { vivo } = useRetrasoPagina();
   const Componente = motion[como] as ElementType;
   return (
     <Componente
       className={className}
-      variants={contenedor}
+      variants={{ oculto: {}, visible: { transition: { staggerChildren: paso, delayChildren: 0.05 + vivo } } }}
       initial="oculto"
       whileInView="visible"
       viewport={{ once: true, margin: '0px 0px -10% 0px' }}

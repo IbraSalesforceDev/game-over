@@ -129,10 +129,18 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 
 ## Notas de diseño y accesibilidad
 
-- Tipografías (Fraunces y DM Sans) incluidas en el proyecto: no se conecta a Google Fonts.
-- Foco visible en todos los elementos, contraste AA (el dorado de los textos es `dorado-hondo`).
-- Con `prefers-reduced-motion` se desactivan la cortina entre páginas, el vaivén de la mecedora,
-  el parallax y los desplazamientos; solo quedan fundidos cortos.
+- **Paleta:** marfil y lino de base, dorado para lo importante, salvia y terracota como acentos y
+  verde bosque (`bosque`) para las secciones oscuras. Todo en `src/index.css` (`@theme`).
+- **Tipografías** (Fraunces y DM Sans) incluidas en el proyecto: no se conecta a Google Fonts.
+- **Movimiento:** intro la primera vez por sesión (`Intro.tsx`), scroll suave con Lenis
+  (`lib/scroll.ts`), cortina curva entre páginas con el nombre del destino (`Pagina.tsx`), titulares
+  por palabras, textos que se iluminan con el scroll (`TextoScroll.tsx`), marquesina de valores,
+  cifras animadas calculadas de los datos (`Contador.tsx`), sección horizontal (`Horizontal.tsx`),
+  valores a pantalla completa (Sobre MCE), tarjetas apiladas (Formaciones), tira de retratos
+  arrastrable (Equipo), botones magnéticos y cursor propio en ordenador (`Cursor.tsx`).
+- **Accesibilidad:** foco visible, contraste AA (el dorado de los textos es `dorado-hondo`).
+  Con `prefers-reduced-motion` no hay intro, ni scroll suave, ni cortina, ni cursor, ni secciones
+  fijadas: el contenido se muestra en listas normales con fundidos cortos.
 - Las políticas de privacidad y cookies son **plantillas**: deben revisarlas un profesional.
 
 ## Pendientes (`TODO`)

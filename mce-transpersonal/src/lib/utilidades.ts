@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { escuela } from '../data/escuela';
+import { irA } from './scroll';
 
 /** Título de la pestaña por página. */
 export function useTitulo(titulo?: string) {
@@ -33,14 +34,27 @@ export function irAlAncla(hash: string, suave = true) {
   const buscar = () => {
     const el = document.getElementById(id);
     if (el) {
-      el.scrollIntoView({ behavior: suave && !prefiereMenosMovimiento() ? 'smooth' : 'auto', block: 'start' });
-      if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+      irA(el, { inmediato: !suave });
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
       el.focus({ preventScroll: true });
       return;
     }
-    if (intentos++ < 20) requestAnimationFrame(buscar);
+    if (intentos++ < 30) requestAnimationFrame(buscar);
   };
   requestAnimationFrame(buscar);
 }
 
 export const cx = (...clases: (string | false | null | undefined)[]) => clases.filter(Boolean).join(' ');
+
+/** true en pantallas grandes (≥ 1024 px). Se actualiza al cambiar el tamaño. */
+export function useEsGrande(): boolean {
+  const consulta = '(min-width: 1024px)';
+  const [grande, setGrande] = useState(() => typeof window !== 'undefined' && window.matchMedia(consulta).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(consulta);
+    const cambiar = () => setGrande(mq.matches);
+    mq.addEventListener('change', cambiar);
+    return () => mq.removeEventListener('change', cambiar);
+  }, []);
+  return grande;
+}

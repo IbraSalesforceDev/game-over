@@ -5,7 +5,7 @@ import { bloques } from '../../data/formaciones';
 import { sedes } from '../../data/sedes';
 import { useConsentimiento } from '../../lib/consentimiento';
 import { cx } from '../../lib/utilidades';
-import { clasesBoton } from '../ui/Boton';
+import { clasesBoton, RellenoBoton } from '../ui/Boton';
 import { FlechaMano } from '../anim/Trazo';
 
 type Estado = 'inicial' | 'enviando' | 'enviado' | 'error' | 'sin-configurar';
@@ -202,8 +202,9 @@ export default function Formulario() {
 
             <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center">
               <button type="submit" disabled={estado === 'enviando'} className={clasesBoton('principal', 'justify-center')}>
-                <span>{estado === 'enviando' ? 'Enviando…' : 'Enviar mensaje'}</span>
-                <FlechaMano className="transition-transform duration-500 group-hover:translate-x-1.5" />
+                <RellenoBoton />
+                <span className="relative transition-colors duration-500 group-hover:text-marfil">{estado === 'enviando' ? 'Enviando…' : 'Enviar mensaje'}</span>
+                <FlechaMano className="relative transition-[transform,color] duration-500 group-hover:translate-x-1.5 group-hover:text-marfil" />
               </button>
               <div aria-live="polite" className="text-sm">
                 {estado === 'error' && (

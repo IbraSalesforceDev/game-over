@@ -15,7 +15,8 @@ export default function Contacto() {
     <Pagina titulo="Contacto">
       <CabeceraPagina
         etiqueta="Contacto"
-        titulo={['Habla con', { texto: 'tu sede', cursiva: true }]}
+        numero="05"
+        titulo={['Habla con', { texto: 'tu sede', cursiva: true, clase: 'pl-[10vw] text-salvia-honda' }]}
         entradilla={<p>Cada sede tiene su teléfono y sus redes. Si prefieres escribir a la escuela, el formulario está más abajo.</p>}
       />
 
@@ -43,7 +44,7 @@ export default function Contacto() {
 
           <aside className="lg:col-span-4 lg:col-start-9">
             <div className="lg:sticky lg:top-32">
-              <Revelar className="rounded-2xl bg-marfil p-8 sm:p-10">
+              <Revelar className="rounded-[1.75rem] bg-marfil p-8 shadow-[0_30px_60px_-40px_rgba(42,38,34,0.4)] sm:p-10">
                 <p className="font-serif text-[clamp(1.8rem,3vw,2.4rem)] font-light leading-[1.15]">
                   <span className="relative inline-block">
                     {animoContacto.linea1}

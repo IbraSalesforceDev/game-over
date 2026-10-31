@@ -1,27 +1,30 @@
 @import 'tailwindcss';
+@import 'lenis/dist/lenis.css';
 
 /* ───────────────────────────────────────────────────────────────────────────
-   Sistema de diseño MCE
-   Clásico, cálido y sobrio. Marfil de base, dorado para lo importante,
-   salvia y terracota con moderación. Texto en carbón cálido, nunca negro.
+   Sistema de diseño MCE · v2
+   Cálido y clásico, con más profundidad: marfil y lino de base, dorado para
+   lo importante, salvia y terracota como acentos, y un verde bosque profundo
+   para las secciones oscuras. Texto en carbón cálido, nunca negro.
    (Ajustar el dorado cuando llegue el logo.)
    ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-marfil: #faf6ee;
-  --color-lino: #f3ecdf;
-  --color-arena: #e6dbc6;
-  --color-carbon: #2e2a26;
-  --color-carbon-suave: #5b544c;
-  --color-dorado: #c9a23f;
-  --color-dorado-claro: #ead9a6;
-  /* Variante oscura del dorado para textos: cumple contraste AA sobre marfil */
-  --color-dorado-hondo: #7a5c14;
-  --color-salvia: #8a9a7b;
-  --color-salvia-clara: #dfe4d6;
-  --color-salvia-honda: #4f5e45;
-  --color-terracota: #c27b5e;
-  --color-terracota-clara: #f1dccf;
-  --color-terracota-honda: #93492d;
+  --color-marfil: #f7f2e9;
+  --color-lino: #efe6d6;
+  --color-arena: #e2d5be;
+  --color-carbon: #2a2622;
+  --color-carbon-suave: #5a524a;
+  --color-dorado: #c29a3e;
+  --color-dorado-claro: #ead7a2;
+  /* Variante oscura del dorado para textos: contraste AA sobre marfil */
+  --color-dorado-hondo: #7a5a14;
+  --color-salvia: #8e9f82;
+  --color-salvia-clara: #dde3d3;
+  --color-salvia-honda: #44523c;
+  --color-bosque: #232c25;
+  --color-terracota: #c47a5a;
+  --color-terracota-clara: #f0d8c9;
+  --color-terracota-honda: #8f4529;
 
   --font-serif: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -35,6 +38,7 @@
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
     scroll-padding-top: 6rem;
+    background-color: var(--color-carbon);
   }
 
   body {
@@ -45,7 +49,7 @@
     line-height: 1.7;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    overflow-x: clip;
     /* Sin letras "wonky" en la cursiva de Fraunces: más clásico */
     font-variation-settings: 'WONK' 0;
   }
@@ -57,7 +61,7 @@
     inset: 0;
     z-index: 60;
     pointer-events: none;
-    opacity: 0.05;
+    opacity: 0.055;
     mix-blend-mode: multiply;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .18 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
@@ -82,7 +86,6 @@
     color: var(--color-carbon);
   }
 
-  /* Foco visible y coherente en toda la web */
   :focus-visible {
     outline: 2px solid var(--color-dorado-hondo);
     outline-offset: 3px;
@@ -104,10 +107,9 @@
 }
 
 @layer components {
-  /* Contenedor editorial: márgenes generosos, 16px en móvil */
   .marco {
     width: 100%;
-    max-width: 84rem;
+    max-width: 88rem;
     margin-inline: auto;
     padding-inline: 1rem;
   }
@@ -122,7 +124,6 @@
     }
   }
 
-  /* Etiqueta editorial: "01 — La escuela" */
   .etiqueta {
     font-family: var(--font-sans);
     font-size: 0.75rem;
@@ -132,26 +133,25 @@
     color: var(--color-carbon-suave);
   }
 
-  /* Filete fino */
   .filete {
     border-color: color-mix(in srgb, var(--color-carbon) 16%, transparent);
   }
 
-  /* Enlace con subrayado que se dibuja al pasar */
   .enlace-linea {
     background-image: linear-gradient(currentColor, currentColor);
     background-size: 0% 1px;
-    background-position: 0 100%;
+    background-position: 100% 100%;
     background-repeat: no-repeat;
-    transition: background-size 0.45s var(--ease-suave);
+    transition: background-size 0.5s var(--ease-suave);
     padding-bottom: 2px;
   }
   .enlace-linea:hover,
-  .enlace-linea:focus-visible {
+  .enlace-linea:focus-visible,
+  .group:hover .enlace-linea {
     background-size: 100% 1px;
+    background-position: 0 100%;
   }
 
-  /* Enlace subrayado permanente (dentro de textos) */
   .enlace-texto {
     text-decoration: underline;
     text-decoration-thickness: 1px;
@@ -163,7 +163,12 @@
     text-decoration-color: currentColor;
   }
 
-  /* Texto legal */
+  /* Texto con contorno (para palabras decorativas grandes) */
+  .contorno {
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1px currentColor;
+  }
+
   .prosa-legal h2 {
     font-size: 1.6rem;
     margin-top: 3rem;
@@ -203,7 +208,7 @@
   }
 }
 
-/* Zoom lento para imágenes de cabecera */
+/* ── Animaciones CSS ───────────────────────────────────────────────────── */
 @keyframes zoom-lento {
   from {
     transform: scale(1.08);
@@ -216,20 +221,83 @@
   animation: zoom-lento 14s var(--ease-suave) both;
 }
 
-/* Vaivén de la mecedora */
 @keyframes mecer {
   0%,
   100% {
-    transform: rotate(-1.6deg);
+    transform: rotate(-1.8deg);
   }
   50% {
-    transform: rotate(1.6deg);
+    transform: rotate(1.8deg);
   }
 }
 .mecer {
   transform-box: view-box;
   transform-origin: 50% 92%;
   animation: mecer 5.5s ease-in-out infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes deriva-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(8vw, 6vh, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-4vw, 10vh, 0) scale(0.95);
+  }
+}
+@keyframes deriva-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-10vw, -8vh, 0) scale(1.1);
+  }
+}
+@keyframes deriva-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  40% {
+    transform: translate3d(6vw, -10vh, 0) scale(0.92);
+  }
+  75% {
+    transform: translate3d(-8vw, -4vh, 0) scale(1);
+  }
+}
+.deriva-a {
+  animation: deriva-a 26s ease-in-out infinite;
+}
+.deriva-b {
+  animation: deriva-b 32s ease-in-out infinite;
+}
+.deriva-c {
+  animation: deriva-c 38s ease-in-out infinite;
+}
+
+@keyframes respirar {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.8;
+  }
+}
+.respirar {
+  animation: respirar 7s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -242,7 +310,11 @@
     scroll-behavior: auto !important;
   }
   .zoom-lento,
-  .mecer {
+  .mecer,
+  .deriva-a,
+  .deriva-b,
+  .deriva-c,
+  .respirar {
     animation: none !important;
   }
 }

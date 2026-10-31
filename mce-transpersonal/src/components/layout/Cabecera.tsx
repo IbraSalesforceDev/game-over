@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } from 'framer-motion';
 
 import { contacto, menu } from '../../data/navegacion';
 import { cx } from '../../lib/utilidades';
-import { clasesBoton } from '../ui/Boton';
+import { clasesBoton, RellenoBoton } from '../ui/Boton';
+import Magnetico from '../anim/Magnetico';
 import Logo from './Logo';
 import MenuMovil from './MenuMovil';
 
@@ -17,7 +18,8 @@ export default function Cabecera() {
   const [compacta, setCompacta] = useState(false);
   const [oculta, setOculta] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const { scrollY } = useScroll();
+  const { scrollY, scrollYProgress } = useScroll();
+  const progreso = useSpring(scrollYProgress, { stiffness: 200, damping: 30, mass: 0.3 });
   const { pathname } = useLocation();
 
   useMotionValueEvent(scrollY, 'change', (y) => {
@@ -80,9 +82,12 @@ export default function Cabecera() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link to={contacto.ruta} className={clasesBoton('principal', 'hidden !py-2.5 !px-6 sm:inline-flex')}>
-              {contacto.nombre}
-            </Link>
+            <Magnetico className="hidden sm:inline-flex">
+              <Link to={contacto.ruta} className={clasesBoton('principal', '!px-6 !py-2.5')}>
+                <RellenoBoton />
+                <span className="relative transition-colors duration-500 group-hover:text-marfil">{contacto.nombre}</span>
+              </Link>
+            </Magnetico>
 
             <button
               type="button"
@@ -120,6 +125,12 @@ export default function Cabecera() {
             </button>
           </div>
         </div>
+        {/* Progreso de lectura */}
+        <motion.span
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-dorado"
+          style={{ scaleX: progreso, opacity: compacta && !menuAbierto ? 1 : 0 }}
+        />
       </motion.header>
 
       <MenuMovil abierto={menuAbierto} alCerrar={() => setMenuAbierto(false)} />

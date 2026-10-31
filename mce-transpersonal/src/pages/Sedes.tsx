@@ -20,8 +20,9 @@ export default function Sedes() {
     <Pagina titulo="Sedes">
       <CabeceraPagina
         etiqueta="Sedes"
-        titulo={[{ texto: animoContacto.linea1, cursiva: false }]}
-        entradilla={<p className="font-serif text-[1.5em] italic text-dorado-hondo">{animoContacto.linea2}</p>}
+        numero="04"
+        titulo={['No tengas miedo', { texto: 'de hablarles.', cursiva: true, clase: 'pl-[8vw] text-dorado-hondo' }]}
+        entradilla={<p className="font-serif text-[1.45em] italic text-carbon">{animoContacto.linea2}</p>}
       />
 
       <section id="listado" className="marco pb-24 sm:pb-32" aria-label="Listado de sedes">

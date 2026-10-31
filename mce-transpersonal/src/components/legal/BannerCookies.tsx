@@ -1,8 +1,9 @@
 import { useEffect, useId, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useConsentimiento, type DocumentoLegal } from '../../lib/consentimiento';
+import { DURACION_INTRO, hayIntro } from '../../lib/transicion';
 import { cx } from '../../lib/utilidades';
-import { clasesBoton } from '../ui/Boton';
+import { clasesBoton, RellenoBoton } from '../ui/Boton';
 import { IconoCerrar } from '../ui/Iconos';
 
 /**
@@ -63,7 +64,7 @@ export default function BannerCookies() {
           aria-label="Aviso de privacidad y cookies"
           className={cx('fixed inset-x-0 bottom-0 z-[85] p-3 sm:p-5', documento && 'pointer-events-none')}
           initial={{ y: '110%' }}
-          animate={{ y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: aceptado ? 0 : 0.8 } }}
+          animate={{ y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: aceptado ? 0 : hayIntro ? DURACION_INTRO + 0.4 : 0.8 } }}
           exit={{ y: '110%', transition: { duration: 0.45, ease: [0.76, 0, 0.24, 1] } }}
         >
           <div className="mx-auto max-w-4xl rounded-2xl border border-carbon/10 bg-marfil p-5 shadow-[0_24px_70px_-24px_rgba(46,42,38,0.5)] sm:p-7">
@@ -93,7 +94,8 @@ export default function BannerCookies() {
                 className={clasesBoton('principal', cx('shrink-0 justify-center', !listo && '!bg-arena !text-carbon-suave'))}
                 aria-describedby={!listo ? `${id}-ayuda` : undefined}
               >
-                Aceptar y continuar
+                {listo && <RellenoBoton />}
+                <span className="relative transition-colors duration-500 group-hover:text-marfil">Aceptar y continuar</span>
               </button>
             </div>
             {!listo && (

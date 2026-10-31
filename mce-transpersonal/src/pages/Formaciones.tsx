@@ -1,25 +1,33 @@
+import { useRef } from 'react';
 import { Link } from 'react-router';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
-import { Circulo, FlechaMano } from '../components/anim/Trazo';
+import { Circulo } from '../components/anim/Trazo';
+import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
-import Etiqueta from '../components/ui/Etiqueta';
 import { bloques, type Bloque, type Formacion } from '../data/formaciones';
-import { cx } from '../lib/utilidades';
+import { cx, useEsGrande } from '../lib/utilidades';
+
+const estilosTarjeta = [
+  { fondo: 'bg-lino', texto: 'text-carbon', boton: 'secundario' as const },
+  { fondo: 'bg-salvia-clara', texto: 'text-carbon', boton: 'secundario' as const },
+  { fondo: 'bg-terracota-clara', texto: 'text-carbon', boton: 'secundario' as const },
+  { fondo: 'bg-bosque', texto: 'text-marfil', boton: 'claro' as const },
+];
 
 /** Detalles de una formación: solo se pintan los campos que tienen datos. */
 function Detalles({ f }: { f: Formacion }) {
   if (!f.descripcion && f.detalles.length === 0 && f.contenidos.length === 0) return null;
   return (
-    <div className="mt-5 space-y-4 text-[0.98rem] text-carbon-suave">
+    <div className="mt-5 space-y-4 text-[0.98rem] opacity-80">
       {f.descripcion && <p>{f.descripcion}</p>}
       {f.detalles.length > 0 && (
-        <dl className="filete divide-y divide-carbon/10 border-y">
+        <dl className="divide-y divide-current/10 border-y border-current/10">
           {f.detalles.map((d) => (
             <div key={d.etiqueta} className="flex justify-between gap-4 py-2">
               <dt>{d.etiqueta}</dt>
-              <dd className="text-right text-carbon">{d.valor}</dd>
+              <dd className="text-right">{d.valor}</dd>
             </div>
           ))}
         </dl>
@@ -35,90 +43,123 @@ function Detalles({ f }: { f: Formacion }) {
   );
 }
 
-/** Niveles de Inteligencia Emocional Transpersonal, en escalera ascendente. */
+/** Niveles de Inteligencia Emocional Transpersonal, en escalera ascendente: cada peldaño se dibuja en orden. */
 function Escalera({ niveles }: { niveles: Formacion[] }) {
+  const n = niveles.length;
   return (
-    <Escalonado como="ol" className="mt-14 grid gap-px sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
-      {niveles.map((n, i) => (
-        <motion.li
-          key={n.id}
-          variants={hijoEscalonado}
-          className="group relative"
-          style={{ ['--peldano' as string]: `${(niveles.length - 1 - i) * 3.5}rem` }}
-        >
-          <div className="lg:mt-[var(--peldano)]">
-            <div className="relative h-px w-full overflow-hidden bg-carbon/15">
-              <span className="absolute inset-y-0 left-0 w-0 bg-dorado transition-[width] duration-700 ease-[var(--ease-suave)] group-hover:w-full" />
-            </div>
-            <div className="pb-8 pr-6 pt-6">
-              <span className="font-serif text-sm italic text-dorado-hondo">{String(i + 1).padStart(2, '0')}</span>
-              <h4 className="mt-2 text-[clamp(1.9rem,3vw,2.5rem)] transition-transform duration-500 ease-[var(--ease-suave)] group-hover:-translate-y-1">
-                {n.nombre}
+    <div className="relative mt-12">
+      <Escalonado como="ol" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
+        {niveles.map((nivel, i) => (
+          <motion.li
+            key={nivel.id}
+            variants={hijoEscalonado}
+            className="group relative lg:pr-6"
+            style={{ ['--peldano' as string]: `${(n - 1 - i) * 3.4}rem` }}
+          >
+            <div className="lg:mt-[var(--peldano)]">
+              <motion.span
+                aria-hidden
+                className="mb-5 block h-[2px] origin-left bg-dorado"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.9, delay: 0.3 + i * 0.25, ease: [0.65, 0, 0.35, 1] }}
+              />
+              <span className="font-serif text-sm italic opacity-70">{String(i + 1).padStart(2, '0')}</span>
+              <h4 className="mt-1 text-[clamp(2rem,3.2vw,2.9rem)] font-[340] transition-transform duration-500 ease-[var(--ease-suave)] group-hover:-translate-y-1.5">
+                {nivel.nombre}
               </h4>
-              <Detalles f={n} />
+              <Detalles f={nivel} />
             </div>
-          </div>
-        </motion.li>
-      ))}
-    </Escalonado>
+          </motion.li>
+        ))}
+      </Escalonado>
+    </div>
   );
 }
 
-function tieneContenido(b: Bloque) {
-  return Boolean(b.descripcion) || b.formaciones.length > 0;
-}
-
-function SeccionBloque({ bloque, indice }: { bloque: Bloque; indice: number }) {
+function Tarjeta({
+  bloque,
+  indice,
+  total,
+  progreso,
+}: {
+  bloque: Bloque;
+  indice: number;
+  total: number;
+  progreso: MotionValue<number>;
+}) {
+  const reducido = useReducedMotion();
+  // Apilado solo en pantallas grandes: en móvil las tarjetas son más altas que la pantalla.
+  const apilar = useEsGrande() && !reducido;
+  const estilo = estilosTarjeta[indice % estilosTarjeta.length]!;
+  const objetivo = 1 - (total - indice) * 0.035;
+  const escala = useTransform(progreso, [indice / total, 1], [1, objetivo]);
   const esIET = bloque.id === 'inteligencia-emocional-transpersonal';
-  const par = indice % 2 === 1;
 
   return (
-    <section id={bloque.id} className={cx(' py-20 sm:py-28', par && 'bg-lino')} aria-labelledby={`t-${bloque.id}`}>
-      <div className="marco">
-        <div className={cx('grid gap-8 lg:grid-cols-12', par && 'lg:[&>*:first-child]:col-start-6')}>
-          <div className="lg:col-span-7">
-            <Etiqueta numero={String(indice + 1).padStart(2, '0')}>{esIET ? 'Formación por niveles' : 'Formación'}</Etiqueta>
-            <Revelar>
-              <h2 id={`t-${bloque.id}`} className="mt-8 text-[clamp(2.4rem,5.4vw,4.4rem)] leading-[1.02]">
-                {bloque.titulo}
-              </h2>
-            </Revelar>
-            {bloque.descripcion && (
-              <Revelar retraso={0.1}>
-                <p className="mt-8 max-w-2xl text-[1.1rem] leading-[1.8] text-carbon-suave">{bloque.descripcion}</p>
-              </Revelar>
-            )}
+    <div
+      id={bloque.id}
+      className={cx('flex', apilar ? 'sticky h-[100svh] items-center' : 'mb-5')}
+      style={apilar ? { top: `calc(5.5rem + ${indice * 1.4}rem)` } : undefined}
+    >
+      <motion.article
+        style={apilar ? { scale: escala } : undefined}
+        className={cx(
+          'relative w-full origin-top overflow-hidden rounded-[2rem] p-8 shadow-[0_-20px_60px_-40px_rgba(42,38,34,0.5)] sm:p-12 lg:min-h-[72vh] lg:p-16',
+          estilo.fondo,
+          estilo.texto,
+        )}
+        aria-labelledby={`t-${bloque.id}`}
+      >
+        <span aria-hidden className="contorno pointer-events-none absolute -right-4 -top-10 select-none font-serif text-[clamp(10rem,24vw,20rem)] font-light leading-none opacity-[0.18]">
+          {String(indice + 1).padStart(2, '0')}
+        </span>
+        <div className="relative flex h-full flex-col">
+          <p className="etiqueta !text-current opacity-70">{esIET ? 'Formación por niveles' : 'Formación'}</p>
+          <h2 id={`t-${bloque.id}`} className="mt-6 max-w-4xl text-[clamp(2.6rem,6.4vw,5.6rem)] font-[330] leading-[0.98] tracking-[-0.025em]">
+            {bloque.titulo}
+          </h2>
+          {bloque.descripcion && <p className="mt-8 max-w-2xl text-[1.1rem] leading-[1.8] opacity-80">{bloque.descripcion}</p>}
+
+          {esIET && <Escalera niveles={bloque.formaciones} />}
+
+          {!esIET && bloque.formaciones.length > 0 && (
+            <ul className="mt-10 divide-y divide-current/15 border-y border-current/15">
+              {bloque.formaciones.map((f) => (
+                <li key={f.id} className="grid gap-4 py-6 md:grid-cols-12">
+                  <h3 className="text-[1.8rem] md:col-span-5">{f.nombre}</h3>
+                  <div className="md:col-span-7">
+                    <Detalles f={f} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-12 lg:mt-auto lg:pt-12">
+            <BotonEnlace a="/contacto#formulario" variante={estilo.boton}>
+              Pedir información
+            </BotonEnlace>
           </div>
         </div>
-
-        {esIET && <Escalera niveles={bloque.formaciones} />}
-
-        {!esIET && bloque.formaciones.length > 0 && (
-          <Escalonado className="filete mt-12 divide-y divide-carbon/15 border-y">
-            {bloque.formaciones.map((f) => (
-              <motion.li key={f.id} variants={hijoEscalonado} className="grid gap-4 py-8 md:grid-cols-12">
-                <h3 className="text-[1.8rem] md:col-span-5">{f.nombre}</h3>
-                <div className="md:col-span-7">
-                  <Detalles f={f} />
-                </div>
-              </motion.li>
-            ))}
-          </Escalonado>
-        )}
-      </div>
-    </section>
+      </motion.article>
+    </div>
   );
 }
 
 export default function Formaciones() {
+  const pila = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: pila, offset: ['start start', 'end end'] });
+
   return (
     <Pagina titulo="Formaciones">
       <CabeceraPagina
         etiqueta="Formaciones"
-        titulo={['Aprender', { texto: 'desde el corazón', cursiva: true }]}
-        mancha="fill-salvia-clara"
+        numero="02"
+        titulo={['Aprender', { texto: 'desde el corazón', cursiva: true, clase: 'pl-[6vw] text-salvia-honda' }]}
         lateral={
-          <nav aria-label="En esta página" className="lg:pl-8">
+          <nav aria-label="En esta página" className="rounded-[1.5rem] bg-marfil/70 p-6 backdrop-blur-sm">
             <p className="etiqueta mb-4">En esta página</p>
             <ol className="filete divide-y divide-carbon/15 border-y">
               {bloques.map((b, i) => (
@@ -134,54 +175,28 @@ export default function Formaciones() {
         }
       />
 
-      {bloques.map((b, i) => (tieneContenido(b) ? <SeccionBloque key={b.id} bloque={b} indice={i} /> : null))}
-
-      {/* Bloques aún sin detalles: lista editorial compacta (se convierten en
-          sección propia en cuanto se rellenan sus datos en formaciones.ts). */}
-      {bloques.some((b) => !tieneContenido(b)) && (
-        <section className="bg-lino py-20 sm:py-28" aria-label="Más formaciones">
-          <div className="marco">
-            <Escalonado className="filete divide-y divide-carbon/15 border-y">
-              {bloques.map((b, i) =>
-                tieneContenido(b) ? null : (
-                  <motion.li key={b.id} variants={hijoEscalonado} id={b.id}>
-                    <Link
-                      to="/contacto#formulario"
-                      className="group grid grid-cols-[2.5rem_1fr] items-baseline gap-x-4 gap-y-4 py-9 sm:grid-cols-[3.5rem_1fr_auto] sm:py-12"
-                    >
-                      <span className="font-serif text-sm italic text-dorado-hondo">{String(i + 1).padStart(2, '0')}</span>
-                      <h2 className="text-[clamp(2rem,4.6vw,3.6rem)] leading-[1.04] transition-transform duration-500 ease-[var(--ease-suave)] group-hover:translate-x-2">
-                        {b.titulo}
-                      </h2>
-                      <span className="col-start-2 inline-flex items-center gap-3 text-[0.95rem] text-carbon-suave transition-colors group-hover:text-carbon sm:col-start-3 sm:self-center">
-                        <span className="enlace-linea">Pedir información</span>
-                        <FlechaMano className="transition-transform duration-500 group-hover:translate-x-1.5" />
-                      </span>
-                    </Link>
-                  </motion.li>
-                ),
-              )}
-            </Escalonado>
-          </div>
-        </section>
-      )}
+      {/* ── Tarjetas apiladas ─────────────────────────────────────────── */}
+      <div ref={pila} className="marco relative pb-24">
+        {bloques.map((b, i) => (
+          <Tarjeta key={b.id} bloque={b} indice={i} total={bloques.length} progreso={scrollYProgress} />
+        ))}
+      </div>
 
       {/* ── Miles de personas formadas ───────────────────────────────── */}
-      <section className="marco py-24 sm:py-32" aria-label="Personas formadas">
-        <Revelar className="grid gap-10 lg:grid-cols-12 lg:items-end">
-          <p className="font-serif text-[clamp(2.4rem,6vw,5rem)] font-light leading-[1.02] tracking-[-0.02em] lg:col-span-8">
-            <span className="relative inline-block italic">
+      <section className="marco py-28 sm:py-36" aria-label="Personas formadas">
+        <Revelar className="grid gap-12 lg:grid-cols-12 lg:items-end">
+          <p className="font-serif text-[clamp(2.6rem,6.4vw,5.6rem)] font-[320] leading-[1] tracking-[-0.025em] lg:col-span-8">
+            <span className="relative inline-block italic text-terracota-honda">
               Miles
               <Circulo />
             </span>{' '}
             de personas ya se han formado con MCE.
           </p>
-          <div className="space-y-4 text-carbon-suave lg:col-span-4">
-            <p>Fechas, duración y precios de cada formación: pregunta en tu sede.</p>
-            <Link to="/sedes" className="group inline-flex items-center gap-3 font-medium text-carbon">
-              <span className="enlace-linea">Elegir mi sede</span>
-              <FlechaMano className="transition-transform duration-500 group-hover:translate-x-1.5" />
-            </Link>
+          <div className="space-y-6 text-carbon-suave lg:col-span-4">
+            <p className="text-[1.05rem]">Fechas, duración y precios de cada formación: pregunta en tu sede.</p>
+            <BotonEnlace a="/sedes" variante="secundario">
+              Elegir mi sede
+            </BotonEnlace>
           </div>
         </Revelar>
       </section>

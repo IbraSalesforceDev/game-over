@@ -6,6 +6,7 @@ import { contacto, menu } from '../../data/navegacion';
 import { escuela } from '../../data/escuela';
 import { cx } from '../../lib/utilidades';
 import { Mancha } from '../anim/Trazo';
+import { detenerScroll, reanudarScroll } from '../../lib/scroll';
 
 const enlaces = [...menu, contacto];
 
@@ -17,11 +18,13 @@ export default function MenuMovil({ abierto, alCerrar }: { abierto: boolean; alC
     if (!abierto) return;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    detenerScroll();
     const t = window.setTimeout(() => lista.current?.querySelector('a')?.focus(), 350);
     const alTeclear = (e: KeyboardEvent) => e.key === 'Escape' && alCerrar();
     document.addEventListener('keydown', alTeclear);
     return () => {
       document.body.style.overflow = overflow;
+      reanudarScroll();
       window.clearTimeout(t);
       document.removeEventListener('keydown', alTeclear);
     };
@@ -32,11 +35,12 @@ export default function MenuMovil({ abierto, alCerrar }: { abierto: boolean; alC
       {abierto && (
         <motion.div
           id="menu-movil"
+          data-lenis-prevent
           className="fixed inset-0 z-[49] overflow-y-auto bg-lino lg:hidden"
-          initial={{ clipPath: 'inset(0 0 100% 0)' }}
-          animate={{ clipPath: 'inset(0 0 0% 0)' }}
-          exit={{ clipPath: 'inset(0 0 100% 0)', transition: { duration: 0.5, ease: [0.76, 0, 0.24, 1], delay: 0.1 } }}
-          transition={{ duration: 0.65, ease: [0.76, 0, 0.24, 1] }}
+          initial={{ clipPath: 'circle(0% at calc(100% - 2.5rem) 2.75rem)' }}
+          animate={{ clipPath: 'circle(150% at calc(100% - 2.5rem) 2.75rem)' }}
+          exit={{ clipPath: 'circle(0% at calc(100% - 2.5rem) 2.75rem)', transition: { duration: 0.6, ease: [0.76, 0, 0.24, 1], delay: 0.1 } }}
+          transition={{ duration: 0.85, ease: [0.76, 0, 0.24, 1] }}
         >
           <Mancha className="-right-40 top-1/3 h-[30rem] w-[30rem] opacity-60" />
           <nav aria-label="Menú" className="marco relative flex min-h-full flex-col pb-10 pt-28">

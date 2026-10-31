@@ -18,16 +18,23 @@ export default function ElegirComunidad({
   oscuro?: boolean;
 }) {
   const claseItem = cx(
-    'group flex w-full items-baseline justify-between gap-6 py-5 text-left transition-colors duration-300 sm:py-6',
-    oscuro ? 'text-marfil' : 'text-carbon',
+    'group relative isolate flex w-full items-baseline justify-between gap-6 overflow-hidden px-1 py-6 text-left transition-[color,padding] duration-500 ease-[var(--ease-suave)] hover:px-5 sm:py-7',
+    oscuro ? 'text-marfil hover:text-carbon' : 'text-carbon hover:text-marfil',
   );
 
   const contenido = (nombre: string, total: number) => (
     <>
+      <span
+        aria-hidden
+        className={cx(
+          'absolute inset-0 -z-10 origin-bottom scale-y-0 rounded-xl transition-transform duration-500 ease-[var(--ease-suave)] group-hover:scale-y-100',
+          oscuro ? 'bg-marfil' : 'bg-carbon',
+        )}
+      />
       <span className="font-serif text-[clamp(1.6rem,3.6vw,2.5rem)] leading-tight transition-transform duration-500 ease-[var(--ease-suave)] group-hover:translate-x-2 group-hover:italic">
         {nombre}
       </span>
-      <span className={cx('flex shrink-0 items-center gap-4 text-sm', oscuro ? 'text-marfil/70' : 'text-carbon-suave')}>
+      <span className="flex shrink-0 items-center gap-4 text-sm opacity-70">
         <span className="tabular-nums">
           {total} {total === 1 ? 'sede' : 'sedes'}
         </span>

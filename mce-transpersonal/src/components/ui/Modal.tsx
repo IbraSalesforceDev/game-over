@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { IconoCerrar } from './Iconos';
+import { detenerScroll, reanudarScroll } from '../../lib/scroll';
 
 /**
  * Ventana modal accesible: bloquea el scroll de fondo, se cierra con Esc o
@@ -26,6 +27,7 @@ export default function Modal({
     previo.current = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    detenerScroll();
     requestAnimationFrame(() => panel.current?.focus());
 
     const alTeclear = (e: KeyboardEvent) => {
@@ -50,6 +52,7 @@ export default function Modal({
     document.addEventListener('keydown', alTeclear, true);
     return () => {
       document.body.style.overflow = overflow;
+      reanudarScroll();
       document.removeEventListener('keydown', alTeclear, true);
       previo.current?.focus?.();
     };
@@ -90,7 +93,7 @@ export default function Modal({
                 <IconoCerrar className="h-6 w-6" />
               </button>
             </div>
-            <div className="overflow-y-auto overscroll-contain px-6 pb-10 sm:px-8">{children}</div>
+            <div data-lenis-prevent className="overflow-y-auto overscroll-contain px-6 pb-10 sm:px-8">{children}</div>
           </motion.div>
         </motion.div>
       )}
