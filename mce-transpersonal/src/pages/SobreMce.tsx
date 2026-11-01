@@ -9,6 +9,7 @@ import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
 import { historia } from '../data/textos';
 import { fotosGenerales } from '../data/fotos';
+import Proposito from '../components/secciones/Proposito';
 
 
 /** Cita grande que crece levemente al entrar. */
@@ -67,6 +68,8 @@ export default function SobreMce() {
           <Cita texto={p3} />
         </div>
       </section>
+
+      <Proposito id="proposito-sobre" />
 
       <section className="marco py-28 sm:py-36" aria-label="La propuesta de MCE">
         <Escalonado className="grid gap-12 md:grid-cols-3" como="div">

@@ -1,7 +1,9 @@
 /**
  * Sedes de MCE, agrupadas por comunidad autónoma.
  *
- * - Barcelona y Cataluña NO existen en la web: no añadirlas.
+ * - Solo existen estas seis sedes: Valencia, Alicante Sur, Benidorm, Sevilla,
+ *   Granada y Madrid. No añadir otras (ni Barcelona/Cataluña, Talavera,
+ *   Alicante, Málaga, Almería o Mallorca).
  * - Sin direcciones postales.
  * - Facilitadores: solo los confirmados. El resto llegará más adelante.
  *   Las fotos van en public/images/facilitadores/nombre-apellido.jpg.
@@ -28,15 +30,14 @@ export type Sede = {
   contactoDe?: string;
 };
 
-export type ComunidadId = 'comunidad-valenciana' | 'andalucia' | 'madrid-baleares';
+export type ComunidadId = 'comunidad-valenciana' | 'andalucia' | 'madrid';
 
 export type Comunidad = { id: ComunidadId; nombre: string };
 
 export const comunidades: Comunidad[] = [
   { id: 'comunidad-valenciana', nombre: 'Comunidad Valenciana' },
   { id: 'andalucia', nombre: 'Andalucía' },
-  // Madrid y Mallorca son una sola ficha: por eso tienen un grupo propio.
-  { id: 'madrid-baleares', nombre: 'Madrid y Baleares' },
+  { id: 'madrid', nombre: 'Comunidad de Madrid' },
 ];
 
 const ig = (usuario: string) => `https://www.instagram.com/${usuario}/`;
@@ -52,15 +53,6 @@ const telefonosAlicanteSur = ['633 171 860', '619 313 778'];
 
 export const sedes: Sede[] = [
   // ── Comunidad Valenciana ────────────────────────────────────────────
-  {
-    id: 'alicante',
-    nombre: 'Alicante',
-    comunidad: 'comunidad-valenciana',
-    instagram: ig('mce_alicante'),
-    facebook: fb('MCEAlicante'),
-    telefonos: ['619 217 810', '630 713 091'],
-    facilitadores: [], // TODO: facilitadores de Alicante
-  },
   {
     id: 'alicante-sur',
     nombre: 'Alicante Sur',
@@ -110,33 +102,12 @@ export const sedes: Sede[] = [
     telefonos: ['686 723 666'],
     facilitadores: [], // TODO: facilitadores de Granada
   },
-  {
-    id: 'malaga',
-    nombre: 'Málaga',
-    comunidad: 'andalucia',
-    instagram: ig('mcemalaga'),
-    facebook: fb('profile.php?id=100076013896882'),
-    telefonos: ['658 704 573', '657 854 948'],
-    facilitadores: [], // TODO: facilitadores de Málaga
-  },
-  {
-    id: 'almeria',
-    nombre: 'Almería',
-    comunidad: 'andalucia',
-    // TODO: Almería no tiene redes propias todavía.
-    instagram: null,
-    facebook: null,
-    telefonos: telefonosAlicanteSur,
-    facilitadores: [daniela, enrique],
-    contactoDe: 'Alicante Sur',
-    aviso: 'De momento, Almería se atiende con los teléfonos de la sede de Alicante Sur.',
-  },
 
-  // ── Madrid y Baleares ───────────────────────────────────────────────
+  // ── Comunidad de Madrid ─────────────────────────────────────────────
   {
-    id: 'madrid-mallorca',
-    nombre: 'Madrid y Mallorca',
-    comunidad: 'madrid-baleares',
+    id: 'madrid',
+    nombre: 'Madrid',
+    comunidad: 'madrid',
     instagram: ig('mcemadrid'),
     facebook: fb('MCEMadridMallorca'),
     telefonos: ['690 748 305'],

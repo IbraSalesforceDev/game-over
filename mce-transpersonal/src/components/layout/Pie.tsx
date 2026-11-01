@@ -8,6 +8,8 @@ import { IconoEmail, IconoInstagram, IconoTelefono } from '../ui/Iconos';
 import { BotonEnlace } from '../ui/Boton';
 import Logo from './Logo';
 import Titular from '../anim/Titular';
+import Estrellas from '../anim/Estrellas';
+import { mision } from '../../data/textos';
 import { useEsGrande } from '../../lib/utilidades';
 
 /**
@@ -29,13 +31,14 @@ export default function Pie() {
       ref={ref}
       className="relative z-0 overflow-hidden bg-bosque text-marfil [@media(min-width:1024px)_and_(min-height:780px)]:sticky [@media(min-width:1024px)_and_(min-height:780px)]:bottom-0"
     >
-      <motion.div style={reducido || !grande ? undefined : { y, scale: escala }} className="origin-bottom">
+      <Estrellas cantidad={34} semilla={23} />
+      <motion.div style={reducido || !grande ? undefined : { y, scale: escala }} className="relative origin-bottom">
         <div className="marco pt-24 lg:pt-20">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
             <Titular
               como="p"
               className="font-serif text-[clamp(2rem,4.2vw,3.4rem)] font-light leading-[1.08] lg:col-span-8"
-              segmentos={['Comprendamos que no estamos solos, que realmente, todos somos uno.']}
+              segmentos={[mision.lema]}
             />
             <div className="lg:col-span-4 lg:justify-self-end">
               <BotonEnlace a="/sedes" variante="claro">

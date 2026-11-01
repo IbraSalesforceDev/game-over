@@ -12,8 +12,6 @@ import valenciaGrupo from '../assets/fotos/valencia-grupo.webp';
 import valenciaEquipo from '../assets/fotos/valencia-equipo.webp';
 import alicanteSurGrupo from '../assets/fotos/alicante-sur-grupo.webp';
 import alicanteSurEquipo from '../assets/fotos/alicante-sur-equipo.webp';
-import mallorcaGrupo from '../assets/fotos/mallorca-grupo.webp';
-import mallorcaEquipo from '../assets/fotos/mallorca-equipo.webp';
 import granadaGrupo from '../assets/fotos/granada-grupo.webp';
 import granadaEquipo from '../assets/fotos/granada-equipo.webp';
 import madridGrupo from '../assets/fotos/madrid-grupo.webp';
@@ -50,11 +48,9 @@ export const fotosSede: Record<string, FotoReal[]> = {
     f(granadaGrupo, 'Grupo de formación de MCE Granada', 764, 571, 'Granada'),
     f(granadaEquipo, 'Equipo de MCE Granada', 378, 281, 'Granada'),
   ],
-  'madrid-mallorca': [
+  madrid: [
     f(madridGrupo, 'Grupo de formación de MCE Madrid', 880, 656, 'Madrid'),
-    f(mallorcaGrupo, 'Grupo de formación de MCE Mallorca', 955, 550, 'Mallorca'),
     f(madridEquipo, 'Equipo de MCE Madrid', 337, 319, 'Madrid'),
-    f(mallorcaEquipo, 'Equipo de MCE Mallorca', 442, 401, 'Mallorca'),
   ],
 };
 
@@ -63,7 +59,7 @@ export const fotosGenerales = {
   // Foto grande con las camisetas negras de MCE
   camisetas: f(grupoCamisetas, 'Equipo de MCE con las camisetas negras de la escuela, saludando con los brazos en alto', 960, 720),
   // TODO: confirmar de qué sede es esta foto (llegó sin rótulo).
-  sala: f(grupoSala, 'Grupo de MCE en una sala de formación', 1400, 1399),
+  sala: f(grupoSala, 'Grupo de MCE en una sala de formación', 1100, 1099),
 };
 
 /** Todas las fotos de sede, en orden, para galerías. */

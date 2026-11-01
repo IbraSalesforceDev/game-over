@@ -15,6 +15,8 @@ import { BotonEnlace } from '../components/ui/Boton';
 import Etiqueta from '../components/ui/Etiqueta';
 import Retrato from '../components/ui/Retrato';
 import ElegirComunidad from '../components/sedes/ElegirComunidad';
+import Proposito from '../components/secciones/Proposito';
+import Ondas from '../components/anim/Ondas';
 
 import { escuela } from '../data/escuela';
 import { betty, frases } from '../data/textos';
@@ -152,6 +154,9 @@ export default function Inicio() {
     <Pagina>
       <Portada />
 
+      {/* ── Propósito: elevar el nivel de consciencia ─────────────────── */}
+      <Proposito />
+
       {/* ── La escuela y la mecedora ─────────────────────────────────── */}
       <section id="escuela" className="marco py-28 sm:py-36 lg:py-44" aria-labelledby="titulo-escuela">
         <Etiqueta>La escuela</Etiqueta>
@@ -287,7 +292,8 @@ export default function Inicio() {
           aria-hidden
           className="deriva-a pointer-events-none absolute -left-[15%] -top-[30%] h-[70vmax] w-[70vmax] rounded-full bg-[radial-gradient(circle,rgba(157,189,230,0.22),rgba(157,189,230,0)_62%)]"
         />
-        <div className="marco py-24 sm:py-32">
+        <Ondas className="-bottom-[30vmax] -right-[20vmax] h-[60vmax] w-[60vmax]" color="border-celeste/25" cantidad={4} duracion={14} />
+        <div className="marco relative py-24 sm:py-32">
           <ElegirComunidad oscuro />
         </div>
       </section>

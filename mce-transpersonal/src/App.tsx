@@ -7,6 +7,7 @@ import { irAlAncla } from './lib/utilidades';
 import { iniciarScroll, irA } from './lib/scroll';
 import { fijarDestino } from './lib/transicion';
 import Cabecera from './components/layout/Cabecera';
+import ProgresoLectura from './components/anim/ProgresoLectura';
 import Pie from './components/layout/Pie';
 import BannerCookies from './components/legal/BannerCookies';
 import ModalLegal from './components/legal/ModalLegal';
@@ -72,6 +73,7 @@ export default function App() {
         >
           Saltar al contenido
         </button>
+        <ProgresoLectura />
         <Cabecera />
         {/* El contenido va por encima del pie: al llegar al final, se "levanta"
             y descubre el pie, que está fijo debajo. */}

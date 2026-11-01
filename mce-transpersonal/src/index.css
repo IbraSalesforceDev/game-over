@@ -337,6 +337,67 @@
   animation: respirar 7s ease-in-out infinite;
 }
 
+/* Ondas: anillos que nacen y se expanden, como las vibraciones del logo */
+@keyframes onda {
+  0% {
+    transform: scale(0.12);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+.onda {
+  animation: onda 10s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+
+/* Estrellas que titilan en los fondos oscuros */
+@keyframes titilar {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+.titilar {
+  animation: titilar var(--dur, 5s) ease-in-out var(--ret, 0s) infinite;
+}
+
+/* Flotación muy leve */
+@keyframes flotar {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+.flotar {
+  animation: flotar 8s ease-in-out infinite;
+}
+
+/* Línea que recorre un filete de lado a lado */
+@keyframes recorrer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+.recorrer {
+  animation: recorrer 7s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -353,7 +414,11 @@
   .deriva-c,
   .respirar,
   .acercar,
-  .olas {
+  .olas,
+  .onda,
+  .titilar,
+  .flotar,
+  .recorrer {
     animation: none !important;
   }
 }

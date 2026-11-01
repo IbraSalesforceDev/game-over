@@ -3,6 +3,7 @@ import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion
 import Titular from '../anim/Titular';
 import { useRetrasoPagina } from '../anim/Pagina';
 import { cx } from '../../lib/utilidades';
+import Ondas from '../anim/Ondas';
 import type { FotoReal } from '../../data/fotos';
 
 type Segmento = Parameters<typeof Titular>[0]['segmentos'][number];
@@ -93,7 +94,13 @@ export default function CabeceraPagina({
           )}
         </motion.div>
 
-        {derecha && <div className="lg:col-span-5">{derecha}</div>}
+        {derecha && (
+          <div className="relative lg:col-span-5">
+            {/* Ondas lentas detrás de la foto: el eco de las vibraciones del logo */}
+            <Ondas className="left-1/2 top-1/2 w-[150%] max-w-[44rem] -translate-x-1/2 -translate-y-1/2 lg:left-auto lg:right-[-25%] lg:translate-x-0" color="border-dorado/20" cantidad={4} duracion={12} />
+            <div className="relative">{derecha}</div>
+          </div>
+        )}
       </div>
     </header>
   );

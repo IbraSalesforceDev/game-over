@@ -18,34 +18,46 @@
   <body>
     <!--
       Pantalla de arranque: se ve solo hasta que la web carga (React la sustituye).
-      Si la web no llega a arrancar (p. ej. un visor de archivos que no ejecuta
-      JavaScript), explica cómo abrirla en lugar de quedarse en blanco.
+      Si la web no llega a arrancar (un visor de archivos que no ejecuta
+      JavaScript, un navegador muy antiguo…), a los pocos segundos aparece, solo
+      con CSS, cómo abrirla bien y una versión básica con el propósito y el
+      contacto de las sedes (se genera desde src/data en el build).
     -->
+    <style>
+      #arranque{min-height:100vh;background:#0b1226;color:#f6eedb;font-family:Georgia,serif;text-align:center;padding:18vh 1.25rem 3rem;box-sizing:border-box}
+      #arranque .marca{font-size:2.2rem;letter-spacing:.1em;margin:0}
+      #arranque .cargando{font-size:1.05rem;opacity:.75;margin:.6rem 0 0;animation:mce-latir 1.6s ease-in-out infinite}
+      #arranque .tarde{opacity:0;visibility:hidden;animation:mce-ver .6s ease 5s forwards;max-width:34rem;margin:2.5rem auto 0;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:.98rem;line-height:1.6}
+      #arranque .aviso{background:#f6eedb;color:#16213e;border-radius:14px;padding:1rem 1.15rem}
+      #arranque .aviso p{margin:.3rem 0}
+      #arranque h2{font-family:Georgia,serif;font-weight:400;font-size:1.6rem;line-height:1.2;margin:2.5rem 0 .6rem}
+      #arranque h3{font-size:1rem;margin:1.6rem 0 .4rem;color:#9dbde6}
+      #arranque ul{list-style:none;padding:0;margin:0}
+      #arranque li{padding:.55rem 0;border-top:1px solid rgba(246,238,219,.14)}
+      #arranque a{color:#dce7f5}
+      @keyframes mce-ver{to{opacity:1;visibility:visible}}
+      @keyframes mce-latir{50%{opacity:.35}}
+    </style>
     <div id="root">
-      <div id="arranque" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;background:#0b1226;color:#f6eedb;font-family:Georgia,serif;text-align:center">
-        <p style="font-size:2rem;letter-spacing:.08em;margin:0">MCE</p>
-        <p style="font-size:1.1rem;opacity:.8;margin:0">Cargando la web…</p>
-        <div id="ayuda" style="display:none;max-width:26rem;font-family:system-ui,sans-serif;font-size:.95rem;line-height:1.6;opacity:.9">
-          <p>Si esta pantalla no cambia, el visor con el que se ha abierto el archivo no ejecuta páginas web.</p>
-          <p><strong>Android:</strong> pulsa «Abrir con…» y elige <strong>Chrome</strong>.<br /><strong>iPhone:</strong> la vista previa de WhatsApp no la muestra; ábrela en un ordenador o en un Android.</p>
+      <div id="arranque">
+        <p class="marca">MCE</p>
+        <p class="cargando">Cargando la web…</p>
+        <div class="tarde">
+          <div class="aviso">
+            <p><strong>¿No termina de cargar?</strong> El programa con el que se ha abierto el archivo no ejecuta páginas web.</p>
+            <p><strong>Android:</strong> abre el archivo con «Abrir con…» → <strong>Chrome</strong>.</p>
+            <p><strong>iPhone:</strong> la vista previa de WhatsApp o de Archivos no muestra webs; ábrelo desde un ordenador, un Android o con el enlace de la web.</p>
+          </div>
+          <!--version-basica-->
         </div>
       </div>
     </div>
-    <noscript>
-      <p style="padding:2rem;font-family:serif">Esta web necesita JavaScript para mostrarse. Ábrela con Chrome, Safari o Firefox.</p>
-    </noscript>
     <script>
-      // Diagnóstico: si en 6 s la web no ha arrancado, se explica cómo abrirla;
-      // si hay un error, se muestra en pantalla para poder enviarlo.
+      // Si hay un error al arrancar, se muestra en pantalla para poder enviarlo.
       (function () {
-        var raiz = document.getElementById('root');
-        setTimeout(function () {
-          var ayuda = document.getElementById('ayuda');
-          if (ayuda) ayuda.style.display = 'block';
-        }, 6000);
         function mostrar(texto) {
           setTimeout(function () {
-            if (raiz && raiz.firstElementChild && !document.getElementById('arranque')) return;
+            if (!document.getElementById('arranque')) return;
             var caja = document.getElementById('error-mce') || document.createElement('div');
             caja.id = 'error-mce';
             caja.setAttribute('style', 'position:fixed;left:1rem;right:1rem;bottom:1rem;z-index:9999;padding:1rem;border-radius:12px;background:#fff;color:#16213e;font:14px/1.5 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.3)');

@@ -17,7 +17,7 @@ export default function Contacto() {
     <Pagina titulo="Contacto">
       <CabeceraPagina
         etiqueta="Contacto"
-        foto={fotosSede['madrid-mallorca']![1]}
+        foto={fotosSede.madrid![0]}
         titulo={['Habla con', { texto: 'tu sede', cursiva: true, clase: 'pl-[10vw]' }]}
         entradilla={<p>Cada sede tiene su teléfono y sus redes. Si prefieres escribir a la escuela, el formulario está más abajo.</p>}
       />

@@ -18,6 +18,8 @@ export const historia = {
   ],
 } as const;
 
+export { mision } from './mision';
+
 /** Atajos a frases concretas del texto oficial, para no duplicarlas a mano. */
 export const frases = {
   origen: historia.parrafos[0],
