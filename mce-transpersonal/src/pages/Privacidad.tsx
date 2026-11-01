@@ -7,8 +7,7 @@ import TextoPrivacidad from '../components/legal/TextoPrivacidad';
 export default function Privacidad() {
   return (
     <Pagina titulo="Política de privacidad">
-      <CabeceraPagina etiqueta="Información legal" titulo={['Política de privacidad']}
-        momento={0.15} />
+      <CabeceraPagina etiqueta="Información legal" titulo={['Política de privacidad']} />
       <div className="marco pb-24 sm:pb-32">
         <div className="filete max-w-3xl border-t pt-4">
           <TextoPrivacidad />

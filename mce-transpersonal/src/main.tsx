@@ -4,9 +4,9 @@ import { BrowserRouter, HashRouter } from 'react-router';
 
 // Tipografías incluidas en el proyecto: no se pide nada a Google Fonts ni a
 // ningún tercero (importante para la política de privacidad).
-// Young Serif (titulares) y Figtree (texto). Solo subconjuntos latinos.
-import '@fontsource/young-serif/latin-400.css';
-import '@fontsource/young-serif/latin-ext-400.css';
+// Cormorant Garamond (titulares, con cursiva real) y Figtree (texto).
+import '@fontsource-variable/cormorant-garamond/wght.css';
+import '@fontsource-variable/cormorant-garamond/wght-italic.css';
 import '@fontsource-variable/figtree/index.css';
 import './index.css';
 

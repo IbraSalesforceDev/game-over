@@ -31,18 +31,26 @@ export default function Cabecera() {
 
   useEffect(() => setMenuAbierto(false), [pathname]);
 
+  // Sobre el espacio oscuro de la portada, la cabecera va en claro y sin logo
+  // (el logo ya está formado en el centro).
+  const claro = pathname === '/' && !compacta && !menuAbierto;
+
   return (
     <>
       <motion.header
         className={cx(
           'fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-500',
-          compacta && !menuAbierto ? 'bg-marfil/88 shadow-[0_1px_0_rgba(46,42,38,0.08)] backdrop-blur-md' : 'bg-transparent',
+          compacta && !menuAbierto ? 'bg-marfil/90 shadow-[0_1px_0_rgba(22,33,62,0.08)] backdrop-blur-md' : 'bg-transparent',
         )}
         animate={{ y: oculta ? '-100%' : '0%' }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className={cx('marco flex items-center justify-between gap-6 transition-[height] duration-500', compacta ? 'h-[4.5rem]' : 'h-[5.5rem] lg:h-24')}>
-          <Link to="/" className="relative z-[61] shrink-0 rounded-sm" aria-label="MCE Transpersonal, ir al inicio">
+          <Link
+            to="/"
+            className={cx('relative z-[61] shrink-0 rounded-sm transition-opacity duration-300', claro && 'invisible opacity-0')}
+            aria-label="MCE Transpersonal, ir al inicio"
+          >
             <Logo />
           </Link>
 
@@ -53,7 +61,18 @@ export default function Cabecera() {
                   <NavLink to={e.ruta} end className="group relative block px-4 py-2 text-[0.95rem]">
                     {({ isActive }) => (
                       <>
-                        <span className={cx('transition-colors duration-300', isActive ? 'text-carbon' : 'text-carbon-suave group-hover:text-carbon')}>
+                        <span
+                          className={cx(
+                            'transition-colors duration-300',
+                            claro
+                              ? isActive
+                                ? 'text-marfil'
+                                : 'text-marfil/70 group-hover:text-marfil'
+                              : isActive
+                                ? 'text-carbon'
+                                : 'text-carbon-suave group-hover:text-carbon',
+                          )}
+                        >
                           {e.nombre}
                         </span>
                         {isActive ? (
@@ -70,7 +89,10 @@ export default function Cabecera() {
                         ) : (
                           <span
                             aria-hidden
-                            className="absolute inset-x-4 bottom-1 h-px origin-left scale-x-0 bg-carbon/40 transition-transform duration-500 ease-[var(--ease-suave)] group-hover:scale-x-100"
+                            className={cx(
+                              'absolute inset-x-4 bottom-1 h-px origin-left scale-x-0 transition-transform duration-300 ease-[var(--ease-suave)] group-hover:scale-x-100',
+                              claro ? 'bg-marfil/50' : 'bg-carbon/40',
+                            )}
                           />
                         )}
                       </>
@@ -94,7 +116,7 @@ export default function Cabecera() {
               onClick={() => setMenuAbierto((v) => !v)}
               aria-expanded={menuAbierto}
               aria-controls="menu-movil"
-              className="relative z-[61] -mr-2 flex items-center gap-3 rounded-full px-3 py-2 text-[0.95rem] lg:hidden"
+              className={cx('relative z-[61] -mr-2 flex items-center gap-3 rounded-full px-3 py-2 text-[0.95rem] transition-colors duration-300 lg:hidden', claro && 'text-marfil')}
             >
               <span className="relative inline-block w-14 overflow-hidden text-right">
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -112,12 +134,12 @@ export default function Cabecera() {
               </span>
               <span aria-hidden className="relative block h-3 w-6">
                 <motion.span
-                  className="absolute left-0 top-0 h-px w-full bg-carbon"
+                  className={cx('absolute left-0 top-0 h-px w-full', claro ? 'bg-marfil' : 'bg-carbon')}
                   animate={menuAbierto ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 />
                 <motion.span
-                  className="absolute bottom-0 left-0 h-px w-full bg-carbon"
+                  className={cx('absolute bottom-0 left-0 h-px w-full', claro ? 'bg-marfil' : 'bg-carbon')}
                   animate={menuAbierto ? { rotate: -45, y: -5, width: '100%' } : { rotate: 0, y: 0, width: '70%' }}
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 />

@@ -5,6 +5,7 @@ import ElegirComunidad from '../components/sedes/ElegirComunidad';
 import { FiltroComunidades, ListadoSedes } from '../components/sedes/ListadoSedes';
 import { esComunidad, type ComunidadId } from '../data/sedes';
 import { animoContacto } from '../data/textos';
+import { fotosSede } from '../data/fotos';
 import { irAlAncla } from '../lib/utilidades';
 
 export default function Sedes() {
@@ -20,7 +21,7 @@ export default function Sedes() {
     <Pagina titulo="Sedes">
       <CabeceraPagina
         etiqueta="Sedes"
-        momento={0.58}
+        foto={fotosSede['alicante-sur']![1]}
         titulo={['No tengas miedo', { texto: 'de hablarles.', cursiva: true, clase: 'pl-[8vw]' }]}
         entradilla={<p className="font-serif text-[1.45em] text-carbon">{animoContacto.linea2}</p>}
       />
@@ -32,7 +33,7 @@ export default function Sedes() {
         <ListadoSedes activa={activa} />
       </section>
 
-      <section className="bg-amanecer py-24 sm:py-32" aria-label="Elige tu comunidad autónoma">
+      <section className="bg-lino py-24 sm:py-32" aria-label="Elige tu comunidad autónoma">
         <div className="marco">
           <ElegirComunidad
             alElegir={(c) => {

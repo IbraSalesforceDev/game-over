@@ -42,25 +42,19 @@ Todo el contenido está en `src/data/`. Los componentes no llevan textos escrito
 Un dato que valga `null` **no se muestra**. Así la web nunca enseña texto de relleno. Cada dato
 pendiente tiene un comentario `// TODO` al lado.
 
-## Fotos
+## Fotos y logo
 
-Suelta los archivos reales en `public/images/`. Nada de imágenes generadas por IA.
-
-| Ruta | Qué va | Dónde se enlaza |
-|---|---|---|
-| `public/images/logo.png` (o `.svg`) | Logo original, **sin tocar** | `escuela.ts` → `logo` (ajusta la extensión) |
-| `public/images/betty/` | Foto de Betty, p. ej. `betty-merino.jpg` | `textos.ts` → `betty.foto` |
-| `public/images/equipo/` | Retratos del equipo, `nombre-apellido.jpg` | `equipo.ts` → `foto` |
-| `public/images/facilitadores/` | Un archivo por persona, `nombre-apellido.jpg` | `sedes.ts` → `foto` de cada facilitador |
-
-Ejemplo: `foto: '/images/facilitadores/anabel-martinez.jpg'`.
-
-- Mientras no haya foto, se muestra un bloque de color suave con las iniciales.
-- Mientras no haya logo, la cabecera muestra "MCE" en tipografía.
-- `npm run dev` y `npm run build` generan automáticamente versiones AVIF/WebP en varios tamaños
-  (`public/images/_opt/`, no se suben a git). La web las sirve con `srcset` y carga diferida.
-- **Si una foto es pequeña, la consola lo avisa** (`⚠ [fotos] … mide solo 400px`). No se amplía
-  artificialmente: pide el archivo original.
+- **Logo:** `src/assets/logo.png` (original, sin tocar). Si llega una versión vectorial o más grande,
+  sustitúyelo con el mismo nombre.
+- **Fotos reales del equipo:** `src/assets/fotos/` (recortadas de los montajes de cada sede, en WebP).
+  Se enlazan en `src/data/fotos.ts`: `fotosSede` (por id de sede) y `fotosGenerales`.
+  Para añadir una: deja el archivo en esa carpeta, impórtalo en `fotos.ts` y añádelo a su sede.
+  Van dentro del archivo único (`npm run build:archivo`) y Vite las optimiza en el build normal.
+- **Retratos individuales** (cuando lleguen): `public/images/betty/`, `public/images/equipo/` y
+  `public/images/facilitadores/`, enlazados con `foto` en `textos.ts`, `equipo.ts` y `sedes.ts`.
+  Mientras no haya foto, se muestra un bloque de color suave con las iniciales.
+  `npm run dev`/`build` generan versiones AVIF/WebP y avisan si una foto es pequeña.
+- **Nada de imágenes generadas por IA.**
 
 ## Formulario de contacto
 
@@ -129,24 +123,27 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 
 ## Notas de diseño y accesibilidad
 
-- **Concepto:** «llegar a casa al atardecer». La pieza central es una ventana en arco que da al mar,
-  con la mecedora dentro (`components/anim/Ventana.tsx`, dibujada en código). En la portada el sol
-  se pone mientras haces scroll; en cada página interior la ventana está a una hora distinta.
-- **Paleta mediterránea** (`src/index.css`, `@theme`): cal `#F8F6F1` de fondo, tinta azul noche
-  `#1F2433`, azafrán `#E9A23B` para lo que se pulsa, y granada, mar, olivo y noche como colores de
-  bloque. Los nombres de las variables son los de la versión anterior (`dorado` = azafrán, etc.).
-- **Tipografías:** Young Serif (titulares) y Figtree (texto), incluidas en el proyecto.
-- **Detalles:** franja de azulejo (`Azulejo.tsx`), cifras reales en arcos de colores, cielo estrellado
-  en «Miles de personas», valores a pantalla completa, tarjetas apiladas, tira de retratos arrastrable.
-- **Movimiento:** intro una vez por sesión, scroll suave (Lenis) y cortina entre páginas. Los
-  botones y menús usan transiciones de 200–300 ms.
-- **Accesibilidad:** foco visible, contraste AA (los textos dorados usan `dorado-hondo`). Con
-  `prefers-reduced-motion` no hay intro, ni scroll suave, ni cortina, ni secciones fijadas.
+- **Entrada:** en la portada, partículas doradas vibran en ondas sobre un fondo de espacio y forman
+  el logo y las letras MCE (`components/anim/LogoParticulas.tsx`). Mientras se forma (unos 3,6 s, solo
+  la primera vez en la sesión) no se puede bajar; hay un botón para saltarla. Después el logo sigue
+  respirando, salen ondas suaves y las partículas se apartan al pasar el dedo o el ratón.
+- **Paleta** (`src/index.css`, `@theme`): blanco, azul noche para textos y secciones oscuras, el dorado
+  del logo para lo que se pulsa y azules claros de apoyo. Los nombres de las variables son heredados
+  (`carbon` = azul noche, `dorado` = oro del logo, `bosque` = espacio).
+- **Tipografías:** Cormorant Garamond (titulares, con cursiva real) y Figtree (texto), incluidas en el proyecto.
+- **Fotos reales** en las cabeceras (en arco), en «Miles de personas», en cada sede y en Equipo
+  (tira que se arrastra).
+- **Movimiento:** scroll suave (Lenis), cortina entre páginas, textos que se iluminan con el scroll,
+  valores a pantalla completa, tarjetas apiladas y recorrido horizontal.
+- **Accesibilidad:** foco visible y contraste AA. Con `prefers-reduced-motion` no hay animación de
+  entrada, ni scroll suave, ni cortina, ni secciones fijadas.
 - Las políticas de privacidad y cookies son **plantillas**: deben revisarlas un profesional.
 
 ## Pendientes (`TODO`)
 
-- [ ] **Logo** original → `public/images/logo.*` (y ajustar extensión en `escuela.ts`).
+- [ ] **Logo en vectorial** (SVG/PDF) o a más resolución → `src/assets/logo.png`.
+- [ ] **Fotos originales** de las sedes (las actuales salen de montajes de Instagram; la segunda de Benidorm mide 153 px).
+- [ ] **Sede de la foto de grupo sin rótulo** (`fotosGenerales.sala` en `src/data/fotos.ts`).
 - [ ] **Email** de la escuela → `escuela.ts` (`email`) y formulario de Formspree.
 - [ ] **Teléfono general** → `escuela.ts` (`telefono`).
 - [ ] **Datos legales**: denominación del responsable y, si se quiere, NIF → `escuela.ts` (`legal`).

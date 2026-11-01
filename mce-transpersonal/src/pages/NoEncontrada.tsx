@@ -1,5 +1,5 @@
 import Pagina from '../components/anim/Pagina';
-import Ventana from '../components/anim/Ventana';
+import Mecedora from '../components/anim/Mecedora';
 import { BotonEnlace } from '../components/ui/Boton';
 
 export default function NoEncontrada() {
@@ -19,7 +19,7 @@ export default function NoEncontrada() {
             </BotonEnlace>
           </div>
         </div>
-        <Ventana momento={1} className="mx-auto w-full max-w-xs lg:col-span-4 lg:col-start-9" />
+        <Mecedora className="mx-auto w-full max-w-xs text-carbon lg:col-span-4 lg:col-start-9" />
       </section>
     </Pagina>
   );

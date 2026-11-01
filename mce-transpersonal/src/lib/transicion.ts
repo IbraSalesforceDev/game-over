@@ -33,11 +33,18 @@ export function useDestino() {
   );
 }
 
-// ── Intro de la primera visita (una vez por sesión) ─────────────────────
+// ── Formación del logo (primera visita a Inicio, una vez por sesión) ─────
 const CLAVE_INTRO = 'mce-intro-vista';
 
+/** ¿La web se ha abierto directamente en Inicio? (vale para rutas normales y con #) */
+function abreEnInicio(): boolean {
+  const { pathname, hash } = window.location;
+  if (hash.startsWith('#/')) return hash === '#/' || hash.startsWith('#/?') || hash.startsWith('#/#');
+  return pathname === '/' || pathname.endsWith('/index.html');
+}
+
 function decidirIntro(): boolean {
-  if (typeof window === 'undefined' || prefiereMenosMovimiento()) return false;
+  if (typeof window === 'undefined' || prefiereMenosMovimiento() || !abreEnInicio()) return false;
   try {
     if (window.sessionStorage.getItem(CLAVE_INTRO)) return false;
     window.sessionStorage.setItem(CLAVE_INTRO, '1');
@@ -47,9 +54,10 @@ function decidirIntro(): boolean {
   return true;
 }
 
+/** true: al abrir la web, las partículas forman el logo desde cero. */
 export const hayIntro = decidirIntro();
-/** Duración de la intro en segundos. */
-export const DURACION_INTRO = 2.6;
+/** Duración de la formación del logo, en segundos. */
+export const DURACION_INTRO = 3.6;
 
 let primeraEntrada = true;
 

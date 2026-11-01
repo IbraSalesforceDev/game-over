@@ -9,30 +9,31 @@
    (Ajustar el dorado cuando llegue el logo.)
    ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  /* Nombres heredados, valores nuevos (paleta mediterránea · v3):
-     marfil = cal, carbon = tinta azul noche, dorado = azafrán,
-     terracota = granada, salvia = olivo, bosque = noche. */
-  --color-marfil: #f8f6f1;
-  --color-lino: #efebe2;
-  --color-arena: #e3ddd0;
-  --color-carbon: #1f2433;
-  --color-carbon-suave: #4e5466;
-  --color-dorado: #e9a23b;
-  --color-dorado-claro: #f8dda8;
-  /* Azafrán oscuro para textos: contraste AA sobre cal */
-  --color-dorado-hondo: #8a5a08;
-  --color-salvia: #7f8a4a;
-  --color-salvia-clara: #e2e6cc;
-  --color-salvia-honda: #4e5a23;
-  --color-terracota: #c13e55;
-  --color-terracota-clara: #f6d3d3;
-  --color-terracota-honda: #9a2338;
-  --color-bosque: #17203a;
-  --color-mar: #1e5e78;
-  --color-mar-claro: #cfe3ea;
-  --color-amanecer: #f7d9c4;
+  /* Paleta v4 · blanco, azul oscuro y el dorado del logo, con un azul claro de apoyo.
+     Los nombres son heredados para no tocar cada componente:
+     marfil = blanco, carbon = azul noche (texto), dorado = oro del logo,
+     mar/salvia/terracota = azules de apoyo, bosque = noche profunda (espacio). */
+  --color-marfil: #fcfcfa;
+  --color-lino: #f2f4f7;
+  --color-arena: #e3e8ef;
+  --color-carbon: #16213e;
+  --color-carbon-suave: #4a5570;
+  --color-dorado: #b8994a;
+  --color-dorado-claro: #efe6cc;
+  /* Oro oscuro para textos: contraste AA sobre blanco */
+  --color-dorado-hondo: #7a6420;
+  --color-salvia: #3e5c8a;
+  --color-salvia-clara: #dce6f2;
+  --color-salvia-honda: #2b4570;
+  --color-terracota: #5b6b8c;
+  --color-terracota-clara: #e8ecf3;
+  --color-terracota-honda: #3a4866;
+  --color-bosque: #0b1226;
+  --color-mar: #1f3b66;
+  --color-mar-claro: #dce6f2;
+  --color-amanecer: #f5f1e6;
 
-  --font-serif: 'Young Serif', 'Iowan Old Style', Georgia, serif;
+  --font-serif: 'Cormorant Garamond Variable', 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
   --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --ease-suave: cubic-bezier(0.16, 1, 0.3, 1);
@@ -56,8 +57,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: clip;
-    /* Young Serif no tiene cursiva: nunca se fabrica una falsa */
     font-synthesis: none;
+    /* Cormorant usa números de estilo antiguo por defecto ("10" parecía "IO") */
+    font-variant-numeric: lining-nums;
   }
 
   /* Textura de papel muy sutil: le quita el aspecto "plano digital". */
@@ -77,9 +79,9 @@
   h3,
   h4 {
     font-family: var(--font-serif);
-    font-weight: 400;
-    line-height: 1.06;
-    letter-spacing: -0.02em;
+    font-weight: 500;
+    line-height: 1.02;
+    letter-spacing: -0.015em;
     text-wrap: balance;
   }
 

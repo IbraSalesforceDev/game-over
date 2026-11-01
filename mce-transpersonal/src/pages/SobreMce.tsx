@@ -8,9 +8,10 @@ import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
 import { historia, valores } from '../data/textos';
+import { fotosGenerales } from '../data/fotos';
 
-const fondosValor = ['#f7d9c4', '#cfe3ea', '#e2e6cc', '#f8dda8', '#17203a'];
-const textosValor = ['#1f2433', '#1f2433', '#1f2433', '#1f2433', '#f8f6f1'];
+const fondosValor = ['#f2f4f7', '#dce6f2', '#efe6cc', '#e3e8ef', '#0b1226'];
+const textosValor = ['#16213e', '#16213e', '#16213e', '#16213e', '#fcfcfa'];
 
 /** Los cinco valores: la sección se fija y cada valor ocupa la pantalla al hacer scroll. */
 function Valores({ frase }: { frase: string }) {
@@ -123,7 +124,7 @@ export default function SobreMce() {
         etiqueta="Sobre MCE"
         titulo={['Es hogar.', { texto: 'Es llegar a casa.', cursiva: true, clase: 'pl-[8vw]' }]}
         entradilla={<p>{historia.titulo}</p>}
-        momento={0.05}
+        foto={fotosGenerales.sala}
       />
 
       {/* ── Historia ─────────────────────────────────────────────────── */}

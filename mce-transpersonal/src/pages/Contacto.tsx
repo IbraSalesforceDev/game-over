@@ -9,13 +9,14 @@ import { IconoEmail, IconoTelefono } from '../components/ui/Iconos';
 import { ListadoSedes } from '../components/sedes/ListadoSedes';
 import { escuela, enlaceTelefono } from '../data/escuela';
 import { animoContacto } from '../data/textos';
+import { fotosSede } from '../data/fotos';
 
 export default function Contacto() {
   return (
     <Pagina titulo="Contacto">
       <CabeceraPagina
         etiqueta="Contacto"
-        momento={0.74}
+        foto={fotosSede['madrid-mallorca']![2]}
         titulo={['Habla con', { texto: 'tu sede', cursiva: true, clase: 'pl-[10vw]' }]}
         entradilla={<p>Cada sede tiene su teléfono y sus redes. Si prefieres escribir a la escuela, el formulario está más abajo.</p>}
       />
@@ -30,7 +31,7 @@ export default function Contacto() {
       </section>
 
       {/* ── Formulario + panel lateral ───────────────────────────────── */}
-      <section className="bg-mar-claro py-24 sm:py-32" aria-labelledby="titulo-formulario">
+      <section className="bg-lino py-24 sm:py-32" aria-labelledby="titulo-formulario">
         <div className="marco grid gap-16 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
             <Etiqueta numero="02">Escribir a MCE</Etiqueta>

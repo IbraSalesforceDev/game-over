@@ -7,7 +7,6 @@ import { useConsentimiento } from '../../lib/consentimiento';
 import { IconoEmail, IconoInstagram, IconoTelefono } from '../ui/Iconos';
 import { BotonEnlace } from '../ui/Boton';
 import Logo from './Logo';
-import Azulejo from '../anim/Azulejo';
 
 /**
  * Pie oscuro que queda fijo debajo del contenido: al llegar al final de la
@@ -27,7 +26,6 @@ export default function Pie() {
       ref={ref}
       className="relative z-0 overflow-hidden bg-bosque text-marfil [@media(min-width:1024px)_and_(min-height:780px)]:sticky [@media(min-width:1024px)_and_(min-height:780px)]:bottom-0"
     >
-      <Azulejo fondo="#17203a" className="opacity-90" />
       <motion.div style={reducido ? undefined : { y, scale: escala }} className="origin-bottom">
         <div className="marco pt-24 lg:pt-20">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-end">

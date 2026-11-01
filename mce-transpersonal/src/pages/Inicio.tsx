@@ -1,11 +1,10 @@
-import { useMemo, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 
 import Pagina, { useRetrasoPagina } from '../components/anim/Pagina';
 import Titular from '../components/anim/Titular';
-import Ventana from '../components/anim/Ventana';
-import Azulejo from '../components/anim/Azulejo';
+import LogoParticulas from '../components/anim/LogoParticulas';
 import Parallax from '../components/anim/Parallax';
 import Marquesina from '../components/anim/Marquesina';
 import TextoScroll from '../components/anim/TextoScroll';
@@ -26,6 +25,8 @@ import { comunidades, sedes } from '../data/sedes';
 import { legales } from '../data/navegacion';
 import { useConsentimiento } from '../lib/consentimiento';
 import { cx } from '../lib/utilidades';
+import { DURACION_INTRO, hayIntro } from '../lib/transicion';
+import { fotosGenerales } from '../data/fotos';
 
 const nivelesIET = bloques.find((b) => b.id === 'inteligencia-emocional-transpersonal')?.formaciones.length ?? 0;
 const unir = (l: readonly string[]) => (l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}` : l.join(''));
@@ -48,107 +49,88 @@ const accesos = [
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-/** Portada: la sección se queda fija mientras el sol se pone en la ventana. */
+/**
+ * Portada: el espacio. Las partículas vibran y forman el logo; cuando está
+ * formado aparece el lema y ya se puede bajar.
+ */
 function Portada() {
-  const ref = useRef<HTMLElement>(null);
-  const reducido = useReducedMotion();
+  const [formado, setFormado] = useState(!hayIntro);
   const { inicial } = useRetrasoPagina();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
-  const hora = useTransform(scrollYProgress, [0, 1], [0.08, 1]);
-  const fondo = useTransform(scrollYProgress, [0, 0.6, 1], ['#f7d9c4', '#f1bfa6', '#e9b39c']);
-  const ySol = useTransform(scrollYProgress, [0, 1], [0, -30]);
-
+  const retraso = hayIntro ? 0.2 : inicial + 0.4;
   const aparecer = (d: number) => ({
-    initial: { opacity: 0, y: 16 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.9, delay: inicial + d, ease },
+    initial: { opacity: 0, y: 18 },
+    animate: formado ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 },
+    transition: { duration: 1.1, delay: retraso + d, ease },
   });
 
   return (
-    <motion.section
-      ref={ref}
-      style={reducido ? { backgroundColor: '#f7d9c4' } : { backgroundColor: fondo }}
-      className={cx('relative', !reducido && 'h-[170svh]')}
-      aria-labelledby="lema"
-    >
-      <div className={cx('overflow-hidden', !reducido && 'sticky top-0 h-[100svh]')}>
-        <div className="marco grid h-full items-center gap-10 pb-12 pt-28 lg:grid-cols-12 lg:gap-8 lg:pb-8 lg:pt-24">
-          <div className="lg:col-span-6">
-            <Titular
-              alCargar
-              lineas
-              retraso={0.15}
-              className="text-[clamp(3.2rem,7.6vw,7.6rem)] leading-[0.94] tracking-[-0.035em]"
-              segmentos={['Mente,', { texto: 'Cuerpo y', clase: 'whitespace-nowrap pl-[0.5em]' }, 'Espíritu']}
-            />
-            <motion.p className="mt-8 max-w-md text-[1.15rem] leading-relaxed text-carbon-suave sm:text-[1.25rem]" {...aparecer(0.8)}>
-              Escuela transpersonal fundada por {escuela.fundadora}. Es hogar. Es llegar a casa.
-            </motion.p>
-            <motion.div className="mt-9 flex flex-wrap items-center gap-3" {...aparecer(1)}>
-              <BotonEnlace a="/sobre-mce">Conocer la escuela</BotonEnlace>
-              <BotonEnlace a="/sedes" variante="secundario">
-                Ver sedes
-              </BotonEnlace>
-            </motion.div>
-          </div>
+    <section className="relative h-[100svh] min-h-[34rem] overflow-hidden bg-bosque text-marfil" aria-labelledby="lema">
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_42%,rgba(62,92,138,0.38),transparent_70%),radial-gradient(ellipse_50%_40%_at_15%_85%,rgba(184,153,74,0.10),transparent_70%),radial-gradient(ellipse_40%_35%_at_88%_12%,rgba(220,230,242,0.08),transparent_70%)]"
+      />
+      <LogoParticulas formar={hayIntro} duracion={DURACION_INTRO} alFormarse={() => setFormado(true)} className="absolute inset-0 h-full w-full" />
 
-          <motion.div
-            className="lg:col-span-6"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.2, delay: inicial + 0.3, ease }}
-          >
-            <motion.div style={reducido ? undefined : { y: ySol }}>
-              <Ventana progreso={hora} className="mx-auto w-[78%] max-w-[22rem] sm:max-w-[26rem] lg:w-full lg:max-w-[30rem]" />
-            </motion.div>
-          </motion.div>
-        </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-[7%] px-4 text-center sm:bottom-[9%]">
+        <motion.h1 id="lema" className="font-serif text-[clamp(2.4rem,6vw,4.6rem)] font-medium leading-none tracking-[-0.01em]" {...aparecer(0)}>
+          {escuela.lema}
+        </motion.h1>
+        <motion.p className="mt-4 text-[1.02rem] text-marfil/70 sm:text-[1.1rem]" {...aparecer(0.25)}>
+          Escuela transpersonal fundada por {escuela.fundadora}
+        </motion.p>
+        <motion.div className="pointer-events-auto mt-8 flex flex-wrap justify-center gap-3" {...aparecer(0.45)}>
+          <BotonEnlace a="/sobre-mce">Conocer la escuela</BotonEnlace>
+          <BotonEnlace a="/sedes" variante="claro">
+            Ver sedes
+          </BotonEnlace>
+        </motion.div>
+        <motion.div className="mx-auto mt-8 hidden w-px sm:block" {...aparecer(0.8)} aria-hidden>
+          <span className="relative mx-auto block h-12 w-px overflow-hidden bg-marfil/15">
+            <motion.span
+              className="absolute inset-x-0 top-0 h-1/2 bg-dorado"
+              animate={{ y: ['-100%', '200%'] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: [0.65, 0, 0.35, 1] }}
+            />
+          </span>
+        </motion.div>
       </div>
-    </motion.section>
+    </section>
   );
 }
 
-/** "Miles de personas…": cielo nocturno en el que las estrellas aparecen con el scroll. */
+/** "Miles de personas…": sobre la foto real del equipo, que se desplaza levemente. */
 function Miles() {
   const ref = useRef<HTMLElement>(null);
   const reducido = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'center center'] });
-  const estrellas = useMemo(() => {
-    let s = 11;
-    const azar = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    return Array.from({ length: 160 }, (_, i) => ({ x: azar() * 100, y: azar() * 100, r: 0.6 + azar() * 1.8, umbral: (i / 160) * 0.85 }));
-  }, []);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
+  const y = useTransform(scrollYProgress, [0, 1], ['-8%', '8%']);
+  const escala = useTransform(scrollYProgress, [0, 1], [1.15, 1.02]);
+  const foto = fotosGenerales.camisetas;
 
   return (
-    <motion.section
-      ref={ref}
-      style={reducido ? undefined : ({ '--p': scrollYProgress } as unknown as React.CSSProperties)}
-      className="relative overflow-hidden bg-bosque py-36 text-marfil sm:py-44 lg:py-56"
-      aria-labelledby="titulo-miles"
-    >
-      <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-        {estrellas.map((e, i) => (
-          <circle
-            key={i}
-            cx={e.x}
-            cy={e.y}
-            r={e.r / 10}
-            fill={i % 9 === 0 ? '#f8dda8' : '#f8f6f1'}
-            style={reducido ? { opacity: 0.8 } : { opacity: `clamp(0, calc((var(--p, 1) - ${e.umbral}) * 10), 0.9)` }}
-          />
-        ))}
-      </svg>
-      <div className="marco relative text-center">
+    <section ref={ref} className="relative overflow-hidden bg-bosque text-marfil" aria-labelledby="titulo-miles">
+      <motion.img
+        src={foto.src}
+        alt={foto.alt}
+        width={foto.ancho}
+        height={foto.alto}
+        loading="lazy"
+        decoding="async"
+        style={reducido ? undefined : { y, scale: escala }}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div aria-hidden className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,18,38,0.55)_0%,rgba(11,18,38,0.35)_45%,rgba(11,18,38,0.85)_100%)]" />
+      <div className="marco relative flex min-h-[85svh] flex-col items-center justify-end pb-20 pt-40 text-center sm:pb-28">
         <Revelar>
-          <h2 id="titulo-miles" className="mx-auto max-w-5xl text-[clamp(2.8rem,7.6vw,7rem)] leading-[1] tracking-[-0.03em]">
+          <h2 id="titulo-miles" className="mx-auto max-w-5xl font-serif text-[clamp(2.8rem,7.4vw,6.8rem)] font-medium leading-[0.98] tracking-[-0.02em] [text-shadow:0_2px_30px_rgba(11,18,38,0.5)]">
             Miles de personas ya se han formado con MCE.
           </h2>
         </Revelar>
-        <Revelar className="mt-12 flex justify-center" retraso={0.15}>
+        <Revelar className="mt-10 flex justify-center" retraso={0.15}>
           <BotonEnlace a="/formaciones">Ver las formaciones</BotonEnlace>
         </Revelar>
       </div>
-    </motion.section>
+    </section>
   );
 }
 
@@ -158,7 +140,6 @@ export default function Inicio() {
   return (
     <Pagina>
       <Portada />
-      <Azulejo />
 
       {/* ── Valores en cinta ─────────────────────────────────────────── */}
       <div className="bg-dorado py-5 sm:py-7">
@@ -167,7 +148,7 @@ export default function Inicio() {
           elementos={valores.map((v) => (
             <span key={v}>{v}</span>
           ))}
-          separador={<span className="inline-block h-4 w-4 rounded-full bg-terracota" />}
+          separador={<span className="inline-block h-2.5 w-2.5 rounded-full bg-carbon/60" />}
         />
       </div>
 
@@ -289,7 +270,6 @@ export default function Inicio() {
 
       {/* ── Elige tu comunidad ───────────────────────────────────────── */}
       <section className="relative bg-mar text-marfil" aria-label="Elige tu comunidad autónoma">
-        <Azulejo fondo="#f8f6f1" />
         <div className="marco py-24 sm:py-32">
           <ElegirComunidad oscuro />
         </div>

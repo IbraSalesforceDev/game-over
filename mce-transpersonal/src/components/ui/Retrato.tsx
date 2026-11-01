@@ -5,10 +5,10 @@ import Foto from './Foto';
 
 // Tonos suaves que contrastan tanto sobre marfil como sobre lino.
 const tonos = [
-  'from-dorado-claro to-[#f3e6c3] text-dorado-hondo',
-  'from-salvia-clara to-[#eef1e8] text-salvia-honda',
-  'from-terracota-clara to-[#f7e9df] text-terracota-honda',
+  'from-dorado-claro to-[#f7f1df] text-dorado-hondo',
+  'from-mar-claro to-[#eef3f9] text-salvia-honda',
   'from-arena to-lino text-carbon-suave',
+  'from-terracota-clara to-marfil text-terracota-honda',
 ];
 
 /** Tono por posición (si se indica) o estable a partir del nombre. */

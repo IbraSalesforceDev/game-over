@@ -14,9 +14,8 @@ export const escuela = {
   lema: 'Mente, Cuerpo y Espíritu',
   fundadora: 'Betty Merino',
 
-  /** Logo original. Se muestra tal cual, sin filtros ni recoloreado. */
-  // TODO: cambiar la extensión si el archivo que llega no es .png (p. ej. logo.svg).
-  logo: '/images/logo.png',
+  // El logo original está en src/assets/logo.png (se muestra sin filtros ni recoloreado).
+  // TODO: si hay versión vectorial (SVG) o más grande, sustituirlo por ella.
 
   // TODO: email de contacto de la escuela.
   email: null as string | null,

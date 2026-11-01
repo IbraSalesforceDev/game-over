@@ -9,10 +9,10 @@ import { bloques, type Bloque, type Formacion } from '../data/formaciones';
 import { cx, useEsGrande } from '../lib/utilidades';
 
 const estilosTarjeta = [
-  { fondo: 'bg-amanecer', texto: 'text-carbon', boton: 'principal' as const },
+  { fondo: 'bg-lino', texto: 'text-carbon', boton: 'principal' as const },
   { fondo: 'bg-mar-claro', texto: 'text-carbon', boton: 'principal' as const },
-  { fondo: 'bg-salvia-clara', texto: 'text-carbon', boton: 'principal' as const },
-  { fondo: 'bg-bosque', texto: 'text-marfil', boton: 'principal' as const },
+  { fondo: 'bg-amanecer', texto: 'text-carbon', boton: 'principal' as const },
+  { fondo: 'bg-carbon', texto: 'text-marfil', boton: 'principal' as const },
 ];
 
 /** Detalles de una formación: solo se pintan los campos que tienen datos. */

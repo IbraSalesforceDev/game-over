@@ -10,7 +10,6 @@ import Cabecera from './components/layout/Cabecera';
 import Pie from './components/layout/Pie';
 import BannerCookies from './components/legal/BannerCookies';
 import ModalLegal from './components/legal/ModalLegal';
-import Intro from './components/anim/Intro';
 
 import Inicio from './pages/Inicio';
 import SobreMce from './pages/SobreMce';
@@ -73,7 +72,6 @@ export default function App() {
         >
           Saltar al contenido
         </button>
-        <Intro />
         <Cabecera />
         {/* El contenido va por encima del pie: al llegar al final, se "levanta"
             y descubre el pie, que está fijo debajo. */}
