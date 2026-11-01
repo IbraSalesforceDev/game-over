@@ -3,15 +3,14 @@ import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScro
 import Pagina from '../components/anim/Pagina';
 import TextoScroll from '../components/anim/TextoScroll';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
-import { Subrayado } from '../components/anim/Trazo';
 import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
 import { historia, valores } from '../data/textos';
 import { fotosGenerales } from '../data/fotos';
 
-const fondosValor = ['#f2f4f7', '#dce6f2', '#efe6cc', '#e3e8ef', '#0b1226'];
-const textosValor = ['#16213e', '#16213e', '#16213e', '#16213e', '#fcfcfa'];
+const fondosValor = ['#f1f4f8', '#dce7f5', '#e6edf6', '#c9d8ec', '#0a1428'];
+const textosValor = ['#0f1b33', '#0f1b33', '#0f1b33', '#0f1b33', '#fbfcfd'];
 
 /** Los cinco valores: la sección se fija y cada valor ocupa la pantalla al hacer scroll. */
 function Valores({ frase }: { frase: string }) {
@@ -179,7 +178,6 @@ export default function SobreMce() {
             El proyecto MCE nace de la mano de{' '}
             <span className="relative inline-block">
               Betty Merino
-              <Subrayado />
             </span>
             .
           </h2>

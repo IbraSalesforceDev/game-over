@@ -105,13 +105,12 @@ function Tarjeta({
       <motion.article
         style={apilar ? { scale: escala } : undefined}
         className={cx(
-          'relative w-full origin-top overflow-hidden rounded-[2rem] p-8 shadow-[0_-20px_60px_-40px_rgba(42,38,34,0.5)] sm:p-12 lg:min-h-[72vh] lg:p-16',
+          'relative w-full origin-top overflow-hidden rounded-[8px] border border-carbon/8 p-8 shadow-[0_-24px_60px_-40px_rgba(15,27,51,0.35)] sm:p-12 lg:min-h-[72vh] lg:p-16',
           estilo.fondo,
           estilo.texto,
         )}
         aria-labelledby={`t-${bloque.id}`}
       >
-        <span aria-hidden className="pointer-events-none absolute -right-16 -top-10 h-[22rem] w-[18rem] rounded-t-[999px] border-[3px] border-current opacity-[0.12] sm:-right-10" />
         <div className="relative flex h-full flex-col">
           <p className="etiqueta !text-current opacity-70">{esIET ? 'Formación por niveles' : 'Formación'}</p>
           <h2 id={`t-${bloque.id}`} className="mt-6 max-w-4xl text-[clamp(2.6rem,6.4vw,5.6rem)] font-[330] leading-[0.98] tracking-[-0.025em]">
@@ -155,7 +154,7 @@ export default function Formaciones() {
         etiqueta="Formaciones"
         titulo={['Aprender', { texto: 'desde el corazón', cursiva: true, clase: 'pl-[6vw]' }]}
         lateral={
-          <nav aria-label="En esta página" className="rounded-[1.5rem] border border-carbon/10 bg-lino p-6">
+          <nav aria-label="En esta página" className="rounded-[6px] border border-carbon/10 bg-lino p-6">
             <p className="etiqueta mb-4">En esta página</p>
             <ol className="filete divide-y divide-carbon/15 border-y">
               {bloques.map((b) => (

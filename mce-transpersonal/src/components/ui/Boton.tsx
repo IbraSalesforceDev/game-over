@@ -7,22 +7,22 @@ import Magnetico from '../anim/Magnetico';
 type Variante = 'principal' | 'secundario' | 'claro' | 'texto';
 
 const estilos: Record<Variante, string> = {
-  principal: 'bg-dorado text-carbon px-7 py-3.5 rounded-full',
-  secundario: 'border border-carbon/30 text-carbon px-7 py-3.5 rounded-full hover:border-dorado',
-  claro: 'border border-marfil/30 text-marfil px-7 py-3.5 rounded-full',
+  principal: 'bg-carbon text-marfil px-7 py-3.5 rounded-full shadow-[0_8px_20px_-12px_rgba(15,27,51,0.6)]',
+  secundario: 'border border-carbon/25 text-carbon px-7 py-3.5 rounded-full hover:border-carbon',
+  claro: 'border border-marfil/40 text-marfil px-7 py-3.5 rounded-full',
   texto: 'text-carbon py-1',
 };
 
 /** Color del relleno que sube al pasar el ratón. */
 const relleno: Record<Variante, string> = {
-  principal: 'bg-carbon',
-  secundario: 'bg-dorado',
+  principal: 'bg-mar',
+  secundario: 'bg-carbon',
   claro: 'bg-marfil',
   texto: 'bg-transparent',
 };
 const textoHover: Record<Variante, string> = {
   principal: 'group-hover:text-marfil',
-  secundario: 'group-hover:text-carbon',
+  secundario: 'group-hover:text-marfil',
   claro: 'group-hover:text-carbon',
   texto: '',
 };

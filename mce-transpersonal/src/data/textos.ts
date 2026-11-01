@@ -1,3 +1,5 @@
+import bettyFoto from '../assets/fotos/betty-merino.webp';
+
 /**
  * Textos oficiales de MCE. Se usan tal cual, sin reescribir.
  * Fuente: https://mcetranspersonal.com/sobre-mce/
@@ -43,8 +45,7 @@ export const animoContacto = {
 export const betty = {
   nombre: 'Betty Merino',
   rol: 'Fundadora de MCE',
-  // TODO: foto real de Betty en public/images/betty/ (p. ej. betty-merino.jpg).
-  foto: null as string | null,
+  foto: bettyFoto as string | null,
   // TODO: texto sobre la consulta transpersonal de Betty (qué es, cómo se pide,
   // modalidad). Mientras sea null, solo se muestra el enlace a Contacto.
   consulta: null as string | null,

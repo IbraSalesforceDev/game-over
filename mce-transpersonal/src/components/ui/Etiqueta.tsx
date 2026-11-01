@@ -8,7 +8,7 @@ import { cx } from '../../lib/utilidades';
 export default function Etiqueta({
   children,
   className,
-  color = 'bg-dorado',
+  color = 'bg-oro',
 }: {
   numero?: string;
   children: string;
@@ -17,7 +17,7 @@ export default function Etiqueta({
 }) {
   return (
     <p className={cx('etiqueta flex items-center gap-3', className)}>
-      <span aria-hidden className={cx('h-2.5 w-2.5 rounded-full', color)} />
+      <span aria-hidden className={cx('h-px w-6', color)} />
       {children}
     </p>
   );

@@ -70,12 +70,12 @@ export function Circulo({ className, retraso = 0.4, color = 'text-terracota' }: 
   );
 }
 
-/** Pequeña flecha a mano, para enlaces. */
+/** Flecha fina y geométrica, para enlaces. */
 export function FlechaMano({ className }: { className?: string }) {
   return (
     <svg aria-hidden viewBox="0 0 40 16" className={cx('h-[0.7em] w-[1.6em] overflow-visible', className)}>
       <path
-        d="M2 8.6c9-.8 20-1 33-.4M28.5 2.5c2.3 2.2 4.6 4 7.2 5.6-2.8 1.5-5 3.4-7 5.6"
+        d="M2 8h33M29 2.5 35 8l-6 5.5"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"

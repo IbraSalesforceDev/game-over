@@ -42,7 +42,10 @@ export default function Cabecera() {
 
   // Sobre el espacio oscuro de la portada, la cabecera va en claro y sin logo
   // (el logo ya está formado en el centro).
-  const claro = sobrePortada && !menuAbierto;
+  // La portada es clara: la cabecera va siempre en oscuro; el logo se oculta
+  // mientras se ve el logo grande de la portada.
+  const claro = false;
+  const ocultarLogo = sobrePortada && !menuAbierto;
   const introActiva = useIntroActiva();
 
   return (
@@ -63,7 +66,7 @@ export default function Cabecera() {
         <div className={cx('marco flex items-center justify-between gap-6 transition-[height] duration-500', compacta ? 'h-[4.5rem]' : 'h-[5.5rem] lg:h-24')}>
           <Link
             to="/"
-            className={cx('relative z-[61] shrink-0 rounded-sm transition-opacity duration-300', claro && 'invisible opacity-0')}
+            className={cx('relative z-[61] shrink-0 rounded-sm transition-opacity duration-300', ocultarLogo && 'invisible opacity-0')}
             aria-label="MCE Transpersonal, ir al inicio"
           >
             <Logo />
@@ -96,10 +99,10 @@ export default function Cabecera() {
                             aria-hidden
                             viewBox="0 0 100 10"
                             preserveAspectRatio="none"
-                            className="absolute inset-x-3 bottom-0 h-2 w-[calc(100%-1.5rem)] text-dorado"
+                            className="absolute inset-x-3 bottom-0 h-2 w-[calc(100%-1.5rem)] text-oro"
                             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                           >
-                            <path d="M2 6.5C25 3.5 60 3 98 5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                            <path d="M2 5H98" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                           </motion.svg>
                         ) : (
                           <span

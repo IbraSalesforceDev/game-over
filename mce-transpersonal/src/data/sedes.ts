@@ -28,7 +28,7 @@ export type Sede = {
   contactoDe?: string;
 };
 
-export type ComunidadId = 'comunidad-valenciana' | 'andalucia' | 'madrid-baleares' | 'castilla-la-mancha';
+export type ComunidadId = 'comunidad-valenciana' | 'andalucia' | 'madrid-baleares';
 
 export type Comunidad = { id: ComunidadId; nombre: string };
 
@@ -37,7 +37,6 @@ export const comunidades: Comunidad[] = [
   { id: 'andalucia', nombre: 'Andalucía' },
   // Madrid y Mallorca son una sola ficha: por eso tienen un grupo propio.
   { id: 'madrid-baleares', nombre: 'Madrid y Baleares' },
-  { id: 'castilla-la-mancha', nombre: 'Castilla-La Mancha' },
 ];
 
 const ig = (usuario: string) => `https://www.instagram.com/${usuario}/`;
@@ -142,19 +141,6 @@ export const sedes: Sede[] = [
     facebook: fb('MCEMadridMallorca'),
     telefonos: ['690 748 305'],
     facilitadores: [silvia],
-  },
-
-  // ── Castilla-La Mancha ──────────────────────────────────────────────
-  {
-    id: 'talavera',
-    nombre: 'Talavera de la Reina',
-    comunidad: 'castilla-la-mancha',
-    // TODO: Talavera no tiene datos propios todavía.
-    instagram: null,
-    facebook: null,
-    telefonos: [],
-    facilitadores: [],
-    aviso: 'De momento, Talavera de la Reina no tiene datos de contacto propios. Puedes escribir a MCE desde el formulario.',
   },
 ];
 

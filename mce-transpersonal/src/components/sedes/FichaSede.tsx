@@ -21,7 +21,7 @@ export default function FichaSede({ sede, compacta = false }: { sede: Sede; nume
       <header className="relative md:col-span-4">
         <h3
           id={`sede-${sede.id}`}
-          className={cx('font-medium transition-transform duration-300 ease-[var(--ease-suave)] group-hover:translate-x-1', compacta ? 'text-[1.9rem]' : 'text-[clamp(2.1rem,3.6vw,2.9rem)]')}
+          className={cx('font-serif font-light tracking-[-0.02em] transition-transform duration-300 ease-[var(--ease-suave)] group-hover:translate-x-1', compacta ? 'text-[1.9rem]' : 'text-[clamp(2.1rem,3.6vw,2.9rem)]')}
         >
           {sede.nombre}
         </h3>
@@ -35,7 +35,7 @@ export default function FichaSede({ sede, compacta = false }: { sede: Sede; nume
 
       {foto && (
         <figure className="relative md:col-span-4">
-          <div className="aspect-[4/3] overflow-hidden rounded-[1.25rem] bg-lino">
+          <div className="aspect-[4/3] overflow-hidden rounded-[6px] bg-lino">
             <img
               src={foto.src}
               alt={foto.alt}
