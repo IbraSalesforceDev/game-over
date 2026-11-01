@@ -58,7 +58,7 @@ export function telemetria(n: Nave, t: number): Telemetria {
 
 /** Tolerancia de aterrizaje, en m/s. */
 export function toleranciaAterrizaje(n: Nave): number {
-  return n.tienePatas() ? 14 : 8;
+  return n.tienePatas() ? 16 : 10;
 }
 
 /**
@@ -119,20 +119,23 @@ export function pasoNave(n: Nave, dt: number, t: number): Contacto | null {
 
   // --- Posado: o despega o sigue pegado al suelo.
   if (n.posado) {
+    // Al final del paso el cuerpo ya se ha movido: la nave va con él. Si no
+    // se colocara en t + dt, una luna en órbita la dejaría bajo el suelo.
     const pc = cuerpo(n.posado.cuerpo);
-    const ppos = posCuerpo(pc, t);
+    const ppos = posCuerpo(pc, t + dt);
     const up = polar(n.posado.ang);
     const subida = punto(aEmpuje, up);
-    const gp = pc.gm / Math.pow(largo(resta(n.pos, ppos)), 2);
-    if (subida > gp * 1.02) {
-      n.posado = null;
-      n.vel = suma(velCuerpo(pc, t), escala(aEmpuje, dt));
-      return { tipo: 'despega', cuerpo: pc, velocidad: 0 };
-    }
     const g2 = n.geometria;
     const h = pc.radio + relieve(pc, n.posado.ang) + (g2.largo - g2.ycm) + 0.05;
+    const gp = pc.gm / (h * h);
+    if (subida > gp * 1.02) {
+      n.posado = null;
+      n.pos = suma(ppos, escala(up, h + 0.1));
+      n.vel = suma(velCuerpo(pc, t + dt), escala(suma(aEmpuje, escala(up, -gp)), dt));
+      return { tipo: 'despega', cuerpo: pc, velocidad: 0 };
+    }
     n.pos = suma(ppos, escala(up, h));
-    n.vel = velCuerpo(pc, t);
+    n.vel = velCuerpo(pc, t + dt);
     // Se endereza solo, poco a poco.
     const d = difAngulo(n.ang, n.posado.ang);
     n.ang += d * Math.min(1, dt * 3);
@@ -146,12 +149,15 @@ export function pasoNave(n: Nave, dt: number, t: number): Contacto | null {
   // --- Resistencia
   let aDrag = { x: 0, y: 0 };
   if (rho > 0 && va > 0.01) {
-    const radio = n.geometria.anchoMax / 2;
-    let cdA = 0.9 * n.aerodinamica() * Math.PI * radio * radio;
+    // Sección frontal: la de la pila, más un tercio de lo que sobresale por los lados.
+    const radio = n.geometria.anchoMax * 0.35;
+    let cdA = 0.4 * n.aerodinamica() * Math.PI * radio * radio;
     if (n.paracaidas) {
       const areaPar = n.areaParacaidas();
-      // El paracaídas no aguanta a mucha velocidad: se abre del todo por debajo de 250 m/s.
-      cdA += areaPar * clamp((300 - va) / 100, 0.05, 1);
+      // Arriba solo va el piloto (frena poco); el dosel se abre del todo en el
+      // aire denso, a unos 2 km. Y no aguanta grandes velocidades.
+      const apertura = clamp((rho / (c.atm?.rho0 ?? 1) - 0.2) / 0.35, 0.1, 1);
+      cdA += areaPar * apertura * clamp((300 - va) / 100, 0.05, 1);
     }
     const f = 0.5 * rho * va * va * cdA; // N
     const a = Math.min(f / (masa * 1000), va / dt); // no invertir el sentido en un paso

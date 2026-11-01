@@ -24,13 +24,13 @@ export interface InfoMineral {
 }
 
 export const MINERALES: InfoMineral[] = [
-  { id: 'hierro', nombre: 'Hierro', color: '#b06a4a', base: 180, sensibilidad: 0.004, guerra: 1.25, desc: 'Abundante. Paga poco, pero llena la bodega.' },
-  { id: 'niquel', nombre: 'Níquel', color: '#9fa7a0', base: 320, sensibilidad: 0.006, guerra: 1.1, desc: 'Aleaciones y baterías.' },
-  { id: 'hielo', nombre: 'Hielo', color: '#a8dcf0', base: 140, sensibilidad: 0.005, guerra: 1, desc: 'Agua. Una refinería lo convierte en combustible.' },
-  { id: 'titanio', nombre: 'Titanio', color: '#c9d4e8', base: 700, sensibilidad: 0.012, guerra: 1.6, desc: 'Cascos y blindajes. En guerra vale oro.' },
-  { id: 'platino', nombre: 'Platino', color: '#e8e2c4', base: 1900, sensibilidad: 0.03, guerra: 1.05, desc: 'Escaso y caro. Satura rápido.' },
-  { id: 'xenita', nombre: 'Xenita', color: '#4ff0c8', base: 4200, sensibilidad: 0.05, guerra: 1.3, desc: 'Cristal alienígena. Solo en el Anillo de Xyl.' },
-  { id: 'chatarra', nombre: 'Chatarra de guerra', color: '#8a7a6a', base: 450, sensibilidad: 0.01, guerra: 1.2, desc: 'Restos de naves enemigas. Se paga por peso.' },
+  { id: 'hierro', nombre: 'Hierro', color: '#b06a4a', base: 450, sensibilidad: 0.004, guerra: 1.25, desc: 'Abundante. Paga poco, pero llena la bodega.' },
+  { id: 'niquel', nombre: 'Níquel', color: '#9fa7a0', base: 800, sensibilidad: 0.006, guerra: 1.1, desc: 'Aleaciones y baterías.' },
+  { id: 'hielo', nombre: 'Hielo', color: '#a8dcf0', base: 350, sensibilidad: 0.005, guerra: 1, desc: 'Agua. Una refinería lo convierte en combustible.' },
+  { id: 'titanio', nombre: 'Titanio', color: '#c9d4e8', base: 1750, sensibilidad: 0.012, guerra: 1.6, desc: 'Cascos y blindajes. En guerra vale oro.' },
+  { id: 'platino', nombre: 'Platino', color: '#e8e2c4', base: 4800, sensibilidad: 0.03, guerra: 1.05, desc: 'Escaso y caro. Satura rápido.' },
+  { id: 'xenita', nombre: 'Xenita', color: '#4ff0c8', base: 10500, sensibilidad: 0.05, guerra: 1.3, desc: 'Cristal alienígena. Solo en el Anillo de Xyl.' },
+  { id: 'chatarra', nombre: 'Chatarra de guerra', color: '#8a7a6a', base: 1100, sensibilidad: 0.01, guerra: 1.2, desc: 'Restos de naves enemigas. Se paga por peso.' },
 ];
 
 export function infoMineral(m: Mineral): InfoMineral {
@@ -65,6 +65,11 @@ export function crearMercado(): EstadoMercado {
   for (const m of MINERALES) cot[m.id] = { saturacion: 0, tendencia: 0, historial: [] };
   const mer: EstadoMercado = { cot, ultimaHora: 0, multiplicador: 1, ajuste: {}, semilla: 1 };
   for (const m of MINERALES) mer.cot[m.id].historial.push(precio(mer, m.id, false));
+  // Medio día de historia para que las gráficas no empiecen vacías.
+  mer.semilla = 7;
+  tickMercado(mer, -12 * HORA, 0, false);
+  mer.ultimaHora = 0;
+  mer.semilla = 1;
   return mer;
 }
 
@@ -113,7 +118,7 @@ export function tickMercado(mer: EstadoMercado, tAnterior: number, tAhora: numbe
   const k = Math.pow(0.5, dt / VIDA_MEDIA);
   for (const m of MINERALES) mer.cot[m.id].saturacion *= k;
   // Una deriva por hora de juego; con el tiempo acelerado se pueden juntar muchas.
-  let horas = Math.floor(tAhora / HORA) - Math.floor(mer.ultimaHora / HORA);
+  let horas = Math.floor(tAhora / HORA) - Math.floor(Math.min(mer.ultimaHora, tAnterior) / HORA);
   if (horas <= 0) return;
   horas = Math.min(horas, 48);
   const r = rng(mer.semilla + Math.floor(tAhora / HORA));

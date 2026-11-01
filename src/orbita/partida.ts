@@ -42,6 +42,7 @@ export function disenoInicial(raza: Raza): Diseno {
         { parte: 'a_simbionte', radial: null },
         { parte: 'a_buche_s', radial: 'a_garra' },
         { parte: 'a_vejiga_m', radial: 'aletas' },
+        { parte: 'a_vejiga_s', radial: null },
         { parte: 'a_pulso', radial: null },
       ],
     };
@@ -54,7 +55,7 @@ export function disenoInicial(raza: Raza): Diseno {
       { parte: 'h_alondra', radial: null },
       { parte: 'h_bodega_s', radial: 'h_topo' },
       { parte: 'h_t400', radial: 'aletas' },
-      { parte: 'h_t100', radial: null },
+      { parte: 'h_t400', radial: null },
       { parte: 'h_saltamontes', radial: null },
     ],
   };

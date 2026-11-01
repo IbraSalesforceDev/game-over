@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { ICONOS, pngIcono } from './herramientas/iconos';
 
@@ -36,5 +37,13 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    // Dos juegos en el mismo despliegue: el sandbox de tiles en la raíz y
+    // Frontera Orbital en /orbita/.
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        orbita: fileURLToPath(new URL('./orbita/index.html', import.meta.url)),
+      },
+    },
   },
 });

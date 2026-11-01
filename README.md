@@ -6,6 +6,11 @@ crafteo. Web, sin backend, desplegado en Vercel.
 
 Se construye por fases, cada una jugable y desplegable por separado.
 
+🚀 **Nuevo: [Frontera Orbital](docs/ORBITA.md)**, un segundo juego en `/orbita/`:
+cohetes por piezas con física orbital, minería de asteroides, mercado de
+minerales, tecnología militar y guerra contra una IA, con dos razas (humanos y
+la Colmena Xyl) y panel de administración.
+
 🏗️ **[Cómo está montado por dentro → `docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)**
 
 🗂️ **[Versiones → `docs/VERSIONES.md`](docs/VERSIONES.md)**

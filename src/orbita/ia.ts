@@ -170,7 +170,7 @@ export function pilotar(n: Nave, b: Blanco, cer: Cerebro): void {
   const rel = resta(b.pos, n.pos);
   const d = largo(rel);
   const haciaB = unit(rel);
-  const vCierre = clamp((d - cer.distancia) * 0.04, -40, 90);
+  const vCierre = clamp((d - cer.distancia) * 0.06, -60, 220);
   const deseada = suma(escala(haciaB, vCierre), escala(perp(haciaB), 14 * cer.lado));
   const actual = resta(n.vel, b.vel);
   const error = resta(deseada, actual);

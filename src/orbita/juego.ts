@@ -84,6 +84,9 @@ interface EstadoEstacion {
 
 const RADIO_ACOPLE = 300;
 
+/** Cuánto pega y cuánto dispara la IA respecto al jugador. */
+const FACTOR_IA = 0.55;
+
 let asteroidesCompartidos: Asteroide[] | null = null;
 
 /** Los asteroides son los mismos en toda la partida; sus reservas viven en `Partida`. */
@@ -341,11 +344,13 @@ export class Vuelo {
     n.sas = true;
     this.naves.push(n);
     this.vivos.add(n.id);
-    const alcance = Math.max(800, ...n.armas().map((m) => m.parte.arma?.alcance ?? 0));
+    // Se acerca hasta donde llega su arma más corta: si no, la lanza de plasma no tocaría nunca.
+    const alcances = n.armas().filter((m) => !m.parte.arma?.antimisil).map((m) => m.parte.arma?.alcance ?? 0);
+    const alcance = Math.max(600, alcances.length ? Math.min(...alcances) : 1500);
     this.cerebros.set(n.id, {
       nivel,
       objetivo,
-      distancia: alcance * (0.35 + this.azar() * 0.25),
+      distancia: alcance * (0.4 + this.azar() * 0.3),
       lado: this.azar() < 0.5 ? -1 : 1,
       recompensa: [1500, 3500, 8000][nivel - 1]!,
     });
@@ -366,7 +371,7 @@ export class Vuelo {
     for (let i = 0; i < nNaves; i++) {
       const ang = (this.azar() - 0.5) * 2.4;
       const dir = v(fuera.x * Math.cos(ang) - fuera.y * Math.sin(ang), fuera.x * Math.sin(ang) + fuera.y * Math.cos(ang));
-      const pos = suma(centro.pos, escala(dir, 5500 + this.azar() * 2500));
+      const pos = suma(centro.pos, escala(dir, 3500 + this.azar() * 1500));
       const vel = suma(centro.vel, escala(perp(dir), (this.azar() - 0.5) * 30));
       this.nuevaEnemiga(nivel, pos, vel, contraEstacion ? 'estacion' : 'jugador');
     }
@@ -449,26 +454,30 @@ export class Vuelo {
 
   private disparar(n: Nave, m: MontajeArma, blanco: Blanco | null, apunte: V, dt: number, delJugador: boolean): void {
     const arma = m.parte.arma!;
+    // La IA apunta peor, dispara menos y pega más flojo que el jugador: si no,
+    // tres naves enemigas deshacen cualquier diseño en diez segundos.
+    const k = delJugador ? 1 : FACTOR_IA;
     const o = n.posArma(m);
     const destino = blanco && arma.tipo === 'bala' ? adelanto(o, n.vel, blanco, arma.velocidad) : blanco ? blanco.pos : apunte;
     const dir = unit(resta(destino, o));
     if (!delJugador && dist(o, destino) > arma.alcance * 1.05) return;
     if (arma.tipo === 'rayo') {
       if (!this.gastar(n, arma.energia * dt)) return;
-      this.rayo(n, o, dir, arma.alcance, arma.dano * dt, delJugador);
+      // Un rayo no falla nunca, así que en manos de la IA quema bastante menos.
+      this.rayo(n, o, dir, arma.alcance, arma.dano * dt * k * (delJugador ? 1 : 0.55), delJugador);
       if (this.azar() < dt * 8) this.eventos.push('rayo');
       return;
     }
     if (m.nodo.cd[m.lado] > 0) return;
     if (!this.gastar(n, arma.energia)) return;
-    m.nodo.cd[m.lado] = arma.cadencia * (0.9 + this.azar() * 0.2);
+    m.nodo.cd[m.lado] = (arma.cadencia * (0.9 + this.azar() * 0.2)) / k;
     if (arma.tipo === 'bala') {
-      const disp = (this.azar() - 0.5) * 0.004;
+      const disp = (this.azar() - 0.5) * (delJugador ? 0.004 : 0.03);
       const d2 = v(dir.x * Math.cos(disp) - dir.y * Math.sin(disp), dir.x * Math.sin(disp) + dir.y * Math.cos(disp));
       this.proyectiles.push({
         pos: o,
         vel: suma(n.vel, escala(d2, arma.velocidad)),
-        dano: arma.dano,
+        dano: arma.dano * k,
         raza: n.raza,
         ttl: arma.alcance / arma.velocidad,
         tipo: 'bala',
@@ -484,7 +493,7 @@ export class Vuelo {
       this.proyectiles.push({
         pos: o,
         vel: suma(n.vel, escala(dir, 40)),
-        dano: arma.dano,
+        dano: arma.dano * k,
         raza: n.raza,
         ttl: 40,
         tipo: 'misil',
@@ -763,6 +772,29 @@ export class Vuelo {
     this.cercano = mejor;
     if (!n.controlable) return;
 
+    // Choque con la roca: aterrizar suave es posarse; rápido, abollarse.
+    if (mejor && !n.posado) {
+      const radioRoca = mejor.a.radio * 0.85;
+      const centro = dist(mejor.pos, n.pos);
+      const contacto = radioRoca + n.geometria.anchoMax * 0.5;
+      if (centro < contacto) {
+        const fuera = unit(resta(n.pos, mejor.pos));
+        const va = velOrbita(mejor.a.orbita, this.t);
+        if (mejor.vrel > 12 && !n.inmortal) {
+          const restos = n.danar(mejor.vrel * mejor.vrel * 0.15, this.azar);
+          for (const r of restos) this.naves.push(r);
+          this.chispas(n.pos, va, '#c9b48a', 12);
+          this.eventos.push('impacto');
+          this.avisar(`Choque contra ${mejor.a.nombre} a ${mejor.vrel.toFixed(0)} m/s.`, 'peligro');
+        }
+        n.pos = suma(mejor.pos, escala(fuera, contacto + 0.2));
+        const rel = resta(n.vel, va);
+        const radial = punto(rel, fuera);
+        // Se anula lo que empuja contra la roca y se frena el deslizamiento.
+        n.vel = suma(va, escala(resta(rel, escala(fuera, Math.min(0, radial))), 0.9));
+      }
+    }
+
     if (n.refinando) {
       const ritmo = n.ritmoRefineria() * dtJuego;
       const hielo = n.carga.hielo ?? 0;
@@ -864,7 +896,7 @@ export class Vuelo {
   recuperar(): { reembolso: number; carga: number } | null {
     const n = this.jugador;
     if (!n.controlable || !(this.acoplada || this.enCasa)) return null;
-    const reembolso = Math.round(n.valor() * 0.8);
+    const reembolso = Math.round(n.valor() * 0.9);
     const carga = masaInventario(n.carga);
     this.p.creditos += reembolso;
     sumarInventario(this.p.almacen, n.carga);

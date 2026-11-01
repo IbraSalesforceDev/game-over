@@ -513,7 +513,7 @@ export class Nave {
 
   /**
    * Recibe daño. Primero el escudo; luego una pieza al azar, con preferencia
-   * por el blindaje. Devuelve los trozos que se desprenden.
+   * por el blindaje (pesa diez veces su tamaño). Devuelve los trozos que se desprenden.
    */
   danar(cant: number, azar: () => number): Nave[] {
     if (this.inmortal || this.destruida) return [];
@@ -524,11 +524,11 @@ export class Nave {
       cant -= abs;
       if (cant <= 0) return [];
     }
-    // Elegir pieza: el blindaje pesa cinco veces más.
+    // Elegir pieza: el blindaje pesa diez veces más.
     const pesos: { i: number; radial: boolean; w: number }[] = [];
     this.nodos.forEach((n, i) => {
       const area = n.parte.ancho * n.parte.alto;
-      pesos.push({ i, radial: false, w: area * (n.parte.blindaje ? 6 : 1) });
+      pesos.push({ i, radial: false, w: area * (n.parte.blindaje ? 10 : 1) });
       if (n.radial && n.hpRadial > 0) pesos.push({ i, radial: true, w: n.radial.ancho * n.radial.alto * 2 });
     });
     let total = 0;

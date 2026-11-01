@@ -223,10 +223,11 @@ export interface Asteroide {
 }
 
 function crearForma(r: () => number): number[] {
-  const n = 14;
-  const out: number[] = [];
-  for (let i = 0; i < n; i++) out.push(0.72 + r() * 0.38);
-  return out;
+  const n = 28;
+  const bruto: number[] = [];
+  for (let i = 0; i < n; i++) bruto.push(0.7 + r() * 0.4);
+  // Suavizado circular: una roca, no una estrella.
+  return bruto.map((_, i) => (bruto[(i + n - 1) % n]! + bruto[i]! * 2 + bruto[(i + 1) % n]!) / 4);
 }
 
 export function crearAsteroides(semilla = 98): Asteroide[] {
