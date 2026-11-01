@@ -48,9 +48,9 @@ export default function Retrato({
   const [fallo, setFallo] = useState(false);
   const reducido = useReducedMotion();
   const formas = {
-    arco: 'rounded-[6px]',
+    arco: 'rounded-t-[999px] rounded-b-[8px]',
     circulo: 'rounded-full',
-    rect: 'rounded-[6px]',
+    rect: 'rounded-[8px]',
   };
   const animar = revelar && !reducido;
 

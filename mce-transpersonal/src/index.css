@@ -2,37 +2,37 @@
 @import 'lenis/dist/lenis.css';
 
 /* ───────────────────────────────────────────────────────────────────────────
-   Sistema de diseño MCE · v5
-   Blanco y azules como base. El oro del logo, solo en detalles finos.
-   Nombres heredados: `dorado` es ahora el AZUL de acento (enlaces, botones,
-   detalles); el oro de verdad es `oro`.
+   Sistema de diseño MCE · v4
+   Sobrio y luminoso: blanco de base, azul noche para textos y secciones
+   oscuras, el dorado del logo para lo que se pulsa y azules claros de apoyo.
    ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-marfil: #fbfcfd;
-  --color-lino: #f1f4f8;
-  --color-arena: #e2e8f0;
-  --color-carbon: #0f1b33;
-  --color-carbon-suave: #4b566b;
-  /* azul de acento (antes dorado) */
-  --color-dorado: #1e4e8c;
-  --color-dorado-claro: #dce7f5;
-  --color-dorado-hondo: #1e4e8c;
-  /* oro del logo: solo detalles */
-  --color-oro: #b8994a;
-  --color-oro-claro: #e9dfc2;
-  --color-salvia: #5c7aa6;
-  --color-salvia-clara: #e6edf6;
-  --color-salvia-honda: #2c4a75;
-  --color-terracota: #8a96ab;
-  --color-terracota-clara: #eef1f5;
-  --color-terracota-honda: #3c4a63;
-  --color-bosque: #0a1428;
-  --color-mar: #1e4e8c;
-  --color-mar-claro: #dce7f5;
-  --color-amanecer: #eef3f9;
+  /* Paleta v4 · blanco, azul oscuro y el dorado del logo, con un azul claro de apoyo.
+     Los nombres son heredados para no tocar cada componente:
+     marfil = blanco, carbon = azul noche (texto), dorado = oro del logo,
+     mar/salvia/terracota = azules de apoyo, bosque = noche profunda (espacio). */
+  --color-marfil: #fcfcfa;
+  --color-lino: #f2f4f7;
+  --color-arena: #e3e8ef;
+  --color-carbon: #16213e;
+  --color-carbon-suave: #4a5570;
+  --color-dorado: #b8994a;
+  --color-dorado-claro: #efe6cc;
+  /* Oro oscuro para textos: contraste AA sobre blanco */
+  --color-dorado-hondo: #7a6420;
+  --color-salvia: #3e5c8a;
+  --color-salvia-clara: #dce6f2;
+  --color-salvia-honda: #2b4570;
+  --color-terracota: #5b6b8c;
+  --color-terracota-clara: #e8ecf3;
+  --color-terracota-honda: #3a4866;
+  --color-bosque: #0b1226;
+  --color-mar: #1f3b66;
+  --color-mar-claro: #dce6f2;
+  --color-amanecer: #f5f1e6;
 
-  --font-serif: 'Newsreader Variable', 'Iowan Old Style', Georgia, serif;
-  --font-sans: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Cormorant Garamond Variable', 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --ease-suave: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-cortina: cubic-bezier(0.76, 0, 0.24, 1);
@@ -56,6 +56,7 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: clip;
     font-synthesis: none;
+    /* Cormorant usa números de estilo antiguo por defecto ("10" parecía "IO") */
     font-variant-numeric: lining-nums;
   }
 
@@ -76,10 +77,9 @@
   h3,
   h4 {
     font-family: var(--font-serif);
-    font-weight: 400;
+    font-weight: 500;
     line-height: 1.02;
-    letter-spacing: -0.025em;
-    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
     text-wrap: balance;
   }
 
@@ -88,19 +88,19 @@
   }
 
   ::selection {
-    background: var(--color-mar-claro);
+    background: var(--color-dorado-claro);
     color: var(--color-carbon);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-mar);
+    outline: 2px solid var(--color-dorado-hondo);
     outline-offset: 3px;
     border-radius: 2px;
   }
 
   /* Sobre fondos oscuros, el anillo de foco pasa a dorado claro (contraste ≥ 3:1) */
   :where(.bg-mar, .bg-bosque, .bg-carbon, footer, .text-marfil) :focus-visible {
-    outline-color: var(--color-oro-claro);
+    outline-color: var(--color-dorado-claro);
   }
 
   a {
@@ -138,9 +138,9 @@
   /* Rótulo pequeño en minúscula normal (sin mayúsculas espaciadas). */
   .etiqueta {
     font-family: var(--font-sans);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 500;
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
     color: var(--color-carbon-suave);
   }
 
@@ -167,7 +167,7 @@
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.2em;
-    text-decoration-color: var(--color-oro);
+    text-decoration-color: var(--color-dorado);
     transition: text-decoration-color 0.3s;
   }
   .enlace-texto:hover {
@@ -211,7 +211,7 @@
     top: 0.8em;
     width: 0.6rem;
     height: 1px;
-    background: var(--color-oro);
+    background: var(--color-dorado);
   }
   .prosa-legal strong {
     color: var(--color-carbon);

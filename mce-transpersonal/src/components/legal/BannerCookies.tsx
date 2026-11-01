@@ -35,7 +35,7 @@ export default function BannerCookies() {
           onChange={(e) => cambiar(e.target.checked)}
           className="peer h-5 w-5 cursor-pointer appearance-none rounded-[4px] border border-carbon/40 bg-marfil transition-colors checked:border-dorado-hondo checked:bg-dorado"
         />
-        <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none absolute inset-0 h-5 w-5 text-marfil opacity-0 transition-opacity peer-checked:opacity-100">
+        <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none absolute inset-0 h-5 w-5 text-carbon opacity-0 transition-opacity peer-checked:opacity-100">
           <path d="M5 10.5 8.5 14 15 6.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>

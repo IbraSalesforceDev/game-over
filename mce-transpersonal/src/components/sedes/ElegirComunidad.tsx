@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { comunidades, sedesDe, type ComunidadId } from '../../data/sedes';
 import { cx } from '../../lib/utilidades';
 import { Escalonado, hijoEscalonado, Revelar } from '../anim/Revelar';
-import { FlechaMano } from '../anim/Trazo';
+import { FlechaMano, Subrayado } from '../anim/Trazo';
 import { motion } from 'framer-motion';
 
 /**
@@ -27,7 +27,7 @@ export default function ElegirComunidad({
       <span
         aria-hidden
         className={cx(
-          'absolute inset-0 -z-10 origin-bottom scale-y-0 rounded-[6px] transition-transform duration-500 ease-[var(--ease-suave)] group-hover:scale-y-100',
+          'absolute inset-0 -z-10 origin-bottom scale-y-0 rounded-xl transition-transform duration-500 ease-[var(--ease-suave)] group-hover:scale-y-100',
           oscuro ? 'bg-marfil' : 'bg-carbon',
         )}
       />
@@ -49,7 +49,10 @@ export default function ElegirComunidad({
         <p className={cx('etiqueta', oscuro && '!text-marfil/70')}>Elige tu comunidad autónoma</p>
         <h2 className="mt-5 text-[clamp(2.2rem,5vw,3.8rem)]">
           ¿Con quién{' '}
-          quieres hablar
+          <span className="relative inline-block italic">
+            quieres hablar
+            <Subrayado retraso={0.5} />
+          </span>
           ?
         </h2>
       </Revelar>

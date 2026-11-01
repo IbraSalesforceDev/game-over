@@ -4,7 +4,6 @@ import Titular from '../anim/Titular';
 import { useRetrasoPagina } from '../anim/Pagina';
 import { cx } from '../../lib/utilidades';
 import type { FotoReal } from '../../data/fotos';
-import FotoEditorial from './FotoEditorial';
 
 type Segmento = Parameters<typeof Titular>[0]['segmentos'][number];
 
@@ -38,6 +37,7 @@ export default function CabeceraPagina({
   const { inicial } = useRetrasoPagina();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
   const yTitulo = useTransform(scrollYProgress, [0, 1], [0, -80]);
+  const yFoto = useTransform(scrollYProgress, [0, 1], ['0%', '12%']);
 
   const entrar = (d: number) => ({
     initial: { opacity: 0, y: 16 },
@@ -48,13 +48,23 @@ export default function CabeceraPagina({
   const derecha =
     lateral ??
     (foto ? (
-      <FotoEditorial
-        foto={foto}
-        pie={foto.lugar ? `MCE ${foto.lugar}` : undefined}
-        prioridad
-        proporcion="aspect-[4/5] sm:aspect-[5/6]"
-        className="mx-auto w-full max-w-[22rem] sm:max-w-[24rem] lg:ml-auto lg:mr-0 lg:max-w-[27rem]"
-      />
+      <motion.div
+        className="relative mx-auto aspect-[4/5] w-full max-w-[19rem] overflow-hidden rounded-t-[999px] rounded-b-[1.25rem] sm:max-w-[22rem] lg:ml-auto lg:mr-0 lg:max-w-[26rem]"
+        initial={reducido ? false : { clipPath: 'inset(100% 0% 0% 0%)' }}
+        animate={{ clipPath: 'inset(0% 0% 0% 0%)' }}
+        transition={{ duration: 1.3, delay: inicial + 0.25, ease: [0.76, 0, 0.24, 1] }}
+      >
+        <motion.img
+          src={foto.src}
+          alt={foto.alt}
+          width={foto.ancho}
+          height={foto.alto}
+          decoding="async"
+          style={reducido ? undefined : { y: yFoto, scale: 1.15 }}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <span aria-hidden className="absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-carbon/10" />
+      </motion.div>
     ) : null);
 
   return (
@@ -63,7 +73,7 @@ export default function CabeceraPagina({
         <motion.div style={reducido ? undefined : { y: yTitulo }} className={cx(derecha ? 'lg:col-span-7' : 'lg:col-span-10')}>
           <motion.div {...entrar(0.05)}>
             <p className="etiqueta flex items-center gap-3">
-              <span aria-hidden className="h-px w-6 bg-oro" />
+              <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-dorado" />
               {etiqueta}
             </p>
           </motion.div>
@@ -72,7 +82,7 @@ export default function CabeceraPagina({
             alCargar
             lineas={lineas}
             retraso={0.1}
-            className="mt-6 text-[clamp(3.1rem,7.4vw,6.8rem)] font-light leading-[0.95] tracking-[-0.04em]"
+            className="mt-6 text-[clamp(3.1rem,7.6vw,7rem)] font-medium leading-[0.96] tracking-[-0.02em]"
           />
           {entradilla && (
             <motion.div className="mt-8 max-w-xl text-[1.15rem] leading-relaxed text-carbon-suave sm:text-[1.25rem]" {...entrar(0.6)}>

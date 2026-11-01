@@ -45,7 +45,7 @@ export default function Pie() {
             <div className="md:col-span-4">
               <Link to="/" aria-label="Ir al inicio" className="inline-block rounded-sm">
                 {/* El logo se muestra tal cual, sobre una pastilla clara para no alterar sus colores */}
-                <span className="inline-flex rounded-[6px] bg-marfil px-5 py-3">
+                <span className="inline-flex rounded-[1.25rem] bg-marfil px-5 py-3">
                   <Logo className="h-16 sm:h-20" />
                 </span>
               </Link>

@@ -9,7 +9,6 @@ import { facilitadoresConSedes } from '../data/sedes';
 import { fotosSede, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
 import { cx } from '../lib/utilidades';
 import { betty } from '../data/textos';
-import { Link } from 'react-router';
 
 const coloresDisciplina = ['#efe6cc', '#dce6f2', '#e3e8ef', '#e8ecf3'];
 const puntos = ['bg-dorado', 'bg-mar', 'bg-salvia', 'bg-terracota'];
@@ -60,7 +59,7 @@ function Disciplinas() {
             onPointerEnter={() => setActiva(i)}
             className="filete group flex items-center justify-between gap-6 border-b py-7 sm:py-9"
           >
-            <span className="font-serif text-[clamp(2.6rem,7.4vw,6.6rem)] font-light leading-none tracking-[-0.035em] transition-transform duration-300 ease-[var(--ease-suave)] group-hover:translate-x-3 group-hover:italic">
+            <span className="font-serif text-[clamp(2.6rem,7.4vw,6.6rem)] font-medium leading-none tracking-[-0.02em] transition-transform duration-300 ease-[var(--ease-suave)] group-hover:translate-x-3 group-hover:italic">
               {d}
             </span>
             <span className={cx('h-3 w-3 shrink-0 rounded-full transition-transform duration-300 group-hover:scale-[2]', puntos[i])} aria-hidden />
@@ -85,7 +84,7 @@ function TiraFotos({ fotos }: { fotos: FotoReal[] }) {
                 <div
                   className={cx(
                     'overflow-hidden bg-lino',
-                    pequena ? 'h-[16rem] w-[13rem] rounded-[6px] sm:h-[20rem] sm:w-[16rem]' : 'h-[16rem] w-[22rem] rounded-[6px] sm:h-[20rem] sm:w-[28rem]',
+                    pequena ? 'h-[14rem] w-[14rem] rounded-t-[999px] rounded-b-[1rem] sm:h-[16rem] sm:w-[16rem]' : 'h-[16rem] w-[22rem] rounded-[1.25rem] sm:h-[20rem] sm:w-[28rem]',
                   )}
                 >
                   <img src={f.src} alt={f.alt} width={f.ancho} height={f.alto} loading="lazy" decoding="async" draggable={false} className="pointer-events-none h-full w-full object-cover" />
@@ -128,7 +127,7 @@ export default function Equipo() {
       <section className="overflow-hidden bg-lino py-28 sm:py-36" aria-labelledby="titulo-personas">
         <div className="marco flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <Revelar>
-            <h2 id="titulo-personas" className="max-w-3xl text-[clamp(2.4rem,5vw,4.4rem)] font-light leading-[1.02] tracking-[-0.03em]">
+            <h2 id="titulo-personas" className="max-w-3xl text-[clamp(2.4rem,5vw,4.4rem)] font-medium leading-[1.02]">
               Las personas de cada sede
             </h2>
           </Revelar>
@@ -144,20 +143,25 @@ export default function Equipo() {
         <div className="marco mt-20 grid gap-10 md:grid-cols-2">
           <Revelar className="grid grid-cols-[7rem_1fr] items-start gap-6 sm:grid-cols-[9rem_1fr]">
             {betty.foto && (
-              <img src={betty.foto} alt="Retrato de Betty Merino" width={1064} height={1380} loading="lazy" decoding="async" className="aspect-[4/5] w-full rounded-[6px] object-cover object-top" />
+              <img
+                src={betty.foto}
+                alt="Retrato de Betty Merino"
+                width={1064}
+                height={1380}
+                loading="lazy"
+                decoding="async"
+                className="aspect-[4/5] w-full rounded-t-[999px] rounded-b-[1rem] object-cover object-top"
+              />
             )}
             <div>
-              <h3 className="font-serif text-[1.9rem] font-light">Fundadora</h3>
+              <h3 className="text-[1.9rem] font-medium">Fundadora</h3>
               <p className="mt-3 text-[1.08rem] text-carbon-suave">
                 <span className="text-carbon">{betty.nombre}</span>, fundadora de MCE.
               </p>
-              <Link to="/#betty" className="enlace-texto mt-4 inline-block text-[0.98rem]">
-                Conocer a Betty
-              </Link>
             </div>
           </Revelar>
           <Revelar retraso={0.1}>
-            <h3 className="font-serif text-[1.9rem] font-light">Facilitadores</h3>
+            <h3 className="text-[1.9rem] font-medium">Facilitadores</h3>
             <ul className="mt-3 space-y-1.5 text-[1.08rem] text-carbon-suave">
               {facilitadores.map(({ facilitador: f, sedes }) => (
                 <li key={f.nombre}>

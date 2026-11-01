@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import Pagina from '../components/anim/Pagina';
 import { Revelar } from '../components/anim/Revelar';
-import { FlechaMano } from '../components/anim/Trazo';
+import { FlechaMano, Subrayado } from '../components/anim/Trazo';
 import Formulario from '../components/contacto/Formulario';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
@@ -45,10 +45,11 @@ export default function Contacto() {
 
           <aside className="lg:col-span-4 lg:col-start-9">
             <div className="lg:sticky lg:top-32">
-              <Revelar className="rounded-[6px] border border-carbon/10 bg-marfil p-8 shadow-[0_24px_50px_-36px_rgba(15,27,51,0.35)] sm:p-10">
+              <Revelar className="rounded-[1.75rem] bg-marfil p-8 shadow-[0_30px_60px_-40px_rgba(42,38,34,0.4)] sm:p-10">
                 <p className="font-serif text-[clamp(1.8rem,3vw,2.4rem)] font-light leading-[1.15]">
                   <span className="relative inline-block">
                     {animoContacto.linea1}
+                    <Subrayado retraso={0.8} />
                   </span>{' '}
                   <span className="mt-3 block text-dorado-hondo">{animoContacto.linea2}</span>
                 </p>

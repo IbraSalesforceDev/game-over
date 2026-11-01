@@ -123,22 +123,20 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 
 ## Notas de diseño y accesibilidad
 
-- **Entrada:** el logo real se dibuja trazo a trazo al cargar Inicio (`components/anim/LogoDibujo.tsx`):
-  cada píxel aparece según su distancia, recorriendo el trazo, desde el centro del loto; las letras
-  MCE se escriben al final. Bloquea el scroll unos 3,6 s (solo la primera vez en la sesión) y tiene
-  botón «Saltar animación».
-- **Paleta** (`src/index.css`, `@theme`): blanco y azules como base, azul noche para textos y
-  secciones oscuras; el oro del logo (`oro`) solo en detalles finos. Ojo: por compatibilidad,
-  el token `dorado` es ahora el **azul** de acento.
-- **Tipografías** (`src/fuentes.css`): Newsreader (titulares, editorial) y Hanken Grotesk (texto),
-  solo subconjunto latino, incluidas en el proyecto.
-- **Composición editorial:** fotos rectangulares con pie (`FotoEditorial.tsx`), cifras tipográficas
-  separadas por filetes, índice con imagen que sigue al cursor (`IndiceConImagen.tsx`), columnas
-  asimétricas y citas grandes.
-- **Movimiento:** scroll suave (Lenis), cortina entre páginas, fotos que se descubren al entrar,
-  textos que se iluminan con el scroll, valores a pantalla completa y tarjetas apiladas.
-- **Accesibilidad:** foco visible (también sobre fondos oscuros) y contraste AA. Con
-  `prefers-reduced-motion` no hay dibujado del logo, ni scroll suave, ni cortina, ni secciones fijadas.
+- **Entrada:** en la portada, partículas doradas vibran en ondas sobre un fondo de espacio y forman
+  el logo y las letras MCE (`components/anim/LogoParticulas.tsx`). Mientras se forma (unos 3,6 s, solo
+  la primera vez en la sesión) no se puede bajar; hay un botón para saltarla. Después el logo sigue
+  respirando, salen ondas suaves y las partículas se apartan al pasar el dedo o el ratón.
+- **Paleta** (`src/index.css`, `@theme`): blanco, azul noche para textos y secciones oscuras, el dorado
+  del logo para lo que se pulsa y azules claros de apoyo. Los nombres de las variables son heredados
+  (`carbon` = azul noche, `dorado` = oro del logo, `bosque` = espacio).
+- **Tipografías:** Cormorant Garamond (titulares, con cursiva real) y Figtree (texto), incluidas en el proyecto.
+- **Fotos reales** en las cabeceras (en arco), en «Miles de personas», en cada sede y en Equipo
+  (tira que se arrastra).
+- **Movimiento:** scroll suave (Lenis), cortina entre páginas, textos que se iluminan con el scroll,
+  valores a pantalla completa, tarjetas apiladas y recorrido horizontal.
+- **Accesibilidad:** foco visible y contraste AA. Con `prefers-reduced-motion` no hay animación de
+  entrada, ni scroll suave, ni cortina, ni secciones fijadas.
 - Las políticas de privacidad y cookies son **plantillas**: deben revisarlas un profesional.
 
 ## Pendientes (`TODO`)

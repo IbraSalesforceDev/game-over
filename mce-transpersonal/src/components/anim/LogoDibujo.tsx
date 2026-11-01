@@ -20,11 +20,16 @@ export default function LogoDibujo({
   duracion,
   alTerminar,
   className,
+  style,
+  letrasClaras = false,
 }: {
   dibujar: boolean;
   duracion: number;
   alTerminar?: () => void;
   className?: string;
+  style?: React.CSSProperties;
+  /** Sobre fondo oscuro: las letras MCE (oscuras en el original) se dibujan en crema. */
+  letrasClaras?: boolean;
 }) {
   const lienzo = useRef<HTMLCanvasElement>(null);
   const saltar = useRef(false);
@@ -168,10 +173,17 @@ export default function LogoDibujo({
         const p = saltar.current ? 1 : Math.min(1, (ahora - inicio) / (duracion * 1000));
         const limite = fase(p) * 1.3;
         while (cursor < indices.length && tiempos[cursor]! <= limite) {
-          const k = indices[cursor]! * 4;
-          out[k] = src[k]!;
-          out[k + 1] = src[k + 1]!;
-          out[k + 2] = src[k + 2]!;
+          const px = indices[cursor]!;
+          const k = px * 4;
+          if (letrasClaras && tipo[px] === 2) {
+            out[k] = 246;
+            out[k + 1] = 238;
+            out[k + 2] = 219;
+          } else {
+            out[k] = src[k]!;
+            out[k + 1] = src[k + 1]!;
+            out[k + 2] = src[k + 2]!;
+          }
           out[k + 3] = src[k + 3]!;
           cursor++;
         }
@@ -192,8 +204,7 @@ export default function LogoDibujo({
         }
         if (p < 1) raf = requestAnimationFrame(cuadro);
         else {
-          ctx.clearRect(0, 0, W, H);
-          ctx.drawImage(img, 0, 0);
+          ctx.putImageData(salida, 0, 0); // último cuadro limpio (sin chispa)
           terminar();
         }
       };
@@ -212,7 +223,7 @@ export default function LogoDibujo({
 
   return (
     <>
-      <canvas ref={lienzo} role="img" aria-label="Logo de MCE: un loto dorado con las letras MCE" className={cx('object-contain', className)} />
+      <canvas ref={lienzo} role="img" aria-label="Logo de MCE: un loto dorado con las letras MCE" className={cx('object-contain', className)} style={style} />
       {dibujar && !terminado && !saltado && (
         <button
           type="button"
