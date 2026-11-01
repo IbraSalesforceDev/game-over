@@ -6,7 +6,6 @@ import Pagina, { useRetrasoPagina } from '../components/anim/Pagina';
 import Titular from '../components/anim/Titular';
 import LogoParticulas from '../components/anim/LogoParticulas';
 import Parallax from '../components/anim/Parallax';
-import Marquesina from '../components/anim/Marquesina';
 import TextoScroll from '../components/anim/TextoScroll';
 import Contador from '../components/anim/Contador';
 import Horizontal from '../components/anim/Horizontal';
@@ -18,7 +17,7 @@ import Retrato from '../components/ui/Retrato';
 import ElegirComunidad from '../components/sedes/ElegirComunidad';
 
 import { escuela } from '../data/escuela';
-import { betty, frases, valores } from '../data/textos';
+import { betty, frases } from '../data/textos';
 import { disciplinas } from '../data/equipo';
 import { bloques } from '../data/formaciones';
 import { comunidades, sedes } from '../data/sedes';
@@ -119,16 +118,18 @@ function Miles() {
 
   return (
     <section ref={ref} className="relative overflow-hidden bg-bosque text-marfil" aria-labelledby="titulo-miles">
-      <motion.img
-        src={foto.src}
-        alt={foto.alt}
-        width={foto.ancho}
-        height={foto.alto}
-        loading="lazy"
-        decoding="async"
-        style={reducido ? undefined : { y, scale: escala }}
-        className="absolute inset-0 h-full w-full object-cover"
-      />
+      <div className="acercar absolute inset-0">
+        <motion.img
+          src={foto.src}
+          alt={foto.alt}
+          width={foto.ancho}
+          height={foto.alto}
+          loading="lazy"
+          decoding="async"
+          style={reducido ? undefined : { y, scale: escala }}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </div>
       <div aria-hidden className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,18,38,0.55)_0%,rgba(11,18,38,0.35)_45%,rgba(11,18,38,0.85)_100%)]" />
       <div className="marco relative flex min-h-[85svh] flex-col items-center justify-end pb-20 pt-40 text-center sm:pb-28">
         <Revelar>
@@ -150,17 +151,6 @@ export default function Inicio() {
   return (
     <Pagina>
       <Portada />
-
-      {/* ── Valores en cinta ─────────────────────────────────────────── */}
-      <div className="bg-dorado py-5 sm:py-7">
-        <Marquesina
-          className="font-serif text-[clamp(2.4rem,6.4vw,5.4rem)] leading-none text-marfil"
-          elementos={valores.map((v) => (
-            <span key={v}>{v}</span>
-          ))}
-          separador={<span className="inline-block h-2.5 w-2.5 rounded-full bg-oro" />}
-        />
-      </div>
 
       {/* ── La escuela y la mecedora ─────────────────────────────────── */}
       <section id="escuela" className="marco py-28 sm:py-36 lg:py-44" aria-labelledby="titulo-escuela">
@@ -292,7 +282,11 @@ export default function Inicio() {
       </Horizontal>
 
       {/* ── Elige tu comunidad ───────────────────────────────────────── */}
-      <section className="relative bg-mar text-marfil" aria-label="Elige tu comunidad autónoma">
+      <section className="relative overflow-hidden bg-mar text-marfil" aria-label="Elige tu comunidad autónoma">
+        <div
+          aria-hidden
+          className="deriva-a pointer-events-none absolute -left-[15%] -top-[30%] h-[70vmax] w-[70vmax] rounded-full bg-[radial-gradient(circle,rgba(157,189,230,0.22),rgba(157,189,230,0)_62%)]"
+        />
         <div className="marco py-24 sm:py-32">
           <ElegirComunidad oscuro />
         </div>

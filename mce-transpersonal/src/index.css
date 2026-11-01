@@ -309,6 +309,19 @@
   animation: olas 9s linear infinite;
 }
 
+/* Acercamiento lento de ida y vuelta para fotos grandes (con el tiempo) */
+@keyframes acercar {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.07);
+  }
+}
+.acercar {
+  animation: acercar 24s ease-in-out infinite alternate;
+}
+
 @keyframes respirar {
   0%,
   100% {
@@ -339,6 +352,7 @@
   .deriva-b,
   .deriva-c,
   .respirar,
+  .acercar,
   .olas {
     animation: none !important;
   }

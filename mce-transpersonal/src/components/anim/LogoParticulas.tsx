@@ -252,9 +252,28 @@ export default function LogoParticulas({
         ctx!.globalAlpha = 1;
       }
 
-      const respira = 1 + 0.012 * Math.sin(t * 0.9);
+      const respira = 1 + 0.02 * Math.sin(t * 0.9);
       const dispersion = scroll * 0.45;
       const opacidadGlobal = 1 - scroll * 0.55;
+
+      // Con el tiempo (sin necesidad de scroll), ya formado el logo:
+      // · ondas de luz que recorren el loto desde el centro hacia fuera;
+      // · cada 7,5 s, una vibración que sale del centro, aparta un poco las
+      //   partículas a su paso y deja que vuelvan a su sitio.
+      const vivo = !quieto && t > T2;
+      const PERIODO = 7.5;
+      const DURA = 2.6;
+      const tp = t - T2 - 1;
+      const enPulso = vivo && tp > 0 && tp % PERIODO < DURA;
+      const fPulso = enPulso ? (tp % PERIODO) / DURA : 0;
+      const radioPulso = fPulso * radioBase * 0.75;
+      if (enPulso) {
+        ctx!.beginPath();
+        ctx!.arc(cx, cy, radioPulso, 0, Math.PI * 2);
+        ctx!.strokeStyle = `rgba(157,189,230,${0.38 * (1 - fPulso)})`;
+        ctx!.lineWidth = 1.5;
+        ctx!.stroke();
+      }
       for (let g = 0; g < grupos.length; g++) {
         const img = sprites[g]!;
         for (const p of grupos[g]!) {
@@ -269,6 +288,23 @@ export default function LogoParticulas({
           if (!quieto) {
             dx += Math.sin(t * 1.4 + p.fase) * 0.8 + (p.tx - cx) * dispersion * (0.6 + Math.sin(p.fase) * 0.4);
             dy += Math.cos(t * 1.2 + p.fase) * 0.8 + (p.ty - cy) * dispersion * (0.6 + Math.cos(p.fase) * 0.4) - dispersion * 60;
+          }
+
+          let brillo = 1;
+          if (vivo) {
+            const rx = p.tx - cx;
+            const ry = p.ty - cy;
+            const dd = Math.sqrt(rx * rx + ry * ry) || 1;
+            brillo = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(t * 1.8 - dd * 0.035));
+            if (enPulso) {
+              const banda = 1 - Math.abs(dd - radioPulso) / 42;
+              if (banda > 0) {
+                const empuje = banda * 10 * (1 - fPulso);
+                dx += (rx / dd) * empuje;
+                dy += (ry / dd) * empuje;
+                brillo = Math.min(1, brillo + banda * 0.5);
+              }
+            }
           }
 
           if (puntero.activo && t > T2) {
@@ -297,7 +333,7 @@ export default function LogoParticulas({
             x = wx + (dx - wx) * k + p.ox;
             y = wy + (dy - wy) * k + p.oy;
           }
-          ctx!.globalAlpha = alfa;
+          ctx!.globalAlpha = alfa * brillo;
           ctx!.drawImage(img, x - p.tam / 2, y - p.tam / 2, p.tam, p.tam);
         }
       }

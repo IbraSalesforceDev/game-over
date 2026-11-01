@@ -54,15 +54,17 @@ export default function CabeceraPagina({
         animate={{ clipPath: 'inset(0% 0% 0% 0%)' }}
         transition={{ duration: 1.3, delay: inicial + 0.25, ease: [0.76, 0, 0.24, 1] }}
       >
-        <motion.img
-          src={foto.src}
-          alt={foto.alt}
-          width={foto.ancho}
-          height={foto.alto}
-          decoding="async"
-          style={reducido ? undefined : { y: yFoto, scale: 1.15 }}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <div className="acercar absolute inset-0">
+          <motion.img
+            src={foto.src}
+            alt={foto.alt}
+            width={foto.ancho}
+            height={foto.alto}
+            decoding="async"
+            style={reducido ? undefined : { y: yFoto, scale: 1.15 }}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        </div>
         <span aria-hidden className="absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-carbon/10" />
       </motion.div>
     ) : null);
