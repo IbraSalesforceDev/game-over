@@ -7,6 +7,7 @@ import { useConsentimiento } from '../../lib/consentimiento';
 import { IconoEmail, IconoInstagram, IconoTelefono } from '../ui/Iconos';
 import { BotonEnlace } from '../ui/Boton';
 import Logo from './Logo';
+import Titular from '../anim/Titular';
 import { useEsGrande } from '../../lib/utilidades';
 
 /**
@@ -31,9 +32,11 @@ export default function Pie() {
       <motion.div style={reducido || !grande ? undefined : { y, scale: escala }} className="origin-bottom">
         <div className="marco pt-24 lg:pt-20">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
-            <p className="font-serif text-[clamp(2rem,4.2vw,3.4rem)] font-light leading-[1.08] lg:col-span-8">
-              Comprendamos que no estamos solos, que realmente, todos somos uno.
-            </p>
+            <Titular
+              como="p"
+              className="font-serif text-[clamp(2rem,4.2vw,3.4rem)] font-light leading-[1.08] lg:col-span-8"
+              segmentos={['Comprendamos que no estamos solos, que realmente, todos somos uno.']}
+            />
             <div className="lg:col-span-4 lg:justify-self-end">
               <BotonEnlace a="/sedes" variante="claro">
                 Habla con tu sede

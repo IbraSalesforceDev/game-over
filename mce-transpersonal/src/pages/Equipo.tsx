@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
+import Titular from '../components/anim/Titular';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
@@ -134,9 +135,9 @@ export default function Equipo() {
       <section className="overflow-hidden bg-lino py-28 sm:py-36" aria-labelledby="titulo-personas">
         <div className="marco flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <Revelar>
-            <h2 id="titulo-personas" className="max-w-3xl text-[clamp(2.4rem,5vw,4.4rem)] font-medium leading-[1.02]">
-              Las personas de cada sede
-            </h2>
+            <div id="titulo-personas">
+              <Titular como="h2" className="max-w-3xl text-[clamp(2.4rem,5vw,4.4rem)] font-medium leading-[1.02]" segmentos={['Las personas de cada sede']} />
+            </div>
           </Revelar>
           <p className="flex items-center gap-3 text-sm text-carbon-suave" aria-hidden>
             <span className="h-px w-10 bg-current" /> Arrastra para ver más

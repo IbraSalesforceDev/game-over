@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Link } from 'react-router';
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
+import Titular from '../components/anim/Titular';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
 import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
@@ -114,9 +115,9 @@ function Tarjeta({
         <span aria-hidden className="pointer-events-none absolute -right-16 -top-10 h-[22rem] w-[18rem] rounded-t-[999px] border-[3px] border-current opacity-[0.12] sm:-right-10" />
         <div className="relative flex h-full flex-col">
           <p className="etiqueta !text-current opacity-70">{esIET ? 'Formación por niveles' : 'Formación'}</p>
-          <h2 id={`t-${bloque.id}`} className="mt-6 max-w-4xl text-[clamp(2.6rem,6.4vw,5.6rem)] font-[330] leading-[0.98] tracking-[-0.025em]">
-            {bloque.titulo}
-          </h2>
+          <div id={`t-${bloque.id}`}>
+            <Titular como="h2" className="mt-6 max-w-4xl text-[clamp(2.6rem,6.4vw,5.6rem)] font-[330] leading-[0.98] tracking-[-0.025em]" segmentos={[bloque.titulo]} />
+          </div>
           {bloque.descripcion && <p className="mt-8 max-w-2xl text-[1.1rem] leading-[1.8] opacity-80">{bloque.descripcion}</p>}
 
           {esIET && <Escalera niveles={bloque.formaciones} />}

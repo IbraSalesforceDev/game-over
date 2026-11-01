@@ -25,11 +25,14 @@ export function FiltroComunidades({
           aria-label="Filtrar por comunidad autónoma"
           className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         >
-          {opciones.map((o) => {
+          {opciones.map((o, n) => {
             const sel = o.id === activa;
             return (
-              <button
+              <motion.button
                 key={o.id ?? 'todas'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.35 + n * 0.06, ease: [0.16, 1, 0.3, 1] }}
                 type="button"
                 aria-pressed={sel}
                 onClick={() => alCambiar(o.id)}
@@ -50,7 +53,7 @@ export function FiltroComunidades({
                   {o.nombre}
                   <span className={cx('ml-2 text-[0.78rem] tabular-nums', sel ? 'text-dorado-claro' : 'text-carbon-suave/80')}>{o.total}</span>
                 </span>
-              </button>
+              </motion.button>
             );
           })}
         </div>

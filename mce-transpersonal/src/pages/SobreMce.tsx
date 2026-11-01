@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
 import TextoScroll from '../components/anim/TextoScroll';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
@@ -7,101 +7,9 @@ import { Subrayado } from '../components/anim/Trazo';
 import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
-import { historia, valores } from '../data/textos';
+import { historia } from '../data/textos';
 import { fotosGenerales } from '../data/fotos';
 
-const fondosValor = ['#f2f4f7', '#dce6f2', '#e6edf6', '#e3e8ef', '#0b1226'];
-const textosValor = ['#16213e', '#16213e', '#16213e', '#16213e', '#fcfcfa'];
-
-/** Los cinco valores: la sección se fija y cada valor ocupa la pantalla al hacer scroll. */
-function Valores({ frase }: { frase: string }) {
-  const ref = useRef<HTMLElement>(null);
-  const reducido = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
-  const [indice, setIndice] = useState(0);
-
-  useMotionValueEvent(scrollYProgress, 'change', (v) => {
-    setIndice(Math.min(valores.length - 1, Math.max(0, Math.floor(v * valores.length))));
-  });
-
-  if (reducido) {
-    return (
-      <section className="bg-lino py-24" aria-labelledby="titulo-valores">
-        <div className="marco">
-          <h2 id="titulo-valores" className="etiqueta">
-            Valores
-          </h2>
-          <p className="mt-6 max-w-2xl text-carbon-suave">{frase}</p>
-          <ol className="filete mt-10 divide-y divide-carbon/15 border-y">
-            {valores.map((v, i) => (
-              <li key={v} className="flex items-baseline gap-6 py-6">
-                <span className="font-serif text-sm italic text-carbon-suave">{String(i + 1).padStart(2, '0')}</span>
-                <span className="font-serif text-[clamp(2.4rem,7vw,5rem)] font-light">{v}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <motion.section
-      ref={ref}
-      initial={false}
-      animate={{ backgroundColor: fondosValor[indice], color: textosValor[indice] }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="relative h-[340vh]"
-      aria-labelledby="titulo-valores"
-    >
-      <div className="sticky top-0 flex h-[100svh] flex-col justify-between overflow-hidden py-24 sm:py-28">
-        <div className="marco flex items-start justify-between gap-6">
-          <div>
-            <p className="etiqueta !text-current opacity-70">
-              Lo que nos sostiene
-            </p>
-            <h2 id="titulo-valores" className="sr-only">
-              Valores: {valores.join(', ')}
-            </h2>
-          </div>
-          <p className="font-serif text-lg tabular-nums opacity-70">
-            {String(indice + 1).padStart(2, '0')} <span className="opacity-50">/ {String(valores.length).padStart(2, '0')}</span>
-          </p>
-        </div>
-
-        <div className="marco relative flex flex-1 items-center justify-center" aria-hidden>
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.p
-              key={valores[indice]}
-              className="text-center font-serif text-[clamp(3.6rem,15vw,14rem)] font-[300] leading-none tracking-[-0.04em]"
-              initial={{ y: '45%', opacity: 0, filter: 'blur(14px)', rotate: 3 }}
-              animate={{ y: '0%', opacity: 1, filter: 'blur(0px)', rotate: 0 }}
-              exit={{ y: '-45%', opacity: 0, filter: 'blur(14px)', rotate: -3 }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <span className={indice % 2 ? 'italic' : undefined}>{valores[indice]}</span>
-            </motion.p>
-          </AnimatePresence>
-        </div>
-
-        <div className="marco">
-          <div className="flex gap-2" aria-hidden>
-            {valores.map((v, i) => (
-              <span key={v} className="h-[3px] flex-1 overflow-hidden rounded-full bg-current/15">
-                <motion.span
-                  className="block h-full origin-left rounded-full bg-current"
-                  animate={{ scaleX: i <= indice ? 1 : 0 }}
-                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                />
-              </span>
-            ))}
-          </div>
-          <p className="mt-6 max-w-xl text-[1rem] opacity-75">{frase}</p>
-        </div>
-      </div>
-    </motion.section>
-  );
-}
 
 /** Cita grande que crece levemente al entrar. */
 function Cita({ texto }: { texto: string }) {
@@ -160,11 +68,9 @@ export default function SobreMce() {
         </div>
       </section>
 
-      <Valores frase={p4} />
-
       <section className="marco py-28 sm:py-36" aria-label="La propuesta de MCE">
         <Escalonado className="grid gap-12 md:grid-cols-3" como="div">
-          {resto.map((p, i) => (
+          {[p4, ...resto].map((p, i) => (
             <motion.div key={i} variants={hijoEscalonado} className={['border-t-[3px] pt-6', ['border-dorado', 'border-terracota', 'border-mar'][i % 3]].join(' ')}>
               <p className="text-[1.1rem] leading-[1.85] text-carbon-suave">{p}</p>
             </motion.div>

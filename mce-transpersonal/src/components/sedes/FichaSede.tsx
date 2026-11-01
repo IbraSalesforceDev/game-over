@@ -19,6 +19,11 @@ export default function FichaSede({ sede, compacta = false }: { sede: Sede; nume
 
   return (
     <article className={cx('group relative grid gap-6 py-8 md:grid-cols-12 md:gap-8', compacta ? 'md:py-7' : 'md:py-10')} aria-labelledby={`sede-${sede.id}`}>
+      {/* fondo suave que entra al pasar el ratón */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 -inset-x-4 origin-left scale-x-0 rounded-[1rem] bg-lino transition-transform duration-500 ease-[var(--ease-suave)] group-hover:scale-x-100 sm:-inset-x-6"
+      />
       <header className="relative md:col-span-4">
         <h3
           id={`sede-${sede.id}`}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import Pagina from '../components/anim/Pagina';
+import Titular from '../components/anim/Titular';
 import { Revelar } from '../components/anim/Revelar';
 import { FlechaMano, Subrayado } from '../components/anim/Trazo';
 import Formulario from '../components/contacto/Formulario';
@@ -35,12 +36,12 @@ export default function Contacto() {
         <div className="marco grid gap-16 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
             <Etiqueta numero="02">Escribir a MCE</Etiqueta>
-            <h2 id="titulo-formulario" className="mt-8 text-[clamp(2.2rem,4.6vw,3.6rem)]">
-              Cuéntanos qué necesitas
-            </h2>
-            <div className="mt-10">
-              <Formulario />
+            <div id="titulo-formulario">
+              <Titular como="h2" className="mt-8 text-[clamp(2.2rem,4.6vw,3.6rem)]" segmentos={['Cuéntanos qué necesitas']} />
             </div>
+            <Revelar className="mt-10" retraso={0.15}>
+              <Formulario />
+            </Revelar>
           </div>
 
           <aside className="lg:col-span-4 lg:col-start-9">

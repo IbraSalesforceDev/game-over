@@ -241,7 +241,7 @@ export default function Inicio() {
         className="bg-marfil py-24 lg:py-0"
         cabecera={(progreso) => (
           <div className="marco mb-10 flex items-end justify-between gap-6 lg:mb-12">
-            <h2 className="text-[clamp(2.4rem,5vw,4.4rem)] leading-none">Cinco puertas, una casa</h2>
+            <Titular como="h2" className="text-[clamp(2.4rem,5vw,4.4rem)] leading-none" segmentos={['Cinco puertas, una casa']} />
             <div className="hidden w-48 lg:block" aria-hidden>
               <div className="h-[3px] w-full rounded-full bg-carbon/10">
                 <motion.div className="h-[3px] origin-left rounded-full bg-dorado" style={{ scaleX: progreso }} />

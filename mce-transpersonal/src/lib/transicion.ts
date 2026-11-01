@@ -33,8 +33,7 @@ export function useDestino() {
   );
 }
 
-// ── Formación del logo (primera visita a Inicio, una vez por sesión) ─────
-const CLAVE_INTRO = 'mce-intro-vista';
+// ── Formación del logo (cada vez que se carga la web en Inicio) ─────
 
 /** ¿La web se ha abierto directamente en Inicio? (vale para rutas normales y con #) */
 function abreEnInicio(): boolean {
@@ -45,12 +44,8 @@ function abreEnInicio(): boolean {
 
 function decidirIntro(): boolean {
   if (typeof window === 'undefined' || prefiereMenosMovimiento() || !abreEnInicio()) return false;
-  try {
-    if (window.sessionStorage.getItem(CLAVE_INTRO)) return false;
-    window.sessionStorage.setItem(CLAVE_INTRO, '1');
-  } catch {
-    /* sin almacenamiento: se muestra igualmente */
-  }
+  // Se ve cada vez que se abre o se recarga la web en Inicio
+  // (no al volver a Inicio navegando dentro de la web).
   return true;
 }
 
