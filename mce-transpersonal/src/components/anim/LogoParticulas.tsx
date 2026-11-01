@@ -83,6 +83,7 @@ export default function LogoParticulas({
     let cy = 0;
     let radioBase = 0;
     let raf = 0;
+    let respaldo = 0;
     let visible = true;
     let avisado = !animarFormacion;
     let ultimo = 0;
@@ -90,16 +91,39 @@ export default function LogoParticulas({
     const inicio = performance.now() - (animarFormacion ? 0 : duracion * 1000 + 2000);
     const puntero = { x: -9999, y: -9999, activo: false };
 
-    // Bloqueo del scroll mientras se forma (también el nativo, por si acaso).
+    // Bloqueo del scroll mientras se forma. En algunos móviles no basta con
+    // overflow: hidden, así que además se frenan el dedo y la rueda y, si aun
+    // así la página se mueve, vuelve arriba: la formación se ve siempre entera
+    // y avanza sola con el tiempo, nunca con el scroll.
     const raiz = document.documentElement;
     const overflowPrevio = raiz.style.overflow;
+    const overflowCuerpo = document.body.style.overflow;
+    const frenar = (e: Event) => {
+      if (e.cancelable) e.preventDefault();
+    };
+    const volverArriba = () => {
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
+    };
+    let bloqueado = false;
     if (animarFormacion) {
+      bloqueado = true;
+      window.scrollTo(0, 0);
       detenerScroll();
       raiz.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('touchmove', frenar, { passive: false });
+      window.addEventListener('wheel', frenar, { passive: false });
+      window.addEventListener('scroll', volverArriba, { passive: true });
       fijarIntroActiva(true);
     }
     const desbloquear = () => {
+      if (!bloqueado) return;
+      bloqueado = false;
       raiz.style.overflow = overflowPrevio;
+      document.body.style.overflow = overflowCuerpo;
+      window.removeEventListener('touchmove', frenar);
+      window.removeEventListener('wheel', frenar);
+      window.removeEventListener('scroll', volverArriba);
       reanudarScroll();
       fijarIntroActiva(false);
     };
@@ -205,7 +229,16 @@ export default function LogoParticulas({
 
     function programar() {
       cancelAnimationFrame(raf);
+      window.clearTimeout(respaldo);
       raf = requestAnimationFrame(dibujar);
+      // Mientras se forma, un temporizador de respaldo: si el navegador frena
+      // los fotogramas (visores, ahorro de batería…), el dibujo sigue avanzando.
+      if (!avisado) {
+        respaldo = window.setTimeout(() => {
+          cancelAnimationFrame(raf);
+          dibujar(performance.now());
+        }, 70);
+      }
     }
 
     function dibujar(ahora: number) {
@@ -220,7 +253,8 @@ export default function LogoParticulas({
         return;
       }
       ultimo = ahora;
-      const scroll = Math.min(1, window.scrollY / Math.max(1, alto));
+      // Mientras se forma, el scroll no influye: solo cuenta el tiempo.
+      const scroll = t < T2 ? 0 : Math.min(1, window.scrollY / Math.max(1, alto));
 
       ctx!.clearRect(0, 0, ancho, alto);
 
@@ -340,7 +374,7 @@ export default function LogoParticulas({
       ctx!.globalAlpha = 1;
 
       if (t >= T2) liberar();
-      if (!quieto && visible) raf = requestAnimationFrame(dibujar);
+      if (!quieto && (visible || t < T2)) programar();
     }
 
     const alCargar = () => {
@@ -383,6 +417,7 @@ export default function LogoParticulas({
 
     return () => {
       cancelAnimationFrame(raf);
+      window.clearTimeout(respaldo);
       ro.disconnect();
       io.disconnect();
       window.clearTimeout(seguro);
