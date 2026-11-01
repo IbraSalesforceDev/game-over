@@ -16,7 +16,9 @@ export default defineConfig(({ mode }) => {
     base: archivo ? './' : '/',
     publicDir: archivo ? false : 'public',
     build: {
-      target: 'es2022',
+      // El archivo único se abre en móviles variados: código compatible con
+      // navegadores algo más antiguos.
+      target: archivo ? ['es2019', 'chrome80', 'safari13', 'firefox78'] : 'es2022',
       outDir: archivo ? 'dist-archivo' : 'dist',
       ...(archivo ? { assetsInlineLimit: 100_000_000, cssCodeSplit: false } : {}),
     },
