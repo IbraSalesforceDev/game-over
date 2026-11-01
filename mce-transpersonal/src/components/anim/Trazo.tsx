@@ -17,7 +17,7 @@ const dibujo = (retraso: number, duracion = 1.1) => ({
 });
 
 /** Subrayado a mano. Colocar dentro de un elemento `relative`. */
-export function Subrayado({ className, retraso = 0.6, color = 'text-dorado' }: { className?: string; retraso?: number; color?: string }) {
+export function Subrayado({ className, retraso = 0.6, color = 'text-oro' }: { className?: string; retraso?: number; color?: string }) {
   return (
     <svg
       aria-hidden

@@ -60,7 +60,7 @@ export default function Pie() {
                 {[...menu, contacto].map((e) => (
                   <li key={e.ruta}>
                     <Link to={e.ruta} className="group relative inline-flex items-center text-[1rem] text-marfil/85 transition-colors hover:text-marfil">
-                      <span className="absolute -left-3.5 h-1.5 w-1.5 scale-0 rounded-full bg-dorado transition-transform duration-200 group-hover:scale-100" />
+                      <span className="absolute -left-3.5 h-1.5 w-1.5 scale-0 rounded-full bg-celeste transition-transform duration-200 group-hover:scale-100" />
                       {e.nombre}
                     </Link>
                   </li>
@@ -74,7 +74,7 @@ export default function Pie() {
                 {escuela.telefono && (
                   <li>
                     <a href={enlaceTelefono(escuela.telefono)} className="group inline-flex items-center gap-3">
-                      <IconoTelefono className="h-[1.1rem] w-[1.1rem] text-dorado" />
+                      <IconoTelefono className="h-[1.1rem] w-[1.1rem] text-celeste" />
                       <span className="enlace-linea">{escuela.telefono}</span>
                     </a>
                   </li>
@@ -82,14 +82,14 @@ export default function Pie() {
                 {escuela.email && (
                   <li>
                     <a href={`mailto:${escuela.email}`} className="group inline-flex items-center gap-3">
-                      <IconoEmail className="h-[1.1rem] w-[1.1rem] text-dorado" />
+                      <IconoEmail className="h-[1.1rem] w-[1.1rem] text-celeste" />
                       <span className="enlace-linea">{escuela.email}</span>
                     </a>
                   </li>
                 )}
                 <li>
                   <a href={escuela.instagram.url} target="_blank" rel="noopener noreferrer" className="group inline-flex items-center gap-3">
-                    <IconoInstagram className="h-[1.1rem] w-[1.1rem] text-dorado" />
+                    <IconoInstagram className="h-[1.1rem] w-[1.1rem] text-celeste" />
                     <span className="enlace-linea">@{escuela.instagram.usuario}</span>
                     <span className="sr-only">(Instagram, se abre en una pestaña nueva)</span>
                   </a>

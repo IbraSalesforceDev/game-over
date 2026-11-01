@@ -7,19 +7,23 @@
    oscuras, el dorado del logo para lo que se pulsa y azules claros de apoyo.
    ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  /* Paleta v4 · blanco, azul oscuro y el dorado del logo, con un azul claro de apoyo.
+  /* Paleta v4.1 · blanco y azules como base; el oro del logo solo en detalles.
      Los nombres son heredados para no tocar cada componente:
-     marfil = blanco, carbon = azul noche (texto), dorado = oro del logo,
-     mar/salvia/terracota = azules de apoyo, bosque = noche profunda (espacio). */
+     marfil = blanco, carbon = azul noche (texto), dorado = AZUL de acento,
+     oro = el dorado del logo (detalles), celeste = azul claro de apoyo sobre
+     fondos oscuros, mar/salvia/terracota = azules, bosque = noche (espacio). */
   --color-marfil: #fcfcfa;
   --color-lino: #f2f4f7;
   --color-arena: #e3e8ef;
   --color-carbon: #16213e;
   --color-carbon-suave: #4a5570;
-  --color-dorado: #b8994a;
-  --color-dorado-claro: #efe6cc;
-  /* Oro oscuro para textos: contraste AA sobre blanco */
-  --color-dorado-hondo: #7a6420;
+  --color-dorado: #2b5797;
+  --color-dorado-claro: #dce7f5;
+  /* Azul para textos y enlaces: contraste AA sobre blanco */
+  --color-dorado-hondo: #1e4e8c;
+  --color-oro: #b8994a;
+  --color-oro-claro: #e9dfc2;
+  --color-celeste: #9dbde6;
   --color-salvia: #3e5c8a;
   --color-salvia-clara: #dce6f2;
   --color-salvia-honda: #2b4570;
@@ -29,7 +33,7 @@
   --color-bosque: #0b1226;
   --color-mar: #1f3b66;
   --color-mar-claro: #dce6f2;
-  --color-amanecer: #f5f1e6;
+  --color-amanecer: #eef3f9;
 
   --font-serif: 'Cormorant Garamond Variable', 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
   --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;

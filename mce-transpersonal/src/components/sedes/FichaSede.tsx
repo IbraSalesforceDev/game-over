@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { motion } from 'framer-motion';
 import { enlaceTelefono } from '../../data/escuela';
 import { nombreComunidad, type Sede } from '../../data/sedes';
 import { fotosSede } from '../../data/fotos';
@@ -35,7 +36,13 @@ export default function FichaSede({ sede, compacta = false }: { sede: Sede; nume
 
       {foto && (
         <figure className="relative md:col-span-4">
-          <div className="aspect-[4/3] overflow-hidden rounded-[1.25rem] bg-lino">
+          <motion.div
+            className="aspect-[4/3] overflow-hidden rounded-[1.25rem] bg-lino"
+            initial={{ clipPath: 'inset(0% 0% 100% 0%)' }}
+            whileInView={{ clipPath: 'inset(0% 0% 0% 0%)' }}
+            viewport={{ once: true, margin: '0px 0px -8% 0px' }}
+            transition={{ duration: 1.1, ease: [0.76, 0, 0.24, 1] }}
+          >
             <img
               src={foto.src}
               alt={foto.alt}
@@ -45,7 +52,7 @@ export default function FichaSede({ sede, compacta = false }: { sede: Sede; nume
               decoding="async"
               className="h-full w-full object-cover transition-transform duration-700 ease-[var(--ease-suave)] group-hover:scale-[1.04]"
             />
-          </div>
+          </motion.div>
         </figure>
       )}
 

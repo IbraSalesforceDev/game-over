@@ -10,7 +10,7 @@ import Etiqueta from '../components/ui/Etiqueta';
 import { historia, valores } from '../data/textos';
 import { fotosGenerales } from '../data/fotos';
 
-const fondosValor = ['#f2f4f7', '#dce6f2', '#efe6cc', '#e3e8ef', '#0b1226'];
+const fondosValor = ['#f2f4f7', '#dce6f2', '#e6edf6', '#e3e8ef', '#0b1226'];
 const textosValor = ['#16213e', '#16213e', '#16213e', '#16213e', '#fcfcfa'];
 
 /** Los cinco valores: la sección se fija y cada valor ocupa la pantalla al hacer scroll. */

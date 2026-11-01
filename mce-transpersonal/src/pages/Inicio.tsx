@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 
 import Pagina, { useRetrasoPagina } from '../components/anim/Pagina';
 import Titular from '../components/anim/Titular';
 import LogoParticulas from '../components/anim/LogoParticulas';
-import LogoDibujo from '../components/anim/LogoDibujo';
 import Parallax from '../components/anim/Parallax';
 import Marquesina from '../components/anim/Marquesina';
 import TextoScroll from '../components/anim/TextoScroll';
@@ -35,7 +34,7 @@ const unir = (l: readonly string[]) => (l.length > 1 ? `${l.slice(0, -1).join(',
 
 /** Cifras calculadas desde los datos reales (nada inventado). */
 const cifras = [
-  { valor: sedes.length, texto: 'sedes con las que puedes hablar', fondo: 'bg-dorado', tinta: 'text-carbon' },
+  { valor: sedes.length, texto: 'sedes con las que puedes hablar', fondo: 'bg-dorado', tinta: 'text-marfil' },
   { valor: comunidades.length, texto: 'comunidades autónomas', fondo: 'bg-terracota', tinta: 'text-marfil' },
   { valor: disciplinas.length, texto: 'disciplinas en el equipo', fondo: 'bg-mar', tinta: 'text-marfil' },
   { valor: nivelesIET, texto: 'niveles de Inteligencia Emocional Transpersonal', fondo: 'bg-salvia', tinta: 'text-marfil' },
@@ -56,64 +55,36 @@ const ease = [0.16, 1, 0.3, 1] as const;
  * formado aparece el lema y ya se puede bajar.
  */
 function Portada() {
-  // La primera vez que se abre Inicio en la sesión, el logo se dibuja trazo a
-  // trazo y después se convierte en el logo de partículas que respira.
-  const [dibujar] = useState(() => tomarIntro());
-  const [formado, setFormado] = useState(!dibujar);
+  // La primera vez que se abre Inicio en la sesión, las vibraciones forman el
+  // logo; después el logo de partículas sigue respirando.
+  const [formar] = useState(() => tomarIntro());
+  const [formado, setFormado] = useState(!formar);
   const zonaLogo = useRef<HTMLDivElement>(null);
-  const [anchoLogo, setAnchoLogo] = useState(0);
   const { inicial } = useRetrasoPagina();
-  const retraso = dibujar ? 0.2 : inicial + 0.4;
+  const retraso = formar ? 0.2 : inicial + 0.4;
   const aparecer = (d: number) => ({
     initial: { opacity: 0, y: 18 },
     animate: formado ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 },
     transition: { duration: 1.1, delay: retraso + d, ease },
   });
 
-  // Mismo tamaño que calcula el logo de partículas, para que el paso de uno a otro coincida.
-  useEffect(() => {
-    const zona = zonaLogo.current;
-    if (!zona) return;
-    const medir = () => {
-      const r = zona.getBoundingClientRect();
-      const movil = window.matchMedia('(max-width: 640px)').matches;
-      setAnchoLogo(Math.max(60, Math.min(r.width * (movil ? 0.86 : 0.7), 560, ((r.height * 0.92) * 557) / 414)));
-    };
-    medir();
-    const ro = new ResizeObserver(medir);
-    ro.observe(zona);
-    return () => ro.disconnect();
-  }, []);
-
   return (
     <section className="relative flex h-[100svh] min-h-[22rem] flex-col overflow-hidden bg-bosque text-marfil" aria-labelledby="lema">
       <div
         aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_40%,rgba(62,92,138,0.38),transparent_70%),radial-gradient(ellipse_50%_40%_at_15%_85%,rgba(184,153,74,0.10),transparent_70%),radial-gradient(ellipse_40%_35%_at_88%_12%,rgba(220,230,242,0.08),transparent_70%)]"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_40%,rgba(43,87,151,0.45),transparent_70%),radial-gradient(ellipse_50%_40%_at_15%_85%,rgba(157,189,230,0.12),transparent_70%),radial-gradient(ellipse_40%_35%_at_88%_12%,rgba(220,231,245,0.10),transparent_70%)]"
       />
-      <motion.div
-        className="absolute inset-0"
-        initial={{ opacity: dibujar ? 0 : 1 }}
-        animate={{ opacity: formado ? 1 : 0 }}
-        transition={{ duration: 1.4, ease }}
-      >
-        <LogoParticulas formar={false} duracion={DURACION_INTRO} zona={zonaLogo} className="absolute inset-0 h-full w-full" />
-      </motion.div>
+      <LogoParticulas
+        formar={formar}
+        duracion={DURACION_INTRO}
+        zona={zonaLogo}
+        alFormarse={() => setFormado(true)}
+        className="absolute inset-0 h-full w-full"
+      />
 
       {/* Hueco del logo: entre la cabecera y el lema */}
       <div className="h-20 shrink-0 sm:h-24 [@media(max-height:500px)]:h-14" aria-hidden />
-      <div ref={zonaLogo} className="pointer-events-none relative min-h-0 flex-1">
-        {dibujar && anchoLogo > 0 && (
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center"
-            initial={{ opacity: 1 }}
-            animate={{ opacity: formado ? 0 : 1 }}
-            transition={{ duration: 1.4, ease }}
-          >
-            <LogoDibujo dibujar duracion={DURACION_INTRO} letrasClaras alTerminar={() => setFormado(true)} style={{ width: anchoLogo, height: 'auto' }} />
-          </motion.div>
-        )}
-      </div>
+      <div ref={zonaLogo} className="pointer-events-none min-h-0 flex-1" aria-hidden />
 
       <div className="pointer-events-none relative shrink-0 px-4 pb-[6svh] pt-4 text-center [@media(max-height:500px)]:pb-4 [@media(max-height:500px)]:pt-1">
         <motion.h1
@@ -183,11 +154,11 @@ export default function Inicio() {
       {/* ── Valores en cinta ─────────────────────────────────────────── */}
       <div className="bg-dorado py-5 sm:py-7">
         <Marquesina
-          className="font-serif text-[clamp(2.4rem,6.4vw,5.4rem)] leading-none text-carbon"
+          className="font-serif text-[clamp(2.4rem,6.4vw,5.4rem)] leading-none text-marfil"
           elementos={valores.map((v) => (
             <span key={v}>{v}</span>
           ))}
-          separador={<span className="inline-block h-2.5 w-2.5 rounded-full bg-carbon/60" />}
+          separador={<span className="inline-block h-2.5 w-2.5 rounded-full bg-oro" />}
         />
       </div>
 
@@ -202,7 +173,7 @@ export default function Inicio() {
         </div>
         <Escalonado className="mt-20 grid gap-10 md:grid-cols-3" como="div">
           {[
-            { p: frases.encuentro, c: 'border-dorado' },
+            { p: frases.encuentro, c: 'border-oro' },
             { p: frases.propuesta, c: 'border-terracota' },
             { p: frases.consciencia, c: 'border-mar' },
           ].map(({ p, c }) => (
@@ -221,11 +192,17 @@ export default function Inicio() {
       {/* ── Cifras reales, en arcos de colores ───────────────────────── */}
       <section className="marco pb-28 sm:pb-36" aria-label="MCE en cifras">
         <Escalonado className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4" como="ul" paso={0.12}>
-          {cifras.map((c) => (
+          {cifras.map((c, i) => (
             <motion.li key={c.texto} variants={hijoEscalonado}>
-              <div className={cx('flex aspect-[4/5] items-end justify-center rounded-t-[999px] rounded-b-[10px] pb-[12%]', c.fondo, c.tinta)}>
+              <motion.div
+                className={cx('flex aspect-[4/5] origin-bottom items-end justify-center rounded-t-[999px] rounded-b-[10px] pb-[12%]', c.fondo, c.tinta)}
+                initial={{ scaleY: 0.2, opacity: 0 }}
+                whileInView={{ scaleY: 1, opacity: 1 }}
+                viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+                transition={{ duration: 1.1, delay: 0.1 + i * 0.12, ease: [0.16, 1, 0.3, 1] }}
+              >
                 <Contador valor={c.valor} className="font-serif text-[clamp(4rem,9vw,7.5rem)] leading-none" />
-              </div>
+              </motion.div>
               <p className="mt-4 max-w-[15rem] text-[1rem] leading-snug text-carbon-suave">{c.texto}</p>
             </motion.li>
           ))}
@@ -289,7 +266,7 @@ export default function Inicio() {
               key={a.ruta}
               to={a.ruta}
               className={cx(
-                'group relative flex min-h-[18rem] flex-col justify-between overflow-hidden rounded-t-[12rem] rounded-b-[1.5rem] p-8 pt-20 sm:p-10 sm:pt-24 lg:h-[64vh] lg:min-h-0 lg:w-[34vw] lg:max-w-[30rem] lg:shrink-0',
+                'group relative flex min-h-[18rem] flex-col justify-between overflow-hidden rounded-t-[12rem] rounded-b-[1.5rem] p-8 pt-20 transition-[transform,box-shadow] duration-300 ease-[var(--ease-suave)] hover:-translate-y-1.5 hover:shadow-[0_24px_50px_-28px_rgba(22,33,62,0.45)] sm:p-10 sm:pt-24 lg:h-[64vh] lg:min-h-0 lg:w-[34vw] lg:max-w-[30rem] lg:shrink-0',
                 a.fondo,
                 a.texto,
               )}
@@ -302,7 +279,7 @@ export default function Inicio() {
                 <span
                   className={cx(
                     'flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors duration-300',
-                    a.texto === 'text-marfil' ? 'bg-marfil/15 group-hover:bg-dorado group-hover:text-carbon' : 'bg-carbon/8 group-hover:bg-carbon group-hover:text-marfil',
+                    a.texto === 'text-marfil' ? 'bg-marfil/15 group-hover:bg-dorado group-hover:text-marfil' : 'bg-carbon/8 group-hover:bg-carbon group-hover:text-marfil',
                   )}
                 >
                   <FlechaMano />

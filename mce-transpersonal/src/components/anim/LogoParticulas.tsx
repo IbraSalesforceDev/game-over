@@ -240,7 +240,7 @@ export default function LogoParticulas({
           const fase = ((t + k * (periodo / 3)) % periodo) / periodo;
           ctx!.beginPath();
           ctx!.arc(cx, cy, radioBase * (0.12 + fase * 0.55), 0, Math.PI * 2);
-          ctx!.strokeStyle = `rgba(212,178,94,${0.16 * (1 - fase) * (t > T2 ? 0.7 : 1)})`;
+          ctx!.strokeStyle = `rgba(157,189,230,${0.22 * (1 - fase) * (t > T2 ? 0.75 : 1)})`;
           ctx!.stroke();
         }
       }

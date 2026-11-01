@@ -96,7 +96,7 @@ export default function Cabecera() {
                             aria-hidden
                             viewBox="0 0 100 10"
                             preserveAspectRatio="none"
-                            className="absolute inset-x-3 bottom-0 h-2 w-[calc(100%-1.5rem)] text-dorado"
+                            className="absolute inset-x-3 bottom-0 h-2 w-[calc(100%-1.5rem)] text-oro"
                             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                           >
                             <path d="M2 6.5C25 3.5 60 3 98 5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" vectorEffect="non-scaling-stroke" />

@@ -58,7 +58,7 @@ export default function Contacto() {
                   <p className="etiqueta">Elige tu comunidad autónoma</p>
                   <Link to="/sedes" className="group mt-4 flex items-center justify-between gap-4 text-[1.1rem] font-medium">
                     <span className="enlace-linea">Habla con la sede más cercana</span>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-dorado transition-transform duration-500 group-hover:translate-x-1">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-dorado text-marfil transition-transform duration-500 group-hover:translate-x-1">
                       <FlechaMano />
                     </span>
                   </Link>

@@ -10,7 +10,7 @@ import { fotosSede, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
 import { cx } from '../lib/utilidades';
 import { betty } from '../data/textos';
 
-const coloresDisciplina = ['#efe6cc', '#dce6f2', '#e3e8ef', '#e8ecf3'];
+const coloresDisciplina = ['#dce7f5', '#e6edf6', '#e3e8ef', '#cfdcee'];
 const puntos = ['bg-dorado', 'bg-mar', 'bg-salvia', 'bg-terracota'];
 const unir = (l: readonly string[]) => (l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}` : l.join(''));
 
@@ -79,11 +79,18 @@ function TiraFotos({ fotos }: { fotos: FotoReal[] }) {
         {fotos.map((f, i) => {
           const pequena = f.ancho < 500;
           return (
-            <li key={f.src} className={cx('shrink-0 select-none', i % 2 === 1 && 'sm:mt-14')}>
+            <motion.li
+              key={f.src}
+              className={cx('group/foto shrink-0 select-none', i % 2 === 1 && 'sm:mt-14')}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.9, delay: Math.min(i, 5) * 0.08, ease: [0.16, 1, 0.3, 1] }}
+            >
               <figure>
                 <div
                   className={cx(
-                    'overflow-hidden bg-lino',
+                    'overflow-hidden bg-lino transition-[transform,box-shadow] duration-300 ease-[var(--ease-suave)] group-hover/foto:-translate-y-1 group-hover/foto:shadow-[0_20px_40px_-24px_rgba(22,33,62,0.45)]',
                     pequena ? 'h-[14rem] w-[14rem] rounded-t-[999px] rounded-b-[1rem] sm:h-[16rem] sm:w-[16rem]' : 'h-[16rem] w-[22rem] rounded-[1.25rem] sm:h-[20rem] sm:w-[28rem]',
                   )}
                 >
@@ -94,7 +101,7 @@ function TiraFotos({ fotos }: { fotos: FotoReal[] }) {
                   MCE {f.lugar}
                 </figcaption>
               </figure>
-            </li>
+            </motion.li>
           );
         })}
       </motion.ul>

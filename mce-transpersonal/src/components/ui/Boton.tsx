@@ -7,8 +7,8 @@ import Magnetico from '../anim/Magnetico';
 type Variante = 'principal' | 'secundario' | 'claro' | 'texto';
 
 const estilos: Record<Variante, string> = {
-  principal: 'bg-dorado text-carbon px-7 py-3.5 rounded-full',
-  secundario: 'border border-carbon/30 text-carbon px-7 py-3.5 rounded-full hover:border-dorado',
+  principal: 'bg-dorado text-marfil px-7 py-3.5 rounded-full shadow-[0_10px_24px_-14px_rgba(43,87,151,0.8)]',
+  secundario: 'border border-carbon/25 text-carbon px-7 py-3.5 rounded-full hover:border-dorado',
   claro: 'border border-marfil/30 text-marfil px-7 py-3.5 rounded-full',
   texto: 'text-carbon py-1',
 };
@@ -22,7 +22,7 @@ const relleno: Record<Variante, string> = {
 };
 const textoHover: Record<Variante, string> = {
   principal: 'group-hover:text-marfil',
-  secundario: 'group-hover:text-carbon',
+  secundario: 'group-hover:text-marfil',
   claro: 'group-hover:text-carbon',
   texto: '',
 };
