@@ -3,3 +3,6 @@ dist/
 .vercel/
 *.local
 .DS_Store
+
+# Copia generada del archivo único para enviar (npm run build:archivo)
+MCE-Transpersonal.html
