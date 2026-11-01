@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useConsentimiento, type DocumentoLegal } from '../../lib/consentimiento';
 import { DURACION_INTRO, hayIntro } from '../../lib/transicion';
@@ -16,6 +16,7 @@ export default function BannerCookies() {
   const [privacidad, setPrivacidad] = useState(false);
   const [cookies, setCookies] = useState(false);
   const id = useId();
+  const caja = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (bannerAbierto) {
@@ -63,11 +64,16 @@ export default function BannerCookies() {
           role="region"
           aria-label="Aviso de privacidad y cookies"
           className={cx('fixed inset-x-0 bottom-0 z-[85] p-3 sm:p-5', documento && 'pointer-events-none')}
+          onAnimationComplete={(def) => {
+            if (def === 'visible' || (typeof def === 'object' && def !== null && 'y' in def && (def as { y: unknown }).y === 0)) {
+              caja.current?.focus({ preventScroll: true });
+            }
+          }}
           initial={{ y: '110%' }}
           animate={{ y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: aceptado ? 0 : hayIntro ? DURACION_INTRO + 0.4 : 0.8 } }}
           exit={{ y: '110%', transition: { duration: 0.45, ease: [0.76, 0, 0.24, 1] } }}
         >
-          <div className="mx-auto max-w-4xl rounded-2xl border border-carbon/10 bg-marfil p-5 shadow-[0_24px_70px_-24px_rgba(46,42,38,0.5)] sm:p-7">
+          <div ref={caja} tabIndex={-1} className="mx-auto max-w-4xl rounded-2xl outline-none border border-carbon/10 bg-marfil p-5 shadow-[0_24px_70px_-24px_rgba(46,42,38,0.5)] sm:p-7">
             <div className="flex items-start justify-between gap-6">
               <div>
                 <h2 className="font-serif text-xl sm:text-2xl">Antes de seguir</h2>

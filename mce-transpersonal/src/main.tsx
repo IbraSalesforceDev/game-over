@@ -2,12 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter } from 'react-router';
 
-// Tipografías incluidas en el proyecto: no se pide nada a Google Fonts ni a
-// ningún tercero (importante para la política de privacidad).
-// Cormorant Garamond (titulares, con cursiva real) y Figtree (texto).
-import '@fontsource-variable/cormorant-garamond/wght.css';
-import '@fontsource-variable/cormorant-garamond/wght-italic.css';
-import '@fontsource-variable/figtree/index.css';
+// Tipografías incluidas en el proyecto (solo subconjunto latino): ver fuentes.css.
+import './fuentes.css';
 import './index.css';
 
 import App from './App';

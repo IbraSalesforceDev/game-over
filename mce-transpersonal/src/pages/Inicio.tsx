@@ -25,8 +25,9 @@ import { comunidades, sedes } from '../data/sedes';
 import { legales } from '../data/navegacion';
 import { useConsentimiento } from '../lib/consentimiento';
 import { cx } from '../lib/utilidades';
-import { DURACION_INTRO, hayIntro } from '../lib/transicion';
+import { DURACION_INTRO, tomarIntro } from '../lib/transicion';
 import { fotosGenerales } from '../data/fotos';
+import logoMce from '../assets/logo.png';
 
 const nivelesIET = bloques.find((b) => b.id === 'inteligencia-emocional-transpersonal')?.formaciones.length ?? 0;
 const unir = (l: readonly string[]) => (l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}` : l.join(''));
@@ -54,9 +55,12 @@ const ease = [0.16, 1, 0.3, 1] as const;
  * formado aparece el lema y ya se puede bajar.
  */
 function Portada() {
-  const [formado, setFormado] = useState(!hayIntro);
+  // La formación completa solo la primera vez que se abre Inicio en la sesión.
+  const [formar] = useState(() => tomarIntro());
+  const [formado, setFormado] = useState(!formar);
+  const zonaLogo = useRef<HTMLDivElement>(null);
   const { inicial } = useRetrasoPagina();
-  const retraso = hayIntro ? 0.2 : inicial + 0.4;
+  const retraso = formar ? 0.2 : inicial + 0.4;
   const aparecer = (d: number) => ({
     initial: { opacity: 0, y: 18 },
     animate: formado ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 },
@@ -64,34 +68,39 @@ function Portada() {
   });
 
   return (
-    <section className="relative h-[100svh] min-h-[34rem] overflow-hidden bg-bosque text-marfil" aria-labelledby="lema">
+    <section className="relative flex h-[100svh] min-h-[22rem] flex-col overflow-hidden bg-bosque text-marfil" aria-labelledby="lema">
       <div
         aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_42%,rgba(62,92,138,0.38),transparent_70%),radial-gradient(ellipse_50%_40%_at_15%_85%,rgba(184,153,74,0.10),transparent_70%),radial-gradient(ellipse_40%_35%_at_88%_12%,rgba(220,230,242,0.08),transparent_70%)]"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_40%,rgba(62,92,138,0.38),transparent_70%),radial-gradient(ellipse_50%_40%_at_15%_85%,rgba(184,153,74,0.10),transparent_70%),radial-gradient(ellipse_40%_35%_at_88%_12%,rgba(220,230,242,0.08),transparent_70%)]"
       />
-      <LogoParticulas formar={hayIntro} duracion={DURACION_INTRO} alFormarse={() => setFormado(true)} className="absolute inset-0 h-full w-full" />
+      <LogoParticulas
+        formar={formar}
+        duracion={DURACION_INTRO}
+        zona={zonaLogo}
+        alFormarse={() => setFormado(true)}
+        className="absolute inset-0 h-full w-full"
+      />
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-[7%] px-4 text-center sm:bottom-[9%]">
-        <motion.h1 id="lema" className="font-serif text-[clamp(2.4rem,6vw,4.6rem)] font-medium leading-none tracking-[-0.01em]" {...aparecer(0)}>
+      {/* Hueco del logo: entre la cabecera y el lema */}
+      <div className="h-20 shrink-0 sm:h-24 [@media(max-height:500px)]:h-14" aria-hidden />
+      <div ref={zonaLogo} className="pointer-events-none min-h-0 flex-1" aria-hidden />
+
+      <div className="pointer-events-none relative shrink-0 px-4 pb-[6svh] pt-4 text-center [@media(max-height:500px)]:pb-4 [@media(max-height:500px)]:pt-1">
+        <motion.h1
+          id="lema"
+          className="font-serif text-[clamp(2.3rem,5.6vw,4.4rem)] font-medium leading-none tracking-[-0.01em] [@media(max-height:500px)]:text-[1.9rem]"
+          {...aparecer(0)}
+        >
           {escuela.lema}
         </motion.h1>
-        <motion.p className="mt-4 text-[1.02rem] text-marfil/70 sm:text-[1.1rem]" {...aparecer(0.25)}>
+        <motion.p className="mt-3 text-[1rem] text-marfil/70 sm:text-[1.08rem] [@media(max-height:500px)]:hidden" {...aparecer(0.25)}>
           Escuela transpersonal fundada por {escuela.fundadora}
         </motion.p>
-        <motion.div className="pointer-events-auto mt-8 flex flex-wrap justify-center gap-3" {...aparecer(0.45)}>
+        <motion.div className="pointer-events-auto mt-6 flex flex-wrap justify-center gap-3 [@media(max-height:500px)]:mt-3" {...aparecer(0.45)}>
           <BotonEnlace a="/sobre-mce">Conocer la escuela</BotonEnlace>
           <BotonEnlace a="/sedes" variante="claro">
             Ver sedes
           </BotonEnlace>
-        </motion.div>
-        <motion.div className="mx-auto mt-8 hidden w-px sm:block" {...aparecer(0.8)} aria-hidden>
-          <span className="relative mx-auto block h-12 w-px overflow-hidden bg-marfil/15">
-            <motion.span
-              className="absolute inset-x-0 top-0 h-1/2 bg-dorado"
-              animate={{ y: ['-100%', '200%'] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: [0.65, 0, 0.35, 1] }}
-            />
-          </span>
         </motion.div>
       </div>
     </section>
@@ -198,9 +207,16 @@ export default function Inicio() {
         <div className="marco grid gap-14 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-5">
             <div className="mx-auto max-w-[19rem] sm:max-w-[24rem] lg:sticky lg:top-28 lg:mx-0 lg:max-w-none">
-              <Parallax distancia={26}>
-                <Retrato nombre={betty.nombre} foto={betty.foto} forma="arco" variante={0} className="aspect-[4/5] w-full" sizes="(min-width: 1024px) 36vw, 80vw" />
-              </Parallax>
+              {betty.foto ? (
+                <Parallax distancia={26}>
+                  <Retrato nombre={betty.nombre} foto={betty.foto} forma="arco" variante={0} className="aspect-[4/5] w-full" sizes="(min-width: 1024px) 36vw, 80vw" />
+                </Parallax>
+              ) : (
+                // Mientras no llegue la foto de Betty: el loto de MCE en un arco discreto.
+                <Revelar className="mx-auto flex aspect-[4/5] w-full max-w-[15rem] items-center justify-center rounded-t-[999px] rounded-b-[1.25rem] bg-marfil ring-1 ring-carbon/10 sm:max-w-[18rem] lg:mx-0">
+                  <img src={logoMce} alt="" width={557} height={414} className="w-[72%]" decoding="async" />
+                </Revelar>
+              )}
             </div>
           </div>
           <div className="lg:col-span-6 lg:col-start-7 lg:pt-12">

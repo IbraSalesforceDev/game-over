@@ -35,7 +35,8 @@ export default function Titular({
     : { initial: 'oculto', whileInView: 'visible', viewport: { once: true, margin: '0px 0px -10% 0px' } };
 
   return (
-    <Etiqueta className={className} aria-label={texto}>
+    <Etiqueta className={className}>
+      <span className="sr-only">{texto}</span>
       <motion.span
         aria-hidden
         className="block"

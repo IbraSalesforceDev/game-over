@@ -15,7 +15,8 @@ export default function Contador({ valor, className }: { valor: number; classNam
   }, [visto, valor, reducido]);
 
   return (
-    <span ref={ref} className={className} aria-label={String(valor)}>
+    <span ref={ref} className={className}>
+      <span className="sr-only">{valor}</span>
       <span aria-hidden>{n}</span>
     </span>
   );

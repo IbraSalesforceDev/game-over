@@ -21,7 +21,7 @@ export default function Sedes() {
     <Pagina titulo="Sedes">
       <CabeceraPagina
         etiqueta="Sedes"
-        foto={fotosSede['alicante-sur']![1]}
+        foto={fotosSede.granada![0]}
         titulo={['No tengas miedo', { texto: 'de hablarles.', cursiva: true, clase: 'pl-[8vw]' }]}
         entradilla={<p className="font-serif text-[1.45em] text-carbon">{animoContacto.linea2}</p>}
       />

@@ -56,6 +56,32 @@ function decidirIntro(): boolean {
 
 /** true: al abrir la web, las partículas forman el logo desde cero. */
 export const hayIntro = decidirIntro();
+
+let introPendiente = hayIntro;
+/** Devuelve true solo la primera vez (la formación no se repite al volver a Inicio). */
+export function tomarIntro(): boolean {
+  const v = introPendiente;
+  introPendiente = false;
+  return v;
+}
+
+// Estado "la intro se está formando" (la cabecera se oculta mientras tanto).
+let introActiva = false;
+const oyentesIntro = new Set<() => void>();
+export function fijarIntroActiva(v: boolean) {
+  if (introActiva === v) return;
+  introActiva = v;
+  oyentesIntro.forEach((o) => o());
+}
+export function useIntroActiva() {
+  return useSyncExternalStore(
+    (o) => {
+      oyentesIntro.add(o);
+      return () => oyentesIntro.delete(o);
+    },
+    () => introActiva,
+  );
+}
 /** Duración de la formación del logo, en segundos. */
 export const DURACION_INTRO = 3.6;
 

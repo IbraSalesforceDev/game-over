@@ -28,7 +28,8 @@ export default function TextoScroll({ texto, className, como: Etiqueta = 'p' }: 
 
   return (
     <div ref={ref}>
-      <Etiqueta className={cx(className)} aria-label={texto}>
+      <Etiqueta className={cx(className)}>
+        <span className="sr-only">{texto}</span>
         <span aria-hidden>
           {palabras.map((p, i) => (
             <Palabra key={i} texto={p} progreso={scrollYProgress} rango={[i / palabras.length, (i + 1) / palabras.length]} />

@@ -2,11 +2,9 @@
 @import 'lenis/dist/lenis.css';
 
 /* ───────────────────────────────────────────────────────────────────────────
-   Sistema de diseño MCE · v2
-   Cálido y clásico, con más profundidad: marfil y lino de base, dorado para
-   lo importante, salvia y terracota como acentos, y un verde bosque profundo
-   para las secciones oscuras. Texto en carbón cálido, nunca negro.
-   (Ajustar el dorado cuando llegue el logo.)
+   Sistema de diseño MCE · v4
+   Sobrio y luminoso: blanco de base, azul noche para textos y secciones
+   oscuras, el dorado del logo para lo que se pulsa y azules claros de apoyo.
    ─────────────────────────────────────────────────────────────────────────── */
 @theme {
   /* Paleta v4 · blanco, azul oscuro y el dorado del logo, con un azul claro de apoyo.
@@ -98,6 +96,11 @@
     outline: 2px solid var(--color-dorado-hondo);
     outline-offset: 3px;
     border-radius: 2px;
+  }
+
+  /* Sobre fondos oscuros, el anillo de foco pasa a dorado claro (contraste ≥ 3:1) */
+  :where(.bg-mar, .bg-bosque, .bg-carbon, footer, .text-marfil) :focus-visible {
+    outline-color: var(--color-dorado-claro);
   }
 
   a {

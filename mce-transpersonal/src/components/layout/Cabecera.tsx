@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } fr
 import { contacto, menu } from '../../data/navegacion';
 import { cx } from '../../lib/utilidades';
 import { clasesBoton, RellenoBoton } from '../ui/Boton';
+import { useIntroActiva } from '../../lib/transicion';
 import Magnetico from '../anim/Magnetico';
 import Logo from './Logo';
 import MenuMovil from './MenuMovil';
@@ -16,6 +17,7 @@ import MenuMovil from './MenuMovil';
  */
 export default function Cabecera() {
   const [compacta, setCompacta] = useState(false);
+  const [sobrePortada, setSobrePortada] = useState(false);
   const [oculta, setOculta] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const { scrollY, scrollYProgress } = useScroll();
@@ -25,24 +27,37 @@ export default function Cabecera() {
   useMotionValueEvent(scrollY, 'change', (y) => {
     const previo = scrollY.getPrevious() ?? 0;
     setCompacta(y > 24);
+    setSobrePortada(pathname === '/' && y < window.innerHeight - 80);
     setOculta(y > 320 && y > previo + 4 && !menuAbierto);
     if (y < previo - 4) setOculta(false);
   });
 
   useEffect(() => setMenuAbierto(false), [pathname]);
+  // Estado inicial (sin esperar al primer scroll) y al cambiar de página.
+  useEffect(() => {
+    const y = window.scrollY;
+    setCompacta(y > 24);
+    setSobrePortada(pathname === '/' && y < window.innerHeight - 80);
+  }, [pathname]);
 
   // Sobre el espacio oscuro de la portada, la cabecera va en claro y sin logo
   // (el logo ya está formado en el centro).
-  const claro = pathname === '/' && !compacta && !menuAbierto;
+  const claro = sobrePortada && !menuAbierto;
+  const introActiva = useIntroActiva();
 
   return (
     <>
       <motion.header
         className={cx(
           'fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-500',
-          compacta && !menuAbierto ? 'bg-marfil/90 shadow-[0_1px_0_rgba(22,33,62,0.08)] backdrop-blur-md' : 'bg-transparent',
+          compacta && !menuAbierto
+            ? claro
+              ? 'bg-bosque/70 backdrop-blur-md'
+              : 'bg-marfil/90 shadow-[0_1px_0_rgba(22,33,62,0.08)] backdrop-blur-md'
+            : 'bg-transparent',
+          introActiva && 'pointer-events-none',
         )}
-        animate={{ y: oculta ? '-100%' : '0%' }}
+        animate={{ y: oculta ? '-100%' : '0%', opacity: introActiva ? 0 : 1 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className={cx('marco flex items-center justify-between gap-6 transition-[height] duration-500', compacta ? 'h-[4.5rem]' : 'h-[5.5rem] lg:h-24')}>
@@ -104,12 +119,14 @@ export default function Cabecera() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Magnetico className="hidden sm:inline-flex">
+            <span className="hidden sm:block">
+            <Magnetico>
               <Link to={contacto.ruta} className={clasesBoton('principal', '!px-6 !py-2.5')}>
                 <RellenoBoton />
-                <span className="relative transition-colors duration-500 group-hover:text-marfil">{contacto.nombre}</span>
+                <span className="relative transition-colors duration-300 group-hover:text-marfil">{contacto.nombre}</span>
               </Link>
             </Magnetico>
+            </span>
 
             <button
               type="button"

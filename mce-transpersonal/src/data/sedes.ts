@@ -154,7 +154,7 @@ export const sedes: Sede[] = [
     facebook: null,
     telefonos: [],
     facilitadores: [],
-    aviso: 'De momento, Talavera de la Reina se atiende desde el contacto general de MCE.',
+    aviso: 'De momento, Talavera de la Reina no tiene datos de contacto propios. Puedes escribir a MCE desde el formulario.',
   },
 ];
 

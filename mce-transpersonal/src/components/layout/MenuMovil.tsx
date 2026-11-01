@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { contacto, menu } from '../../data/navegacion';
 import { escuela } from '../../data/escuela';
 import { cx } from '../../lib/utilidades';
-import { Mancha } from '../anim/Trazo';
 import { detenerScroll, reanudarScroll } from '../../lib/scroll';
 
 const enlaces = [...menu, contacto];
@@ -19,14 +18,34 @@ export default function MenuMovil({ abierto, alCerrar }: { abierto: boolean; alC
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     detenerScroll();
+    const boton = document.querySelector<HTMLElement>('[aria-controls="menu-movil"]');
     const t = window.setTimeout(() => lista.current?.querySelector('a')?.focus(), 350);
-    const alTeclear = (e: KeyboardEvent) => e.key === 'Escape' && alCerrar();
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        alCerrar();
+        return;
+      }
+      if (e.key !== 'Tab' || !lista.current) return;
+      // El foco se queda entre los enlaces del menú y el botón "Cerrar"
+      const enlaces = Array.from(lista.current.querySelectorAll<HTMLElement>('a'));
+      const focos = boton ? [boton, ...enlaces] : enlaces;
+      const i = focos.indexOf(document.activeElement as HTMLElement);
+      if (e.shiftKey && i <= 0) {
+        e.preventDefault();
+        focos[focos.length - 1]?.focus();
+      } else if (!e.shiftKey && i === focos.length - 1) {
+        e.preventDefault();
+        focos[0]?.focus();
+      }
+    };
     document.addEventListener('keydown', alTeclear);
     return () => {
       document.body.style.overflow = overflow;
       reanudarScroll();
       window.clearTimeout(t);
       document.removeEventListener('keydown', alTeclear);
+      // Devolver el foco al botón del menú (si sigue en la página)
+      if (boton && document.contains(boton)) boton.focus({ preventScroll: true });
     };
   }, [abierto, alCerrar]);
 
@@ -36,13 +55,12 @@ export default function MenuMovil({ abierto, alCerrar }: { abierto: boolean; alC
         <motion.div
           id="menu-movil"
           data-lenis-prevent
-          className="fixed inset-0 z-[49] overflow-y-auto bg-amanecer lg:hidden"
+          className="fixed inset-0 z-[49] overflow-y-auto bg-lino lg:hidden"
           initial={{ clipPath: 'circle(0% at calc(100% - 2.5rem) 2.75rem)' }}
           animate={{ clipPath: 'circle(150% at calc(100% - 2.5rem) 2.75rem)' }}
           exit={{ clipPath: 'circle(0% at calc(100% - 2.5rem) 2.75rem)', transition: { duration: 0.6, ease: [0.76, 0, 0.24, 1], delay: 0.1 } }}
           transition={{ duration: 0.85, ease: [0.76, 0, 0.24, 1] }}
         >
-          <Mancha className="-right-40 top-1/3 h-[30rem] w-[30rem] opacity-60" />
           <nav aria-label="Menú" className="marco relative flex min-h-full flex-col pb-10 pt-28">
             <ul ref={lista} className="flex flex-col">
               {enlaces.map((e, i) => (

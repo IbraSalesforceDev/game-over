@@ -19,12 +19,9 @@ function Valores({ frase }: { frase: string }) {
   const reducido = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
   const [indice, setIndice] = useState(0);
-  const tramos = valores.map((_, i) => i / (valores.length - 1));
-  const fondo = useTransform(scrollYProgress, tramos, fondosValor);
-  const color = useTransform(scrollYProgress, tramos, textosValor);
 
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
-    setIndice(Math.min(valores.length - 1, Math.max(0, Math.round(v * (valores.length - 1)))));
+    setIndice(Math.min(valores.length - 1, Math.max(0, Math.floor(v * valores.length))));
   });
 
   if (reducido) {
@@ -49,7 +46,14 @@ function Valores({ frase }: { frase: string }) {
   }
 
   return (
-    <motion.section ref={ref} style={{ backgroundColor: fondo, color }} className="relative h-[460vh]" aria-labelledby="titulo-valores">
+    <motion.section
+      ref={ref}
+      initial={false}
+      animate={{ backgroundColor: fondosValor[indice], color: textosValor[indice] }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="relative h-[340vh]"
+      aria-labelledby="titulo-valores"
+    >
       <div className="sticky top-0 flex h-[100svh] flex-col justify-between overflow-hidden py-24 sm:py-28">
         <div className="marco flex items-start justify-between gap-6">
           <div>

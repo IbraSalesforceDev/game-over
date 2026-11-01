@@ -9,10 +9,13 @@ const prefiereMenosMovimiento = () =>
  * En pantallas táctiles se mantiene el scroll nativo del sistema.
  */
 let lenis: Lenis | null = null;
+/** Si se pide bloquear antes de que exista Lenis, se aplica al crearlo. */
+let bloqueoPendiente = false;
 
 export function iniciarScroll(): () => void {
   if (prefiereMenosMovimiento() || lenis) return () => {};
   lenis = new Lenis({ autoRaf: true, lerp: 0.085, wheelMultiplier: 0.95, anchors: false });
+  if (bloqueoPendiente) lenis.stop();
   return () => {
     lenis?.destroy();
     lenis = null;
@@ -21,10 +24,12 @@ export function iniciarScroll(): () => void {
 
 /** Bloquea el scroll (menús y modales). */
 export function detenerScroll() {
+  bloqueoPendiente = true;
   lenis?.stop();
 }
 
 export function reanudarScroll() {
+  bloqueoPendiente = false;
   lenis?.start();
 }
 

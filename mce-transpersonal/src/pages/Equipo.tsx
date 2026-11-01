@@ -6,7 +6,7 @@ import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
 import { disciplinas, equipo } from '../data/equipo';
 import { facilitadoresConSedes } from '../data/sedes';
-import { fotosGenerales, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
+import { fotosSede, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
 import { cx } from '../lib/utilidades';
 
 const coloresDisciplina = ['#efe6cc', '#dce6f2', '#e3e8ef', '#e8ecf3'];
@@ -108,7 +108,7 @@ export default function Equipo() {
     <Pagina titulo="Equipo">
       <CabeceraPagina
         etiqueta="Equipo"
-        foto={fotosGenerales.camisetas}
+        foto={fotosSede.valencia![0]}
         titulo={['Quiénes', { texto: 'acompañan', cursiva: true, clase: 'pl-[10vw]' }]}
         entradilla={<p>{equipo.presentacion ?? `El equipo de MCE reúne cuatro disciplinas: ${unir(disciplinas)}.`}</p>}
       />
@@ -135,7 +135,8 @@ export default function Equipo() {
           </p>
         </div>
         <div className="mt-14">
-          <TiraFotos fotos={todasLasFotosDeSede} />
+          {/* Las fotos de menos de 200 px se quedan fuera hasta tener el original */}
+          <TiraFotos fotos={todasLasFotosDeSede.filter((f) => f.ancho >= 200)} />
         </div>
 
         <div className="marco mt-20 grid gap-10 md:grid-cols-2">
