@@ -34,7 +34,7 @@ export default function FichaSede({ sede, compacta = false }: { sede: Sede; nume
         <p className="mt-1 text-sm text-carbon-suave">{nombreComunidad(sede.comunidad)}</p>
         {!compacta && sede.facilitadores.length > 0 && (
           <p className="mt-5 max-w-xs text-[0.98rem] leading-relaxed text-carbon-suave">
-            Facilitan <span className="text-carbon">{unir(sede.facilitadores.map((f) => f.nombre))}</span>
+            {sede.facilitadores.length === 1 ? 'Facilita' : 'Facilitan'} <span className="text-carbon">{unir(sede.facilitadores.map((f) => f.nombre))}</span>
           </p>
         )}
       </header>

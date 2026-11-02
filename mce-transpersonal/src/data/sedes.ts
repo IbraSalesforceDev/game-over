@@ -5,7 +5,7 @@
  *   Granada y Madrid. No añadir otras.
  * - Sin direcciones postales.
  * - Facilitadores: solo los confirmados. El resto llegará más adelante.
- *   Nombres como en la web oficial (salvo Daniel Jesús Salido y Noé, por
+ *   Nombres como en la web oficial (salvo Daniel Jesús Salido, por
  *   indicación de la escuela).
  *
  * TODO fotos de facilitadores (pendiente: desde este entorno no se puede
@@ -16,7 +16,7 @@
  *   Daniela Russo        2024/01/daniela-150x150.png
  *   Silvia Díaz          2024/01/silvia-150x150.png
  *   Daniel Jesús Salido  2020/12/Daniel-150x150.jpg
- *   Noé                  2024/01/noe-150x150.png
+ *   Noelia Domínguez     2024/01/noe-150x150.png
  */
 
 export type Facilitador = {
@@ -58,8 +58,7 @@ const vicente: Facilitador = { nombre: 'Vicente Baldó' };
 const daniela: Facilitador = { nombre: 'Daniela Russo' };
 const silvia: Facilitador = { nombre: 'Silvia Díaz' };
 const danielSalido: Facilitador = { nombre: 'Daniel Jesús Salido' };
-// En la web oficial figura como «Noelia Domínguez»; la escuela pide «Noé».
-const noe: Facilitador = { nombre: 'Noé' };
+const noelia: Facilitador = { nombre: 'Noelia Domínguez' };
 
 const telefonosAlicanteSur = ['633 171 860', '619 313 778'];
 
@@ -112,7 +111,7 @@ export const sedes: Sede[] = [
     instagram: ig('mcegranada'),
     facebook: fb('profile.php?id=100002877662454'),
     telefonos: ['686 723 666'],
-    facilitadores: [noe],
+    facilitadores: [noelia],
   },
 
   // ── Comunidad de Madrid ─────────────────────────────────────────────

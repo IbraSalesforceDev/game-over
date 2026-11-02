@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
 import { Subrayado } from '../components/anim/Trazo';
@@ -11,31 +10,14 @@ import { fotosGenerales } from '../data/fotos';
 import Proposito from '../components/secciones/Proposito';
 
 
-/** Cita grande que crece levemente al entrar. */
-function Cita({ texto }: { texto: string }) {
-  const ref = useRef<HTMLQuoteElement>(null);
-  const reducido = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'center center'] });
-  const escala = useTransform(scrollYProgress, [0, 1], [0.86, 1]);
-  const x = useTransform(scrollYProgress, [0, 1], ['6%', '0%']);
-  return (
-    <motion.blockquote ref={ref} style={reducido ? undefined : { scale: escala, x }} className="origin-left">
-      <p className="font-serif text-[clamp(2.6rem,7.4vw,7rem)] font-[300] italic leading-[1.02] tracking-[-0.025em]">
-        {texto}
-      </p>
-    </motion.blockquote>
-  );
-}
-
 export default function SobreMce() {
-  const [p1, p3, p4, ...resto] = historia.parrafos;
+  const [p1, p4, ...resto] = historia.parrafos;
 
   return (
     <Pagina titulo="Sobre MCE">
       <CabeceraPagina
         etiqueta="Sobre MCE"
-        titulo={['Es hogar.', { texto: 'Es llegar a casa.', cursiva: true, clase: 'pl-[8vw]' }]}
-        entradilla={<p>{historia.titulo}</p>}
+        titulo={['Mente, Cuerpo', { texto: 'y Espíritu.', cursiva: true, clase: 'pl-[8vw]' }]}
         foto={fotosGenerales.sala}
       />
 
@@ -58,10 +40,6 @@ export default function SobreMce() {
               </p>
             </Revelar>
           </div>
-        </div>
-
-        <div className="mt-24 sm:mt-32">
-          <Cita texto={p3} />
         </div>
       </section>
 

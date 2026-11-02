@@ -10,7 +10,6 @@ export const historia = {
   parrafos: [
     // Acordado con la escuela: solo que Betty es la creadora del proyecto.
     'Betty Merino es la creadora del proyecto MCE.',
-    'Y es que MCE, es eso, es hogar. Es llegar a casa.',
     'Es conexión, compañía, comprensión, compasión y amor.',
     'MCE no es más que la propuesta de que los seres humanos nos encontremos unos a otros, comprendamos que no estamos solos, que realmente, todos somos uno.',
     'Y desde ahí, MCE propone una nueva realidad y forma de comprender la vida, una nueva forma de relacionarnos y mirarnos los unos a los otros.',
@@ -23,11 +22,10 @@ export { mision } from './mision';
 /** Atajos a frases concretas del texto oficial, para no duplicarlas a mano. */
 export const frases = {
   origen: historia.parrafos[0],
-  hogar: historia.parrafos[1],
-  valores: historia.parrafos[2],
-  encuentro: historia.parrafos[3],
-  propuesta: historia.parrafos[4],
-  consciencia: historia.parrafos[5],
+  valores: historia.parrafos[1],
+  encuentro: historia.parrafos[2],
+  propuesta: historia.parrafos[3],
+  consciencia: historia.parrafos[4],
 } as const;
 
 export const valores = ['Conexión', 'Compañía', 'Comprensión', 'Compasión', 'Amor'] as const;
