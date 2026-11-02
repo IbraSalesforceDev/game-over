@@ -10,8 +10,8 @@ type Segmento = Parameters<typeof Titular>[0]['segmentos'][number];
 
 /**
  * Cabecera de las páginas interiores: titular grande que aparece por palabras
- * y, a la derecha, una foto real en arco (el motivo del loto y de la escuela)
- * que se descubre con una máscara y se desplaza levemente con el scroll.
+ * y, a la derecha, una foto real (rectangular, en su proporción) que se
+ * descubre con una máscara y se desplaza levemente con el scroll.
  */
 export default function CabeceraPagina({
   etiqueta,
@@ -38,7 +38,7 @@ export default function CabeceraPagina({
   const { inicial } = useRetrasoPagina();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
   const yTitulo = useTransform(scrollYProgress, [0, 1], [0, -80]);
-  const yFoto = useTransform(scrollYProgress, [0, 1], ['0%', '12%']);
+  const yFoto = useTransform(scrollYProgress, [0, 1], [0, 40]);
 
   const entrar = (d: number) => ({
     initial: { opacity: 0, y: 16 },
@@ -49,25 +49,27 @@ export default function CabeceraPagina({
   const derecha =
     lateral ??
     (foto ? (
-      <motion.div
-        className="relative mx-auto aspect-[4/5] w-full max-w-[19rem] overflow-hidden rounded-t-[999px] rounded-b-[1.25rem] sm:max-w-[22rem] lg:ml-auto lg:mr-0 lg:max-w-[26rem]"
-        initial={reducido ? false : { clipPath: 'inset(100% 0% 0% 0%)' }}
-        animate={{ clipPath: 'inset(0% 0% 0% 0%)' }}
+      // Foto real en su propia proporción (sin recortar caras), con esquinas
+      // suaves; se descubre de abajo arriba y se mueve muy poco con el scroll.
+      <motion.figure
+        style={reducido ? { aspectRatio: `${foto.ancho} / ${foto.alto}` } : { aspectRatio: `${foto.ancho} / ${foto.alto}`, y: yFoto }}
+        className="relative mx-auto w-full max-w-[34rem] overflow-hidden rounded-[1.5rem] bg-lino shadow-[0_30px_60px_-40px_rgba(22,33,62,0.55)] lg:ml-auto lg:mr-0 lg:max-w-none"
+        initial={reducido ? false : { clipPath: 'inset(100% 0% 0% 0% round 1.5rem)' }}
+        animate={{ clipPath: 'inset(0% 0% 0% 0% round 1.5rem)' }}
         transition={{ duration: 1.3, delay: inicial + 0.25, ease: [0.76, 0, 0.24, 1] }}
       >
-        <div className="acercar absolute inset-0">
-          <motion.img
-            src={foto.src}
-            alt={foto.alt}
-            width={foto.ancho}
-            height={foto.alto}
-            decoding="async"
-            style={reducido ? undefined : { y: yFoto, scale: 1.15 }}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        </div>
-        <span aria-hidden className="absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-carbon/10" />
-      </motion.div>
+        <img
+          src={foto.src}
+          alt={foto.alt}
+          width={foto.ancho}
+          height={foto.alto}
+          decoding="async"
+          className="acercar-suave absolute inset-0 h-full w-full object-cover"
+        />
+        {/* velo muy suave abajo para asentar la foto sobre el fondo claro */}
+        <span aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_65%,rgba(11,18,38,0.18))]" />
+        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-carbon/10" />
+      </motion.figure>
     ) : null);
 
   return (

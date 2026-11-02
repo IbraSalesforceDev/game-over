@@ -321,6 +321,18 @@
 .acercar {
   animation: acercar 24s ease-in-out infinite alternate;
 }
+/* Variante muy leve para fotos de grupo: no llega a recortar caras */
+@keyframes acercar-suave {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+.acercar-suave {
+  animation: acercar-suave 24s ease-in-out infinite alternate;
+}
 
 @keyframes respirar {
   0%,
@@ -414,6 +426,7 @@
   .deriva-c,
   .respirar,
   .acercar,
+  .acercar-suave,
   .olas,
   .onda,
   .titilar,
