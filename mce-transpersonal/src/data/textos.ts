@@ -8,7 +8,8 @@ import bettyFoto from '../assets/fotos/betty-merino.webp';
 export const historia = {
   titulo: 'Mente, Cuerpo y Espíritu.',
   parrafos: [
-    'El proyecto MCE nace de la mano de Betty Merino, con la intención de generar una red que expanda toda la sabiduría transpersonal que en ella habita desde que era sólo una niña.',
+    // Acordado con la escuela: solo que Betty es la creadora del proyecto.
+    'Betty Merino es la creadora del proyecto MCE.',
     'Pese a que las siglas del proyecto nos inspiren la tríada mente, cuerpo y espíritu, su significado descansa sobre la metáfora de la mecedora; ahí donde llegas a casa, donde puedes descansar, donde por fin dejas de sentirte solo.',
     'Y es que MCE, es eso, es hogar. Es llegar a casa.',
     'Es conexión, compañía, comprensión, compasión y amor.',
