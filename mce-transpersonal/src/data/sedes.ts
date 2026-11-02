@@ -2,12 +2,11 @@
  * Sedes de MCE, agrupadas por comunidad autónoma.
  *
  * - Solo existen estas seis sedes: Valencia, Alicante Sur, Benidorm, Sevilla,
- *   Granada y Madrid. No añadir otras (ni Barcelona/Cataluña, Talavera,
- *   Alicante, Málaga, Almería o Mallorca).
+ *   Granada y Madrid. No añadir otras.
  * - Sin direcciones postales.
  * - Facilitadores: solo los confirmados. El resto llegará más adelante.
  *   Nombres como en la web oficial (salvo Daniel Jesús Salido y Noé, por
- *   indicación de la escuela). Enrique Gala no figura.
+ *   indicación de la escuela).
  *
  * TODO fotos de facilitadores (pendiente: desde este entorno no se puede
  * acceder a mcetranspersonal.com). Imágenes de la web oficial, en
