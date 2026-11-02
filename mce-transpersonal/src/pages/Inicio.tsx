@@ -19,7 +19,9 @@ import Proposito from '../components/secciones/Proposito';
 import Ondas from '../components/anim/Ondas';
 
 import { escuela } from '../data/escuela';
-import { betty, frases } from '../data/textos';
+import { betty, formados, frases } from '../data/textos';
+import { enlaceMasResenas, resenas } from '../data/resenas';
+import CarruselResenas from '../components/resenas/CarruselResenas';
 import { disciplinas } from '../data/equipo';
 import { bloques } from '../data/formaciones';
 import { comunidades, sedes } from '../data/sedes';
@@ -136,11 +138,36 @@ function Miles() {
       <div className="marco relative flex min-h-[85svh] flex-col items-center justify-end pb-20 pt-40 text-center sm:pb-28">
         <Revelar>
           <h2 id="titulo-miles" className="mx-auto max-w-5xl font-serif text-[clamp(2.8rem,7.4vw,6.8rem)] font-medium leading-[0.98] tracking-[-0.02em] [text-shadow:0_2px_30px_rgba(11,18,38,0.5)]">
-            Miles de personas ya se han formado con MCE.
+            Todos somos uno
           </h2>
         </Revelar>
-        <Revelar className="mt-10 flex justify-center" retraso={0.15}>
+        <Revelar className="mt-5" retraso={0.15}>
+          <p className="font-serif text-[clamp(1.4rem,2.6vw,2.1rem)] italic text-marfil/85 [text-shadow:0_2px_20px_rgba(11,18,38,0.5)]">Todo en equipo</p>
+        </Revelar>
+      </div>
+    </section>
+  );
+}
+
+/** Debajo de la foto: "Miles de personas…" y las reseñas (desde src/data/resenas.ts). */
+function Resenas() {
+  return (
+    <section className="bg-lino py-24 sm:py-32" aria-labelledby="titulo-resenas">
+      <div className="marco">
+        <Revelar>
+          <h2 id="titulo-resenas" className="max-w-4xl font-serif text-[clamp(2.2rem,4.8vw,4rem)] font-medium leading-[1.02] tracking-[-0.02em]">
+            {formados}
+          </h2>
+        </Revelar>
+        <Revelar className="mt-12 sm:mt-14" retraso={0.1}>
+          <CarruselResenas resenas={resenas} />
+        </Revelar>
+        <Revelar className="mt-12 flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between" retraso={0.15}>
           <BotonEnlace a="/formaciones">Ver las formaciones</BotonEnlace>
+          <a href={enlaceMasResenas} target="_blank" rel="noopener noreferrer" className="enlace-texto text-[0.98rem] text-carbon-suave">
+            Ver más reseñas en Facebook
+            <span className="sr-only"> (se abre en una pestaña nueva)</span>
+          </a>
         </Revelar>
       </div>
     </section>
@@ -243,6 +270,7 @@ export default function Inicio() {
       </section>
 
       <Miles />
+      <Resenas />
 
       {/* ── Recorre la escuela (scroll horizontal) ───────────────────── */}
       <Horizontal
