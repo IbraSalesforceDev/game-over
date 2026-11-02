@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
@@ -127,8 +127,24 @@ function Tarjeta({
   progreso: MotionValue<number>;
 }) {
   const reducido = useReducedMotion();
-  // Apilado solo en pantallas grandes: en móvil las tarjetas son más altas que la pantalla.
-  const apilar = useEsGrande() && !reducido;
+  // Apilado solo en pantallas grandes y si la tarjeta cabe en la pantalla: si
+  // es más alta, la siguiente le taparía el final, así que se desplaza normal.
+  const articulo = useRef<HTMLElement>(null);
+  const [cabe, setCabe] = useState(true);
+  useLayoutEffect(() => {
+    const el = articulo.current;
+    if (!el) return;
+    const medir = () => setCabe(el.offsetHeight <= window.innerHeight - 110);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    window.addEventListener('resize', medir);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', medir);
+    };
+  }, []);
+  const apilar = useEsGrande() && !reducido && cabe;
   const estilo = estilosTarjeta[indice % estilosTarjeta.length]!;
   const objetivo = 1 - (total - indice) * 0.035;
   const escala = useTransform(progreso, [indice / total, 1], [1, objetivo]);
@@ -143,6 +159,7 @@ function Tarjeta({
       style={apilar ? { top: `calc(5.5rem + ${indice * 1.4}rem)` } : undefined}
     >
       <motion.article
+        ref={articulo}
         style={apilar ? { scale: escala } : undefined}
         className={cx(
           'relative w-full origin-top overflow-hidden rounded-[2rem] p-8 shadow-[0_-20px_60px_-40px_rgba(42,38,34,0.5)] sm:p-12 lg:min-h-[72vh] lg:p-16',

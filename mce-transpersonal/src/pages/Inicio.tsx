@@ -21,6 +21,7 @@ import Ondas from '../components/anim/Ondas';
 import { escuela } from '../data/escuela';
 import { betty, formados, frases } from '../data/textos';
 import { enlaceMasResenas, resenas } from '../data/resenas';
+import { citasBetty } from '../data/sobreMce';
 import CarruselResenas from '../components/resenas/CarruselResenas';
 import { disciplinas } from '../data/equipo';
 import { bloques } from '../data/formaciones';
@@ -251,9 +252,18 @@ export default function Inicio() {
           <div className="lg:col-span-6 lg:col-start-7 lg:pt-12">
             <Etiqueta color="bg-mar">Fundadora de MCE</Etiqueta>
             <Titular como="h2" className="mt-6 text-[clamp(3.2rem,7.4vw,6.4rem)] leading-[0.95] tracking-[-0.03em]" segmentos={['Betty Merino']} />
+            <Revelar className="mt-4">
+              <p className="text-[1.05rem] text-carbon-suave">{betty.cargo}</p>
+            </Revelar>
             <div className="mt-10">
               <TextoScroll texto={frases.origen} className="font-serif text-[clamp(1.35rem,2.3vw,1.85rem)] leading-[1.45]" />
             </div>
+            <Revelar className="mt-10">
+              <blockquote className="border-l-2 border-dorado/50 pl-6">
+                <p className="font-serif text-[clamp(1.3rem,2.2vw,1.7rem)] italic leading-[1.45] text-carbon">{citasBetty.presente}</p>
+                <footer className="mt-3 text-[0.95rem] text-carbon-suave">Betty Merino</footer>
+              </blockquote>
+            </Revelar>
             <Revelar className="mt-14 rounded-[1.5rem] border border-carbon/10 bg-marfil p-8 sm:p-10">
               <h3 className="text-[clamp(1.7rem,2.8vw,2.2rem)]">Consulta transpersonal</h3>
               {betty.consulta && <p className="mt-4 max-w-xl leading-[1.8] text-carbon-suave">{betty.consulta}</p>}

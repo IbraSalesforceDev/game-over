@@ -17,11 +17,11 @@ export const escuela = {
   // El logo original está en src/assets/logo.png (se muestra sin filtros ni recoloreado).
   // TODO: si hay versión vectorial (SVG) o más grande, sustituirlo por ella.
 
-  // TODO: email de contacto de la escuela.
-  email: null as string | null,
+  // Fuente: página de contacto de la web oficial.
+  email: 'mcetranspersonal@gmail.com' as string | null,
 
-  // TODO: teléfono general de la escuela (formato "600 000 000").
-  telefono: null as string | null,
+  // Fuente: página de contacto de la web oficial (coincide con el de Sevilla).
+  telefono: '644 473 497' as string | null,
 
   instagram: {
     usuario: 'mcetranspersonal',

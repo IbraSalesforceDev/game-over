@@ -42,8 +42,10 @@ export const animoContacto = {
 export const betty = {
   nombre: 'Betty Merino',
   rol: 'Fundadora de MCE',
+  // Fuente: web oficial («Directora de MCE Escuela para el Desarrollo Transpersonal»)
+  cargo: 'Directora de MCE, Escuela para el Desarrollo Transpersonal',
   foto: bettyFoto as string | null,
-  // TODO: texto sobre la consulta transpersonal de Betty (qué es, cómo se pide,
-  // modalidad). Mientras sea null, solo se muestra el enlace a Contacto.
-  consulta: null as string | null,
+  // Fuente: web oficial, «¿En qué consiste una Consulta Transpersonal con Betty Merino?» (reescrito)
+  consulta:
+    'Una consulta personal en la que recibes información sobre tu experiencia de vida, desde antes de tu nacimiento hasta hoy: con quién has pactado encontrarte para aprender y para qué ocurrieron las experiencias que te resultaron más difíciles. Al final, puedes hacer tres preguntas.' as string | null,
 };

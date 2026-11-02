@@ -97,7 +97,7 @@ export default function Equipo() {
             <div>
               <h3 className="text-[1.9rem] font-medium">Fundadora</h3>
               <p className="mt-3 text-[1.08rem] text-carbon-suave">
-                <span className="text-carbon">{betty.nombre}</span>, fundadora de MCE.
+                <span className="text-carbon">{betty.nombre}</span>, fundadora y directora de MCE.
               </p>
             </div>
           </Revelar>

@@ -5,7 +5,8 @@ import { Subrayado } from '../components/anim/Trazo';
 import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
-import { historia } from '../data/textos';
+import { formados, historia } from '../data/textos';
+import { camino, citasBetty, relato } from '../data/sobreMce';
 import { fotosGenerales } from '../data/fotos';
 import Proposito from '../components/secciones/Proposito';
 
@@ -36,10 +37,69 @@ export default function SobreMce() {
           <div className="lg:col-span-8 lg:col-start-5">
             <Revelar>
               <p className="font-serif text-[clamp(1.5rem,2.8vw,2.15rem)] font-light leading-[1.45] first-letter:float-left first-letter:mr-4 first-letter:mt-2 first-letter:font-serif first-letter:text-[4.6em] first-letter:leading-[0.78] first-letter:text-dorado-hondo">
-                {p1}
+                {p1} <span className="text-carbon-suave">Hoy dirige MCE, la Escuela para el Desarrollo Transpersonal.</span>
               </p>
             </Revelar>
+
+            {/* Relato por etapas (información de la web oficial, ver src/data/sobreMce.ts) */}
+            <ol className="mt-14 space-y-0">
+              {relato.map((r, i) => (
+                <motion.li
+                  key={r.titulo}
+                  className="filete grid gap-3 border-t py-8 sm:grid-cols-[11rem_1fr] sm:gap-8"
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+                  transition={{ duration: 0.8, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <h3 className="flex items-baseline gap-3 font-serif text-[1.5rem] leading-tight">
+                    <span aria-hidden className="text-[0.95rem] italic text-dorado">{String(i + 1).padStart(2, '0')}</span>
+                    {r.titulo}
+                  </h3>
+                  <p className="text-[1.08rem] leading-[1.85] text-carbon-suave">{r.texto}</p>
+                </motion.li>
+              ))}
+              <motion.li
+                className="filete border-y py-8"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <p className="font-serif text-[clamp(1.5rem,2.6vw,2rem)] text-dorado-hondo">{formados}</p>
+              </motion.li>
+            </ol>
           </div>
+        </div>
+
+        <Revelar className="mt-24 sm:mt-32">
+          <blockquote>
+            <p className="max-w-5xl font-serif text-[clamp(2rem,5.2vw,4.4rem)] font-[300] italic leading-[1.08] tracking-[-0.02em]">{citasBetty.viajeros}</p>
+            <footer className="mt-6 text-[1rem] text-carbon-suave">Betty Merino, directora de MCE</footer>
+          </blockquote>
+        </Revelar>
+      </section>
+
+      {/* ── El camino en tres etapas (web oficial) ─────────────────────── */}
+      <section className="bg-lino py-24 sm:py-32" aria-labelledby="titulo-camino">
+        <div className="marco">
+          <Etiqueta>El camino</Etiqueta>
+          <h2 id="titulo-camino" className="mt-6 max-w-3xl text-[clamp(2.2rem,4.6vw,3.8rem)] leading-[1.04]">
+            Un camino en tres etapas
+          </h2>
+          <Escalonado className="mt-14 grid gap-6 md:grid-cols-3" como="ol" paso={0.14}>
+            {camino.map((e, i) => (
+              <motion.li
+                key={e.titulo}
+                variants={hijoEscalonado}
+                className="group relative rounded-[1.5rem] border border-carbon/10 bg-marfil p-7 transition-[transform,box-shadow] duration-500 ease-[var(--ease-suave)] hover:-translate-y-1.5 hover:shadow-[0_24px_50px_-34px_rgba(22,33,62,0.4)] sm:p-8"
+              >
+                <span aria-hidden className="font-serif text-[3.2rem] leading-none text-dorado/80">{String(i + 1).padStart(2, '0')}</span>
+                <h3 className="mt-5 font-serif text-[1.75rem] leading-tight">{e.titulo}</h3>
+                <p className="mt-4 leading-[1.8] text-carbon-suave">{e.texto}</p>
+              </motion.li>
+            ))}
+          </Escalonado>
         </div>
       </section>
 
