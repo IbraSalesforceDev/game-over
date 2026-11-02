@@ -10,11 +10,11 @@ import TextoScroll from '../components/anim/TextoScroll';
 import Contador from '../components/anim/Contador';
 import Horizontal from '../components/anim/Horizontal';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
-import { FlechaMano } from '../components/anim/Trazo';
 import { BotonEnlace } from '../components/ui/Boton';
 import Etiqueta from '../components/ui/Etiqueta';
 import Retrato from '../components/ui/Retrato';
 import ElegirComunidad from '../components/sedes/ElegirComunidad';
+import Puertas, { type Acceso } from '../components/puertas/Puertas';
 import Proposito from '../components/secciones/Proposito';
 import Ondas from '../components/anim/Ondas';
 
@@ -41,7 +41,7 @@ const cifras = [
   { valor: nivelesIET, texto: 'niveles de Inteligencia Emocional Transpersonal', fondo: 'bg-salvia', tinta: 'text-marfil' },
 ];
 
-const accesos = [
+const accesos: Acceso[] = [
   { ruta: '/sobre-mce', nombre: 'Sobre MCE', detalle: 'La historia de la escuela, la metáfora de la mecedora y sus valores.', fondo: 'bg-amanecer', texto: 'text-carbon' },
   { ruta: '/formaciones', nombre: 'Formaciones', detalle: unir(bloques.map((b) => b.titulo)) + '.', fondo: 'bg-mar-claro', texto: 'text-carbon' },
   { ruta: '/equipo', nombre: 'Equipo', detalle: `${unir(disciplinas)}.`, fondo: 'bg-salvia-clara', texto: 'text-carbon' },
@@ -258,35 +258,7 @@ export default function Inicio() {
           </div>
         )}
       >
-        <div className="flex flex-col gap-5 px-4 sm:px-8 lg:flex-row lg:gap-6 lg:pl-14 lg:pr-[20vw]">
-          {accesos.map((a) => (
-            <Link
-              key={a.ruta}
-              to={a.ruta}
-              className={cx(
-                'group relative flex min-h-[18rem] flex-col justify-between overflow-hidden rounded-t-[12rem] rounded-b-[1.5rem] p-8 pt-20 transition-[transform,box-shadow] duration-300 ease-[var(--ease-suave)] hover:-translate-y-1.5 hover:shadow-[0_24px_50px_-28px_rgba(22,33,62,0.45)] sm:p-10 sm:pt-24 lg:h-[64vh] lg:min-h-0 lg:w-[34vw] lg:max-w-[30rem] lg:shrink-0',
-                a.fondo,
-                a.texto,
-              )}
-            >
-              <span className="block font-serif text-[clamp(2.4rem,4.6vw,4.2rem)] leading-none tracking-[-0.02em] transition-transform duration-300 ease-[var(--ease-suave)] group-hover:-translate-y-1">
-                {a.nombre}
-              </span>
-              <span className="flex items-end justify-between gap-6">
-                <span className="max-w-xs text-[1rem] leading-relaxed opacity-80">{a.detalle}</span>
-                <span
-                  className={cx(
-                    'flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors duration-300',
-                    a.texto === 'text-marfil' ? 'bg-marfil/15 group-hover:bg-dorado group-hover:text-marfil' : 'bg-carbon/8 group-hover:bg-carbon group-hover:text-marfil',
-                  )}
-                >
-                  <FlechaMano />
-                  <span className="sr-only">Entrar</span>
-                </span>
-              </span>
-            </Link>
-          ))}
-        </div>
+        <Puertas accesos={accesos} />
       </Horizontal>
 
       {/* ── Elige tu comunidad ───────────────────────────────────────── */}
