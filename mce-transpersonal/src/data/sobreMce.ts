@@ -3,8 +3,9 @@
  * reescrita para esta web, sin añadir datos. En cada bloque se indica de qué
  * página sale, para poder comprobarlo.
  *
- * NO usar aquí: la metáfora de la mecedora, «desde que era sólo una niña»,
- * el V Congreso 2025 ni sedes o personas retiradas.
+ * NO usar aquí nada de lo que la escuela ha pedido retirar (ver historial
+ * del proyecto): ni textos eliminados, ni el congreso antiguo, ni sedes o
+ * personas retiradas.
  */
 
 /** Relato de la historia de MCE (Sobre MCE), por etapas y sin fechas. */
