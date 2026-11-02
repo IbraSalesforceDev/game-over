@@ -150,9 +150,9 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 - [ ] **Instagram de Valencia**: el que llegó coincide con el de Granada (`mcegranada`); no se muestra hasta confirmarlo.
 - [ ] **Almería**: redes y teléfonos propios, si los hay.
 - [ ] **Formaciones**: descripción, duración, contenidos, modalidad, precios y fechas, copiados literalmente de
-      `mcetranspersonal.com/inteligencia-emocional-transpersonal/` y `/otros-cursos-y-charlas/`
+      `mcetranspersonal.com/inteligencia-emocional-transpersonal/` y la de monográficos, charlas y eventos
       (no se pudo acceder a esas páginas al crear la web).
-- [ ] **V Congreso Transpersonal 2025**: datos o decidir si se mantiene, ya que la fecha ha pasado.
+- [ ] **VII Congreso Transpersonal 2027**: fechas, lugar (sin dirección) y programa.
 - [ ] **Consulta transpersonal** de Betty: texto → `textos.ts` (`betty.consulta`).
 - [ ] **Equipo**: texto de presentación, lista de personas y retratos.
 - [ ] **Facilitadores** del resto de sedes y sus fotos.

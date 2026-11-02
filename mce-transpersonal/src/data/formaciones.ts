@@ -4,7 +4,7 @@
  * TODO (importante): copiar los detalles (descripción, duración, contenidos,
  * modalidad, precios, fechas) SOLO de la web original:
  *   - https://mcetranspersonal.com/inteligencia-emocional-transpersonal/
- *   - https://mcetranspersonal.com/otros-cursos-y-charlas/
+ *   - la página de monográficos, charlas y eventos de la web original
  * Al crear la web no se pudo acceder a esas páginas, así que todos los campos
  * están en `null`. Los campos en `null` no se muestran.
  */
@@ -52,17 +52,24 @@ export const bloques: Bloque[] = [
     formaciones: [],
   },
   {
-    id: 'otros-cursos-y-charlas',
-    titulo: 'Otros cursos y charlas',
-    // TODO: listado literal de https://mcetranspersonal.com/otros-cursos-y-charlas/
+    id: 'monograficos-transpersonales',
+    titulo: 'Monográficos transpersonales',
+    // TODO: listado de monográficos.
     descripcion: null,
     formaciones: [],
   },
   {
-    id: 'congreso-transpersonal-2025',
-    titulo: 'V Congreso Transpersonal 2025',
-    // TODO: fechas, lugar (sin dirección postal) y programa. Si el congreso ya
-    // se celebró, decidir si se mantiene como archivo o se sustituye por el siguiente.
+    id: 'otras-charlas-y-eventos',
+    titulo: 'Otras charlas y eventos',
+    // TODO: listado de charlas y eventos. Cada uno puede tener su cartel
+    // (imagen en un cartelito emergente): ver src/data/carteles.ts.
+    descripcion: null,
+    formaciones: [],
+  },
+  {
+    id: 'congreso-transpersonal-2027',
+    titulo: 'VII Congreso Transpersonal 2027',
+    // TODO: fechas, lugar (sin dirección postal) y programa.
     descripcion: null,
     formaciones: [],
   },
