@@ -219,7 +219,7 @@ export default function Formaciones() {
     <Pagina titulo="Formaciones">
       <CabeceraPagina
         etiqueta="Formaciones"
-        titulo={['Aprender', { texto: 'desde el corazón', cursiva: true, clase: 'pl-[6vw]' }]}
+        titulo={['Formarse para', { texto: 'elevar la consciencia', cursiva: true, clase: 'pl-[6vw]' }]}
         lateral={
           <nav aria-label="En esta página" className="rounded-[1.5rem] border border-carbon/10 bg-lino p-6">
             <p className="etiqueta mb-4">En esta página</p>
