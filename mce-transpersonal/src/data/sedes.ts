@@ -7,16 +7,8 @@
  * - Facilitadores: solo los confirmados. El resto llegará más adelante.
  *   Nombres como en la web oficial (salvo Daniel Jesús Salido, por
  *   indicación de la escuela).
- *
- * TODO fotos de facilitadores (pendiente: desde este entorno no se puede
- * acceder a mcetranspersonal.com). Imágenes de la web oficial, en
- * https://mcetranspersonal.com/wp-content/uploads/…:
- *   Anabel Martínez      2024/01/anabel-1-150x150.png (Benidorm) · 2024/01/anabel-150x150.png (Valencia)
- *   Vicente Baldó        2024/01/Vicen3-150x150.png
- *   Daniela Russo        2024/01/daniela-150x150.png
- *   Silvia Díaz          2024/01/silvia-150x150.png
- *   Daniel Jesús Salido  2020/12/Daniel-150x150.jpg
- *   Noelia Domínguez     2024/01/noe-150x150.png
+
+ * - Fotos de los facilitadores: src/data/fotosEquipo.ts.
  */
 
 export type Facilitador = {
@@ -80,7 +72,7 @@ export const sedes: Sede[] = [
     instagram: ig('mcebenidorm'),
     facebook: fb('mcebenidorm'),
     telefonos: ['611 020 574', '692 327 932'],
-    facilitadores: [anabel, vicente],
+    facilitadores: [vicente, anabel], // orden de la web oficial
   },
   {
     id: 'valencia',

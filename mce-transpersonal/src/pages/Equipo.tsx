@@ -5,7 +5,8 @@ import Titular from '../components/anim/Titular';
 import { Revelar } from '../components/anim/Revelar';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import { disciplinas, equipo } from '../data/equipo';
-import { facilitadoresConSedes } from '../data/sedes';
+import { sedes } from '../data/sedes';
+import { fotosEquipo } from '../data/fotosEquipo';
 import { fotosSede, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
 import { cx } from '../lib/utilidades';
 import { betty } from '../data/textos';
@@ -52,7 +53,8 @@ function TiraFotos({ fotos }: { fotos: FotoReal[] }) {
 }
 
 export default function Equipo() {
-  const facilitadores = facilitadoresConSedes();
+  // Mismo orden que el panel de la web oficial (alfabético por sede).
+  const porSede = sedes.filter((s) => s.facilitadores.length > 0).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
   return (
     <Pagina titulo="Equipo">
@@ -99,16 +101,43 @@ export default function Equipo() {
               </p>
             </div>
           </Revelar>
-          <Revelar retraso={0.1}>
+        </div>
+
+        {/* Facilitadores por sede, como el panel de la web oficial (mismo orden) */}
+        <div className="marco mt-20">
+          <Revelar>
             <h3 className="text-[1.9rem] font-medium">Facilitadores</h3>
-            <ul className="mt-3 space-y-1.5 text-[1.08rem] text-carbon-suave">
-              {facilitadores.map(({ facilitador: f, sedes }) => (
-                <li key={f.nombre}>
-                  <span className="text-carbon">{f.nombre}</span>, {unir(sedes)}
-                </li>
-              ))}
-            </ul>
           </Revelar>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {porSede.map((sede, i) => (
+              <motion.section
+                key={sede.id}
+                aria-labelledby={`equipo-${sede.id}`}
+                className="rounded-[1.5rem] border border-carbon/10 bg-marfil p-6 transition-shadow duration-300 hover:shadow-[0_24px_50px_-34px_rgba(22,33,62,0.4)] sm:p-7"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '0px 0px -8% 0px' }}
+                transition={{ duration: 0.8, delay: (i % 3) * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <h4 id={`equipo-${sede.id}`} className="flex items-center gap-3 font-sans text-[0.95rem] font-semibold uppercase tracking-[0.08em] text-mar">
+                  <span aria-hidden className="h-2 w-2 rounded-full bg-dorado" />
+                  {sede.nombre}
+                </h4>
+                <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-6">
+                  {sede.facilitadores.map((f) => (
+                    <li key={f.nombre} className="group/persona flex w-[7.5rem] flex-col items-center text-center">
+                      <span className="block h-24 w-24 overflow-hidden rounded-full bg-mar-claro ring-1 ring-carbon/10 transition-transform duration-500 ease-[var(--ease-suave)] group-hover/persona:-translate-y-1 group-hover/persona:scale-[1.04]">
+                        {fotosEquipo[f.nombre] && (
+                          <img src={fotosEquipo[f.nombre]} alt={`Foto de ${f.nombre}`} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                        )}
+                      </span>
+                      <span className="mt-3 text-[1rem] leading-snug text-carbon">{f.nombre}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.section>
+            ))}
+          </div>
         </div>
       </section>
     </Pagina>
