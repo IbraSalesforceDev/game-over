@@ -1,75 +1,16 @@
-import { useRef, useState } from 'react';
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
+import { useRef } from 'react';
+import { motion } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
 import Titular from '../components/anim/Titular';
-import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
+import { Revelar } from '../components/anim/Revelar';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
-import Etiqueta from '../components/ui/Etiqueta';
 import { disciplinas, equipo } from '../data/equipo';
 import { facilitadoresConSedes } from '../data/sedes';
 import { fotosSede, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
 import { cx } from '../lib/utilidades';
 import { betty } from '../data/textos';
 
-const coloresDisciplina = ['#dce7f5', '#e6edf6', '#e3e8ef', '#cfdcee'];
-const puntos = ['bg-dorado', 'bg-mar', 'bg-salvia', 'bg-terracota'];
 const unir = (l: readonly string[]) => (l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}` : l.join(''));
-
-/** Lista de disciplinas: al pasar el ratón, una mancha de color sigue al cursor. */
-function Disciplinas() {
-  const ref = useRef<HTMLDivElement>(null);
-  const reducido = useReducedMotion();
-  const [activa, setActiva] = useState<number | null>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const sx = useSpring(x, { stiffness: 150, damping: 20 });
-  const sy = useSpring(y, { stiffness: 150, damping: 20 });
-
-  return (
-    <div
-      ref={ref}
-      className="relative"
-      onPointerMove={(e) => {
-        if (!ref.current) return;
-        const r = ref.current.getBoundingClientRect();
-        x.set(e.clientX - r.left);
-        y.set(e.clientY - r.top);
-      }}
-      onPointerLeave={() => setActiva(null)}
-    >
-      {!reducido && (
-        <AnimatePresence>
-          {activa !== null && (
-            <motion.span
-              aria-hidden
-              className="pointer-events-none absolute left-0 top-0 z-0 h-72 w-72 rounded-full blur-2xl"
-              style={{ x: sx, y: sy, translateX: '-50%', translateY: '-50%' }}
-              initial={{ opacity: 0, scale: 0.4 }}
-              animate={{ opacity: 0.9, scale: 1, backgroundColor: coloresDisciplina[activa] }}
-              exit={{ opacity: 0, scale: 0.4 }}
-              transition={{ duration: 0.3 }}
-            />
-          )}
-        </AnimatePresence>
-      )}
-      <Escalonado className="filete relative z-10 border-t" como="ul">
-        {disciplinas.map((d, i) => (
-          <motion.li
-            key={d}
-            variants={hijoEscalonado}
-            onPointerEnter={() => setActiva(i)}
-            className="filete group flex items-center justify-between gap-6 border-b py-7 sm:py-9"
-          >
-            <span className="font-serif text-[clamp(2.6rem,7.4vw,6.6rem)] font-medium leading-none tracking-[-0.02em] transition-transform duration-300 ease-[var(--ease-suave)] group-hover:translate-x-3 group-hover:italic">
-              {d}
-            </span>
-            <span className={cx('h-3 w-3 shrink-0 rounded-full transition-transform duration-300 group-hover:scale-[2]', puntos[i])} aria-hidden />
-          </motion.li>
-        ))}
-      </Escalonado>
-    </div>
-  );
-}
 
 /** Tira de fotos de las sedes que se puede arrastrar en horizontal. */
 function TiraFotos({ fotos }: { fotos: FotoReal[] }) {
@@ -121,16 +62,6 @@ export default function Equipo() {
         titulo={['Quiénes', { texto: 'acompañan', cursiva: true, clase: 'pl-[10vw]' }]}
         entradilla={<p>{equipo.presentacion ?? `El equipo de MCE reúne cuatro disciplinas: ${unir(disciplinas)}.`}</p>}
       />
-
-      <section className="marco pb-28 sm:pb-36" aria-labelledby="titulo-disciplinas">
-        <Etiqueta>Disciplinas</Etiqueta>
-        <h2 id="titulo-disciplinas" className="sr-only">
-          Las cuatro disciplinas del equipo
-        </h2>
-        <div className="mt-10">
-          <Disciplinas />
-        </div>
-      </section>
 
       <section className="overflow-hidden bg-lino py-28 sm:py-36" aria-labelledby="titulo-personas">
         <div className="marco flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
