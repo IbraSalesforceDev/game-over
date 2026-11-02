@@ -6,7 +6,18 @@
  *   Alicante, Málaga, Almería o Mallorca).
  * - Sin direcciones postales.
  * - Facilitadores: solo los confirmados. El resto llegará más adelante.
- *   Las fotos van en public/images/facilitadores/nombre-apellido.jpg.
+ *   Nombres como en la web oficial (salvo Daniel Jesús Salido y Noé, por
+ *   indicación de la escuela). Enrique Gala no figura.
+ *
+ * TODO fotos de facilitadores (pendiente: desde este entorno no se puede
+ * acceder a mcetranspersonal.com). Imágenes de la web oficial, en
+ * https://mcetranspersonal.com/wp-content/uploads/…:
+ *   Anabel Martínez      2024/01/anabel-1-150x150.png (Benidorm) · 2024/01/anabel-150x150.png (Valencia)
+ *   Vicente Baldó        2024/01/Vicen3-150x150.png
+ *   Daniela Russo        2024/01/daniela-150x150.png
+ *   Silvia Díaz          2024/01/silvia-150x150.png
+ *   Daniel Jesús Salido  2020/12/Daniel-150x150.jpg
+ *   Noé                  2024/01/noe-150x150.png
  */
 
 export type Facilitador = {
@@ -46,8 +57,10 @@ const fb = (ruta: string) => `https://www.facebook.com/${ruta}`;
 const anabel: Facilitador = { nombre: 'Anabel Martínez' };
 const vicente: Facilitador = { nombre: 'Vicente Baldó' };
 const daniela: Facilitador = { nombre: 'Daniela Russo' };
-const enrique: Facilitador = { nombre: 'Enrique Gala' };
 const silvia: Facilitador = { nombre: 'Silvia Díaz' };
+const danielSalido: Facilitador = { nombre: 'Daniel Jesús Salido' };
+// En la web oficial figura como «Noelia Domínguez»; la escuela pide «Noé».
+const noe: Facilitador = { nombre: 'Noé' };
 
 const telefonosAlicanteSur = ['633 171 860', '619 313 778'];
 
@@ -60,7 +73,7 @@ export const sedes: Sede[] = [
     instagram: ig('mce_alicantesur'),
     facebook: fb('danielarusso.coach.trainer'),
     telefonos: telefonosAlicanteSur,
-    facilitadores: [daniela, enrique],
+    facilitadores: [daniela],
   },
   {
     id: 'benidorm',
@@ -91,7 +104,7 @@ export const sedes: Sede[] = [
     instagram: ig('daniel_jesus_salido_duran'),
     facebook: fb('CONSCIENCIASOCIALSL'),
     telefonos: ['644 473 497'],
-    facilitadores: [], // TODO: facilitadores de Sevilla
+    facilitadores: [danielSalido],
   },
   {
     id: 'granada',
@@ -100,7 +113,7 @@ export const sedes: Sede[] = [
     instagram: ig('mcegranada'),
     facebook: fb('profile.php?id=100002877662454'),
     telefonos: ['686 723 666'],
-    facilitadores: [], // TODO: facilitadores de Granada
+    facilitadores: [noe],
   },
 
   // ── Comunidad de Madrid ─────────────────────────────────────────────
