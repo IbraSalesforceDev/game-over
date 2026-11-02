@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
@@ -7,6 +7,8 @@ import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar'
 import { BotonEnlace } from '../components/ui/Boton';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import { bloques, type Bloque, type Formacion } from '../data/formaciones';
+import { carteles, type Cartel } from '../data/carteles';
+import Modal from '../components/ui/Modal';
 import { cx, useEsGrande } from '../lib/utilidades';
 
 const estilosTarjeta = [
@@ -15,6 +17,41 @@ const estilosTarjeta = [
   { fondo: 'bg-amanecer', texto: 'text-carbon', boton: 'principal' as const },
   { fondo: 'bg-carbon', texto: 'text-marfil', boton: 'principal' as const },
 ];
+
+/** Abre el cartelito (modal con imagen) de un elemento. */
+const AbrirCartel = createContext<(c: Cartel) => void>(() => {});
+
+function IconoImagen({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <circle cx="9" cy="10" r="1.8" />
+      <path d="m3.5 17 5.5-4.5 4 3.5 2.5-2 5 3.5" />
+    </svg>
+  );
+}
+
+/**
+ * Nombre de un elemento: si tiene cartel (src/data/carteles.ts), es un botón
+ * que lo abre; si no, texto normal.
+ */
+function NombreConCartel({ id, nombre }: { id: string; nombre: string }) {
+  const abrir = useContext(AbrirCartel);
+  const cartel = carteles[id];
+  if (!cartel) return <>{nombre}</>;
+  return (
+    <button
+      type="button"
+      onClick={() => abrir(cartel)}
+      aria-haspopup="dialog"
+      className="group/cartel inline-flex cursor-pointer items-center gap-3 rounded-md text-left decoration-current/40 underline-offset-[0.18em] hover:underline focus-visible:underline"
+    >
+      {nombre}
+      <IconoImagen className="h-[0.55em] w-[0.55em] shrink-0 opacity-60 transition-[opacity,transform] duration-300 group-hover/cartel:scale-110 group-hover/cartel:opacity-100" />
+      <span className="sr-only">(ver cartel)</span>
+    </button>
+  );
+}
 
 /** Detalles de una formación: solo se pintan los campos que tienen datos. */
 function Detalles({ f }: { f: Formacion }) {
@@ -67,7 +104,7 @@ function Escalera({ niveles }: { niveles: Formacion[] }) {
               />
               <span className="font-serif text-sm italic opacity-70">{String(i + 1).padStart(2, '0')}</span>
               <h4 className="mt-1 text-[clamp(2rem,3.2vw,2.9rem)] font-[340] transition-transform duration-500 ease-[var(--ease-suave)] group-hover:-translate-y-1.5">
-                {nivel.nombre}
+                <NombreConCartel id={nivel.id} nombre={nivel.nombre} />
               </h4>
               <Detalles f={nivel} />
             </div>
@@ -96,6 +133,8 @@ function Tarjeta({
   const objetivo = 1 - (total - indice) * 0.035;
   const escala = useTransform(progreso, [indice / total, 1], [1, objetivo]);
   const esIET = bloque.id === 'inteligencia-emocional-transpersonal';
+  const cartelBloque = carteles[bloque.id];
+  const abrirCartel = useContext(AbrirCartel);
 
   return (
     <div
@@ -115,9 +154,24 @@ function Tarjeta({
         <span aria-hidden className="pointer-events-none absolute -right-16 -top-10 h-[22rem] w-[18rem] rounded-t-[999px] border-[3px] border-current opacity-[0.12] sm:-right-10" />
         <div className="relative flex h-full flex-col">
           <p className="etiqueta !text-current opacity-70">{esIET ? 'Formación por niveles' : 'Formación'}</p>
-          <div id={`t-${bloque.id}`}>
+          <div id={`t-${bloque.id}`} className={cx(cartelBloque && 'relative cursor-pointer')}>
             <Titular como="h2" className="mt-6 max-w-4xl text-[clamp(2.6rem,6.4vw,5.6rem)] font-[330] leading-[0.98] tracking-[-0.025em]" segmentos={[bloque.titulo]} />
+            {/* El título entero también abre el cartel (el botón accesible es el de abajo) */}
+            {cartelBloque && <button type="button" tabIndex={-1} aria-hidden className="absolute inset-0 cursor-pointer" onClick={() => abrirCartel(cartelBloque)} />}
           </div>
+          {cartelBloque && (
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => abrirCartel(cartelBloque)}
+                aria-haspopup="dialog"
+                className="inline-flex items-center gap-2.5 rounded-full border border-current/25 px-5 py-2.5 text-[0.95rem] transition-colors duration-300 hover:border-current hover:bg-current/[0.06]"
+              >
+                <IconoImagen className="h-[1.1rem] w-[1.1rem]" />
+                Ver el cartel
+              </button>
+            </div>
+          )}
           {bloque.descripcion && <p className="mt-8 max-w-2xl text-[1.1rem] leading-[1.8] opacity-80">{bloque.descripcion}</p>}
 
           {esIET && <Escalera niveles={bloque.formaciones} />}
@@ -126,7 +180,9 @@ function Tarjeta({
             <ul className="mt-10 divide-y divide-current/15 border-y border-current/15">
               {bloque.formaciones.map((f) => (
                 <li key={f.id} className="grid gap-4 py-6 md:grid-cols-12">
-                  <h3 className="text-[1.8rem] md:col-span-5">{f.nombre}</h3>
+                  <h3 className="text-[1.8rem] md:col-span-5">
+                    <NombreConCartel id={f.id} nombre={f.nombre} />
+                  </h3>
                   <div className="md:col-span-7">
                     <Detalles f={f} />
                   </div>
@@ -149,8 +205,17 @@ function Tarjeta({
 export default function Formaciones() {
   const pila = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: pila, offset: ['start start', 'end end'] });
+  const [cartel, setCartel] = useState<Cartel | null>(null);
+  const [ultimo, setUltimo] = useState<Cartel | null>(null);
+  const abrir = (c: Cartel) => {
+    setUltimo(c);
+    setCartel(c);
+  };
+  // `ultimo` mantiene la imagen mientras el cartel se desvanece al cerrar.
+  const cerrar = useCallback(() => setCartel(null), []);
 
   return (
+    <AbrirCartel.Provider value={abrir}>
     <Pagina titulo="Formaciones">
       <CabeceraPagina
         etiqueta="Formaciones"
@@ -192,6 +257,20 @@ export default function Formaciones() {
           </div>
         </Revelar>
       </section>
+
+      {/* Cartelito con la imagen (un único modal para todos los elementos) */}
+      <Modal abierto={cartel !== null} alCerrar={cerrar} titulo={(cartel ?? ultimo)?.titulo ?? ''}>
+        {(cartel ?? ultimo) && (
+          <img
+            src={(cartel ?? ultimo)!.imagen}
+            alt={(cartel ?? ultimo)!.alt}
+            className="mx-auto mt-6 max-h-[68vh] w-auto max-w-full rounded-xl object-contain"
+            decoding="async"
+          />
+        )}
+      </Modal>
     </Pagina>
+    </AbrirCartel.Provider>
   );
 }
+
