@@ -35,15 +35,21 @@ export function useDestino() {
 
 // ── Formación del logo (cada vez que se carga la web en Inicio) ─────
 
-/** ¿La web se ha abierto directamente en Inicio? (vale para rutas normales y con #) */
-function abreEnInicio(): boolean {
+/**
+ * ¿La web está en Inicio? Vale para rutas normales y con #.
+ * En la versión de un solo archivo las rutas van tras el #, así que el nombre
+ * del archivo da igual (MCE-Transpersonal.html, index.html, "… (1).html"):
+ * sin ruta tras el # es Inicio.
+ */
+export function enInicio(): boolean {
   const { pathname, hash } = window.location;
   if (hash.startsWith('#/')) return hash === '#/' || hash.startsWith('#/?') || hash.startsWith('#/#');
+  if (import.meta.env.MODE === 'archivo') return true;
   return pathname === '/' || pathname.endsWith('/index.html');
 }
 
 function decidirIntro(): boolean {
-  if (typeof window === 'undefined' || prefiereMenosMovimiento() || !abreEnInicio()) return false;
+  if (typeof window === 'undefined' || prefiereMenosMovimiento() || !enInicio()) return false;
   // Se ve cada vez que se abre o se recarga la web en Inicio
   // (no al volver a Inicio navegando dentro de la web).
   return true;
@@ -58,6 +64,30 @@ export function tomarIntro(): boolean {
   const v = introPendiente;
   introPendiente = false;
   return v;
+}
+
+// Vuelta atrás/adelante del navegador desde otra web: el navegador puede
+// restaurar la página tal cual la dejó (bfcache) sin volver a ejecutarla.
+// En ese caso se avisa a la portada para que forme el logo otra vez.
+let vueltas = 0;
+const oyentesVuelta = new Set<() => void>();
+if (typeof window !== 'undefined') {
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted || prefiereMenosMovimiento() || !enInicio()) return;
+    introPendiente = true;
+    vueltas++;
+    oyentesVuelta.forEach((o) => o());
+  });
+}
+/** Cambia cada vez que la página vuelve desde la caché del navegador. */
+export function useVueltaDesdeCache() {
+  return useSyncExternalStore(
+    (o) => {
+      oyentesVuelta.add(o);
+      return () => oyentesVuelta.delete(o);
+    },
+    () => vueltas,
+  );
 }
 
 // Estado "la intro se está formando" (la cabecera se oculta mientras tanto).

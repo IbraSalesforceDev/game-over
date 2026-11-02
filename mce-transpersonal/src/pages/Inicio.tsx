@@ -26,7 +26,7 @@ import { comunidades, sedes } from '../data/sedes';
 import { legales } from '../data/navegacion';
 import { useConsentimiento } from '../lib/consentimiento';
 import { cx } from '../lib/utilidades';
-import { DURACION_INTRO, tomarIntro } from '../lib/transicion';
+import { DURACION_INTRO, tomarIntro, useVueltaDesdeCache } from '../lib/transicion';
 import { fotosGenerales } from '../data/fotos';
 import logoMce from '../assets/logo.png';
 
@@ -149,10 +149,13 @@ function Miles() {
 
 export default function Inicio() {
   const { abrirPreferencias } = useConsentimiento();
+  // Si el navegador devuelve la página desde su caché (atrás/adelante), la
+  // portada se monta de nuevo para que el logo se vuelva a formar.
+  const vuelta = useVueltaDesdeCache();
 
   return (
     <Pagina>
-      <Portada />
+      <Portada key={vuelta} />
 
       {/* ── Propósito: elevar el nivel de consciencia ─────────────────── */}
       <Proposito />

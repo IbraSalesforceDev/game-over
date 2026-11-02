@@ -88,7 +88,12 @@ export default function LogoParticulas({
     let avisado = !animarFormacion;
     let ultimo = 0;
     let sinParticulas: { x: number; y: number; w: number; h: number } | null = null;
-    const inicio = performance.now() - (animarFormacion ? 0 : duracion * 1000 + 2000);
+    // Reloj de la animación (s). Avanza con los fotogramas que de verdad se
+    // pintan, con un tope por fotograma: si el móvil va cargado al abrir la web
+    // (decodificando fotos, tipografías…), la formación espera en vez de
+    // saltarse. Empieza cuando el logo ya está cargado y medido.
+    let reloj = animarFormacion ? 0 : duracion + 2;
+    let previo = 0;
     const puntero = { x: -9999, y: -9999, activo: false };
 
     // Bloqueo del scroll mientras se forma. En algunos móviles no basta con
@@ -242,7 +247,9 @@ export default function LogoParticulas({
     }
 
     function dibujar(ahora: number) {
-      let t = (ahora - inicio) / 1000;
+      if (previo) reloj += Math.min(0.1, Math.max(0, (ahora - previo) / 1000));
+      previo = ahora;
+      let t = reloj;
       if (saltar.current) t = Math.max(t, duracion + 1);
       const T1 = duracion * 0.3; // fin de la vibración sola
       const T2 = duracion; // logo formado
@@ -412,8 +419,9 @@ export default function LogoParticulas({
     canvas.addEventListener('pointerleave', salir);
     canvas.addEventListener('pointerup', salir);
 
-    // Seguro: nunca dejar el scroll bloqueado
-    const seguro = window.setTimeout(liberar, (duracion + 1.5) * 1000);
+    // Seguro: nunca dejar el scroll bloqueado (margen amplio, porque el reloj
+    // de la animación puede ir algo más lento en un móvil muy cargado).
+    const seguro = window.setTimeout(liberar, (duracion + 8) * 1000);
 
     return () => {
       cancelAnimationFrame(raf);
