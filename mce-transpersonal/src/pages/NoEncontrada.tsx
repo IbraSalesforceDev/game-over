@@ -1,5 +1,4 @@
 import Pagina from '../components/anim/Pagina';
-import Mecedora from '../components/anim/Mecedora';
 import { BotonEnlace } from '../components/ui/Boton';
 
 export default function NoEncontrada() {
@@ -19,7 +18,6 @@ export default function NoEncontrada() {
             </BotonEnlace>
           </div>
         </div>
-        <Mecedora className="mx-auto w-full max-w-xs text-carbon lg:col-span-4 lg:col-start-9" />
       </section>
     </Pagina>
   );

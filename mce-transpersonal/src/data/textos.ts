@@ -10,7 +10,6 @@ export const historia = {
   parrafos: [
     // Acordado con la escuela: solo que Betty es la creadora del proyecto.
     'Betty Merino es la creadora del proyecto MCE.',
-    'Pese a que las siglas del proyecto nos inspiren la tríada mente, cuerpo y espíritu, su significado descansa sobre la metáfora de la mecedora; ahí donde llegas a casa, donde puedes descansar, donde por fin dejas de sentirte solo.',
     'Y es que MCE, es eso, es hogar. Es llegar a casa.',
     'Es conexión, compañía, comprensión, compasión y amor.',
     'MCE no es más que la propuesta de que los seres humanos nos encontremos unos a otros, comprendamos que no estamos solos, que realmente, todos somos uno.',
@@ -24,14 +23,11 @@ export { mision } from './mision';
 /** Atajos a frases concretas del texto oficial, para no duplicarlas a mano. */
 export const frases = {
   origen: historia.parrafos[0],
-  mecedora: historia.parrafos[1],
-  hogar: historia.parrafos[2],
-  valores: historia.parrafos[3],
-  encuentro: historia.parrafos[4],
-  propuesta: historia.parrafos[5],
-  consciencia: historia.parrafos[6],
-  /** Fragmento literal del párrafo de la mecedora. */
-  llegarACasa: 'ahí donde llegas a casa, donde puedes descansar, donde por fin dejas de sentirte solo.',
+  hogar: historia.parrafos[1],
+  valores: historia.parrafos[2],
+  encuentro: historia.parrafos[3],
+  propuesta: historia.parrafos[4],
+  consciencia: historia.parrafos[5],
 } as const;
 
 export const valores = ['Conexión', 'Compañía', 'Comprensión', 'Compasión', 'Amor'] as const;

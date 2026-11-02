@@ -44,7 +44,7 @@ const cifras = [
 ];
 
 const accesos: Acceso[] = [
-  { ruta: '/sobre-mce', nombre: 'Sobre MCE', detalle: 'La historia de la escuela, la metáfora de la mecedora y sus valores.', fondo: 'bg-amanecer', texto: 'text-carbon' },
+  { ruta: '/sobre-mce', nombre: 'Sobre MCE', detalle: 'La historia de la escuela y sus valores.', fondo: 'bg-amanecer', texto: 'text-carbon' },
   { ruta: '/formaciones', nombre: 'Formaciones', detalle: unir(bloques.map((b) => b.titulo)) + '.', fondo: 'bg-mar-claro', texto: 'text-carbon' },
   { ruta: '/equipo', nombre: 'Equipo', detalle: `${unir(disciplinas)}.`, fondo: 'bg-salvia-clara', texto: 'text-carbon' },
   { ruta: '/sedes', nombre: 'Sedes', detalle: `${sedes.length} sedes en ${unir(comunidades.map((c) => c.nombre))}.`, fondo: 'bg-dorado-claro', texto: 'text-carbon' },
@@ -187,16 +187,13 @@ export default function Inicio() {
       {/* ── Propósito: elevar el nivel de consciencia ─────────────────── */}
       <Proposito />
 
-      {/* ── La escuela y la mecedora ─────────────────────────────────── */}
+      {/* ── La escuela ───────────────────────────────────────────────── */}
       <section id="escuela" className="marco py-28 sm:py-36 lg:py-44" aria-labelledby="titulo-escuela">
         <Etiqueta>La escuela</Etiqueta>
         <h2 id="titulo-escuela" className="sr-only">
-          La metáfora de la mecedora
+          La escuela
         </h2>
-        <div className="mt-10 max-w-5xl">
-          <TextoScroll texto={frases.mecedora} className="font-serif text-[clamp(1.9rem,4vw,3.5rem)] leading-[1.18] tracking-[-0.015em]" />
-        </div>
-        <Escalonado className="mt-20 grid gap-10 md:grid-cols-3" como="div">
+        <Escalonado className="mt-10 grid gap-10 md:grid-cols-3" como="div">
           {[
             { p: frases.encuentro, c: 'border-oro' },
             { p: frases.propuesta, c: 'border-terracota' },

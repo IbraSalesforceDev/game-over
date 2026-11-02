@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import Pagina from '../components/anim/Pagina';
-import TextoScroll from '../components/anim/TextoScroll';
 import { Escalonado, hijoEscalonado, Revelar } from '../components/anim/Revelar';
 import { Subrayado } from '../components/anim/Trazo';
 import { BotonEnlace } from '../components/ui/Boton';
@@ -29,7 +28,7 @@ function Cita({ texto }: { texto: string }) {
 }
 
 export default function SobreMce() {
-  const [p1, p2, p3, p4, ...resto] = historia.parrafos;
+  const [p1, p3, p4, ...resto] = historia.parrafos;
 
   return (
     <Pagina titulo="Sobre MCE">
@@ -58,9 +57,6 @@ export default function SobreMce() {
                 {p1}
               </p>
             </Revelar>
-            <div className="mt-16">
-              <TextoScroll texto={p2} className="font-serif text-[clamp(1.5rem,2.8vw,2.15rem)] font-light leading-[1.45] text-carbon" />
-            </div>
           </div>
         </div>
 
