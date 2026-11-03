@@ -13,7 +13,7 @@ export const historia = {
     'Es conexión, compañía, comprensión, compasión y amor.',
     'MCE no es más que la propuesta de que los seres humanos nos encontremos unos a otros, comprendamos que no estamos solos, que realmente, todos somos uno.',
     'Y desde ahí, MCE propone una nueva realidad y forma de comprender la vida, una nueva forma de relacionarnos y mirarnos los unos a los otros.',
-    'Para así, aumentar el nivel de consciencia de todos los seres humanos, integrando desde el corazón, que otra forma de vivir es posible.',
+    'Para así, aumentar el nivel de consciencia de todos los seres humanos y mostrar que otra forma de vivir es posible.',
   ],
 } as const;
 

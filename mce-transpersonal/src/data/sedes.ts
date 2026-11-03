@@ -93,7 +93,7 @@ export const sedes: Sede[] = [
     comunidad: 'andalucia',
     instagram: ig('daniel_jesus_salido_duran'),
     facebook: fb('CONSCIENCIASOCIALSL'),
-    telefonos: ['644 473 497'],
+    telefonos: ['661 868 688'],
     facilitadores: [danielSalido],
   },
   {
