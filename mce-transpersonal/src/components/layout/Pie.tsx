@@ -1,10 +1,10 @@
 import { useRef } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { contacto, legales, menu } from '../../data/navegacion';
 import { escuela, enlaceTelefono } from '../../data/escuela';
 import { useConsentimiento } from '../../lib/consentimiento';
-import { IconoEmail, IconoInstagram, IconoTelefono } from '../ui/Iconos';
+import { IconoEmail, IconoInstagram, IconoSpotify, IconoTelefono } from '../ui/Iconos';
 import { BotonEnlace } from '../ui/Boton';
 import Logo from './Logo';
 import Titular from '../anim/Titular';
@@ -16,8 +16,15 @@ import { useEsGrande } from '../../lib/utilidades';
  * Pie oscuro que queda fijo debajo del contenido: al llegar al final de la
  * página, el contenido "se levanta" y lo descubre. Sin dirección postal.
  */
+/** Lista de Spotify de MCE (solo enlace: no se incrusta el reproductor). */
+const SPOTIFY = 'https://open.spotify.com/playlist/1rrlnqoWzRkTOvG3e43pUu';
+/** El enlace a Spotify sale en las 6 páginas principales (no en las legales ni en la de error). */
+const paginasPrincipales = new Set([...menu, contacto].map((e) => e.ruta));
+
 export default function Pie() {
   const { abrirPreferencias } = useConsentimiento();
+  const { pathname } = useLocation();
+  const conSpotify = paginasPrincipales.has(pathname);
   const anio = new Date().getFullYear();
   const ref = useRef<HTMLElement>(null);
   const reducido = useReducedMotion();
@@ -100,6 +107,21 @@ export default function Pie() {
                     <span className="sr-only">(Instagram, se abre en una pestaña nueva)</span>
                   </a>
                 </li>
+                {conSpotify && (
+                  <li>
+                    <a
+                      href={SPOTIFY}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Escucha la lista de Spotify de MCE"
+                      title="Escucha la lista de Spotify de MCE"
+                      className="group inline-flex items-center gap-3"
+                    >
+                      <IconoSpotify className="h-[1.1rem] w-[1.1rem] text-celeste" />
+                      <span className="enlace-linea">Lista de Spotify de MCE</span>
+                    </a>
+                  </li>
+                )}
               </ul>
             </div>
           </div>

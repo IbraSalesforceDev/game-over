@@ -23,16 +23,16 @@ export const relato: { titulo: string; texto: string }[] = [
       'Su objetivo es acompañar a cada persona a reconocerse y a encontrar su propio camino: el que elige ella, no el que le han impuesto. Y, desde ahí, ganar la confianza de saber que sus respuestas ya están dentro.',
   },
   {
-    // Fuente: servicios («Hay que desandar lo aprendido… comienza con los cursos de formación en Inteligencia Emocional…»)
+    // Fuente: servicios («Hay que desandar lo aprendido…»). Caminos indicados por la escuela.
     titulo: 'Cómo trabaja',
     texto:
-      'Para MCE, crecer es desandar lo aprendido desde fuera y encontrar la forma de ir hacia dentro. Por eso propone un proceso pausado y consciente, que empieza con los cursos de Inteligencia Emocional y continúa por dos caminos: el Experto en Inteligencia Emocional y los Monográficos Transpersonales. Las sedes son el lugar donde recibir las herramientas para encontrarse con el propio Ser y retomar el propio camino.',
+      'Para MCE, crecer es desandar lo aprendido desde fuera y encontrar la forma de ir hacia dentro. Por eso propone un proceso pausado y consciente, que empieza con los cursos de Inteligencia Emocional, pudiéndose continuar con Experto en Inteligencia Emocional Transpersonal, Especialista Transpersonal Sistémico, 7H y Monográficos Transpersonales. Las sedes son el lugar donde recibir las herramientas para encontrarse con el propio Ser y retomar el propio camino.',
   },
   {
     // Fuente: sobre-mce («La Escuela está conformada por un equipo interdisciplinario…»)
     titulo: 'Quién la hace posible',
     texto:
-      'Un equipo interdisciplinar unido por la vocación de servicio. Cada persona aporta su propio enfoque (el coaching, la psicología, los recursos humanos, lo transpersonal…) y esa diferencia hace que el equipo y las formaciones aborden los cambios de una forma holística.',
+      'Un equipo interdisciplinar unido por la vocación de servicio. Cada persona aporta su propio enfoque y esa diferencia hace que el equipo y las formaciones aborden los cambios de una forma holística.',
   },
 ];
 

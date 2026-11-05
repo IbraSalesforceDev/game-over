@@ -20,6 +20,7 @@ import Sedes from './pages/Sedes';
 import Contacto from './pages/Contacto';
 import Privacidad from './pages/Privacidad';
 import Cookies from './pages/Cookies';
+import AvisoLegal from './pages/AvisoLegal';
 import NoEncontrada from './pages/NoEncontrada';
 
 export default function App() {
@@ -88,6 +89,7 @@ export default function App() {
               <Route path="/contacto" element={<Contacto />} />
               <Route path="/privacidad" element={<Privacidad />} />
               <Route path="/cookies" element={<Cookies />} />
+              <Route path="/aviso-legal" element={<AvisoLegal />} />
               <Route path="*" element={<NoEncontrada />} />
             </Routes>
           </AnimatePresence>

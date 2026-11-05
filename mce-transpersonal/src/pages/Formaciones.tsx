@@ -9,6 +9,7 @@ import CabeceraPagina from '../components/ui/CabeceraPagina';
 import { bloques, type Bloque, type Formacion } from '../data/formaciones';
 import { carteles, type Cartel } from '../data/carteles';
 import Modal from '../components/ui/Modal';
+import Galeria from '../components/ui/Galeria';
 import { cx, useEsGrande } from '../lib/utilidades';
 
 const estilosTarjeta = [
@@ -53,22 +54,47 @@ function NombreConCartel({ id, nombre }: { id: string; nombre: string }) {
   );
 }
 
+/** Botón "Ver imágenes" (o "Ver el vídeo") que abre el cartelito. */
+function BotonCartel({ cartel, className }: { cartel: Cartel; className?: string }) {
+  const abrir = useContext(AbrirCartel);
+  return (
+    <button
+      type="button"
+      onClick={() => abrir(cartel)}
+      aria-haspopup="dialog"
+      className={cx(
+        'inline-flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border border-current/25 px-5 py-2.5 text-[0.95rem] transition-colors duration-300 hover:border-current hover:bg-current/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current',
+        className,
+      )}
+    >
+      <IconoImagen className="h-[1.1rem] w-[1.1rem]" />
+      {cartel.video ? 'Ver el vídeo' : 'Ver imágenes'}
+      <span className="sr-only">: {cartel.titulo}</span>
+    </button>
+  );
+}
+
+/** Lista de pares etiqueta/valor (duración, requisito…). */
+function ListaDetalles({ detalles }: { detalles: Formacion['detalles'] }) {
+  return (
+    <dl className="divide-y divide-current/10 border-y border-current/10">
+      {detalles.map((d) => (
+        <div key={d.etiqueta} className="flex justify-between gap-4 py-2">
+          <dt>{d.etiqueta}</dt>
+          <dd className="text-right">{d.valor}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /** Detalles de una formación: solo se pintan los campos que tienen datos. */
 function Detalles({ f }: { f: Formacion }) {
   if (!f.descripcion && f.detalles.length === 0 && f.contenidos.length === 0) return null;
   return (
     <div className="mt-5 space-y-4 text-[0.98rem] opacity-80">
       {f.descripcion && <p>{f.descripcion}</p>}
-      {f.detalles.length > 0 && (
-        <dl className="divide-y divide-current/10 border-y border-current/10">
-          {f.detalles.map((d) => (
-            <div key={d.etiqueta} className="flex justify-between gap-4 py-2">
-              <dt>{d.etiqueta}</dt>
-              <dd className="text-right">{d.valor}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      {f.detalles.length > 0 && <ListaDetalles detalles={f.detalles} />}
       {f.contenidos.length > 0 && (
         <ul className="prosa-legal">
           {f.contenidos.map((c) => (
@@ -80,12 +106,12 @@ function Detalles({ f }: { f: Formacion }) {
   );
 }
 
-/** Niveles de Inteligencia Emocional Transpersonal, en escalera ascendente: cada peldaño se dibuja en orden. */
+/** Niveles de Inteligencia Emocional, en escalera ascendente: cada peldaño se dibuja en orden. */
 function Escalera({ niveles }: { niveles: Formacion[] }) {
   const n = niveles.length;
   return (
     <div className="relative mt-12">
-      <Escalonado como="ol" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
+      <Escalonado como="ol" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-0">
         {niveles.map((nivel, i) => (
           <motion.li
             key={nivel.id}
@@ -107,6 +133,7 @@ function Escalera({ niveles }: { niveles: Formacion[] }) {
                 <NombreConCartel id={nivel.id} nombre={nivel.nombre} />
               </h4>
               <Detalles f={nivel} />
+              {carteles[nivel.id] && <BotonCartel cartel={carteles[nivel.id]!} className="mt-5" />}
             </div>
           </motion.li>
         ))}
@@ -127,14 +154,13 @@ function Tarjeta({
   progreso: MotionValue<number>;
 }) {
   const reducido = useReducedMotion();
-  // Apilado solo en pantallas grandes y si la tarjeta cabe en la pantalla: si
-  // es más alta, la siguiente le taparía el final, así que se desplaza normal.
+  // Apilado en pantallas grandes. Se mide la tarjeta para saber si cabe en la pantalla.
   const articulo = useRef<HTMLElement>(null);
-  const [cabe, setCabe] = useState(true);
+  const [medida, setMedida] = useState({ alto: 0, ventana: 1 });
   useLayoutEffect(() => {
     const el = articulo.current;
     if (!el) return;
-    const medir = () => setCabe(el.offsetHeight <= window.innerHeight - 110);
+    const medir = () => setMedida({ alto: el.offsetHeight, ventana: window.innerHeight });
     medir();
     const ro = new ResizeObserver(medir);
     ro.observe(el);
@@ -144,23 +170,29 @@ function Tarjeta({
       window.removeEventListener('resize', medir);
     };
   }, []);
-  const apilar = useEsGrande() && !reducido && cabe;
+  const grande = useEsGrande();
+  const apilar = grande && !reducido;
+  // Si la tarjeta es más alta que la pantalla, se queda fija por abajo: se lee
+  // entera y después la siguiente la tapa.
+  const { alto } = medida;
+  const cabe = alto <= medida.ventana - 110;
   const estilo = estilosTarjeta[indice % estilosTarjeta.length]!;
   const objetivo = 1 - (total - indice) * 0.035;
   const escala = useTransform(progreso, [indice / total, 1], [1, objetivo]);
-  const esIET = bloque.id === 'inteligencia-emocional-transpersonal';
+  const esNiveles = bloque.id === 'niveles-inteligencia-emocional';
   const cartelBloque = carteles[bloque.id];
   const abrirCartel = useContext(AbrirCartel);
 
   return (
     <div
       id={bloque.id}
-      className={cx('flex', apilar ? 'sticky h-[100svh] items-center' : 'mb-5')}
-      style={apilar ? { top: `calc(5.5rem + ${indice * 1.4}rem)` } : undefined}
+      className={cx('flex', apilar ? (cabe ? 'sticky h-[100svh] items-center' : 'sticky py-[5.5rem]') : 'mb-5')}
+      style={apilar ? { top: cabe ? `calc(5.5rem + ${indice * 1.4}rem)` : `calc(100svh - ${alto}px - 7rem)` } : undefined}
     >
       <motion.article
         ref={articulo}
         style={apilar ? { scale: escala } : undefined}
+        {...(!grande && { initial: { opacity: 0, y: 28 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: '0px 0px -10% 0px' }, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } })}
         className={cx(
           'relative w-full origin-top overflow-hidden rounded-[2rem] p-8 shadow-[0_-20px_60px_-40px_rgba(42,38,34,0.5)] sm:p-12 lg:min-h-[72vh] lg:p-16',
           estilo.fondo,
@@ -170,7 +202,7 @@ function Tarjeta({
       >
         <span aria-hidden className="pointer-events-none absolute -right-16 -top-10 h-[22rem] w-[18rem] rounded-t-[999px] border-[3px] border-current opacity-[0.12] sm:-right-10" />
         <div className="relative flex h-full flex-col">
-          <p className="etiqueta !text-current opacity-70">{esIET ? 'Formación por niveles' : 'Formación'}</p>
+          <p className="etiqueta !text-current opacity-70">{esNiveles ? 'Formación por niveles' : 'Formación'}</p>
           <div id={`t-${bloque.id}`} className={cx(cartelBloque && 'relative cursor-pointer')}>
             <Titular como="h2" className="mt-6 max-w-4xl text-[clamp(2.6rem,6.4vw,5.6rem)] font-[330] leading-[0.98] tracking-[-0.025em]" segmentos={[bloque.titulo]} />
             {/* El título entero también abre el cartel (el botón accesible es el de abajo) */}
@@ -178,30 +210,32 @@ function Tarjeta({
           </div>
           {cartelBloque && (
             <div className="mt-6">
-              <button
-                type="button"
-                onClick={() => abrirCartel(cartelBloque)}
-                aria-haspopup="dialog"
-                className="inline-flex items-center gap-2.5 rounded-full border border-current/25 px-5 py-2.5 text-[0.95rem] transition-colors duration-300 hover:border-current hover:bg-current/[0.06]"
-              >
-                <IconoImagen className="h-[1.1rem] w-[1.1rem]" />
-                Ver el cartel
-              </button>
+              <BotonCartel cartel={cartelBloque} />
             </div>
           )}
           {bloque.descripcion && <p className="mt-8 max-w-2xl text-[1.1rem] leading-[1.8] opacity-80">{bloque.descripcion}</p>}
+          {bloque.detalles && bloque.detalles.length > 0 && (
+            <div className="mt-10 max-w-xl text-[0.98rem] opacity-80">
+              <ListaDetalles detalles={bloque.detalles} />
+            </div>
+          )}
 
-          {esIET && <Escalera niveles={bloque.formaciones} />}
+          {esNiveles && <Escalera niveles={bloque.formaciones} />}
 
-          {!esIET && bloque.formaciones.length > 0 && (
+          {!esNiveles && bloque.formaciones.length > 0 && (
             <ul className="mt-10 divide-y divide-current/15 border-y border-current/15">
               {bloque.formaciones.map((f) => (
-                <li key={f.id} className="grid gap-4 py-6 md:grid-cols-12">
+                <li key={f.id} className="grid gap-4 py-6 md:grid-cols-12 md:items-center">
                   <h3 className="text-[1.8rem] md:col-span-5">
                     <NombreConCartel id={f.id} nombre={f.nombre} />
                   </h3>
                   <div className="md:col-span-7">
                     <Detalles f={f} />
+                    {carteles[f.id] && (
+                      <div className="flex md:justify-end">
+                        <BotonCartel cartel={carteles[f.id]!} />
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}
@@ -209,7 +243,7 @@ function Tarjeta({
           )}
 
           <div className="mt-12 lg:mt-auto lg:pt-12">
-            <BotonEnlace a="/contacto#formulario" variante={estilo.boton}>
+            <BotonEnlace a="/contacto#escribir" variante={estilo.boton}>
               Pedir información
             </BotonEnlace>
           </div>
@@ -260,11 +294,11 @@ export default function Formaciones() {
         ))}
       </div>
 
-      {/* ── Miles de personas formadas ───────────────────────────────── */}
+      {/* ── Cientos de personas formadas ─────────────────────────────── */}
       <section className="marco py-28 sm:py-36" aria-label="Personas formadas">
         <Revelar className="grid gap-12 lg:grid-cols-12 lg:items-end">
           <p className="font-serif text-[clamp(2.6rem,6.4vw,5.6rem)] font-[320] leading-[1] tracking-[-0.025em] lg:col-span-8">
-            Miles de personas ya se han formado con MCE.
+            Cientos de personas ya se han formado con MCE.
           </p>
           <div className="space-y-6 text-carbon-suave lg:col-span-4">
             <p className="text-[1.05rem]">Fechas, duración y precios de cada formación: pregunta en tu sede.</p>
@@ -275,16 +309,9 @@ export default function Formaciones() {
         </Revelar>
       </section>
 
-      {/* Cartelito con la imagen (un único modal para todos los elementos) */}
-      <Modal abierto={cartel !== null} alCerrar={cerrar} titulo={(cartel ?? ultimo)?.titulo ?? ''}>
-        {(cartel ?? ultimo) && (
-          <img
-            src={(cartel ?? ultimo)!.imagen}
-            alt={(cartel ?? ultimo)!.alt}
-            className="mx-auto mt-6 max-h-[68vh] w-auto max-w-full rounded-xl object-contain"
-            decoding="async"
-          />
-        )}
+      {/* Cartelito con las imágenes (un único modal para todos los elementos) */}
+      <Modal abierto={cartel !== null} alCerrar={cerrar} titulo={(cartel ?? ultimo)?.titulo ?? ''} amplio>
+        {(cartel ?? ultimo) && <Galeria key={(cartel ?? ultimo)!.titulo} cartel={(cartel ?? ultimo)!} />}
       </Modal>
     </Pagina>
     </AbrirCartel.Provider>

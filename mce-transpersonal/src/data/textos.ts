@@ -31,7 +31,7 @@ export const frases = {
 export const valores = ['Conexión', 'Compañía', 'Comprensión', 'Compasión', 'Amor'] as const;
 
 /** Mensaje acordado con la escuela. Sin cifra exacta. */
-export const formados = 'Miles de personas ya se han formado con MCE.';
+export const formados = 'Cientos de personas ya se han formado con MCE.';
 
 /** Mensaje acordado para Sedes y Contacto. */
 export const animoContacto = {
@@ -45,7 +45,4 @@ export const betty = {
   // Fuente: web oficial («Directora de MCE Escuela para el Desarrollo Transpersonal»)
   cargo: 'Directora de MCE, Escuela para el Desarrollo Transpersonal',
   foto: bettyFoto as string | null,
-  // Fuente: web oficial, «¿En qué consiste una Consulta Transpersonal con Betty Merino?» (reescrito)
-  consulta:
-    'Una consulta personal en la que recibes información sobre tu experiencia de vida, desde antes de tu nacimiento hasta hoy: con quién has pactado encontrarte para aprender y para qué ocurrieron las experiencias que te resultaron más difíciles. Al final, puedes hacer tres preguntas.' as string | null,
 };

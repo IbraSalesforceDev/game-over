@@ -1,5 +1,5 @@
 /**
- * RESEÑAS de MCE (carrusel de Inicio, debajo de "Miles de personas…").
+ * RESEÑAS de MCE (carrusel de Inicio, debajo de "Cientos de personas…").
  *
  * Cómo añadir o cambiar reseñas: copia un bloque { … } y pega los datos.
  *   - nombre: como aparece en la reseña.

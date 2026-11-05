@@ -15,11 +15,11 @@ export type Miembro = {
   foto?: string;
 };
 
-export const disciplinas = ['Coaching', 'Psicología', 'Recursos Humanos', 'Transpersonal'] as const;
+/** Número de disciplinas del equipo (solo la cifra de Inicio; no se nombran en la web). */
+export const numeroDisciplinas = 4;
 
 export const equipo = {
-  // TODO: texto de presentación del equipo (literal, de la escuela).
-  // Mientras sea null, solo se muestra la frase sobre las cuatro disciplinas.
+  // Texto de presentación del equipo (literal, de la escuela). Si es null, no se muestra.
   presentacion: null as string | null,
 
   miembros: [

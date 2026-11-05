@@ -5,7 +5,8 @@
  * Los componentes no muestran nada cuando un dato es `null`
  * (nunca se pone texto de relleno en la web).
  *
- * IMPORTANTE: no añadir ninguna dirección postal en ningún sitio.
+ * IMPORTANTE: no añadir ninguna dirección postal en ningún sitio. Única
+ * excepción, por decisión de la escuela: el domicilio del titular en el aviso legal.
  */
 
 export const escuela = {
@@ -20,7 +21,7 @@ export const escuela = {
   // Fuente: página de contacto de la web oficial.
   email: 'mcetranspersonal@gmail.com' as string | null,
 
-  // Fuente: página de contacto de la web oficial (coincide con el de Sevilla).
+  // Fuente: página de contacto de la web oficial.
   telefono: '644 473 497' as string | null,
 
   instagram: {
@@ -28,24 +29,20 @@ export const escuela = {
     url: 'https://www.instagram.com/mcetranspersonal/',
   },
 
-  /** Datos para las políticas legales. Sin domicilio, por decisión de la escuela. */
-  legal: {
-    // TODO: denominación legal del responsable (nombre de la sociedad o persona física).
-    denominacion: null as string | null,
-    // TODO: NIF/CIF del responsable, si se quiere publicar.
-    nif: null as string | null,
-    // TODO: email para ejercer derechos de protección de datos (puede ser el mismo que `email`).
-    emailPrivacidad: null as string | null,
-    /** Fecha que aparece como "última actualización" en las políticas. */
-    actualizacion: '31 de octubre de 2026',
-  },
-
   /**
-   * Destino del formulario de contacto (Formspree).
-   * Se configura con la variable de entorno VITE_FORMSPREE_ENDPOINT
-   * (ver `.env.example` y el README).
+   * Datos del titular para el aviso legal y la política de privacidad.
+   * El domicilio solo aparece en el aviso legal (lo exige la LSSI).
    */
-  formulario: (import.meta.env.VITE_FORMSPREE_ENDPOINT as string | undefined)?.trim() || null,
+  legal: {
+    denominacion: 'Reyes Rodrigo Ruiz' as string | null,
+    nif: '28623923D' as string | null,
+    // PENDIENTE DE CONFIRMAR: faltan el código postal, el municipio y la provincia.
+    domicilio: 'Calle Asdrúbal, 3, Montequinto' as string | null,
+    domicilioPendiente: true,
+    emailPrivacidad: 'mcetranspersonal@gmail.com' as string | null,
+    /** Fecha que aparece como "última actualización" en los textos legales. */
+    actualizacion: '5 de noviembre de 2026',
+  },
 } as const;
 
 /** Convierte "619 217 810" en un enlace tel: válido para España. */

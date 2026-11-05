@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { IconoCerrar } from './Iconos';
 import { detenerScroll, reanudarScroll } from '../../lib/scroll';
+import { cx } from '../../lib/utilidades';
 
 /**
  * Ventana modal accesible: bloquea el scroll de fondo, se cierra con Esc o
@@ -12,11 +14,14 @@ export default function Modal({
   alCerrar,
   titulo,
   children,
+  amplio = false,
 }: {
   abierto: boolean;
   alCerrar: () => void;
   titulo: string;
   children: ReactNode;
+  /** Para galerías: más ancho en escritorio y a pantalla completa en el móvil. */
+  amplio?: boolean;
 }) {
   const idTitulo = useId();
   const panel = useRef<HTMLDivElement>(null);
@@ -58,7 +63,8 @@ export default function Modal({
     };
   }, [abierto, alCerrar]);
 
-  return (
+  // Se pinta en <body> para quedar por encima de la cabecera y del resto de capas.
+  return createPortal(
     <AnimatePresence>
       {abierto && (
         <motion.div
@@ -75,7 +81,10 @@ export default function Modal({
             aria-modal="true"
             aria-labelledby={idTitulo}
             tabIndex={-1}
-            className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-marfil shadow-[0_30px_80px_-20px_rgba(46,42,38,0.45)] outline-none sm:rounded-2xl"
+            className={cx(
+              'relative flex w-full flex-col overflow-hidden bg-marfil shadow-[0_30px_80px_-20px_rgba(46,42,38,0.45)] outline-none sm:rounded-2xl',
+              amplio ? 'h-[100svh] sm:h-auto sm:max-h-[94vh] sm:max-w-5xl' : 'max-h-[88vh] max-w-3xl rounded-t-2xl',
+            )}
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 24, opacity: 0 }}
@@ -93,10 +102,13 @@ export default function Modal({
                 <IconoCerrar className="h-6 w-6" />
               </button>
             </div>
-            <div data-lenis-prevent className="overflow-y-auto overscroll-contain px-6 pb-10 sm:px-8">{children}</div>
+            <div data-lenis-prevent className={cx('overflow-y-auto overscroll-contain', amplio ? 'flex min-h-0 flex-1 flex-col px-3 pb-4 sm:px-8 sm:pb-8' : 'px-6 pb-10 sm:px-8')}>
+              {children}
+            </div>
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

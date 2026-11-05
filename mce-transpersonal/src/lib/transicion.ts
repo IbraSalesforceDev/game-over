@@ -96,7 +96,30 @@ const oyentesIntro = new Set<() => void>();
 export function fijarIntroActiva(v: boolean) {
   if (introActiva === v) return;
   introActiva = v;
+  // Al soltarse el bloqueo (logo formado, o se sale de Inicio antes), la intro ha terminado.
+  if (!v) introTerminada = true;
   oyentesIntro.forEach((o) => o());
+}
+
+// ¿Ha terminado ya la animación de inicio? (Sin intro, desde el principio.)
+// Lo usa el aviso de cookies para no salir encima de la animación.
+let introTerminada = !hayIntro;
+if (hayIntro && typeof window !== 'undefined') {
+  // Seguro por si la intro no llegara a arrancar: nunca dejar el aviso sin salir.
+  window.setTimeout(() => {
+    if (introTerminada || introActiva) return;
+    introTerminada = true;
+    oyentesIntro.forEach((o) => o());
+  }, 4000);
+}
+export function useIntroTerminada() {
+  return useSyncExternalStore(
+    (o) => {
+      oyentesIntro.add(o);
+      return () => oyentesIntro.delete(o);
+    },
+    () => introTerminada,
+  );
 }
 export function useIntroActiva() {
   return useSyncExternalStore(

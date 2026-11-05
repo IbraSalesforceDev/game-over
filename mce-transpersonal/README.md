@@ -3,7 +3,8 @@
 Web de **MCE (Mente, Cuerpo y Espíritu)**, escuela transpersonal fundada por Betty Merino.
 
 Vite + React + TypeScript + React Router + Tailwind CSS 4 + Framer Motion. Es una web estática: sin
-servidor y sin base de datos. El formulario de contacto se envía por email con Formspree.
+servidor y sin base de datos. No hay formulario: el contacto es por correo, Instagram y los teléfonos de
+cada sede.
 
 ## Arrancar en local
 
@@ -36,7 +37,8 @@ Todo el contenido está en `src/data/`. Los componentes no llevan textos escrito
 | `src/data/textos.ts` | Textos oficiales de "Sobre MCE", valores, frases acordadas y datos de Betty |
 | `src/data/sedes.ts` | Comunidades, sedes, teléfonos, redes y facilitadores |
 | `src/data/formaciones.ts` | Bloques de formación y sus detalles |
-| `src/data/equipo.ts` | Disciplinas, texto de presentación y miembros del equipo |
+| `src/data/carteles.ts` | Cartelitos de Formaciones: imágenes de cada apartado y el vídeo del congreso |
+| `src/data/equipo.ts` | Texto de presentación y miembros del equipo |
 | `src/data/navegacion.ts` | Menú y enlaces legales |
 
 Un dato que valga `null` **no se muestra**. Así la web nunca enseña texto de relleno. Cada dato
@@ -56,19 +58,6 @@ pendiente tiene un comentario `// TODO` al lado.
   `npm run dev`/`build` generan versiones AVIF/WebP y avisan si una foto es pequeña.
 - **Nada de imágenes generadas por IA.**
 
-## Formulario de contacto
-
-1. Crea un formulario en [formspree.io](https://formspree.io) con el email de la escuela.
-2. Copia `.env.example` como `.env.local` y pon el endpoint en `VITE_FORMSPREE_ENDPOINT`.
-3. En el hosting, añade la misma variable (ver más abajo).
-
-Mientras no esté configurado, al enviar se avisa de que el formulario aún no está conectado y se
-anima a contactar con la sede.
-
-> Las variables `VITE_*` son públicas (acaban en el navegador). No pongas nunca claves secretas.
-> Si algún día se cambia a un servicio con clave secreta (p. ej. Resend), hay que hacerlo con una
-> función de servidor (`/api/contacto` en Vercel) y la clave solo en el panel del hosting.
-
 ## Despliegue
 
 En los dos casos, las rutas (`/sedes`, `/formaciones`…) ya están configuradas para que recargar la
@@ -84,8 +73,7 @@ página o entrar directamente por un enlace funcione.
 2. **Add New → Project → Import Git Repository** y elige el repositorio.
 3. Si el proyecto está en una subcarpeta: **Root Directory → `mce-transpersonal`**.
 4. Framework: Vite (lo detecta solo). Build: `npm run build`. Output: `dist`.
-5. **Settings → Environment Variables**: añade `VITE_FORMSPREE_ENDPOINT`.
-6. Deploy.
+5. Deploy.
 
 A partir de ahí, cada push a `main` publica en producción y cada pull request genera una URL de
 prueba.
@@ -109,9 +97,7 @@ dos workflows en `.github/workflows/`.
    ```
    Esto crea en GitHub el secreto con la cuenta de servicio. Cambia el nombre del secreto en los
    workflows si no coincide con `FIREBASE_SERVICE_ACCOUNT`.
-3. En GitHub, **Settings → Secrets and variables → Actions → Variables**, añade
-   `VITE_FORMSPREE_ENDPOINT`.
-4. **Importante:** GitHub solo ejecuta los workflows de la carpeta `.github/workflows` de la **raíz**
+3. **Importante:** GitHub solo ejecuta los workflows de la carpeta `.github/workflows` de la **raíz**
    del repositorio. Si el proyecto sigue en una subcarpeta, mueve esa carpeta a la raíz y descomenta
    `working-directory` y `entryPoint` en los dos archivos.
 
@@ -131,30 +117,20 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
   del logo para lo que se pulsa y azules claros de apoyo. Los nombres de las variables son heredados
   (`carbon` = azul noche, `dorado` = oro del logo, `bosque` = espacio).
 - **Tipografías:** Cormorant Garamond (titulares, con cursiva real) y Figtree (texto), incluidas en el proyecto.
-- **Fotos reales** en las cabeceras (en arco), en «Miles de personas», en cada sede y en Equipo
+- **Fotos reales** en las cabeceras (en arco), en el banner «Todos somos uno», en cada sede y en Equipo
   (tira que se arrastra).
 - **Movimiento:** scroll suave (Lenis), cortina entre páginas, textos que se iluminan con el scroll,
   valores a pantalla completa, tarjetas apiladas y recorrido horizontal.
 - **Accesibilidad:** foco visible y contraste AA. Con `prefers-reduced-motion` no hay animación de
   entrada, ni scroll suave, ni cortina, ni secciones fijadas.
-- Las políticas de privacidad y cookies son **plantillas**: deben revisarlas un profesional.
+- El aviso legal y las políticas de privacidad y cookies deben revisarlos un gestor o asesor.
 
 ## Pendientes (`TODO`)
 
+- [ ] **7H**: cartel real → sustituir `src/assets/carteles/7h-pendiente.webp` (o cambiar el import en `src/data/carteles.ts`).
+- [ ] **Carteles con fechas**: cambiarlos cuando caduquen → `src/assets/carteles/` y `src/data/carteles.ts`.
+- [ ] **Aviso legal**: código postal, municipio y provincia del domicilio → `src/data/escuela.ts` (`legal.domicilio`;
+      después poner `domicilioPendiente: false`).
+- [ ] **Revisión legal** del aviso legal y de las políticas de privacidad y cookies por un gestor o asesor.
 - [ ] **Logo en vectorial** (SVG/PDF) o a más resolución → `src/assets/logo.png`.
-- [ ] **Fotos originales** de las sedes (las actuales salen de montajes de Instagram; la segunda de Benidorm mide 153 px).
-- [ ] **Sede de la foto de grupo sin rótulo** (`fotosGenerales.sala` en `src/data/fotos.ts`).
-- [ ] **Email** de la escuela → `escuela.ts` (`email`) y formulario de Formspree.
-- [ ] **Teléfono general** → `escuela.ts` (`telefono`).
-- [ ] **Datos legales**: denominación del responsable y, si se quiere, NIF → `escuela.ts` (`legal`).
-- [ ] **Instagram de Valencia**: el que llegó coincide con el de Granada (`mcegranada`); no se muestra hasta confirmarlo.
-- [ ] **Almería**: redes y teléfonos propios, si los hay.
-- [ ] **Formaciones**: descripción, duración, contenidos, modalidad, precios y fechas, copiados literalmente de
-      `mcetranspersonal.com/inteligencia-emocional-transpersonal/` y la de monográficos, charlas y eventos
-      (no se pudo acceder a esas páginas al crear la web).
-- [ ] **VII Congreso Transpersonal 2027**: fechas, lugar (sin dirección) y programa.
-- [ ] **Consulta transpersonal** de Betty: texto → `textos.ts` (`betty.consulta`).
-- [ ] **Equipo**: texto de presentación, lista de personas y retratos.
-- [ ] **Facilitadores** del resto de sedes y sus fotos.
 - [ ] **Firebase** (si se usa): ID del proyecto en `.firebaserc`.
-- [ ] **Revisión legal** de las políticas de privacidad y cookies por un profesional.

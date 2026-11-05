@@ -1,12 +1,10 @@
 import { Link } from 'react-router';
 import Pagina from '../components/anim/Pagina';
-import Titular from '../components/anim/Titular';
 import { Revelar } from '../components/anim/Revelar';
 import { FlechaMano, Subrayado } from '../components/anim/Trazo';
-import Formulario from '../components/contacto/Formulario';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
 import Etiqueta from '../components/ui/Etiqueta';
-import { IconoEmail, IconoTelefono } from '../components/ui/Iconos';
+import { IconoEmail, IconoInstagram, IconoTelefono } from '../components/ui/Iconos';
 import { ListadoSedes } from '../components/sedes/ListadoSedes';
 import { escuela, enlaceTelefono } from '../data/escuela';
 import { animoContacto } from '../data/textos';
@@ -19,7 +17,7 @@ export default function Contacto() {
         etiqueta="Contacto"
         foto={fotosSede.madrid![0]}
         titulo={['Habla con', { texto: 'tu sede', cursiva: true, clase: 'pl-[10vw]' }]}
-        entradilla={<p>Cada sede tiene su teléfono y sus redes. Si prefieres escribir a la escuela, el formulario está más abajo.</p>}
+        entradilla={<p>Cada sede tiene su teléfono y sus redes. Si prefieres escribir a la escuela, el correo está más abajo.</p>}
       />
 
       {/* ── Sedes por comunidad ──────────────────────────────────────── */}
@@ -31,63 +29,65 @@ export default function Contacto() {
         <ListadoSedes activa={null} compacta />
       </section>
 
-      {/* ── Formulario + panel lateral ───────────────────────────────── */}
-      <section className="bg-lino py-24 sm:py-32" aria-labelledby="titulo-formulario">
-        <div className="marco grid gap-16 lg:grid-cols-12 lg:gap-10">
-          <div className="lg:col-span-7">
+      {/* ── Escribir a MCE: correo e Instagram ───────────────────────── */}
+      {/* (Antes había un formulario; ahora se escribe por correo o Instagram.) */}
+      <section id="escribir" className="scroll-mt-24 bg-lino py-24 sm:py-32" aria-labelledby="titulo-escribir">
+        <div className="marco grid gap-12 lg:grid-cols-12 lg:gap-10">
+          <div className="lg:col-span-5">
             <Etiqueta numero="02">Escribir a MCE</Etiqueta>
-            <div id="titulo-formulario">
-              <Titular como="h2" className="mt-8 text-[clamp(2.2rem,4.6vw,3.6rem)]" segmentos={['Cuéntanos qué necesitas']} />
-            </div>
-            <Revelar className="mt-10" retraso={0.15}>
-              <Formulario />
+            <h2 id="titulo-escribir" className="sr-only">
+              Escribir a MCE
+            </h2>
+            <Revelar className="mt-8">
+              <p className="font-serif text-[clamp(1.8rem,3vw,2.4rem)] font-light leading-[1.15]">
+                <span className="relative inline-block">
+                  {animoContacto.linea1}
+                  <Subrayado retraso={0.8} />
+                </span>{' '}
+                <span className="mt-3 block text-dorado-hondo">{animoContacto.linea2}</span>
+              </p>
             </Revelar>
           </div>
 
-          <aside className="lg:col-span-4 lg:col-start-9">
-            <div className="lg:sticky lg:top-32">
-              <Revelar className="rounded-[1.75rem] bg-marfil p-8 shadow-[0_30px_60px_-40px_rgba(42,38,34,0.4)] sm:p-10">
-                <p className="font-serif text-[clamp(1.8rem,3vw,2.4rem)] font-light leading-[1.15]">
-                  <span className="relative inline-block">
-                    {animoContacto.linea1}
-                    <Subrayado retraso={0.8} />
-                  </span>{' '}
-                  <span className="mt-3 block text-dorado-hondo">{animoContacto.linea2}</span>
-                </p>
-
-                <div className="filete mt-10 border-t pt-8">
-                  <p className="etiqueta">Elige tu comunidad autónoma</p>
-                  <Link to="/sedes" className="group mt-4 flex items-center justify-between gap-4 text-[1.1rem] font-medium">
-                    <span className="enlace-linea">Habla con la sede más cercana</span>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-dorado text-marfil transition-transform duration-500 group-hover:translate-x-1">
-                      <FlechaMano />
-                    </span>
-                  </Link>
-                </div>
-
-                {(escuela.email || escuela.telefono) && (
-                  <ul className="filete mt-8 space-y-3 border-t pt-8 text-[0.98rem]">
-                    {escuela.telefono && (
-                      <li>
-                        <a href={enlaceTelefono(escuela.telefono)} className="inline-flex items-center gap-3">
-                          <IconoTelefono className="h-4 w-4 text-dorado-hondo" />
-                          <span className="enlace-linea">{escuela.telefono}</span>
-                        </a>
-                      </li>
-                    )}
-                    {escuela.email && (
-                      <li>
-                        <a href={`mailto:${escuela.email}`} className="inline-flex items-center gap-3">
-                          <IconoEmail className="h-4 w-4 text-dorado-hondo" />
-                          <span className="enlace-linea">{escuela.email}</span>
-                        </a>
-                      </li>
-                    )}
-                  </ul>
+          <div className="lg:col-span-6 lg:col-start-7">
+            <Revelar className="rounded-[1.75rem] bg-marfil p-8 shadow-[0_30px_60px_-40px_rgba(42,38,34,0.4)] sm:p-10" retraso={0.15}>
+              <ul className="space-y-4 text-[1.05rem]">
+                {escuela.email && (
+                  <li>
+                    <a href={`mailto:${escuela.email}`} className="inline-flex items-center gap-3 break-all">
+                      <IconoEmail className="h-5 w-5 shrink-0 text-dorado-hondo" />
+                      <span className="enlace-linea">{escuela.email}</span>
+                    </a>
+                  </li>
                 )}
-              </Revelar>
-            </div>
-          </aside>
+                <li>
+                  <a href={escuela.instagram.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3">
+                    <IconoInstagram className="h-5 w-5 shrink-0 text-dorado-hondo" />
+                    <span className="enlace-linea">@{escuela.instagram.usuario}</span>
+                    <span className="sr-only">(Instagram, se abre en una pestaña nueva)</span>
+                  </a>
+                </li>
+                {escuela.telefono && (
+                  <li>
+                    <a href={enlaceTelefono(escuela.telefono)} className="inline-flex items-center gap-3">
+                      <IconoTelefono className="h-5 w-5 shrink-0 text-dorado-hondo" />
+                      <span className="enlace-linea">{escuela.telefono}</span>
+                    </a>
+                  </li>
+                )}
+              </ul>
+
+              <div className="filete mt-8 border-t pt-8">
+                <p className="etiqueta">Elige tu comunidad autónoma</p>
+                <Link to="/sedes" className="group mt-4 flex items-center justify-between gap-4 text-[1.1rem] font-medium">
+                  <span className="enlace-linea">Habla con la sede más cercana</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-dorado text-marfil transition-transform duration-500 group-hover:translate-x-1">
+                    <FlechaMano />
+                  </span>
+                </Link>
+              </div>
+            </Revelar>
+          </div>
         </div>
       </section>
     </Pagina>

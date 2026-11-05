@@ -1,15 +1,17 @@
 /*
- * AVISO: esta política es una PLANTILLA y debe revisarla un profesional antes
- * de publicarla. Refleja el estado real de la web al crearla: sin analítica,
- * sin publicidad, sin mapas ni vídeos externos y con las tipografías alojadas
- * en la propia web. Si se añade cualquier servicio de terceros, hay que
- * actualizar este texto y el banner.
+ * AVISO: debe revisarlo un gestor o asesor antes de publicar la web. Refleja
+ * el estado real de la web: sin analítica, sin publicidad, sin reproductores
+ * ni mapas incrustados y con las tipografías e imágenes alojadas en la propia
+ * web. Si se añade cualquier servicio de terceros, hay que actualizar este
+ * texto y el aviso de cookies (src/components/legal/BannerCookies.tsx).
  */
 import { escuela } from '../../data/escuela';
 import { useConsentimiento } from '../../lib/consentimiento';
 
+const nombres = { aceptar: 'Aceptar', rechazar: 'Rechazar', configurar: 'Configurar' } as const;
+
 export default function TextoCookies() {
-  const { abrirPreferencias, aceptado } = useConsentimiento();
+  const { abrirPreferencias, eleccion } = useConsentimiento();
 
   return (
     <div className="prosa-legal">
@@ -21,48 +23,49 @@ export default function TextoCookies() {
         en tu dispositivo para recordar información entre visitas.
       </p>
 
-      <h2>2. Qué guarda esta web</h2>
-      <p>Esta web no usa cookies de analítica, de publicidad ni de seguimiento. Solo guarda un dato técnico:</p>
+      <h2>2. Qué usa esta web</h2>
+      <p>Esta web no usa cookies de analítica, de publicidad ni de seguimiento. Solo usa almacenamiento técnico, necesario:</p>
       <ul>
         <li>
-          <strong>mce-consentimiento</strong> (almacenamiento local del navegador): recuerda que has aceptado la política de privacidad y
-          la de cookies, para no volver a mostrarte el aviso. Contiene tu elección y la fecha. No se envía a ningún servidor y no caduca
-          hasta que borres los datos del navegador o cambies tu elección.
+          <strong>mce-consentimiento</strong> (almacenamiento local del navegador): recuerda tu elección en el aviso de cookies (aceptar,
+          rechazar o configurar) y la fecha, para no volver a mostrarte el aviso. No se envía a ningún servidor y se conserva hasta que
+          borres los datos del navegador o cambies tu elección.
         </li>
       </ul>
+      <p>
+        Al ser técnico y necesario, este almacenamiento no requiere consentimiento (art. 22.2 de la LSSI). Aun así, puedes elegir en el
+        aviso; elijas lo que elijas, la web no instala nada más.
+      </p>
 
       <h2>3. Servicios de terceros</h2>
       <ul>
         <li>
-          <strong>Tipografías:</strong> las fuentes de la web (Cormorant Garamond y Figtree) están alojadas en el mismo servidor que la web. No se
-          descargan de Google Fonts ni de otro proveedor, así que tu navegador no se conecta a terceros por este motivo.
+          <strong>Tipografías e imágenes:</strong> están alojadas en la propia web. No se descargan de Google Fonts ni de otros
+          proveedores.
         </li>
         <li>
-          <strong>Mapas y vídeos:</strong> la web no incluye mapas ni vídeos de servicios externos.
+          <strong>Vídeos, mapas y música:</strong> la web no incluye reproductores ni mapas incrustados. El vídeo del congreso y la lista de
+          Spotify son enlaces normales que se abren en otra pestaña.
         </li>
         <li>
-          <strong>Redes sociales:</strong> los enlaces a Instagram y Facebook son enlaces normales. Esas redes solo pueden instalar sus
-          propias cookies si haces clic y visitas su web, y entonces se aplican sus políticas.
-        </li>
-        <li>
-          <strong>Formulario de contacto:</strong> al enviar el formulario, tus datos viajan a Formspree para hacerlos llegar a la escuela.
-          Ese envío no instala cookies en esta web.
+          <strong>Redes sociales y Spotify:</strong> los enlaces a Instagram, Facebook y Spotify solo permiten a esos servicios instalar sus
+          propias cookies si haces clic y visitas su web. Entonces se aplican sus políticas.
         </li>
       </ul>
 
       <h2>4. Cómo cambiar tu elección</h2>
       <p>
-        Puedes volver a abrir el aviso de cookies cuando quieras con el botón «Preferencias de cookies», que está al final de cada página.
-        También puedes borrar el dato guardado desde la configuración de tu navegador (en el apartado de privacidad, «borrar datos de
-        sitios»).
+        Puedes volver a abrir el aviso de cookies cuando quieras con «Preferencias de cookies», al final de cada página. También puedes
+        borrar el dato guardado desde la configuración de tu navegador (en el apartado de privacidad, «borrar datos de sitios»).
       </p>
       <p>
         <button type="button" onClick={abrirPreferencias} className="enlace-texto font-medium text-carbon">
           Abrir preferencias de cookies
         </button>
-        {aceptado && (
+        {eleccion && (
           <span className="block pt-1 text-sm">
-            Elección guardada el {new Date(aceptado.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.
+            Tu elección: «{nombres[eleccion.eleccion]}», guardada el{' '}
+            {new Date(eleccion.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.
           </span>
         )}
       </p>

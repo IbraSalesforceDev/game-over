@@ -23,8 +23,8 @@ import { betty, formados, frases } from '../data/textos';
 import { enlaceMasResenas, resenas } from '../data/resenas';
 import { citasBetty } from '../data/sobreMce';
 import CarruselResenas from '../components/resenas/CarruselResenas';
-import { disciplinas } from '../data/equipo';
-import { bloques } from '../data/formaciones';
+import { numeroDisciplinas } from '../data/equipo';
+import { totalNiveles } from '../data/formaciones';
 import { comunidades, sedes } from '../data/sedes';
 import { legales } from '../data/navegacion';
 import { useConsentimiento } from '../lib/consentimiento';
@@ -33,21 +33,20 @@ import { DURACION_INTRO, tomarIntro, useVueltaDesdeCache } from '../lib/transici
 import { fotosGenerales } from '../data/fotos';
 import logoMce from '../assets/logo.png';
 
-const nivelesIET = bloques.find((b) => b.id === 'inteligencia-emocional-transpersonal')?.formaciones.length ?? 0;
 const unir = (l: readonly string[]) => (l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}` : l.join(''));
 
 /** Cifras calculadas desde los datos reales (nada inventado). */
 const cifras = [
   { valor: sedes.length, texto: 'sedes con las que puedes hablar', fondo: 'bg-dorado', tinta: 'text-marfil' },
   { valor: comunidades.length, texto: 'comunidades autónomas', fondo: 'bg-terracota', tinta: 'text-marfil' },
-  { valor: disciplinas.length, texto: 'disciplinas en el equipo', fondo: 'bg-mar', tinta: 'text-marfil' },
-  { valor: nivelesIET, texto: 'niveles de Inteligencia Emocional Transpersonal', fondo: 'bg-salvia', tinta: 'text-marfil' },
+  { valor: numeroDisciplinas, texto: 'disciplinas en el equipo', fondo: 'bg-mar', tinta: 'text-marfil' },
+  { valor: totalNiveles, texto: 'niveles de Inteligencia Emocional Transpersonal', fondo: 'bg-salvia', tinta: 'text-marfil' },
 ];
 
 const accesos: Acceso[] = [
   { ruta: '/sobre-mce', nombre: 'Sobre MCE', detalle: 'La historia de la escuela y sus valores.', fondo: 'bg-amanecer', texto: 'text-carbon' },
-  { ruta: '/formaciones', nombre: 'Formaciones', detalle: unir(bloques.map((b) => b.titulo)) + '.', fondo: 'bg-mar-claro', texto: 'text-carbon' },
-  { ruta: '/equipo', nombre: 'Equipo', detalle: `${unir(disciplinas)}.`, fondo: 'bg-salvia-clara', texto: 'text-carbon' },
+  { ruta: '/formaciones', nombre: 'Formaciones', detalle: 'Formaciones para seguir creciendo con MCE.', fondo: 'bg-mar-claro', texto: 'text-carbon' },
+  { ruta: '/equipo', nombre: 'Equipo', detalle: '', fondo: 'bg-salvia-clara', texto: 'text-carbon' },
   { ruta: '/sedes', nombre: 'Sedes', detalle: `${sedes.length} sedes en ${unir(comunidades.map((c) => c.nombre))}.`, fondo: 'bg-dorado-claro', texto: 'text-carbon' },
   { ruta: '/contacto', nombre: 'Contacto', detalle: 'Escribe a la escuela o habla con la sede más cercana.', fondo: 'bg-bosque', texto: 'text-marfil' },
 ];
@@ -112,7 +111,7 @@ function Portada() {
   );
 }
 
-/** "Miles de personas…": sobre la foto real del equipo, que se desplaza levemente. */
+/** Banner «Todos somos uno»: sobre la foto real del equipo, que se desplaza levemente. */
 function Miles() {
   const ref = useRef<HTMLElement>(null);
   const reducido = useReducedMotion();
@@ -150,7 +149,7 @@ function Miles() {
   );
 }
 
-/** Debajo de la foto: "Miles de personas…" y las reseñas (desde src/data/resenas.ts). */
+/** Debajo de la foto: "Cientos de personas…" y las reseñas (desde src/data/resenas.ts). */
 function Resenas() {
   return (
     <section className="bg-lino py-24 sm:py-32" aria-labelledby="titulo-resenas">
@@ -265,11 +264,10 @@ export default function Inicio() {
               </blockquote>
             </Revelar>
             <Revelar className="mt-14 rounded-[1.5rem] border border-carbon/10 bg-marfil p-8 sm:p-10">
-              <h3 className="text-[clamp(1.7rem,2.8vw,2.2rem)]">Consulta transpersonal</h3>
-              {betty.consulta && <p className="mt-4 max-w-xl leading-[1.8] text-carbon-suave">{betty.consulta}</p>}
-              <p className="mt-3 max-w-md text-carbon-suave">Escríbenos y te contamos cómo pedirla.</p>
+              <h3 className="text-[clamp(1.7rem,2.8vw,2.2rem)]">Monográficos Transpersonales</h3>
+              <p className="mt-4 max-w-xl leading-[1.8] text-carbon-suave">{betty.nombre} imparte los Monográficos Transpersonales.</p>
               <div className="mt-7">
-                <BotonEnlace a="/contacto#formulario">Pedir información</BotonEnlace>
+                <BotonEnlace a="/contacto#escribir">Pedir información</BotonEnlace>
               </div>
             </Revelar>
           </div>

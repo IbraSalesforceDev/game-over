@@ -105,7 +105,7 @@ export default function FichaSede({ sede, compacta = false }: { sede: Sede; nume
             {sede.telefonos.length === 0 && (
               <>
                 {' '}
-                <Link to="/contacto#formulario" className="enlace-texto text-carbon">
+                <Link to="/contacto#escribir" className="enlace-texto text-carbon">
                   Escribir a MCE
                 </Link>
               </>

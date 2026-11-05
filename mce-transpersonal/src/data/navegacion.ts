@@ -14,4 +14,5 @@ export const contacto: Enlace = { ruta: '/contacto', nombre: 'Contacto' };
 export const legales: Enlace[] = [
   { ruta: '/privacidad', nombre: 'Política de privacidad' },
   { ruta: '/cookies', nombre: 'Política de cookies' },
+  { ruta: '/aviso-legal', nombre: 'Aviso legal' },
 ];

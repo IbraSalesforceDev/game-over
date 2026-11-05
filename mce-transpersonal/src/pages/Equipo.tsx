@@ -4,14 +4,12 @@ import Pagina from '../components/anim/Pagina';
 import Titular from '../components/anim/Titular';
 import { Revelar } from '../components/anim/Revelar';
 import CabeceraPagina from '../components/ui/CabeceraPagina';
-import { disciplinas, equipo } from '../data/equipo';
+import { equipo } from '../data/equipo';
 import { sedes } from '../data/sedes';
 import { fotosEquipo } from '../data/fotosEquipo';
 import { fotosSede, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
 import { cx } from '../lib/utilidades';
 import { betty } from '../data/textos';
-
-const unir = (l: readonly string[]) => (l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}` : l.join(''));
 
 /** Tira de fotos de las sedes que se puede arrastrar en horizontal. */
 function TiraFotos({ fotos }: { fotos: FotoReal[] }) {
@@ -62,7 +60,7 @@ export default function Equipo() {
         etiqueta="Equipo"
         foto={fotosSede.valencia![0]}
         titulo={['Quiénes', { texto: 'acompañan', cursiva: true, clase: 'pl-[10vw]' }]}
-        entradilla={<p>{equipo.presentacion ?? `El equipo de MCE reúne cuatro disciplinas: ${unir(disciplinas)}.`}</p>}
+        entradilla={equipo.presentacion ? <p>{equipo.presentacion}</p> : undefined}
       />
 
       <section className="overflow-hidden bg-lino py-28 sm:py-36" aria-labelledby="titulo-personas">
