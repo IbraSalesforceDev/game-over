@@ -20,19 +20,21 @@ export default function TextoAvisoLegal() {
       <ul>
         <li>
           <strong>Titular:</strong> {legal.denominacion ?? <Pendiente>pendiente</Pendiente>}
-        </li>
-        <li>
-          <strong>NIF:</strong> {legal.nif ?? <Pendiente>pendiente</Pendiente>}
-        </li>
-        <li>
-          <strong>Domicilio:</strong> {legal.domicilio}
-          {legal.domicilioPendiente && (
+          {legal.denominacion && legal.denominacionPendiente && (
             <>
               {' '}
-              <Pendiente>pendiente de completar: código postal, municipio y provincia</Pendiente>
+              <Pendiente>pendiente de confirmar el nombre exacto</Pendiente>
             </>
           )}
         </li>
+        <li>
+          <strong>CIF:</strong> {legal.cif ?? <Pendiente>pendiente</Pendiente>}
+        </li>
+        {legal.domicilio && (
+          <li>
+            <strong>Domicilio:</strong> {legal.domicilio}
+          </li>
+        )}
         {email && (
           <li>
             <strong>Correo:</strong> <a className="enlace-texto" href={`mailto:${email}`}>{email}</a>

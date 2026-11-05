@@ -34,11 +34,13 @@ export const escuela = {
    * El domicilio solo aparece en el aviso legal (lo exige la LSSI).
    */
   legal: {
-    denominacion: 'Reyes Rodrigo Ruiz' as string | null,
-    nif: '28623923D' as string | null,
-    // PENDIENTE DE CONFIRMAR: faltan el código postal, el municipio y la provincia.
-    domicilio: 'Calle Asdrúbal, 3, Montequinto' as string | null,
-    domicilioPendiente: true,
+    // La titular es la entidad, no una persona física.
+    // PENDIENTE DE CONFIRMAR: nombre exacto de la entidad (sale así en el cartel de Benidorm).
+    denominacion: 'Asociación MCE Transpersonal' as string | null,
+    denominacionPendiente: true,
+    // TODO: CIF de la entidad (mientras sea null, el aviso legal lo marca como pendiente).
+    cif: null as string | null,
+    domicilio: 'Calle Asdrúbal, 3, 41089 Montequinto (Sevilla)' as string | null,
     emailPrivacidad: 'mcetranspersonal@gmail.com' as string | null,
     /** Fecha que aparece como "última actualización" en los textos legales. */
     actualizacion: '5 de noviembre de 2026',

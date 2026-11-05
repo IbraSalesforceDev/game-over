@@ -24,7 +24,7 @@ import expertoSevilla from '../assets/carteles/experto-sevilla.webp';
 import expertoBenidorm from '../assets/carteles/experto-benidorm.webp';
 import especialista from '../assets/carteles/especialista-sistemico.webp';
 // PROVISIONAL: sustituir por el cartel de 7H (mismo nombre o cambiar el import).
-import sieteH from '../assets/carteles/7h-pendiente.webp';
+import sieteHSevilla from '../assets/carteles/7h-sevilla.webp';
 import monograficoSevilla from '../assets/carteles/monografico-sevilla.webp';
 import monograficoGranada from '../assets/carteles/monografico-granada.webp';
 import monograficoBenidorm from '../assets/carteles/monografico-benidorm.webp';
@@ -89,8 +89,7 @@ export const carteles: Record<string, Cartel> = {
   },
   '7h': {
     titulo: '7H',
-    // PROVISIONAL («Imagen pendiente»)
-    imagenes: [{ src: sieteH, alt: 'Cartel de 7H (imagen pendiente)' }],
+    imagenes: [{ src: sieteHSevilla, alt: cartelDe('7H, continúa profundizando con 7 herramientas', 'Sevilla') }],
   },
   'monograficos-transpersonales': {
     titulo: 'Monográficos Transpersonales',

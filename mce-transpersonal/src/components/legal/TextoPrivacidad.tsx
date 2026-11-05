@@ -20,7 +20,7 @@ export default function TextoPrivacidad() {
       <ul>
         <li>
           <strong>Responsable:</strong> {responsable}
-          {legal.nif && <> (NIF {legal.nif})</>}, titular de la web de {escuela.nombre}.
+          {legal.cif && <> (CIF {legal.cif})</>}, titular de la web de {escuela.nombre}.
         </li>
         {email && (
           <li>
