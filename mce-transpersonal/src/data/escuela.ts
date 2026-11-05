@@ -34,12 +34,12 @@ export const escuela = {
    * El domicilio solo aparece en el aviso legal (lo exige la LSSI).
    */
   legal: {
-    // La titular es la entidad, no una persona física.
-    // PENDIENTE DE CONFIRMAR: nombre exacto de la entidad (sale así en el cartel de Benidorm).
+    // La titular es la entidad, no una persona física (nombre como en el cartel de Benidorm).
     denominacion: 'Asociación MCE Transpersonal' as string | null,
-    denominacionPendiente: true,
-    // TODO: CIF de la entidad (mientras sea null, el aviso legal lo marca como pendiente).
-    cif: null as string | null,
+    denominacionPendiente: false,
+    // Se recibió «Q42812537»; con Q el dígito de control tendría que ser una letra, así que
+    // se pone G (asociaciones), con la que el control 7 cuadra. PENDIENTE DE CONFIRMAR.
+    cif: 'G42812537' as string | null,
     domicilio: 'Calle Asdrúbal, 3, 41089 Montequinto (Sevilla)' as string | null,
     emailPrivacidad: 'mcetranspersonal@gmail.com' as string | null,
     /** Fecha que aparece como "última actualización" en los textos legales. */

@@ -103,7 +103,8 @@ export const carteles: Record<string, Cartel> = {
   // ── Otras charlas y eventos: un cartelito por charla o evento ─────────
   'charla-otono': {
     titulo: 'Otoño',
-    imagenes: [{ src: otono, alt: cartelDe('las charlas-taller de otoño', 'Sevilla') }],
+    // El cartel viene cortado por abajo: el teléfono de «Info» va en el pie.
+    imagenes: [{ src: otono, alt: cartelDe('las charlas-taller de otoño', 'Sevilla'), pie: 'Info: +34 658 77 65 60' }],
   },
   'charla-navidad': {
     titulo: 'Navidad',
