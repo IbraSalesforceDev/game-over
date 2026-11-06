@@ -29,6 +29,10 @@ export interface Controlador {
   guardar(): void;
   nueva(): void;
   cargar(): void;
+  /** Sustituye la partida en curso (importar). */
+  poner(w: Mundo): void;
+  refrescarHerramientas(): void;
+  abrirAdmin(): void;
 }
 
 type Hijo = Node | string | null | undefined | false;
@@ -242,9 +246,10 @@ export function abrirAyuda(ctl: Controlador): void {
         ['P', 'Ver la contaminación'],
         ['Esc', 'Cancelar / deseleccionar'],
         ['F5 / F9', 'Guardar / cargar'],
+        ['F10', 'Panel de administración'],
       ].map(([a, b]) => el('tr', {}, el('td', {}, el('kbd', {}, a!)), el('td', {}, b!))),
     ),
-    el('div', { class: 'fila' }, el('button', { onclick: () => (m.cerrar(), ctl.guardar()) }, 'Guardar'), el('button', { onclick: () => (m.cerrar(), ctl.cargar()) }, 'Cargar'), el('button', { class: 'peligro', onclick: () => (m.cerrar(), ctl.nueva()) }, 'Partida nueva')),
+    el('div', { class: 'fila' }, el('button', { onclick: () => (m.cerrar(), ctl.guardar()) }, 'Guardar'), el('button', { onclick: () => (m.cerrar(), ctl.cargar()) }, 'Cargar'), el('button', { onclick: () => (m.cerrar(), ctl.abrirAdmin()) }, '⚙ Admin'), el('button', { class: 'peligro', onclick: () => (m.cerrar(), ctl.nueva()) }, 'Partida nueva')),
   );
 }
 
@@ -278,7 +283,8 @@ export function crearInterfaz(ctl: Controlador): Interfaz {
     { class: 'botones' },
     el('button', { onclick: () => abrirInvestigacion(ctl), title: 'Investigación' }, '🔬 Investigación'),
     el('button', { onclick: () => abrirTrabajo(ctl), title: 'Prioridades de trabajo' }, '📋 Trabajo'),
-    el('button', { onclick: () => abrirAyuda(ctl), title: 'Ayuda y menú' }, '☰'),
+    el('button', { onclick: () => ctl.abrirAdmin(), title: 'Panel de administración (F10)' }, '⚙ Admin'),
+    el('button', { onclick: () => abrirAyuda(ctl), title: 'Ayuda y menú', 'aria-label': 'Ayuda y menú' }, '☰'),
   );
   arriba.append(reloj, velocidades, recursos, estado, botones);
   const botonesVel = (

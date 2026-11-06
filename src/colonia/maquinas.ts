@@ -172,7 +172,8 @@ function salidaLibre(e: Edificio, item: ItemId, max = 100): boolean {
 }
 
 /** Quema combustible si hace falta. Devuelve si hay fuego. */
-function quemar(e: Edificio, carga = 1): boolean {
+function quemar(e: Edificio, carga = 1, infinito = false): boolean {
+  if (infinito) return true;
   if (e.ardiendo > 0) {
     e.ardiendo -= DT * carga;
     return true;
@@ -350,7 +351,7 @@ function tickTaladro(w: Mundo, e: Edificio, sat: number): void {
   if (zona.length === 0) return;
   if (electrico) {
     if (sat <= 0) return;
-  } else if (!quemar(e)) return;
+  } else if (!quemar(e, 1, w.admin.combustible)) return;
   e.activo = true;
   e.progreso += DT * (electrico ? 0.5 * sat : 0.3);
   if (e.progreso < 1) return;
@@ -374,7 +375,7 @@ function tickHorno(w: Mundo, e: Edificio): void {
   }
   const r = recetaHorno(mineral);
   if (!r || !salidaLibre(e, r.salida)) return;
-  if (!quemar(e)) return;
+  if (!quemar(e, 1, w.admin.combustible)) return;
   e.activo = true;
   e.progreso += DT / r.tiempo;
   if (e.progreso >= 1) {
@@ -458,6 +459,7 @@ export function tickEnergia(w: Mundo): void {
     }
     if (e.tipo === 'panelSolar') capacidad += (d.genera ?? 0) * sol;
   }
+  if (w.admin.energia) capacidad = Math.max(capacidad, demanda, 1);
   const sat = demanda <= 0 ? 1 : Math.min(1, capacidad / demanda);
   // Los generadores queman en proporción a la carga.
   const solar = capacidad - generadores.length * 200;
@@ -465,7 +467,7 @@ export function tickEnergia(w: Mundo): void {
   for (const g of generadores) {
     g.activo = cargaGen > 0.01;
     if (g.activo) {
-      quemar(g, cargaGen);
+      quemar(g, cargaGen, w.admin.combustible);
       w.mapa.contaminar(g.x + 1, g.y + 1, (EDIFICIOS.generador.contamina ?? 0) * cargaGen * DT);
     }
   }

@@ -50,6 +50,7 @@ export function serializar(w: Mundo): string {
     ganado: w.ganado,
     perdido: w.perdido,
     inicio: w.inicio,
+    admin: w.admin,
   });
 }
 
@@ -77,6 +78,7 @@ export function deserializar(texto: string): Mundo | null {
     w.ganado = d.ganado;
     w.perdido = d.perdido;
     w.inicio = d.inicio;
+    w.admin = { ...w.admin, ...(d.admin ?? {}) };
     ajustarIdColonos(Math.max(0, ...w.colonos.map((c) => c.id)));
     ajustarIdCriaturas(Math.max(0, ...w.criaturas.map((c) => c.id)), Math.max(0, ...w.nidos.map((n) => n.id)));
     olvidarCampos();

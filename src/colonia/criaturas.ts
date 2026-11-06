@@ -318,8 +318,8 @@ function lanzarGrupo(w: Mundo, n: Nido): void {
   n.grupo = [];
 }
 
-function incursion(w: Mundo): void {
-  const n = Math.min(30, Math.round(2 + w.dia * 0.6 + w.evolucion * 12));
+function incursion(w: Mundo, tamano?: number): void {
+  const n = tamano ?? Math.min(30, Math.round(2 + w.dia * 0.6 + w.evolucion * 12));
   const [x, y] = w.bordeAleatorio();
   for (let k = 0; k < n; k++) {
     const c = nueva(w, elegirTipo(w), x + 0.5 + (w.azar() - 0.5) * 3, y + 0.5 + (w.azar() - 0.5) * 3, null);
@@ -374,7 +374,7 @@ export function tickCriaturas(w: Mundo): void {
       // Absorbe la contaminación de su trozo.
       const t = w.mapa.trozo(n.x, n.y);
       const pol = w.mapa.contaminacion[t] ?? 0;
-      if (pol > 0) {
+      if (pol > 0 && !w.admin.pacifico) {
         n.ira += pol;
         w.mapa.contaminacion[t] = 0;
         w.evolucion = Math.min(1, w.evolucion + (1 - w.evolucion) * pol * 9e-6);
@@ -391,7 +391,7 @@ export function tickCriaturas(w: Mundo): void {
       }
       n.grupo = n.grupo.filter((id) => w.criaturas.some((c) => c.id === id));
       const tamano = 4 + Math.floor(w.evolucion * 10);
-      if (n.grupo.length >= tamano || (n.grupo.length > 0 && w.tick - n.desde > TPS * 150)) lanzarGrupo(w, n);
+      if (!w.admin.pacifico && (n.grupo.length >= tamano || (n.grupo.length > 0 && w.tick - n.desde > TPS * 150))) lanzarGrupo(w, n);
       // Atacado: salen los guardias y nacen larvas de refresco.
       if (n.hp < n.hpAntes) {
         n.cd--;
@@ -413,18 +413,34 @@ export function tickCriaturas(w: Mundo): void {
     });
     if (antes > 0 && w.nidos.length === 0) w.avisar('No queda ningún nido en el mapa… por ahora.', 'bien');
 
+    // En modo pacífico las incursiones y la expansión se aplazan.
     if (w.tick >= w.proximaIncursion) {
       w.proximaIncursion = w.tick + Math.round(TICKS_DIA * (2.5 + w.azar() * 1.5));
-      incursion(w);
+      if (!w.admin.pacifico) incursion(w);
     }
     if (w.tick >= w.proximaExpansion) {
       w.proximaExpansion = w.tick + Math.round(TICKS_DIA * (3 + w.azar() * 2));
-      expandir(w);
+      if (!w.admin.pacifico) expandir(w);
     }
   }
 }
 
-/** Fuerza una incursión (panel de depuración). */
-export function forzarIncursion(w: Mundo): void {
-  incursion(w);
+/** Fuerza una incursión (panel de administración). */
+export function forzarIncursion(w: Mundo, tamano?: number): void {
+  incursion(w, tamano);
+}
+
+/** Saca de golpe a todas las criaturas que esperan en los nidos (panel de administración). */
+export function forzarEnjambres(w: Mundo): void {
+  for (const n of w.nidos) {
+    if (n.grupo.length === 0) for (let k = 0; k < 4; k++) n.grupo.push(nueva(w, elegirTipo(w), n.x + 1, n.y + 1, n.id).id);
+    lanzarGrupo(w, n);
+  }
+}
+
+/** Levanta un nido nuevo en una casilla (panel de administración). */
+export function ponerNido(w: Mundo, x: number, y: number): boolean {
+  for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) if (!pisable(w, x + i, y + j)) return false;
+  w.nidos.push(crearNido(w, x, y));
+  return true;
 }

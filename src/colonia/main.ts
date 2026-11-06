@@ -1,6 +1,7 @@
 /**
  * Colonia Óxido: arranque, cámara, ratón, teclado y bucle principal.
  */
+import { abrirAdmin } from './admin';
 import { colonoEn, ordenarMover, reclutar } from './colonos';
 import { nidoEn } from './criaturas';
 import { EDIFICIOS, type TipoEdificio } from './edificios';
@@ -18,7 +19,8 @@ const ctx = lienzo.getContext('2d')!;
 let mundo: Mundo = cargarLocal() ?? Mundo.nueva();
 const cam: Camara = { x: mundo.inicio[0] + 0.5, y: mundo.inicio[1] + 0.5, z: 32, w: 800, h: 600 };
 const vista: Vista = { seleccion: null, fantasma: null, rectangulo: null, contaminacion: false, tiempo: 0 };
-const MULT = [0, 1, 3, 6];
+/** Pausa, ×1, ×3, ×6 y el turbo ×15 del panel de administración. */
+const MULT = [0, 1, 3, 6, 15];
 let velocidadAntes = 1;
 let dir: Dir = 0;
 let finMostrado = false;
@@ -49,6 +51,15 @@ const ctl: Controlador = {
     if (!w) return aviso('No hay ninguna partida guardada.');
     ponerMundo(w);
     aviso('Partida cargada.');
+  },
+  poner(w: Mundo) {
+    ponerMundo(w);
+  },
+  refrescarHerramientas() {
+    ui.pintarHerramientas();
+  },
+  abrirAdmin() {
+    abrirAdmin(ctl);
   },
   nueva() {
     if (!confirm('¿Empezar una colonia nueva? Se perderá la actual si no la has guardado.')) return;
@@ -343,6 +354,10 @@ window.addEventListener('keydown', (e) => {
     case 'F5':
       e.preventDefault();
       ctl.guardar();
+      break;
+    case 'F10':
+      e.preventDefault();
+      abrirAdmin(ctl);
       break;
     case 'F9':
       e.preventDefault();

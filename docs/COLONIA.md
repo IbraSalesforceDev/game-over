@@ -35,6 +35,24 @@ mantenerlo encendido un día entero con energía.
   que llenarlas), torretas láser, y colonos reclutados (R) que obedecen al clic
   derecho.
 
+## Panel de administración
+
+`F10`, el botón **⚙ Admin** de la barra superior o el menú ☰. Todo se guarda
+con la partida.
+
+| Sección | Qué permite |
+|---|---|
+| Recursos | Dar 10, 100 o 1000 de cualquier objeto, +100 de todo, vaciar el suelo |
+| Investigación | Desbloquear todo, terminar la actual, olvidarlo todo |
+| Colonos | Modo dios, curar y saciar, habilidades a 10, añadir colono, resucitar |
+| Construcción y fábrica | Construcción instantánea y gratis, combustible infinito, energía infinita, terminar planos, reparar, llenar torretas |
+| Criaturas | Modo pacífico, evolución a mano, incursiones de 5/15/30, sacar enjambres, matar a todas, destruir nidos, nido nuevo, limpiar contaminación |
+| Tiempo | Ir a las 7:00 o a las 22:00, saltar un día, turbo ×15 |
+| Partida | Exportar e importar en JSON, borrar el guardado |
+
+Es un panel local, sin contraseña: cualquiera que abra el juego en ese
+navegador puede usarlo.
+
 ## Controles
 
 | Tecla | Acción |
@@ -48,6 +66,7 @@ mantenerlo encendido un día entero con energía.
 | P | Capa de contaminación |
 | Supr | Desmontar el edificio seleccionado |
 | F5 / F9 | Guardar / cargar (también se guarda solo cada minuto) |
+| F10 | Panel de administración |
 
 ## Cómo está hecho
 
@@ -67,6 +86,7 @@ recortan las luces.
 | `camino.ts` | Dijkstra/A* en la rejilla y campos de distancia multi-fuente |
 | `mundo.ts` | El estado entero y el tick |
 | `guardado.ts` | Partidas en `localStorage` |
+| `admin.ts` | Panel de administración |
 | `render.ts`, `ui.ts`, `main.ts` | Dibujo, interfaz y controles |
 
 Decisiones que conviene conocer:

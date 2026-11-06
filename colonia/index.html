@@ -535,6 +535,52 @@
         font-family: ui-monospace, monospace;
         font-size: 12px;
       }
+      /* --- Panel de administración --- */
+      .admin-rejilla {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+        gap: 10px;
+      }
+      .admin-seccion {
+        border: 1px solid var(--borde);
+        border-radius: 6px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: var(--panel2);
+      }
+      .admin-seccion h3 {
+        margin: 0;
+      }
+      .admin-seccion .fila {
+        margin-top: 0;
+      }
+      .selector-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+      }
+      .selector-items .item {
+        padding: 3px;
+      }
+      .casilla {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        cursor: pointer;
+      }
+      .casilla input,
+      .deslizador input {
+        accent-color: var(--acento);
+      }
+      .deslizador {
+        display: grid;
+        grid-template-columns: 80px 1fr 48px;
+        gap: 8px;
+        align-items: center;
+        color: var(--tenue);
+      }
       @media (max-width: 760px) {
         .colonos {
           width: 130px;

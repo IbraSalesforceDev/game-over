@@ -203,3 +203,53 @@ describe('investigación y guardado', () => {
     segundos(w2, 5);
   });
 });
+
+describe('panel de administración', () => {
+  it('construcción gratis, modo dios, pacífico, energía y combustible infinitos', () => {
+    const w = Mundo.nueva(31);
+    const [x, y] = w.inicio;
+    despejar(w, x - 8, y - 8, x - 2, y - 2);
+    w.admin.gratis = true;
+    const cama = w.colocar('cama', x - 8, y - 8, 0) as Edificio;
+    expect(cama.construido).toBe(true);
+
+    w.admin.dios = true;
+    const c = w.colonos[0]!;
+    c.hambre = 0;
+    segundos(w, 5);
+    expect(c.hp).toBe(100);
+
+    w.admin.pacifico = true;
+    const n = w.nidos[0]!;
+    w.mapa.contaminar(n.x, n.y, 1000);
+    w.proximaIncursion = w.tick + 1;
+    segundos(w, 5);
+    expect(w.criaturas.length).toBe(0);
+
+    w.investigacion.hechas = ['cintas', 'electricidad', 'automatizacion'];
+    w.admin.energia = true;
+    const a = w.colocar('ensambladora', x - 6, y - 8, 0) as Edificio;
+    a.receta = 'engranaje';
+    a.entrada = { placaHierro: 2 };
+    segundos(w, 5);
+    expect(a.salida?.n).toBe(1);
+
+    w.admin.combustible = true;
+    const h = w.colocar('horno', x - 4, y - 6, 0) as Edificio;
+    h.entrada = { hierro: 2 };
+    for (const k of w.colonos) k.muerto = true;
+    segundos(w, 10);
+    expect(h.salida?.item).toBe('placaHierro');
+    expect(h.combustible).toBeNull();
+  });
+
+  it('los interruptores se guardan con la partida', () => {
+    const w = Mundo.nueva(32);
+    w.admin.dios = true;
+    w.admin.pacifico = true;
+    const w2 = deserializar(serializar(w))!;
+    expect(w2.admin.dios).toBe(true);
+    expect(w2.admin.pacifico).toBe(true);
+    expect(w2.admin.gratis).toBe(false);
+  });
+});

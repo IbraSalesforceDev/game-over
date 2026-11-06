@@ -1039,7 +1039,7 @@ function combatir(w: Mundo, c: Colono): boolean {
 }
 
 export function danarColono(w: Mundo, c: Colono, d: number): void {
-  if (c.muerto) return;
+  if (c.muerto || w.admin.dios) return;
   c.hp -= d;
   if (w.azar() < 0.5) w.particula(c.x, c.y, '#b02020');
   if (c.hp <= 0) {

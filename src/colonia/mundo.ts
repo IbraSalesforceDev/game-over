@@ -61,6 +61,8 @@ export class Mundo {
   evolucion = 0;
   contaminacionTotal = 0;
   ganado = false;
+  /** Interruptores del panel de administración. */
+  admin = { dios: false, gratis: false, pacifico: false, energia: false, combustible: false };
   perdido = false;
   /** Casillas cuyo dibujo hay que rehacer. */
   sucias = new Set<number>();
@@ -192,7 +194,7 @@ export class Mundo {
     if (!this.disponible(tipo)) return 'Hay que investigarlo antes';
     const error = puedeColocar(this, tipo, x, y);
     if (error) return error;
-    const e = nuevoEdificio(this.sigId++, tipo, x, y, dir, construido);
+    const e = nuevoEdificio(this.sigId++, tipo, x, y, dir, construido || this.admin.gratis);
     this.edificios.set(e.id, e);
     for (const [cx, cy] of casillas(e)) {
       const i = idx(cx, cy);
