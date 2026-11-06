@@ -535,6 +535,140 @@
         font-family: ui-monospace, monospace;
         font-size: 12px;
       }
+      /* --- Menú de inicio y nueva colonia --- */
+      .menu-inicio {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: radial-gradient(ellipse at 50% 40%, rgba(40, 30, 20, 0.82), rgba(8, 10, 14, 0.94));
+        overflow-y: auto;
+      }
+      .menu-caja {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: min(400px, 100%);
+        text-align: center;
+      }
+      .menu-caja h1 {
+        font-size: clamp(42px, 9vw, 76px);
+        line-height: 1.08;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--acento2);
+        text-shadow: 0 4px 0 #3a1e0c, 0 0 40px rgba(217, 119, 43, 0.35);
+      }
+      .menu-caja .lema {
+        color: var(--tenue);
+        margin-bottom: 14px;
+      }
+      .menu-caja button.grande {
+        justify-content: center;
+        padding: 11px 16px;
+        font-size: 15px;
+      }
+      .menu-nueva {
+        background: #151a20;
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        padding: 16px;
+        width: min(1080px, 100%);
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .menu-nueva h2 {
+        color: var(--acento2);
+        font-size: 20px;
+      }
+      .nueva-cuerpo {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 500px);
+        gap: 18px;
+      }
+      .opciones {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .opcion-titulo {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .segmentado {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+      }
+      .segmentado button {
+        flex: 1;
+        justify-content: center;
+        min-width: 70px;
+      }
+      .nota-opcion {
+        margin-top: 3px;
+        min-height: 1.2em;
+      }
+      .opcion .deslizador {
+        grid-template-columns: 1fr 32px;
+      }
+      .semilla {
+        font: inherit;
+        color: var(--texto);
+        background: var(--panel2);
+        border: 1px solid var(--borde);
+        border-radius: 4px;
+        padding: 5px 8px;
+        width: 140px;
+        user-select: text;
+      }
+      .nueva-previa {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .previa {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--borde);
+        border-radius: 6px;
+        image-rendering: pixelated;
+        background: #0c0f13;
+      }
+      .leyenda {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+        font-size: 12px;
+        color: var(--tenue);
+      }
+      .leyenda i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        margin-right: 4px;
+        vertical-align: -1px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .fila.derecha {
+        justify-content: flex-end;
+      }
+      @media (max-width: 860px) {
+        .nueva-cuerpo {
+          grid-template-columns: 1fr;
+        }
+        .nueva-previa {
+          order: -1;
+        }
+      }
+
       /* --- Panel de administración --- */
       .admin-rejilla {
         display: grid;

@@ -12,7 +12,7 @@ import { danarColono } from './colonos';
 import { EDIFICIOS, type Edificio, casillas } from './edificios';
 import { Suelo } from './mapa';
 import type { Mundo } from './mundo';
-import { ANCHO, TICKS_DIA, TPS, dentro, idx } from './tipos';
+import { ALTO, ANCHO, TICKS_DIA, TPS, dentro, idx } from './tipos';
 
 export type TipoCriatura = 'larva' | 'soldado' | 'escupidor' | 'coloso';
 
@@ -202,12 +202,12 @@ function morder(w: Mundo, c: Criatura, objetivo: { tipo: 'e'; e: Edificio } | { 
   if (c.tipo === 'escupidor') w.disparo(c.x, c.y, tx, ty, '#a8e04a', true);
   if (objetivo.tipo === 'e') {
     const e = objetivo.e;
-    e.hp -= inf.dano;
+    e.hp -= inf.dano * w.dificultad.dano;
     if (w.azar() < 0.4) w.particula(tx, ty, '#a09070');
     if (e.hp <= 0) w.destruido(e);
   } else {
     const col = w.colonos[objetivo.i];
-    if (col) danarColono(w, col, inf.dano);
+    if (col) danarColono(w, col, inf.dano * w.dificultad.dano);
   }
 }
 
@@ -319,13 +319,13 @@ function lanzarGrupo(w: Mundo, n: Nido): void {
 }
 
 function incursion(w: Mundo, tamano?: number): void {
-  const n = tamano ?? Math.min(30, Math.round(2 + w.dia * 0.6 + w.evolucion * 12));
+  const n = tamano ?? Math.min(40, Math.max(1, Math.round((2 + w.dia * 0.6 + w.evolucion * 12) * w.dificultad.incursion)));
   const [x, y] = w.bordeAleatorio();
   for (let k = 0; k < n; k++) {
     const c = nueva(w, elegirTipo(w), x + 0.5 + (w.azar() - 0.5) * 3, y + 0.5 + (w.azar() - 0.5) * 3, null);
     c.modo = 'ataque';
   }
-  const lado = y <= 2 ? 'el norte' : y >= 90 ? 'el sur' : x <= 2 ? 'el oeste' : 'el este';
+  const lado = y <= 2 ? 'el norte' : y >= ALTO - 3 ? 'el sur' : x <= 2 ? 'el oeste' : 'el este';
   w.avisar(`¡Incursión! ${n} criaturas llegan desde ${lado}.`, 'peligro', x, y);
 }
 
@@ -374,10 +374,10 @@ export function tickCriaturas(w: Mundo): void {
       // Absorbe la contaminación de su trozo.
       const t = w.mapa.trozo(n.x, n.y);
       const pol = w.mapa.contaminacion[t] ?? 0;
-      if (pol > 0 && !w.admin.pacifico) {
-        n.ira += pol;
+      if (pol > 0 && !w.pacifico) {
+        n.ira += pol * w.dificultad.cria;
         w.mapa.contaminacion[t] = 0;
-        w.evolucion = Math.min(1, w.evolucion + (1 - w.evolucion) * pol * 9e-6);
+        w.evolucion = Math.min(1, w.evolucion + (1 - w.evolucion) * pol * 9e-6 * w.dificultad.evolucion);
       }
       // Cría.
       for (let k = 0; k < 5; k++) {
@@ -391,7 +391,7 @@ export function tickCriaturas(w: Mundo): void {
       }
       n.grupo = n.grupo.filter((id) => w.criaturas.some((c) => c.id === id));
       const tamano = 4 + Math.floor(w.evolucion * 10);
-      if (!w.admin.pacifico && (n.grupo.length >= tamano || (n.grupo.length > 0 && w.tick - n.desde > TPS * 150))) lanzarGrupo(w, n);
+      if (!w.pacifico && (n.grupo.length >= tamano || (n.grupo.length > 0 && w.tick - n.desde > TPS * 150))) lanzarGrupo(w, n);
       // Atacado: salen los guardias y nacen larvas de refresco.
       if (n.hp < n.hpAntes) {
         n.cd--;
@@ -415,12 +415,12 @@ export function tickCriaturas(w: Mundo): void {
 
     // En modo pacífico las incursiones y la expansión se aplazan.
     if (w.tick >= w.proximaIncursion) {
-      w.proximaIncursion = w.tick + Math.round(TICKS_DIA * (2.5 + w.azar() * 1.5));
-      if (!w.admin.pacifico) incursion(w);
+      w.proximaIncursion = w.tick + Math.round(TICKS_DIA * (2.5 + w.azar() * 1.5) * w.dificultad.intervalo);
+      if (!w.pacifico) incursion(w);
     }
     if (w.tick >= w.proximaExpansion) {
       w.proximaExpansion = w.tick + Math.round(TICKS_DIA * (3 + w.azar() * 2));
-      if (!w.admin.pacifico) expandir(w);
+      if (!w.pacifico) expandir(w);
     }
   }
 }

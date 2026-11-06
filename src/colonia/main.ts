@@ -5,7 +5,9 @@ import { abrirAdmin } from './admin';
 import { colonoEn, ordenarMover, reclutar } from './colonos';
 import { nidoEn } from './criaturas';
 import { EDIFICIOS, type TipoEdificio } from './edificios';
-import { cargarLocal, guardarLocal, hayPartida } from './guardado';
+import type { Config } from './config';
+import { cargarLocal, deserializar, guardarLocal, hayPartida } from './guardado';
+import { type AccionesMenu, abrirInicio, abrirNueva, menuAbierto } from './menu';
 import { puedeColocar } from './maquinas';
 import { Orden, Planta, Suelo, Zona } from './mapa';
 import { Mundo } from './mundo';
@@ -62,11 +64,56 @@ const ctl: Controlador = {
     abrirAdmin(ctl);
   },
   nueva() {
-    if (!confirm('¿Empezar una colonia nueva? Se perderá la actual si no la has guardado.')) return;
-    ponerMundo(Mundo.nueva());
-    abrirAyuda(ctl);
+    guardarLocal(mundo);
+    abrirNueva(accionesMenu());
+  },
+  menuPrincipal() {
+    guardarLocal(mundo);
+    abrirInicio(accionesMenu());
   },
 };
+
+const CLAVE_AYUDA = 'colonia-oxido.ayuda-vista';
+
+function accionesMenu(): AccionesMenu {
+  return {
+    hayPartida: hayPartida(),
+    continuar() {
+      ctl.ponerVelocidad(1);
+    },
+    empezar(c: Config) {
+      ponerMundo(Mundo.nueva(c));
+      guardarLocal(mundo);
+      ctl.ponerVelocidad(1);
+      // La ayuda sale sola la primera vez.
+      try {
+        if (!localStorage.getItem(CLAVE_AYUDA)) {
+          localStorage.setItem(CLAVE_AYUDA, '1');
+          abrirAyuda(ctl);
+        }
+      } catch {
+        abrirAyuda(ctl);
+      }
+    },
+    importar() {
+      const input = el('input', { type: 'file', accept: 'application/json,.json' });
+      input.addEventListener('change', async () => {
+        const f = input.files?.[0];
+        if (!f) return;
+        const w = deserializar(await f.text());
+        if (!w) return alert('Ese fichero no es una partida de Colonia Óxido.');
+        ponerMundo(w);
+        guardarLocal(w);
+        document.querySelector('.menu-inicio')?.remove();
+        abrirInicio({ ...accionesMenu(), hayPartida: true });
+      });
+      input.click();
+    },
+    ayuda() {
+      abrirAyuda(ctl);
+    },
+  };
+}
 
 const ui = crearInterfaz(ctl);
 
@@ -303,7 +350,7 @@ lienzo.addEventListener(
 
 const teclas = new Set<string>();
 window.addEventListener('keydown', (e) => {
-  if (hayModal()) return;
+  if (hayModal() || menuAbierto()) return;
   if (e.target instanceof HTMLInputElement) return;
   teclas.add(e.code);
   switch (e.code) {
@@ -382,7 +429,7 @@ function finDePartida(): void {
   const m = modal(mundo.ganado ? '¡Rescatados!' : 'La colonia ha caído', 520);
   m.cuerpo.append(
     el('p', {}, mundo.ganado ? `La nave de rescate aterriza junto al faro el día ${mundo.dia}. Lo habéis conseguido.` : `No queda nadie con vida. Resististeis ${mundo.dia} días.`),
-    el('div', { class: 'fila' }, el('button', { class: 'primario', onclick: () => (m.cerrar(), ponerMundo(Mundo.nueva()), abrirAyuda(ctl)) }, 'Nueva colonia')),
+    el('div', { class: 'fila' }, el('button', { class: 'primario', onclick: () => (m.cerrar(), abrirNueva(accionesMenu())) }, 'Nueva colonia')),
   );
 }
 
@@ -391,7 +438,7 @@ function bucle(ahora: number): void {
   ultimo = ahora;
   vista.tiempo += dt;
   // Cámara con teclado.
-  if (!hayModal()) {
+  if (!hayModal() && !menuAbierto()) {
     const v = (900 / cam.z) * dt;
     if (teclas.has('KeyW') || teclas.has('ArrowUp')) cam.y -= v;
     if (teclas.has('KeyS') || teclas.has('ArrowDown')) cam.y += v;
@@ -401,7 +448,8 @@ function bucle(ahora: number): void {
   cam.x = Math.max(0, Math.min(ANCHO, cam.x));
   cam.y = Math.max(0, Math.min(ALTO, cam.y));
   // Simulación a paso fijo.
-  acumulado += dt * TPS * MULT[ctl.velocidad]!;
+  // Con el menú abierto, la partida de fondo no avanza.
+  if (!menuAbierto()) acumulado += dt * TPS * MULT[ctl.velocidad]!;
   let pasos = 0;
   while (acumulado >= 1 && pasos < 40) {
     mundo.paso();
@@ -442,5 +490,5 @@ if (new URLSearchParams(location.search).has('depurar')) {
 
 window.addEventListener('beforeunload', () => guardarLocal(mundo));
 document.getElementById('cargador')?.remove();
-if (!hayPartida()) abrirAyuda(ctl);
+abrirInicio(accionesMenu());
 requestAnimationFrame(bucle);

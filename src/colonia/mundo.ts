@@ -3,11 +3,12 @@
  * contaminación y sucesos. Avanza a ticks fijos (TPS por segundo de juego).
  */
 import { type Colono, crearColono, tickColonos } from './colonos';
+import { type Config, DIFICULTADES, type InfoDificultad, RECURSOS_INICIALES, TAMANOS, configPorDefecto } from './config';
 import { type Criatura, type Nido, crearNido, tickCriaturas } from './criaturas';
 import { EDIFICIOS, type Edificio, type TipoEdificio, TECNOLOGIAS, casillas, nuevoEdificio, tecnologia } from './edificios';
 import { cantidadEn, puedeColocar, tickMaquinas } from './maquinas';
-import { Mapa, Planta, TH, TW, Zona, generar } from './mapa';
-import { ALTO, ANCHO, type Coste, type Dir, type ItemId, ITEMS, LISTA_ITEMS, TICKS_DIA, TPS, idx, rng } from './tipos';
+import { Mapa, Planta, th, tw, Zona, generar } from './mapa';
+import { ALTO, ANCHO, type Coste, type Dir, type ItemId, ITEMS, LISTA_ITEMS, TICKS_DIA, TPS, fijarTamano, idx, rng } from './tipos';
 
 export interface Alerta {
   texto: string;
@@ -46,6 +47,7 @@ export interface EstadoInvestigacion {
 
 export class Mundo {
   semilla: number;
+  config: Config;
   mapa: Mapa;
   edificios = new Map<number, Edificio>();
   colonos: Colono[] = [];
@@ -76,29 +78,45 @@ export class Mundo {
   private cacheExistencias = new Map<ItemId, number>();
   private tickCache = -1;
 
-  constructor(semilla = Date.now() % 1e9) {
-    this.semilla = semilla;
-    this.azar = rng(semilla ^ 0x9e3779b9);
-    const g = generar(semilla);
+  constructor(config: Config = configPorDefecto(Date.now() % 1e9)) {
+    this.config = config;
+    const t = TAMANOS[config.tamano] ?? TAMANOS.mediano;
+    fijarTamano(t.ancho, t.alto);
+    this.semilla = config.semilla;
+    this.azar = rng(config.semilla ^ 0x9e3779b9);
+    const g = generar(config);
     this.mapa = g.mapa;
     this.inicio = g.inicio;
     for (const [x, y] of g.nidos) this.nidos.push(crearNido(this, x, y));
+    this.proximaIncursion = Math.round(TICKS_DIA * this.dificultad.primera);
   }
 
-  /** Partida nueva: tres colonos y una caja de suministros. */
-  static nueva(semilla?: number): Mundo {
-    const w = new Mundo(semilla);
+  /** Partida nueva: colonos y una caja de suministros según la configuración. */
+  static nueva(opciones?: number | Partial<Config>): Mundo {
+    const base = configPorDefecto(typeof opciones === 'number' ? opciones : undefined);
+    const config = typeof opciones === 'object' ? { ...base, ...opciones } : base;
+    const w = new Mundo(config);
     const [x, y] = w.inicio;
-    for (let k = 0; k < 3; k++) w.colonos.push(crearColono(w, x - 1 + k, y));
-    const caja: Coste = { madera: 80, comida: 30, piedra: 30, placaHierro: 20, engranaje: 6, municion: 10 };
+    for (let k = 0; k < config.colonos; k++) w.colonos.push(crearColono(w, x - Math.floor(config.colonos / 2) + k, y));
+    const caja: Coste = RECURSOS_INICIALES[config.recursos].caja;
     for (const [it, n] of Object.entries(caja)) w.mapa.soltar(x, y + 2, it as ItemId, n!, ITEMS[it as ItemId].pila);
     // Zona de almacén alrededor de la caja.
     for (let j = 1; j <= 4; j++) for (let i = -2; i <= 2; i++) if (w.mapa.transitable(x + i, y + j)) w.mapa.zona[idx(x + i, y + j)] = Zona.Almacen;
-    w.avisar('Tres colonos se han estrellado en este planeta. Construid, fabricad y encended el faro de rescate.', 'info');
+    const n = config.colonos === 1 ? 'Un colono se ha estrellado' : `${config.colonos} colonos se han estrellado`;
+    w.avisar(`${n} en este planeta. Construid, fabricad y encended el faro de rescate.`, 'info');
     return w;
   }
 
   // ------------------------------------------------------------------ consultas
+
+  get dificultad(): InfoDificultad {
+    return DIFICULTADES[this.config.dificultad] ?? DIFICULTADES.normal;
+  }
+
+  /** Sin ataques: por la dificultad o por el panel de administración. */
+  get pacifico(): boolean {
+    return this.admin.pacifico || !!this.dificultad.pacifica;
+  }
 
   get dia(): number {
     return Math.floor(this.tick / TICKS_DIA) + 1;
@@ -327,10 +345,12 @@ export class Mundo {
   private cadaSegundo(): void {
     // Contaminación: se difunde a los trozos vecinos y la absorben el suelo y los árboles.
     const c = this.mapa.contaminacion;
+    const trozosX = tw();
+    const trozosY = th();
     const nueva = new Float32Array(c.length);
-    for (let ty = 0; ty < TH; ty++) {
-      for (let tx = 0; tx < TW; tx++) {
-        const t = ty * TW + tx;
+    for (let ty = 0; ty < trozosY; ty++) {
+      for (let tx = 0; tx < trozosX; tx++) {
+        const t = ty * trozosX + tx;
         let v = c[t]!;
         if (v <= 0) continue;
         const sale = v > 15 ? v * 0.02 : 0;
@@ -343,8 +363,8 @@ export class Mundo {
         ] as const) {
           const nx = tx + ax;
           const ny = ty + ay;
-          if (nx < 0 || ny < 0 || nx >= TW || ny >= TH) continue;
-          nueva[ny * TW + nx] = nueva[ny * TW + nx]! + sale;
+          if (nx < 0 || ny < 0 || nx >= trozosX || ny >= trozosY) continue;
+          nueva[ny * trozosX + nx] = nueva[ny * trozosX + nx]! + sale;
           vecinos++;
         }
         v -= sale * vecinos;
@@ -359,7 +379,7 @@ export class Mundo {
 
     // La evolución de las criaturas avanza con el tiempo y con lo que se contamina.
     const antes = this.evolucion;
-    this.evolucion = Math.min(1, this.evolucion + (1 - this.evolucion) * (0.02 / (TICKS_DIA / TPS)));
+    this.evolucion = Math.min(1, this.evolucion + (1 - this.evolucion) * ((0.02 * this.dificultad.evolucion) / (TICKS_DIA / TPS)));
     if (Math.floor(antes * 10) !== Math.floor(this.evolucion * 10)) this.avisar(`Las criaturas evolucionan: ${(this.evolucion * 100).toFixed(0)} %`, 'aviso');
 
     // Crecen las plantas.

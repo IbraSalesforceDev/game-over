@@ -8,7 +8,7 @@ import type { Colono } from './colonos';
 import { CRIATURAS, type Criatura, type Nido } from './criaturas';
 import { EDIFICIOS, type Edificio, type TipoEdificio } from './edificios';
 import { casillaSalida, luzSolar } from './maquinas';
-import { Orden, Planta, Suelo, TH, TROZO, TW, Zona } from './mapa';
+import { Orden, Planta, Suelo, th, TROZO, tw, Zona } from './mapa';
 import type { Mundo } from './mundo';
 import { ALTO, ANCHO, DX, DY, type Dir, type ItemId, ITEMS, idx, receta } from './tipos';
 
@@ -1027,9 +1027,11 @@ export function dibujar(ctx: Ctx, w: Mundo, cam: Camara, vista: Vista): void {
   ctx.translate(cam.w / 2 - cam.x * z, cam.h / 2 - cam.y * z);
   ctx.scale(z, z);
   if (vista.contaminacion) {
-    for (let ty = 0; ty < TH; ty++) {
-      for (let tx = 0; tx < TW; tx++) {
-        const v = m.contaminacion[ty * TW + tx]!;
+    const trozosX = tw();
+    const trozosY = th();
+    for (let ty = 0; ty < trozosY; ty++) {
+      for (let tx = 0; tx < trozosX; tx++) {
+        const v = m.contaminacion[ty * trozosX + tx]!;
         if (v < 1) continue;
         ctx.fillStyle = `rgba(150,60,20,${Math.min(0.55, Math.log10(v) * 0.18)})`;
         ctx.fillRect(tx * TROZO, ty * TROZO, TROZO, TROZO);

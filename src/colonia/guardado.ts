@@ -4,6 +4,7 @@
  */
 import { ajustarIdColonos, type Colono } from './colonos';
 import { ajustarIdCriaturas, olvidarCampos } from './criaturas';
+import { configPorDefecto } from './config';
 import { Mundo } from './mundo';
 
 const CLAVE = 'colonia-oxido.partida';
@@ -32,6 +33,7 @@ export function serializar(w: Mundo): string {
   return JSON.stringify({
     version: VERSION,
     semilla: w.semilla,
+    config: w.config,
     tick: w.tick,
     sigId: w.sigId,
     capas,
@@ -58,7 +60,8 @@ export function deserializar(texto: string): Mundo | null {
   try {
     const d = JSON.parse(texto);
     if (d.version !== VERSION) return null;
-    const w = new Mundo(d.semilla);
+    // Las partidas de antes del menú no traían configuración: mapa mediano normal.
+    const w = new Mundo({ ...configPorDefecto(d.semilla), ...(d.config ?? {}) });
     for (const k of CAPAS) de64(d.capas[k], w.mapa[k]);
     w.mapa.objetos = new Map(d.objetos);
     w.edificios = new Map(d.edificios.map((e: { id: number }) => [e.id, e]));

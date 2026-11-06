@@ -5,11 +5,20 @@
  */
 import { ALTO, ANCHO } from './tipos';
 
-const N = ANCHO * ALTO;
-const distancia = new Float32Array(N);
-const padre = new Int32Array(N);
-const sello = new Uint32Array(N);
+let distancia = new Float32Array(0);
+let padre = new Int32Array(0);
+let sello = new Uint32Array(0);
 let generacion = 1;
+
+/** Los búferes se rehacen si cambia el tamaño del mapa. */
+function asegurar(): void {
+  const n = ANCHO * ALTO;
+  if (distancia.length === n) return;
+  distancia = new Float32Array(n);
+  padre = new Int32Array(n);
+  sello = new Uint32Array(n);
+  generacion = 1;
+}
 
 const VX = [1, -1, 0, 0, 1, 1, -1, -1];
 const VY = [0, 0, 1, -1, 1, -1, 1, -1];
@@ -76,6 +85,7 @@ export type Pasable = (i: number) => boolean;
  * convierte la búsqueda en A*.
  */
 export function buscar(inicio: number, pasable: Pasable, meta: (i: number) => boolean, opciones: { max?: number; heuristica?: (i: number) => number } = {}): number[] | null {
+  asegurar();
   generacion++;
   const g = generacion;
   const h = opciones.heuristica;
@@ -138,7 +148,7 @@ export function caminoA(inicio: number, destino: number, pasable: Pasable, adyac
  * criaturas). `coste(i)` puede devolver Infinity para lo intransitable.
  */
 export function campo(fuentes: number[], coste: (i: number) => number): Float32Array {
-  const out = new Float32Array(N).fill(Infinity);
+  const out = new Float32Array(ANCHO * ALTO).fill(Infinity);
   const abierta = new Monticulo();
   for (const f of fuentes) {
     out[f] = 0;

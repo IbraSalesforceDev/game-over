@@ -28,6 +28,7 @@ export interface Controlador {
   centrar(x: number, y: number): void;
   guardar(): void;
   nueva(): void;
+  menuPrincipal(): void;
   cargar(): void;
   /** Sustituye la partida en curso (importar). */
   poner(w: Mundo): void;
@@ -249,7 +250,7 @@ export function abrirAyuda(ctl: Controlador): void {
         ['F10', 'Panel de administración'],
       ].map(([a, b]) => el('tr', {}, el('td', {}, el('kbd', {}, a!)), el('td', {}, b!))),
     ),
-    el('div', { class: 'fila' }, el('button', { onclick: () => (m.cerrar(), ctl.guardar()) }, 'Guardar'), el('button', { onclick: () => (m.cerrar(), ctl.cargar()) }, 'Cargar'), el('button', { onclick: () => (m.cerrar(), ctl.abrirAdmin()) }, '⚙ Admin'), el('button', { class: 'peligro', onclick: () => (m.cerrar(), ctl.nueva()) }, 'Partida nueva')),
+    el('div', { class: 'fila' }, el('button', { onclick: () => (m.cerrar(), ctl.guardar()) }, 'Guardar'), el('button', { onclick: () => (m.cerrar(), ctl.cargar()) }, 'Cargar'), el('button', { onclick: () => (m.cerrar(), ctl.abrirAdmin()) }, '⚙ Admin'), el('button', { onclick: () => (m.cerrar(), ctl.menuPrincipal()) }, 'Menú principal'), el('button', { class: 'peligro', onclick: () => (m.cerrar(), ctl.nueva()) }, 'Nueva colonia')),
   );
 }
 

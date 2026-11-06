@@ -5,8 +5,15 @@
  * así que «norte» es y - 1.
  */
 
-export const ANCHO = 128;
-export const ALTO = 96;
+/** Tamaño del mapa en casillas. Cambia con cada partida (ver `fijarTamano`). */
+export let ANCHO = 128;
+export let ALTO = 96;
+
+/** Fija el tamaño del mapa antes de crear o cargar un mundo. */
+export function fijarTamano(ancho: number, alto: number): void {
+  ANCHO = ancho;
+  ALTO = alto;
+}
 /** Ticks de simulación por segundo de juego a velocidad 1. */
 export const TPS = 20;
 /** Un día dura ocho minutos reales a velocidad 1. */

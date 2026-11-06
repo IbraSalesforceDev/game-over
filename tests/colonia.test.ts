@@ -5,6 +5,7 @@ import { Orden } from '../src/colonia/mapa';
 import { Mundo } from '../src/colonia/mundo';
 import type { Edificio } from '../src/colonia/edificios';
 import { ANCHO, ALTO, TPS, idx } from '../src/colonia/tipos';
+import { TAMANOS } from '../src/colonia/config';
 
 function segundos(w: Mundo, s: number): void {
   for (let k = 0; k < s * TPS; k++) w.paso();
@@ -251,5 +252,64 @@ describe('panel de administración', () => {
     expect(w2.admin.dios).toBe(true);
     expect(w2.admin.pacifico).toBe(true);
     expect(w2.admin.gratis).toBe(false);
+  });
+});
+
+describe('configuración de la partida', () => {
+  it('todos los tamaños generan un mapa jugable', () => {
+    for (const tamano of ['pequeno', 'mediano', 'grande', 'enorme'] as const) {
+      const w = Mundo.nueva({ semilla: 9, tamano });
+      expect(ANCHO).toBe(TAMANOS[tamano].ancho);
+      expect(ALTO).toBe(TAMANOS[tamano].alto);
+      expect(w.mapa.suelo.length).toBe(ANCHO * ALTO);
+      const [x, y] = w.inicio;
+      expect(w.pasableColono(idx(x, y))).toBe(true);
+      expect(w.nidos.length).toBeGreaterThanOrEqual(2);
+      segundos(w, 3);
+    }
+  });
+
+  it('las opciones de terreno se notan', () => {
+    const cuenta = (_w: Mundo, f: (i: number) => boolean) => {
+      let n = 0;
+      for (let i = 0; i < ANCHO * ALTO; i++) if (f(i)) n++;
+      return n;
+    };
+    const seco = Mundo.nueva({ semilla: 4, agua: 0, montanas: 0, bosque: 0 });
+    expect(cuenta(seco, (i) => seco.mapa.suelo[i] === 3)).toBe(0);
+    expect(cuenta(seco, (i) => seco.mapa.muro[i] === 1)).toBe(0);
+    expect(cuenta(seco, (i) => seco.mapa.planta[i] === 1)).toBe(0);
+    const humedo = Mundo.nueva({ semilla: 4, agua: 3, montanas: 3, bosque: 3 });
+    expect(cuenta(humedo, (i) => humedo.mapa.suelo[i] === 3)).toBeGreaterThan(0);
+    expect(cuenta(humedo, (i) => humedo.mapa.planta[i] === 1)).toBeGreaterThan(0);
+    const pobre = Mundo.nueva({ semilla: 4, mineral: 0 });
+    const rico = Mundo.nueva({ semilla: 4, mineral: 3 });
+    const total = (w: Mundo) => w.mapa.cantidad.reduce((s, v) => s + v, 0);
+    expect(total(rico)).toBeGreaterThan(total(pobre) * 2);
+    expect(Mundo.nueva({ semilla: 4, nidos: 0 }).nidos.length).toBe(0);
+    expect(Mundo.nueva({ semilla: 4, colonos: 6 }).colonos.length).toBe(6);
+  });
+
+  it('en dificultad pacífica no llega nadie', () => {
+    const w = Mundo.nueva({ semilla: 8, dificultad: 'pacifica' });
+    w.mapa.contaminar(w.nidos[0]!.x, w.nidos[0]!.y, 2000);
+    w.proximaIncursion = w.tick + 1;
+    segundos(w, 5);
+    expect(w.criaturas.length).toBe(0);
+    const brutal = Mundo.nueva({ semilla: 8, dificultad: 'brutal' });
+    expect(brutal.proximaIncursion).toBeLessThan(w.proximaIncursion + 1e9);
+    expect(brutal.dificultad.dano).toBeGreaterThan(1);
+  });
+
+  it('cargar una partida restaura su tamaño y su configuración', () => {
+    const w = Mundo.nueva({ semilla: 12, tamano: 'grande', dificultad: 'dificil' });
+    const texto = serializar(w);
+    Mundo.nueva({ semilla: 1, tamano: 'pequeno' });
+    expect(ANCHO).toBe(TAMANOS.pequeno.ancho);
+    const w2 = deserializar(texto)!;
+    expect(ANCHO).toBe(TAMANOS.grande.ancho);
+    expect(w2.config.dificultad).toBe('dificil');
+    expect([...w2.mapa.suelo]).toEqual([...w.mapa.suelo]);
+    segundos(w2, 2);
   });
 });

@@ -35,6 +35,25 @@ mantenerlo encendido un día entero con energía.
   que llenarlas), torretas láser, y colonos reclutados (R) que obedecen al clic
   derecho.
 
+## Menú y nueva colonia
+
+Al abrir el juego sale el menú: continuar, nueva colonia, cargar una partida
+desde archivo o leer cómo se juega. «Nueva colonia» deja elegir, con una vista
+previa del mapa que se regenera al momento:
+
+| Opción | Valores |
+|---|---|
+| Dificultad | Pacífica (nadie ataca), Fácil, Normal, Difícil, Brutal: cambian el tamaño y la frecuencia de las incursiones, el día de la primera, la evolución, cuánto crían los nidos y cuánto muerden |
+| Tamaño del mapa | Pequeño 96×72, Mediano 128×96, Grande 176×132, Enorme 240×180 |
+| Agua, montañas, bosque | Nada, poco, normal o mucho |
+| Mineral | Muy pobre, pobre, normal o rico (número y tamaño de las manchas) |
+| Nidos al empezar | 0 a 12 |
+| Colonos | 1 a 6 |
+| Recursos iniciales | Escasos, normales o abundantes |
+| Semilla | Número o texto; la misma semilla y opciones dan el mismo mapa |
+
+Las opciones se guardan con la partida y el menú recuerda las últimas usadas.
+
 ## Panel de administración
 
 `F10`, el botón **⚙ Admin** de la barra superior o el menú ☰. Todo se guarda
@@ -86,6 +105,7 @@ recortan las luces.
 | `camino.ts` | Dijkstra/A* en la rejilla y campos de distancia multi-fuente |
 | `mundo.ts` | El estado entero y el tick |
 | `guardado.ts` | Partidas en `localStorage` |
+| `config.ts`, `menu.ts` | Opciones de partida, dificultades, menú de inicio y vista previa |
 | `admin.ts` | Panel de administración |
 | `render.ts`, `ui.ts`, `main.ts` | Dibujo, interfaz y controles |
 
@@ -100,7 +120,8 @@ Decisiones que conviene conocer:
 - **Las criaturas siguen un campo de distancias** hacia su objetivo en el que
   los muros cuestan pero no bloquean: si un muro está en el camino más corto,
   lo muerden. Una criatura atascada medio minuto se dispersa.
-- La simulación va a 20 ticks por segundo de juego y cuesta ~0,1 ms por tick.
+- El tamaño del mapa (`ANCHO`, `ALTO` en `tipos.ts`) cambia con cada partida: se fija con `fijarTamano` antes de crear o cargar un mundo, y la vista previa lo cambia un instante y lo restaura.
+- La simulación va a 20 ticks por segundo de juego y cuesta ~0,06 ms por tick en el mapa mediano y ~0,17 ms en el enorme.
 
 `tests/colonia.test.ts` comprueba, entre otras cosas, que desde cero los
 colonos acaban fundiendo placas y fabricando engranajes solos, que la cadena

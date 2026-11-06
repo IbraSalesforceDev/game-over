@@ -2,6 +2,7 @@
  * El mapa: suelo, roca, minerales, plantas, objetos sueltos, zonas, órdenes y
  * contaminación. Todo en arrays planos de ANCHO × ALTO.
  */
+import type { Config } from './config';
 import { ALTO, ANCHO, type ItemId, type Pila, dentro, idx, rng } from './tipos';
 
 export enum Suelo {
@@ -36,8 +37,9 @@ export const MINERALES: ItemId[] = ['hierro', 'cobre', 'carbon', 'piedra'];
 
 /** Lado de un trozo de contaminación, en casillas. */
 export const TROZO = 8;
-export const TW = Math.ceil(ANCHO / TROZO);
-export const TH = Math.ceil(ALTO / TROZO);
+/** Trozos de contaminación a lo ancho y a lo alto del mapa actual. */
+export const tw = (): number => Math.ceil(ANCHO / TROZO);
+export const th = (): number => Math.ceil(ALTO / TROZO);
 
 export class Mapa {
   suelo = new Uint8Array(ANCHO * ALTO);
@@ -54,7 +56,7 @@ export class Mapa {
   /** Id del edificio que ocupa la casilla (0 = ninguno). */
   edif = new Int32Array(ANCHO * ALTO);
   objetos = new Map<number, Pila>();
-  contaminacion = new Float32Array(TW * TH);
+  contaminacion = new Float32Array(tw() * th());
   /** Variación visual por casilla. */
   ruido = new Uint8Array(ANCHO * ALTO);
 
@@ -112,7 +114,7 @@ export class Mapa {
   }
 
   trozo(x: number, y: number): number {
-    return Math.floor(y / TROZO) * TW + Math.floor(x / TROZO);
+    return Math.floor(y / TROZO) * tw() + Math.floor(x / TROZO);
   }
 
   contaminar(x: number, y: number, cant: number): void {
@@ -151,7 +153,13 @@ export interface Generado {
   nidos: [number, number][];
 }
 
-export function generar(semilla: number): Generado {
+export function generar(cfg: Config): Generado {
+  const semilla = cfg.semilla;
+  const UMBRAL_AGUA = [-1, 0.2, 0.27, 0.34][cfg.agua]!;
+  const UMBRAL_MURO = [9, 0.78, 0.7, 0.62][cfg.montanas]!;
+  const UMBRAL_BOSQUE = [9, 0.66, 0.58, 0.5][cfg.bosque]!;
+  const RIQUEZA = [0.4, 0.7, 1, 1.6][cfg.mineral]!;
+  const area = (ANCHO * ALTO) / (128 * 96);
   const m = new Mapa();
   const r = rng(semilla);
   const alto1 = ruidoValor(semilla + 1, 18);
@@ -169,16 +177,16 @@ export function generar(semilla: number): Generado {
       const llano = Math.min(1, Math.max(0, (dc - 9) / 10));
       const e = (alto1(x, y) * 0.7 + alto2(x, y) * 0.3 - 0.5) * llano + 0.5;
       const h = hum(x, y);
-      if (e < 0.27) m.suelo[i] = Suelo.Agua;
-      else if (e < 0.31) m.suelo[i] = Suelo.Arena;
-      else if (e > 0.7) {
+      if (e < UMBRAL_AGUA) m.suelo[i] = Suelo.Agua;
+      else if (e < UMBRAL_AGUA + 0.04) m.suelo[i] = Suelo.Arena;
+      else if (e > UMBRAL_MURO) {
         m.suelo[i] = Suelo.Roca;
         m.muro[i] = 1;
-      } else if (e > 0.64) m.suelo[i] = Suelo.Roca;
+      } else if (e > UMBRAL_MURO - 0.06) m.suelo[i] = Suelo.Roca;
       else m.suelo[i] = h > 0.55 ? Suelo.Tierra : Suelo.Hierba;
       if (m.suelo[i] === Suelo.Hierba || m.suelo[i] === Suelo.Tierra) {
         const vv = veg(x, y) * 0.6 + h * 0.4;
-        if (dc > 5 && vv > 0.58 && r() < 0.55) m.planta[i] = Planta.Arbol;
+        if (dc > 5 && vv > UMBRAL_BOSQUE && r() < 0.55) m.planta[i] = Planta.Arbol;
         else if (dc > 4 && r() < 0.012) {
           m.planta[i] = Planta.Arbusto;
           m.crece[i] = 1;
@@ -192,10 +200,11 @@ export function generar(semilla: number): Generado {
   cerca.forEach((tipo, k) => {
     const a = (k / cerca.length) * Math.PI * 2 + r() * 0.6;
     const d = 11 + r() * 8;
-    manchas.push({ tipo, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, r: 2.6 + r() * 1.2, cant: 250 + r() * 200 });
+    manchas.push({ tipo, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, r: 2.6 + r() * 1.2, cant: (250 + r() * 200) * RIQUEZA });
   });
-  for (let k = 0; k < 10; k++) {
-    manchas.push({ tipo: 1 + (k % 4), x: 8 + r() * (ANCHO - 16), y: 8 + r() * (ALTO - 16), r: 3 + r() * 3, cant: 500 + r() * 900 });
+  const lejanas = Math.max(2, Math.round(10 * area * RIQUEZA));
+  for (let k = 0; k < lejanas; k++) {
+    manchas.push({ tipo: 1 + (k % 4), x: 8 + r() * (ANCHO - 16), y: 8 + r() * (ALTO - 16), r: 3 + r() * 3, cant: (500 + r() * 900) * RIQUEZA });
   }
   for (const s of manchas) {
     for (let y = Math.floor(s.y - s.r - 1); y <= s.y + s.r + 1; y++) {
@@ -209,17 +218,20 @@ export function generar(semilla: number): Generado {
         m.planta[i] = Planta.Nada;
         if (m.suelo[i] === Suelo.Roca) m.suelo[i] = Suelo.Tierra;
         m.mineral[i] = s.tipo;
-        m.cantidad[i] = Math.round(s.cant * (1 - (d / s.r) * 0.6));
+        m.cantidad[i] = Math.min(65000, Math.round(s.cant * (1 - (d / s.r) * 0.6)));
       }
     }
   }
   // Nidos: lejos del centro, en suelo firme.
   const nidos: [number, number][] = [];
-  for (let intento = 0; intento < 400 && nidos.length < 4; intento++) {
+  // En los mapas pequeños los nidos quedan más cerca: no hay más sitio.
+  const lejos = Math.min(ANCHO, ALTO) * 0.48;
+  const separacion = Math.min(30, lejos * 0.7);
+  for (let intento = 0; intento < 3000 && nidos.length < cfg.nidos; intento++) {
     const x = 4 + Math.floor(r() * (ANCHO - 8));
     const y = 4 + Math.floor(r() * (ALTO - 8));
-    if (Math.hypot(x - cx, y - cy) < 46) continue;
-    if (nidos.some(([a, b]) => Math.hypot(a - x, b - y) < 30)) continue;
+    if (Math.hypot(x - cx, y - cy) < lejos) continue;
+    if (nidos.some(([a, b]) => Math.hypot(a - x, b - y) < (intento > 1500 ? separacion * 0.5 : separacion))) continue;
     let ok = true;
     for (let j = -1; j <= 2 && ok; j++) for (let i = -1; i <= 2 && ok; i++) if (!dentro(x + i, y + j) || m.suelo[idx(x + i, y + j)] === Suelo.Agua) ok = false;
     if (!ok) continue;
