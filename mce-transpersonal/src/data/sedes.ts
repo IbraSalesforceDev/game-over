@@ -51,6 +51,10 @@ const daniela: Facilitador = { nombre: 'Daniela Russo' };
 const silvia: Facilitador = { nombre: 'Silvia Díaz' };
 const danielSalido: Facilitador = { nombre: 'Daniel Jesús Salido' };
 const noelia: Facilitador = { nombre: 'Noelia Domínguez' };
+// TODO: apellido de Kike (de momento, el nombre tal como lo pasó la escuela). Sin foto todavía.
+const kike: Facilitador = { nombre: 'Kike' };
+// Sin foto todavía.
+const reyes: Facilitador = { nombre: 'Reyes Rodrigo' };
 
 const telefonosAlicanteSur = ['633 171 860', '619 313 778'];
 
@@ -63,7 +67,7 @@ export const sedes: Sede[] = [
     instagram: ig('mce_alicantesur'),
     facebook: fb('danielarusso.coach.trainer'),
     telefonos: telefonosAlicanteSur,
-    facilitadores: [daniela],
+    facilitadores: [daniela, kike],
   },
   {
     id: 'benidorm',
@@ -94,7 +98,7 @@ export const sedes: Sede[] = [
     instagram: ig('daniel_jesus_salido_duran'),
     facebook: fb('CONSCIENCIASOCIALSL'),
     telefonos: ['661 868 688'],
-    facilitadores: [danielSalido],
+    facilitadores: [danielSalido, reyes],
   },
   {
     id: 'granada',

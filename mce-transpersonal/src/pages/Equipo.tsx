@@ -8,7 +8,7 @@ import { equipo } from '../data/equipo';
 import { sedes } from '../data/sedes';
 import { fotosEquipo } from '../data/fotosEquipo';
 import { fotosSede, todasLasFotosDeSede, type FotoReal } from '../data/fotos';
-import { cx } from '../lib/utilidades';
+import { cx, iniciales } from '../lib/utilidades';
 import { betty } from '../data/textos';
 
 /** Tira de fotos de las sedes que se puede arrastrar en horizontal. */
@@ -125,8 +125,13 @@ export default function Equipo() {
                   {sede.facilitadores.map((f) => (
                     <li key={f.nombre} className="group/persona flex w-[7.5rem] flex-col items-center text-center">
                       <span className="block h-24 w-24 overflow-hidden rounded-full bg-mar-claro ring-1 ring-carbon/10 transition-transform duration-500 ease-[var(--ease-suave)] group-hover/persona:-translate-y-1 group-hover/persona:scale-[1.04]">
-                        {fotosEquipo[f.nombre] && (
+                        {fotosEquipo[f.nombre] ? (
                           <img src={fotosEquipo[f.nombre]} alt={`Foto de ${f.nombre}`} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                        ) : (
+                          // Sin foto: iniciales hasta que llegue la foto.
+                          <span aria-hidden className="flex h-full w-full items-center justify-center font-serif text-[1.9rem] text-mar">
+                            {iniciales(f.nombre)}
+                          </span>
                         )}
                       </span>
                       <span className="mt-3 text-[1rem] leading-snug text-carbon">{f.nombre}</span>
