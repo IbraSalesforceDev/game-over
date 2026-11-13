@@ -23,7 +23,6 @@ import nivel1Valencia from '../assets/carteles/nivel-1-valencia.webp';
 import expertoSevilla from '../assets/carteles/experto-sevilla.webp';
 import expertoBenidorm from '../assets/carteles/experto-benidorm.webp';
 import especialista from '../assets/carteles/especialista-sistemico.webp';
-// PROVISIONAL: sustituir por el cartel de 7H (mismo nombre o cambiar el import).
 import sieteHSevilla from '../assets/carteles/7h-sevilla.webp';
 import monograficoSevilla from '../assets/carteles/monografico-sevilla.webp';
 import monograficoGranada from '../assets/carteles/monografico-granada.webp';
