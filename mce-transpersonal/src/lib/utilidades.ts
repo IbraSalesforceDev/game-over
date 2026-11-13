@@ -58,3 +58,6 @@ export function useEsGrande(): boolean {
   }, []);
   return grande;
 }
+
+/** true al generar el HTML de las páginas en el build (no hay navegador). */
+export const enServidor = typeof document === 'undefined';

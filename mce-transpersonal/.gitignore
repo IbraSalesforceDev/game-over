@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-archivo/
+dist-ssr/
 .vercel/
 .firebase/
 *.local

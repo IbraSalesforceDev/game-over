@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { IconoCerrar } from './Iconos';
 import { detenerScroll, reanudarScroll } from '../../lib/scroll';
-import { cx } from '../../lib/utilidades';
+import { cx, enServidor } from '../../lib/utilidades';
 
 /**
  * Ventana modal accesible: bloquea el scroll de fondo, se cierra con Esc o
@@ -64,6 +64,7 @@ export default function Modal({
   }, [abierto, alCerrar]);
 
   // Se pinta en <body> para quedar por encima de la cabecera y del resto de capas.
+  if (enServidor) return null;
   return createPortal(
     <AnimatePresence>
       {abierto && (

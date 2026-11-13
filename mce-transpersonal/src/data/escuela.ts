@@ -14,6 +14,8 @@ export const escuela = {
   siglas: 'MCE',
   lema: 'Mente, Cuerpo y Espíritu',
   fundadora: 'Betty Merino',
+  /** Dirección de la web publicada (para Google y las vistas previas). */
+  web: 'https://mcetranspersonal.com',
 
   // El logo original está en src/assets/logo.png (se muestra sin filtros ni recoloreado).
   // TODO: si hay versión vectorial (SVG) o más grande, sustituirlo por ella.

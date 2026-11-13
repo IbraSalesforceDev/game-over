@@ -30,6 +30,7 @@ export function useDestino() {
       return () => oyentes.delete(o);
     },
     () => destino,
+    () => destino,
   );
 }
 
@@ -87,6 +88,7 @@ export function useVueltaDesdeCache() {
       return () => oyentesVuelta.delete(o);
     },
     () => vueltas,
+    () => vueltas,
   );
 }
 
@@ -119,6 +121,7 @@ export function useIntroTerminada() {
       return () => oyentesIntro.delete(o);
     },
     () => introTerminada,
+    () => introTerminada,
   );
 }
 export function useIntroActiva() {
@@ -127,6 +130,7 @@ export function useIntroActiva() {
       oyentesIntro.add(o);
       return () => oyentesIntro.delete(o);
     },
+    () => introActiva,
     () => introActiva,
   );
 }

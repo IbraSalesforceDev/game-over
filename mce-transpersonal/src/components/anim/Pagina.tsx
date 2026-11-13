@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
-import { useTitulo } from '../../lib/utilidades';
+import { enServidor, useTitulo } from '../../lib/utilidades';
 import { tomarRetrasoEntrada, useDestino } from '../../lib/transicion';
 
 /**
@@ -83,7 +83,7 @@ export default function Pagina({ titulo, children }: { titulo?: string; children
     <RetrasoPagina.Provider value={{ inicial: retraso, vivo }}>
       {/* La cortina va en un portal: así cubre también la cabecera y no le
           afectan los transform ni las capas del contenido. */}
-      {!reducido && createPortal(<Cortina tapada={conCortina} />, document.body)}
+      {!reducido && !enServidor && createPortal(<Cortina tapada={conCortina} />, document.body)}
       <motion.main
         id="contenido"
         tabIndex={-1}

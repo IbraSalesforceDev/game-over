@@ -13,7 +13,7 @@ Requisitos: Node 20 o superior.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm run build      # genera dist/ (comprueba tipos antes)
+npm run build      # genera dist/ (comprueba tipos antes) con el HTML completo de cada página
 npm run preview    # sirve dist/ para probarlo como en producción
 ```
 
@@ -60,8 +60,12 @@ pendiente tiene un comentario `// TODO` al lado.
 
 ## Despliegue
 
-En los dos casos, las rutas (`/sedes`, `/formaciones`…) ya están configuradas para que recargar la
-página o entrar directamente por un enlace funcione.
+`npm run build` genera un archivo HTML completo por página (`index.html`, `sobre-mce.html`,
+`formaciones.html`…) con su título y su descripción (`src/data/seo.ts`), para que Google y las
+vistas previas de WhatsApp vean el contenido sin esperar al JavaScript (`scripts/prerender.mjs`).
+También genera `404.html`: cualquier dirección que no exista devuelve un 404 real con esa página.
+Cloudflare Pages, Netlify, Vercel y Firebase sirven `/sedes` desde `sedes.html` sin configurar
+nada más (en Vercel y Firebase ya está puesto `cleanUrls`).
 
 > **Nota:** ahora mismo el proyecto vive en la carpeta `mce-transpersonal/` del repositorio. Lo ideal
 > es moverlo a un repositorio propio (p. ej. `mce-transpersonal-web`). Si se queda en la subcarpeta,
@@ -128,7 +132,6 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 ## Pendientes (`TODO`)
 
 - [ ] **Carteles con fechas**: cambiarlos cuando caduquen → `src/assets/carteles/` y `src/data/carteles.ts`.
-- [ ] **Aviso legal**: confirmar el nombre exacto de la entidad → `src/data/escuela.ts` (`legal.denominacion`).
 - [ ] **Revisión legal** del aviso legal y de las políticas de privacidad y cookies por un gestor o asesor.
 - [ ] **Logo en vectorial** (SVG/PDF) o a más resolución → `src/assets/logo.png`.
 - [ ] **Firebase** (si se usa): ID del proyecto en `.firebaserc`.

@@ -40,12 +40,13 @@ function versionBasica(): Plugin {
  * (código, estilos y tipografías) para enviarlo y abrirlo sin servidor.
  * Usa rutas con # (index.html#/sedes) porque un archivo suelto no tiene servidor.
  */
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, isSsrBuild }) => {
   const archivo = mode === 'archivo';
   return {
     plugins: [react(), tailwindcss(), versionBasica(), ...(archivo ? [viteSingleFile()] : [])],
     base: archivo ? './' : '/',
-    publicDir: archivo ? false : 'public',
+    // El build de servidor (para generar el HTML de cada página) no necesita public/.
+    publicDir: archivo || isSsrBuild ? false : 'public',
     build: {
       // La web se abre en móviles muy variados: código compatible también con
       // navegadores algo más antiguos (iOS 13+, Android con Chrome 80+).

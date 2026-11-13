@@ -24,7 +24,7 @@
       contacto de las sedes (se genera desde src/data en el build).
     -->
     <style>
-      #arranque{min-height:100vh;background:#0b1226;color:#f6eedb;font-family:Georgia,serif;text-align:center;padding:18vh 1.25rem 3rem;box-sizing:border-box}
+      #arranque{position:fixed;inset:0;z-index:2147483000;overflow-y:auto;background:#0b1226;color:#f6eedb;font-family:Georgia,serif;text-align:center;padding:18vh 1.25rem 3rem;box-sizing:border-box}
       #arranque .marca{font-size:2.2rem;letter-spacing:.1em;margin:0}
       #arranque .cargando{font-size:1.05rem;opacity:.75;margin:.6rem 0 0;animation:mce-latir 1.6s ease-in-out infinite}
       #arranque .tarde{opacity:0;visibility:hidden;animation:mce-ver .6s ease 5s forwards;max-width:34rem;margin:2.5rem auto 0;text-align:left;font-family:system-ui,-apple-system,sans-serif;font-size:.98rem;line-height:1.6}
@@ -51,6 +51,7 @@
           <!--version-basica-->
         </div>
       </div>
+      <!--pagina-->
     </div>
     <script>
       // Si hay un error al arrancar, se muestra en pantalla para poder enviarlo.
