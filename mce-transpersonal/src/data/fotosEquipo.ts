@@ -12,6 +12,8 @@ import anabelMartinez from '../assets/equipo/anabel-martinez.webp';
 import noeliaDominguez from '../assets/equipo/noelia-dominguez.webp';
 import silviaDiaz from '../assets/equipo/silvia-diaz.webp';
 import danielJesusSalido from '../assets/equipo/daniel-jesus-salido.webp';
+import enriqueGala from '../assets/equipo/enrique-gala.webp';
+import reyesRodrigo from '../assets/equipo/reyes-rodrigo.webp';
 
 export const fotosEquipo: Record<string, string> = {
   'Daniela Russo': danielaRusso,
@@ -20,4 +22,6 @@ export const fotosEquipo: Record<string, string> = {
   'Noelia Domínguez': noeliaDominguez,
   'Silvia Díaz': silviaDiaz,
   'Daniel Jesús Salido': danielJesusSalido,
+  'Enrique Gala': enriqueGala,
+  'Reyes Rodrigo': reyesRodrigo,
 };

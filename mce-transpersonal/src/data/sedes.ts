@@ -51,9 +51,8 @@ const daniela: Facilitador = { nombre: 'Daniela Russo' };
 const silvia: Facilitador = { nombre: 'Silvia Díaz' };
 const danielSalido: Facilitador = { nombre: 'Daniel Jesús Salido' };
 const noelia: Facilitador = { nombre: 'Noelia Domínguez' };
-// TODO: apellido de Kike (de momento, el nombre tal como lo pasó la escuela). Sin foto todavía.
-const kike: Facilitador = { nombre: 'Kike' };
-// Sin foto todavía.
+// Kike: vuelve por indicación de la escuela; nombre como en la web oficial.
+const kike: Facilitador = { nombre: 'Enrique Gala' };
 const reyes: Facilitador = { nombre: 'Reyes Rodrigo' };
 
 const telefonosAlicanteSur = ['633 171 860', '619 313 778'];
