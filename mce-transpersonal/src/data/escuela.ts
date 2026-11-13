@@ -37,8 +37,7 @@ export const escuela = {
     // La titular es la entidad, no una persona física (nombre como en el cartel de Benidorm).
     denominacion: 'Asociación MCE Transpersonal' as string | null,
     denominacionPendiente: false,
-    // Se recibió «Q42812537»; con Q el dígito de control tendría que ser una letra, así que
-    // se pone G (asociaciones), con la que el control 7 cuadra. PENDIENTE DE CONFIRMAR.
+    // CIF confirmado por la escuela.
     cif: 'G42812537' as string | null,
     domicilio: 'Calle Asdrúbal, 3, 41089 Montequinto (Sevilla)' as string | null,
     emailPrivacidad: 'mcetranspersonal@gmail.com' as string | null,

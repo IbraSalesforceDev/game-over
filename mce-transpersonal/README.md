@@ -128,7 +128,7 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 ## Pendientes (`TODO`)
 
 - [ ] **Carteles con fechas**: cambiarlos cuando caduquen → `src/assets/carteles/` y `src/data/carteles.ts`.
-- [ ] **Aviso legal**: confirmar el CIF (G42812537) y el nombre exacto de la entidad → `src/data/escuela.ts` (`legal`).
+- [ ] **Aviso legal**: confirmar el nombre exacto de la entidad → `src/data/escuela.ts` (`legal.denominacion`).
 - [ ] **Revisión legal** del aviso legal y de las políticas de privacidad y cookies por un gestor o asesor.
 - [ ] **Logo en vectorial** (SVG/PDF) o a más resolución → `src/assets/logo.png`.
 - [ ] **Firebase** (si se usa): ID del proyecto en `.firebaserc`.
