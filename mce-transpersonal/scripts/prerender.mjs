@@ -23,6 +23,47 @@ const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, 
 
 const plantilla = await readFile(path.join(dist, 'index.html'), 'utf8');
 
+// Imagen que sale al compartir un enlace (WhatsApp, redes): public/compartir.jpg, 1200 × 630.
+const imagen = `${escuela.web}/compartir.jpg`;
+const etiquetasImagen =
+  `    <meta property="og:image" content="${imagen}" />\n` +
+  `    <meta property="og:image:width" content="1200" />\n` +
+  `    <meta property="og:image:height" content="630" />\n` +
+  `    <meta property="og:image:alt" content="${esc(`${escuela.nombre}, ${escuela.lema}: grupo de alumnos y facilitadores`)}" />\n` +
+  `    <meta name="twitter:card" content="summary_large_image" />\n`;
+
+// Datos estructurados (solo en Inicio): le dicen a Google el nombre de la web
+// (el que muestra encima del resultado), el logo y las redes de la escuela.
+const datos = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${escuela.web}/#web`,
+      name: escuela.nombre,
+      alternateName: [escuela.siglas, `${escuela.siglas} ${escuela.lema}`],
+      url: `${escuela.web}/`,
+      inLanguage: 'es-ES',
+      publisher: { '@id': `${escuela.web}/#escuela` },
+    },
+    {
+      '@type': 'EducationalOrganization',
+      '@id': `${escuela.web}/#escuela`,
+      name: escuela.nombre,
+      alternateName: `${escuela.siglas} · ${escuela.lema}`,
+      ...(escuela.legal.denominacion ? { legalName: escuela.legal.denominacion } : {}),
+      url: `${escuela.web}/`,
+      logo: `${escuela.web}/logo.png`,
+      image: imagen,
+      ...(escuela.email ? { email: escuela.email } : {}),
+      ...(escuela.telefono ? { telephone: `+34 ${escuela.telefono}` } : {}),
+      founder: { '@type': 'Person', name: escuela.fundadora },
+      sameAs: [escuela.instagram.url],
+    },
+  ],
+};
+const etiquetaDatos = `    <script type="application/ld+json">${JSON.stringify(datos).replace(/</g, '\\u003c')}</script>\n`;
+
 function cambiar(html, patron, nuevo, que) {
   if (!patron.test(html)) throw new Error(`prerender: no se encuentra ${que} en index.html`);
   return html.replace(patron, nuevo);
@@ -41,7 +82,9 @@ for (const pagina of paginasSeo) {
   html = cambiar(html, /<meta property="og:description" content="[^"]*" \/>/, `<meta property="og:description" content="${descripcion}" />`, 'og:description');
 
   const extra = indexar
-    ? `    <link rel="canonical" href="${url}" />\n    <meta property="og:url" content="${url}" />\n    <meta property="og:site_name" content="${esc(escuela.nombre)}" />\n`
+    ? `    <link rel="canonical" href="${url}" />\n    <meta property="og:url" content="${url}" />\n    <meta property="og:site_name" content="${esc(escuela.nombre)}" />\n` +
+      etiquetasImagen +
+      (pagina.ruta === '/' ? etiquetaDatos : '')
     : `    <meta name="robots" content="noindex" />\n`;
   html = cambiar(html, /<\/head>/, `${extra}  </head>`, '</head>');
 

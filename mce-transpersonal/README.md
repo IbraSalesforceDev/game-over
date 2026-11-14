@@ -67,7 +67,9 @@ También genera `404.html`: cualquier dirección que no exista devuelve un 404 r
 Cloudflare Pages, Netlify, Vercel y Firebase sirven `/sedes` desde `sedes.html` sin configurar
 nada más (en Vercel y Firebase ya está puesto `cleanUrls`).
 
-El build genera también `sitemap.xml` (lo indica `robots.txt`). Las direcciones de la web antigua
+El build genera también `sitemap.xml` (lo indica `robots.txt`). Cada página lleva la imagen para
+compartir (`public/compartir.jpg`, 1200 × 630, hecha con la foto de grupo y el logo) e Inicio lleva
+los datos estructurados para Google (nombre «MCE Transpersonal», logo `public/logo.png`, Instagram). Las direcciones de la web antigua
 redirigen con un 301 a las nuevas: la lista está en `public/_redirects` (Cloudflare Pages y Netlify)
 y repetida en `vercel.json` y `firebase.json`. Si se añade una, ponerla en los tres.
 
