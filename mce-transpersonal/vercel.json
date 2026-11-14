@@ -41,5 +41,72 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/servicios",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/inteligencia-emocional-transpersonal",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/otros-cursos-y-charlas",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/monografico-transpersonal",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/eventos",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/eventos-2",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/iii-congreso-transpersonal-mce",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/inscripcion-iii-congreso-transpersonal-mce",
+      "destination": "/formaciones",
+      "permanent": true
+    },
+    {
+      "source": "/escuelas-mce",
+      "destination": "/sedes",
+      "permanent": true
+    },
+    {
+      "source": "/blog",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/2016/:ruta*",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/category/:ruta*",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/author/:ruta*",
+      "destination": "/",
+      "permanent": true
+    }
   ]
 }

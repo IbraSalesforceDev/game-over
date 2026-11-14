@@ -1,6 +1,6 @@
 /**
  * Genera el HTML completo de cada página después del build:
- * dist/index.html, dist/sobre-mce.html, …, dist/404.html.
+ * dist/index.html, dist/sobre-mce.html, …, dist/404.html, y dist/sitemap.xml.
  *
  * Así Google y las vistas previas (WhatsApp, redes) ven el contenido, el
  * título y la descripción de cada página sin esperar al JavaScript. En el
@@ -50,5 +50,16 @@ for (const pagina of paginasSeo) {
   await writeFile(path.join(dist, pagina.archivo), html);
   console.log(`prerender: ${pagina.archivo.padEnd(18)} ${pagina.ruta}`);
 }
+
+// Sitemap para Google: todas las páginas que se pueden indexar.
+const urls = paginasSeo
+  .filter((p) => p.indexar !== false)
+  .map((p) => `  <url><loc>${escuela.web}${p.ruta === '/' ? '/' : p.ruta}</loc></url>`)
+  .join('\n');
+await writeFile(
+  path.join(dist, 'sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+);
+console.log('prerender: sitemap.xml');
 
 await rm(ssr, { recursive: true, force: true });

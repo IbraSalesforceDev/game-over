@@ -1,0 +1,33 @@
+# Redirecciones permanentes (301) de las direcciones de la web antigua (WordPress)
+# a las nuevas, para que Google traslade su posición y los enlaces viejos sigan
+# funcionando. Formato de Cloudflare Pages y Netlify: origen  destino  código.
+# Lista sacada del sitemap de la web antigua (mcetranspersonal.com/page-sitemap.xml).
+
+/sobre-mce/                                    /sobre-mce     301
+/contacto/                                     /contacto      301
+
+/servicios                                     /formaciones   301
+/servicios/                                    /formaciones   301
+/inteligencia-emocional-transpersonal          /formaciones   301
+/inteligencia-emocional-transpersonal/         /formaciones   301
+/otros-cursos-y-charlas                        /formaciones   301
+/otros-cursos-y-charlas/                       /formaciones   301
+/monografico-transpersonal                     /formaciones   301
+/monografico-transpersonal/                    /formaciones   301
+/eventos                                       /formaciones   301
+/eventos/                                      /formaciones   301
+/eventos-2                                     /formaciones   301
+/eventos-2/                                    /formaciones   301
+/iii-congreso-transpersonal-mce                /formaciones   301
+/iii-congreso-transpersonal-mce/               /formaciones   301
+/inscripcion-iii-congreso-transpersonal-mce    /formaciones   301
+/inscripcion-iii-congreso-transpersonal-mce/   /formaciones   301
+
+/escuelas-mce                                  /sedes         301
+/escuelas-mce/                                 /sedes         301
+
+/blog                                          /              301
+/blog/                                         /              301
+/2016/*                                        /              301
+/category/*                                    /              301
+/author/*                                      /              301

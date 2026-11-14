@@ -44,6 +44,73 @@
           }
         ]
       }
+    ],
+    "redirects": [
+      {
+        "source": "/servicios",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/inteligencia-emocional-transpersonal",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/otros-cursos-y-charlas",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/monografico-transpersonal",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/eventos",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/eventos-2",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/iii-congreso-transpersonal-mce",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/inscripcion-iii-congreso-transpersonal-mce",
+        "destination": "/formaciones",
+        "type": 301
+      },
+      {
+        "source": "/escuelas-mce",
+        "destination": "/sedes",
+        "type": 301
+      },
+      {
+        "source": "/blog",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/2016/**",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/category/**",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/author/**",
+        "destination": "/",
+        "type": 301
+      }
     ]
   }
 }
