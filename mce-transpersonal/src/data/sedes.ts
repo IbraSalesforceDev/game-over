@@ -81,9 +81,7 @@ export const sedes: Sede[] = [
     id: 'valencia',
     nombre: 'Valencia',
     comunidad: 'comunidad-valenciana',
-    // TODO: el Instagram que nos pasaron coincide con el de Granada (mcegranada).
-    // No se muestra hasta confirmar el correcto.
-    instagram: null,
+    instagram: ig('mcevalencia'),
     facebook: fb('mcevalencia'),
     telefonos: ['611 020 574'],
     facilitadores: [anabel, vicente],
