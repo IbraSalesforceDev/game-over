@@ -44,7 +44,7 @@ export const escuela = {
     domicilio: 'Calle Asdrúbal, 3, 41089 Montequinto (Sevilla)' as string | null,
     emailPrivacidad: 'mcetranspersonal@gmail.com' as string | null,
     /** Fecha que aparece como "última actualización" en los textos legales. */
-    actualizacion: '5 de noviembre de 2026',
+    actualizacion: '14 de noviembre de 2026',
   },
 } as const;
 

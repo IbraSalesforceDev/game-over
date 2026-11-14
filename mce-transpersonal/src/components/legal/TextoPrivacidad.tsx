@@ -85,7 +85,8 @@ export default function TextoPrivacidad() {
           <strong>Correo electrónico:</strong> el correo de la escuela es un servicio de Google (Gmail).
         </li>
         <li>
-          <strong>Alojamiento de la web:</strong> el proveedor donde se publica la web, que registra los datos técnicos de la conexión.
+          <strong>Alojamiento de la web:</strong> Cloudflare, Inc., donde se publica la web, que registra los datos técnicos de la
+          conexión.
         </li>
       </ul>
       <p>

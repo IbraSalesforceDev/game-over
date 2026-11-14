@@ -133,5 +133,4 @@ un registrador y se apuntan los DNS. La misma advertencia sobre los registros MX
 
 - [ ] **Carteles con fechas**: cambiarlos cuando caduquen → `src/assets/carteles/` y `src/data/carteles.ts`.
 - [ ] **Revisión legal** del aviso legal y de las políticas de privacidad y cookies por un gestor o asesor.
-- [ ] **Logo en vectorial** (SVG/PDF) o a más resolución → `src/assets/logo.png`.
 - [ ] **Firebase** (si se usa): ID del proyecto en `.firebaserc`.
